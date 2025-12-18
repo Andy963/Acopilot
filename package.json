@@ -1,0 +1,112 @@
+{
+  "name": "limcode",
+  "displayName": "Lim Code",
+  "description": "Lim Code 是一个AI编程助手插件，支持多模态和复杂功能。",
+  "version": "1.0.0",
+  "publisher": "Lianues",
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "limcode.openChat",
+        "title": "LimCode: 打开聊天面板"
+      },
+      {
+        "command": "limcode.newChat",
+        "title": "新建对话",
+        "icon": "$(add)"
+      },
+      {
+        "command": "limcode.showHistory",
+        "title": "对话历史",
+        "icon": "$(history)"
+      },
+      {
+        "command": "limcode.showSettings",
+        "title": "设置",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "limcode.newChat",
+          "when": "view == limcode.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "limcode.showHistory",
+          "when": "view == limcode.chatView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "limcode.showSettings",
+          "when": "view == limcode.chatView",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "limcode",
+          "title": "Lim Code",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "limcode": [
+        {
+          "type": "webview",
+          "id": "limcode.chatView",
+          "name": "Lim Code",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build:frontend": "cd frontend && pnpm run build",
+    "build": "pnpm run compile && pnpm run build:frontend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@vscode/codicons": "^0.0.43",
+    "fast-xml-parser": "^4.5.0",
+    "nanoid": "^5.1.6",
+    "tree-kill": "^1.2.2",
+    "typescript": "^5.9.3",
+    "undici-types": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "@types/vscode": "^1.96.0"
+  },
+  "keywords": [
+    "ai",
+    "chat",
+    "gemini",
+    "conversation"
+  ],
+  "author": "Limerence",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lianues/Lim-Code"
+  }
+}

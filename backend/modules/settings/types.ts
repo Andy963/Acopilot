@@ -1,0 +1,1134 @@
+/**
+ * LimCode - 全局设置类型定义
+ * 
+ * 定义全局设置的类型和接口
+ */
+
+/**
+ * 工具启用状态配置
+ *
+ * key: 工具名称
+ * value: 是否启用
+ */
+export interface ToolsEnabledState {
+    [toolName: string]: boolean;
+}
+
+/**
+ * 工具自动执行配置
+ *
+ * 控制哪些工具可以自动执行（无需用户确认）
+ * key: 工具名称
+ * value: true = 自动执行，false = 需要确认
+ *
+ * 未列出的工具默认自动执行（不需要确认）
+ */
+export interface ToolAutoExecConfig {
+    [toolName: string]: boolean;
+}
+
+/**
+ * List Files 工具配置
+ */
+export interface ListFilesToolConfig {
+    /**
+     * 忽略列表（支持通配符）
+     */
+    ignorePatterns: string[];
+    [key: string]: unknown;
+}
+
+/**
+ * Apply Diff 工具配置
+ */
+export interface ApplyDiffToolConfig {
+    /**
+     * 是否自动应用修改
+     */
+    autoSave: boolean;
+    
+    /**
+     * 自动应用延迟（毫秒）
+     * 在此延迟后自动保存修改，然后继续下一次 AI 调用
+     */
+    autoSaveDelay: number;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * Delete File 工具配置
+ */
+export interface DeleteFileToolConfig {
+    /**
+     * 是否自动执行（无需确认）
+     * 默认 false，需要用户确认后才执行
+     */
+    autoExecute: boolean;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * Shell 配置
+ */
+export interface ShellConfig {
+    /**
+     * Shell 类型标识
+     */
+    type: 'powershell' | 'cmd' | 'bash' | 'zsh' | 'sh' | 'gitbash' | 'wsl';
+    
+    /**
+     * 是否启用
+     */
+    enabled: boolean;
+    
+    /**
+     * Shell 可执行文件路径（可选，使用自定义路径）
+     */
+    path?: string;
+    
+    /**
+     * 显示名称
+     */
+    displayName: string;
+    
+    /**
+     * 是否可用（由后端检测，前端只读）
+     */
+    available?: boolean;
+    
+    /**
+     * 不可用的原因
+     */
+    unavailableReason?: string;
+}
+
+/**
+ * Execute Command 工具配置
+ */
+export interface ExecuteCommandToolConfig {
+    /**
+     * 默认使用的 Shell 类型
+     */
+    defaultShell: string;
+    
+    /**
+     * 可用的 Shell 配置
+     */
+    shells: ShellConfig[];
+    
+    /**
+     * 默认超时时间（毫秒）
+     */
+    defaultTimeout: number;
+    
+    /**
+     * 是否自动执行（无需确认）
+     * 默认 false，需要用户确认后才执行
+     */
+    autoExecute?: boolean;
+    
+    /**
+     * 返回给 AI 的最大输出行数
+     * 只返回终端输出的最后 N 行，避免输出过大
+     * -1 表示无限制（返回全部输出）
+     * 默认: 50
+     */
+    maxOutputLines: number;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 消息类型存档点配置
+ *
+ * 类似工具备份配置，支持在消息前后创建存档点
+ */
+export interface MessageCheckpointConfig {
+    /**
+     * 需要在消息发送/接收前创建备份的消息类型
+     * 可选值: 'user', 'model'
+     */
+    beforeMessages: string[];
+    
+    /**
+     * 需要在消息发送/接收后创建备份的消息类型
+     * 可选值: 'user', 'model'
+     */
+    afterMessages: string[];
+    
+    /**
+     * 连续调用工具时，是否只在最外层创建模型消息存档点
+     *
+     * 当为 true 时：
+     * - 模型消息前存档点：只在第一次迭代时创建
+     * - 模型消息后存档点：只在最后一次迭代（无工具调用）时创建
+     *
+     * 当为 false 时：
+     * - 每次迭代都会创建模型消息的前后存档点
+     *
+     * 默认为 true
+     */
+    modelOuterLayerOnly?: boolean;
+    
+    /**
+     * 是否合并显示消息前后无变更的存档点
+     *
+     * 当为 true 时：
+     * - 如果消息前后存档点的内容哈希相同，则合并显示为一个"内容未变化"的存档点
+     *
+     * 当为 false 时：
+     * - 始终分别显示消息前和消息后的存档点
+     *
+     * 默认为 true
+     */
+    mergeUnchangedCheckpoints?: boolean;
+}
+
+/**
+ * 存档点配置
+ *
+ * 控制哪些工具需要在执行前后创建备份
+ */
+export interface CheckpointConfig {
+    /**
+     * 是否全局启用存档点功能
+     */
+    enabled: boolean;
+    
+    /**
+     * 需要在执行前创建备份的工具列表
+     */
+    beforeTools: string[];
+    
+    /**
+     * 需要在执行后创建备份的工具列表
+     */
+    afterTools: string[];
+    
+    /**
+     * 消息类型存档点配置
+     *
+     * 控制是否为用户消息和模型消息创建存档点
+     */
+    messageCheckpoint?: MessageCheckpointConfig;
+    
+    /**
+     * 保留的最大存档点数量
+     * 超过此数量时自动清理旧的存档点
+     */
+    maxCheckpoints: number;
+    
+    /**
+     * 自定义忽略模式（追加到默认 .gitignore 规则）
+     */
+    customIgnorePatterns?: string[];
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 图像生成工具配置
+ */
+export interface GenerateImageToolConfig {
+    /**
+     * API URL
+     * 默认使用 Gemini API
+     */
+    url: string;
+    
+    /**
+     * API Key
+     */
+    apiKey: string;
+    
+    /**
+     * 模型名称
+     * 例如: gemini-2.5-flash-image
+     */
+    model: string;
+    
+    /**
+     * 是否启用宽高比参数
+     * - 启用 + 空值：工具包含可选的 aspect_ratio 字段，AI 可选择性传入
+     * - 启用 + 设定值：工具不包含该字段，AI 只看到提示词说明，后端强制使用设定值
+     * - 禁用：工具不包含该字段，后端不传
+     * 默认: false
+     */
+    enableAspectRatio: boolean;
+    
+    /**
+     * 默认宽高比（仅当 enableAspectRatio 为 true 时生效）
+     * 空值表示 AI 可自由选择，设定值表示强制使用
+     */
+    defaultAspectRatio?: string;
+    
+    /**
+     * 是否启用图片尺寸参数
+     * - 启用 + 空值：工具包含可选的 image_size 字段，AI 可选择性传入
+     * - 启用 + 设定值：工具不包含该字段，AI 只看到提示词说明，后端强制使用设定值
+     * - 禁用：工具不包含该字段，后端不传
+     * 默认: false
+     */
+    enableImageSize: boolean;
+    
+    /**
+     * 默认图片尺寸（仅当 enableImageSize 为 true 时生效）
+     * 空值表示 AI 可自由选择，设定值表示强制使用
+     */
+    defaultImageSize?: string;
+    
+    /**
+     * 单次调用允许的最大任务数（批量模式）
+     * 控制 AI 一次可以发起多少个不同的图像生成请求
+     * 默认: 5
+     */
+    maxBatchTasks: number;
+    
+    /**
+     * 单个任务的最大图片数
+     * API 可能为一个提示词返回多张图片，此项控制保留的最大数量
+     * 默认: 1
+     */
+    maxImagesPerTask: number;
+    
+    /**
+     * 是否直接返回图片给 AI
+     *
+     * true: 将生成的图片 base64 直接返回给 AI 作为工具结果
+     * false: 只返回文字描述，AI 需要调用 read_file 工具查看
+     *
+     * 默认: false（节省 token 消耗）
+     */
+    returnImageToAI: boolean;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 抠图工具配置
+ */
+export interface RemoveBackgroundToolConfig {
+    /**
+     * 是否直接返回图片给 AI
+     *
+     * true: 将处理后的图片 base64 直接返回给 AI 作为工具结果
+     * false: 只返回文字描述，AI 需要调用 read_file 工具查看
+     *
+     * 默认: false（节省 token 消耗）
+     */
+    returnImageToAI: boolean;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 裁切图片工具配置
+ */
+export interface CropImageToolConfig {
+    /**
+     * 是否直接返回图片给 AI
+     *
+     * true: 将处理后的图片 base64 直接返回给 AI 作为工具结果
+     * false: 只返回文字描述，AI 需要调用 read_file 工具查看
+     *
+     * 默认: false（节省 token 消耗）
+     */
+    returnImageToAI: boolean;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 缩放图片工具配置
+ */
+export interface ResizeImageToolConfig {
+    /**
+     * 是否直接返回图片给 AI
+     *
+     * true: 将处理后的图片 base64 直接返回给 AI 作为工具结果
+     * false: 只返回文字描述，AI 需要调用 read_file 工具查看
+     *
+     * 默认: false（节省 token 消耗）
+     */
+    returnImageToAI: boolean;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 旋转图片工具配置
+ */
+export interface RotateImageToolConfig {
+    /**
+     * 是否直接返回图片给 AI
+     *
+     * true: 将处理后的图片 base64 直接返回给 AI 作为工具结果
+     * false: 只返回文字描述，AI 需要调用 read_file 工具查看
+     *
+     * 默认: false（节省 token 消耗）
+     */
+    returnImageToAI: boolean;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 固定文件项
+ *
+ * 单个被挂载的文件信息
+ */
+export interface PinnedFileItem {
+    /**
+     * 文件的唯一标识
+     */
+    id: string;
+    
+    /**
+     * 文件路径（相对于工作区的路径）
+     */
+    path: string;
+    
+    /**
+     * 所属工作区 URI
+     * 用于多工作区场景下区分文件所属
+     */
+    workspaceUri: string;
+    
+    /**
+     * 是否启用（可临时禁用某个文件）
+     * 默认: true
+     */
+    enabled: boolean;
+    
+    /**
+     * 添加时间戳
+     */
+    addedAt: number;
+}
+
+/**
+ * 固定文件配置
+ *
+ * 允许挂载多个文本文件，每次调用 AI 时读取内容并添加到系统提示词
+ */
+export interface PinnedFilesConfig {
+    /**
+     * 固定文件列表
+     */
+    files: PinnedFileItem[];
+    
+    /**
+     * 在系统提示词中的标题
+     * 默认: 'PINNED FILES CONTENT'
+     */
+    sectionTitle: string;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 系统提示词模块定义
+ *
+ * 描述一个可用的提示词模块
+ */
+export interface PromptModule {
+    /**
+     * 模块 ID（唯一标识符）
+     */
+    id: string;
+    
+    /**
+     * 模块名称
+     */
+    name: string;
+    
+    /**
+     * 模块描述
+     */
+    description: string;
+    
+    /**
+     * 使用示例
+     */
+    example?: string;
+    
+    /**
+     * 是否需要特定配置才能生效
+     */
+    requiresConfig?: string;
+}
+
+/**
+ * 系统提示词配置
+ *
+ * 允许用户自定义系统提示词模板
+ */
+export interface SystemPromptConfig {
+    /**
+     * 是否启用自定义提示词模板
+     * 禁用时使用默认模板
+     */
+    enabled: boolean;
+    
+    /**
+     * 自定义提示词模板
+     *
+     * 支持使用以下模块占位符（使用 {{$xxx}} 格式）：
+     * - {{$ENVIRONMENT}} - 环境信息（工作区、操作系统、时间等）
+     * - {{$WORKSPACE_FILES}} - 工作区文件树
+     * - {{$OPEN_TABS}} - 打开的标签页
+     * - {{$ACTIVE_EDITOR}} - 当前活动编辑器
+     * - {{$PINNED_FILES}} - 固定文件内容
+     * - {{$TOOLS}} - 工具定义（XML 或 Function Call）
+     * - {{$MCP_TOOLS}} - MCP 工具定义
+     *
+     * 模块之间可以添加任意文字
+     */
+    template: string;
+    
+    /**
+     * 自定义前缀内容
+     * 在模板中使用 {{CUSTOM_PREFIX}} 引用
+     */
+    customPrefix: string;
+    
+    /**
+     * 自定义后缀内容
+     * 在模板中使用 {{CUSTOM_SUFFIX}} 引用
+     */
+    customSuffix: string;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 上下文感知配置
+ *
+ * 控制发送给 AI 的上下文信息
+ */
+export interface ContextAwarenessConfig {
+    /**
+     * 是否发送工作区文件树给 AI
+     * 默认: true
+     */
+    includeWorkspaceFiles: boolean;
+    
+    /**
+     * 文件层级最大深度
+     * -1 表示无限制
+     * 默认: 10
+     */
+    maxFileDepth: number;
+    
+    /**
+     * 是否发送打开的标签页列表给 AI
+     * 默认: true
+     */
+    includeOpenTabs: boolean;
+    
+    /**
+     * 发送的标签页最大数量
+     * -1 表示无限制
+     * 默认: 20
+     */
+    maxOpenTabs: number;
+    
+    /**
+     * 是否发送当前活动编辑器的路径给 AI
+     * 默认: true
+     */
+    includeActiveEditor: boolean;
+    
+    /**
+     * 自定义忽略模式（支持通配符）
+     * 匹配的文件/文件夹不会出现在文件树和标签页列表中
+     * 例如: ["*\/node_modules", "*.log", ".git"]
+     * 默认: []
+     */
+    ignorePatterns: string[];
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 上下文总结配置
+ */
+export interface SummarizeConfig {
+    /**
+     * 是否启用自动总结
+     */
+    autoSummarize: boolean;
+    
+    /**
+     * 自动总结触发阈值（百分比）
+     */
+    autoSummarizeThreshold: number;
+    
+    /**
+     * 总结提示词
+     */
+    summarizePrompt: string;
+    
+    /**
+     * 保留最近 N 轮不总结
+     */
+    keepRecentRounds: number;
+    
+    /**
+     * 是否使用专门的总结模型
+     */
+    useSeparateModel: boolean;
+    
+    /**
+     * 总结用的渠道 ID
+     */
+    summarizeChannelId: string;
+    
+    /**
+     * 总结用的模型 ID
+     */
+    summarizeModelId: string;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 工具特定配置
+ *
+ * key: 工具名称
+ * value: 该工具的配置对象
+ */
+export interface ToolsConfig {
+    list_files?: ListFilesToolConfig;
+    apply_diff?: ApplyDiffToolConfig;
+    delete_file?: DeleteFileToolConfig;
+    execute_command?: ExecuteCommandToolConfig;
+    checkpoint?: CheckpointConfig;
+    summarize?: SummarizeConfig;
+    generate_image?: GenerateImageToolConfig;
+    remove_background?: RemoveBackgroundToolConfig;
+    crop_image?: CropImageToolConfig;
+    resize_image?: ResizeImageToolConfig;
+    rotate_image?: RotateImageToolConfig;
+    context_awareness?: ContextAwarenessConfig;
+    pinned_files?: PinnedFilesConfig;
+    system_prompt?: SystemPromptConfig;
+    [toolName: string]: Record<string, unknown> | undefined;
+}
+
+/**
+ * 代理配置
+ */
+export interface ProxySettings {
+    /**
+     * 是否启用代理
+     */
+    enabled: boolean;
+    
+    /**
+     * 代理地址
+     *
+     * 格式: http://host:port 或 https://host:port
+     * 例如: http://127.0.0.1:7890
+     */
+    url?: string;
+}
+
+/**
+ * 全局设置
+ *
+ * 包含所有全局级别的配置项
+ */
+export interface GlobalSettings {
+    /**
+     * 当前激活的渠道配置 ID
+     *
+     * 用于快速切换渠道
+     */
+    activeChannelId?: string;
+    
+    /**
+     * 工具启用状态
+     *
+     * 控制哪些工具对所有渠道可用
+     * 未列出的工具默认启用
+     */
+    toolsEnabled: ToolsEnabledState;
+    
+    /**
+     * 工具自动执行配置
+     *
+     * 控制哪些工具可以自动执行（无需用户确认）
+     * 未列出的工具默认自动执行
+     */
+    toolAutoExec?: ToolAutoExecConfig;
+    
+    /**
+     * 工具特定配置
+     *
+     * 每个工具可以有自己的配置项
+     */
+    toolsConfig?: ToolsConfig;
+    
+    /**
+     * 全局默认工具模式
+     *
+     * 当渠道配置未指定时使用
+     */
+    defaultToolMode?: 'function_call' | 'xml';
+    
+    /**
+     * 代理配置
+     *
+     * 用于 API 请求通过代理服务器
+     */
+    proxy?: ProxySettings;
+    
+    /**
+     * UI 偏好设置
+     */
+    ui?: {
+        /** 主题模式 */
+        theme?: 'light' | 'dark' | 'auto';
+        
+        /** 语言设置 */
+        language?: string;
+    };
+    
+    /**
+     * 最后更新时间戳
+     */
+    lastUpdated: number;
+}
+
+/**
+ * 设置变更事件
+ */
+export interface SettingsChangeEvent {
+    /** 变更类型 */
+    type: 'channel' | 'tools' | 'toolMode' | 'proxy' | 'ui' | 'full';
+    
+    /** 变更的字段路径（如 'toolsEnabled.read_file'） */
+    path?: string;
+    
+    /** 旧值 */
+    oldValue?: any;
+    
+    /** 新值 */
+    newValue?: any;
+    
+    /** 完整的新设置 */
+    settings: GlobalSettings;
+}
+
+/**
+ * 设置变更监听器
+ */
+export type SettingsChangeListener = (event: SettingsChangeEvent) => void | Promise<void>;
+
+/**
+ * 默认 list_files 配置
+ */
+export const DEFAULT_LIST_FILES_CONFIG: ListFilesToolConfig = {
+    ignorePatterns: [
+        '.git'
+    ]
+};
+
+/**
+ * 默认 apply_diff 配置
+ */
+export const DEFAULT_APPLY_DIFF_CONFIG: ApplyDiffToolConfig = {
+    autoSave: false,
+    autoSaveDelay: 3000
+};
+
+/**
+ * 默认 delete_file 配置
+ */
+export const DEFAULT_DELETE_FILE_CONFIG: DeleteFileToolConfig = {
+    autoExecute: false
+};
+
+/**
+ * 获取默认的 execute_command 配置
+ * 根据操作系统自动设置默认 shell
+ * 所有 shell 默认启用，用户自己配置路径
+ */
+export function getDefaultExecuteCommandConfig(): ExecuteCommandToolConfig {
+    const isWindows = process.platform === 'win32';
+    const isMac = process.platform === 'darwin';
+    
+    const shells: ShellConfig[] = isWindows ? [
+        // Windows shells - 所有启用，不内置路径
+        { type: 'powershell', enabled: true, displayName: 'PowerShell' },
+        { type: 'cmd', enabled: true, displayName: 'CMD' },
+        { type: 'bash', enabled: true, displayName: 'Bash (Git)' },
+        { type: 'sh', enabled: true, displayName: 'sh (Git)' },
+        { type: 'gitbash', enabled: true, displayName: 'Git Bash' },
+        { type: 'wsl', enabled: true, displayName: 'WSL' }
+    ] : isMac ? [
+        // macOS shells - 所有启用
+        { type: 'zsh', enabled: true, displayName: 'Zsh' },
+        { type: 'bash', enabled: true, displayName: 'Bash' },
+        { type: 'sh', enabled: true, displayName: 'sh' }
+    ] : [
+        // Linux shells - 所有启用
+        { type: 'bash', enabled: true, displayName: 'Bash' },
+        { type: 'zsh', enabled: true, displayName: 'Zsh' },
+        { type: 'sh', enabled: true, displayName: 'sh' }
+    ];
+    
+    return {
+        defaultShell: isWindows ? 'powershell' : (isMac ? 'zsh' : 'bash'),
+        shells,
+        defaultTimeout: 60000,
+        autoExecute: false,
+        maxOutputLines: 50
+    };
+}
+
+/**
+ * 默认 execute_command 配置（运行时生成）
+ */
+export const DEFAULT_EXECUTE_COMMAND_CONFIG: ExecuteCommandToolConfig = getDefaultExecuteCommandConfig();
+
+/**
+ * 默认消息存档点配置
+ *
+ * 默认配置：
+ * - 用户消息：只在发送前创建存档点
+ * - 助手消息：不创建存档点
+ */
+export const DEFAULT_MESSAGE_CHECKPOINT_CONFIG: MessageCheckpointConfig = {
+    beforeMessages: ['user'],  // 用户消息前创建存档点
+    afterMessages: [],
+    modelOuterLayerOnly: true,  // 默认只在最外层创建
+    mergeUnchangedCheckpoints: true  // 默认合并无变更的存档点
+};
+
+/**
+ * 默认存档点配置
+ *
+ * 默认对文件修改类工具启用备份
+ */
+export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
+    enabled: true,
+    beforeTools: [
+        'apply_diff',
+        'write_to_file',
+        'delete_file',
+        'create_directory',
+        'execute_command',
+        'generate_image'
+    ],
+    afterTools: [
+        'apply_diff',
+        'write_to_file',
+        'delete_file',
+        'create_directory',
+        'execute_command',
+        'generate_image'
+    ],
+    messageCheckpoint: DEFAULT_MESSAGE_CHECKPOINT_CONFIG,
+    maxCheckpoints: -1,  // -1 表示无上限
+    customIgnorePatterns: []
+};
+
+/**
+ * 默认工具自动执行配置
+ *
+ * 默认情况下，以下危险工具需要确认后才能执行：
+ * - delete_file: 删除文件
+ * - execute_command: 执行终端命令
+ */
+export const DEFAULT_TOOL_AUTO_EXEC_CONFIG: ToolAutoExecConfig = {
+    delete_file: false,      // 需要确认
+    execute_command: false   // 需要确认
+};
+
+/**
+ * 默认总结配置
+ */
+export const DEFAULT_SUMMARIZE_CONFIG: SummarizeConfig = {
+    autoSummarize: false,
+    autoSummarizeThreshold: 80,
+    summarizePrompt: 'Please summarize the above conversation, keeping key information and context points while removing redundant content.',
+    keepRecentRounds: 2,
+    useSeparateModel: false,
+    summarizeChannelId: '',
+    summarizeModelId: ''
+};
+
+/**
+ * 默认图像生成工具配置
+ */
+export const DEFAULT_GENERATE_IMAGE_CONFIG: GenerateImageToolConfig = {
+    url: 'https://generativelanguage.googleapis.com/v1beta',
+    apiKey: '',
+    model: 'gemini-3-pro-image-preview',
+    enableAspectRatio: false,
+    defaultAspectRatio: undefined,
+    enableImageSize: false,
+    defaultImageSize: undefined,
+    maxBatchTasks: 5,
+    maxImagesPerTask: 1,
+    returnImageToAI: false
+};
+
+/**
+ * 默认抠图工具配置
+ */
+export const DEFAULT_REMOVE_BACKGROUND_CONFIG: RemoveBackgroundToolConfig = {
+    returnImageToAI: false
+};
+
+/**
+ * 默认裁切图片工具配置
+ */
+export const DEFAULT_CROP_IMAGE_CONFIG: CropImageToolConfig = {
+    returnImageToAI: false
+};
+
+/**
+ * 默认缩放图片工具配置
+ */
+export const DEFAULT_RESIZE_IMAGE_CONFIG: ResizeImageToolConfig = {
+    returnImageToAI: false
+};
+
+/**
+ * 默认旋转图片工具配置
+ */
+export const DEFAULT_ROTATE_IMAGE_CONFIG: RotateImageToolConfig = {
+    returnImageToAI: false
+};
+
+/**
+ * 默认固定文件配置
+ */
+export const DEFAULT_PINNED_FILES_CONFIG: PinnedFilesConfig = {
+    files: [],
+    sectionTitle: 'PINNED FILES CONTENT'
+};
+
+/**
+ * 可用的提示词模块列表
+ *
+ * 注意：name、description、requiresConfig 等字段将在前端通过 i18n 翻译键显示
+ * 这里使用英文作为后备值
+ */
+export const AVAILABLE_PROMPT_MODULES: PromptModule[] = [
+    {
+        id: 'ENVIRONMENT',
+        name: 'Environment Info',
+        description: 'Contains workspace path, operating system, current time, timezone, and user language',
+        example: `====
+
+ENVIRONMENT
+
+Current Workspace: /path/to/project
+Operating System: Windows 11
+Current Time: 2024-01-01T12:00:00.000Z
+Timezone: Asia/Shanghai
+User Language: zh-CN`
+    },
+    {
+        id: 'WORKSPACE_FILES',
+        name: 'Workspace Files',
+        description: 'Lists files and directory structure in the workspace, affected by context awareness settings',
+        example: `====
+
+WORKSPACE FILES
+
+The following is a list of files in the current workspace:
+
+src/
+  main.ts
+  utils/
+    helper.ts`,
+        requiresConfig: 'Context Awareness > Send Workspace Files'
+    },
+    {
+        id: 'OPEN_TABS',
+        name: 'Open Tabs',
+        description: 'Lists currently open file tabs in the editor',
+        example: `====
+
+OPEN TABS
+
+Currently open files in editor:
+  - src/main.ts
+  - src/utils/helper.ts`,
+        requiresConfig: 'Context Awareness > Send Open Tabs'
+    },
+    {
+        id: 'ACTIVE_EDITOR',
+        name: 'Active Editor',
+        description: 'Shows the currently active file path',
+        example: `====
+
+ACTIVE EDITOR
+
+Currently active file: src/main.ts`,
+        requiresConfig: 'Context Awareness > Send Active Editor'
+    },
+    {
+        id: 'PINNED_FILES',
+        name: 'Pinned Files Content',
+        description: 'Shows full content of user-pinned files',
+        example: `====
+
+PINNED FILES CONTENT
+
+The following are pinned files...
+
+--- README.md ---
+# Project Title
+...`,
+        requiresConfig: 'Add files via the pinned files button next to input'
+    },
+    {
+        id: 'TOOLS',
+        name: 'Tools Definition',
+        description: 'Generates tool definitions in XML or Function Call format based on channel config',
+        example: `====
+
+TOOLS
+
+You have access to these tools:
+
+## read_file
+Description: Read file content
+...`
+    },
+    {
+        id: 'MCP_TOOLS',
+        name: 'MCP Tools',
+        description: 'Additional tool definitions from MCP servers',
+        example: `====
+
+MCP TOOLS
+
+Additional tools from MCP servers:
+...`,
+        requiresConfig: 'Configure and connect servers in MCP Settings'
+    }
+];
+
+/**
+ * 默认系统提示词模板
+ */
+export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programming assistant, proficient in multiple programming languages and frameworks.
+
+{{$ENVIRONMENT}}
+
+{{$WORKSPACE_FILES}}
+
+{{$OPEN_TABS}}
+
+{{$ACTIVE_EDITOR}}
+
+{{$PINNED_FILES}}
+
+{{$TOOLS}}
+
+{{$MCP_TOOLS}}
+
+====
+
+GUIDELINES
+
+- You should prioritize using the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files more efficiently.
+- When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
+- When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
+- Always verify your changes by reading the relevant files after modifications when needed.
+- Always maintain code readability and maintainability.`;
+
+/**
+ * 默认系统提示词配置
+ */
+export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
+    enabled: false,
+    template: DEFAULT_SYSTEM_PROMPT_TEMPLATE,
+    customPrefix: '',
+    customSuffix: ''
+};
+
+/**
+ * 默认上下文感知配置
+ */
+export const DEFAULT_CONTEXT_AWARENESS_CONFIG: ContextAwarenessConfig = {
+    includeWorkspaceFiles: true,
+    maxFileDepth: 10,
+    includeOpenTabs: true,
+    maxOpenTabs: 20,
+    includeActiveEditor: true,
+    ignorePatterns: [
+        // 版本控制
+        '.git',
+        // 依赖目录
+        'node_modules',
+        '__pycache__',
+        // IDE 配置
+        '.vscode',
+        '.idea',
+        // 系统文件
+        '.DS_Store',
+        // 构建输出
+        '.next',
+        '.nuxt',
+        'dist',
+        'build',
+        // 缓存
+        '.cache',
+        '.turbo',
+        // 测试覆盖率
+        'coverage',
+        '.nyc_output',
+        // 日志文件
+        '*.log',
+        // 锁文件
+        'package-lock.json',
+        'pnpm-lock.yaml',
+        'yarn.lock'
+    ]
+};
+
+/**
+ * 默认全局设置
+ */
+export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+    toolsEnabled: {
+        // 默认所有工具启用
+    },
+    toolAutoExec: DEFAULT_TOOL_AUTO_EXEC_CONFIG,
+    toolsConfig: {
+        list_files: DEFAULT_LIST_FILES_CONFIG,
+        apply_diff: DEFAULT_APPLY_DIFF_CONFIG,
+        delete_file: DEFAULT_DELETE_FILE_CONFIG,
+        execute_command: getDefaultExecuteCommandConfig(),
+        checkpoint: DEFAULT_CHECKPOINT_CONFIG,
+        summarize: DEFAULT_SUMMARIZE_CONFIG,
+        generate_image: DEFAULT_GENERATE_IMAGE_CONFIG,
+        remove_background: DEFAULT_REMOVE_BACKGROUND_CONFIG,
+        crop_image: DEFAULT_CROP_IMAGE_CONFIG,
+        resize_image: DEFAULT_RESIZE_IMAGE_CONFIG,
+        rotate_image: DEFAULT_ROTATE_IMAGE_CONFIG,
+        context_awareness: DEFAULT_CONTEXT_AWARENESS_CONFIG,
+        pinned_files: DEFAULT_PINNED_FILES_CONFIG,
+        system_prompt: DEFAULT_SYSTEM_PROMPT_CONFIG
+    },
+    defaultToolMode: 'function_call',
+    proxy: {
+        enabled: false,
+        url: undefined
+    },
+    ui: {
+        theme: 'auto',
+        language: 'zh-CN'
+    },
+    lastUpdated: Date.now()
+};
