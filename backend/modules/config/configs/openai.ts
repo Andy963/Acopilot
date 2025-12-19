@@ -97,9 +97,9 @@ export interface OpenAIConfig extends BaseChannelConfig {
              * - low: 较少的思考
              * - medium: 中等思考
              * - high: 较多思考
-             * - max: 最高思考强度
+             * - xhigh: 最高思考强度 (extra high)
              */
-            effort?: 'none' | 'low' | 'medium' | 'high' | 'max';
+            effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
             
             /**
              * 是否启用输出详细程度

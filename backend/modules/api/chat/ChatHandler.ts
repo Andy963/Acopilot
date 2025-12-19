@@ -18,7 +18,7 @@ import type { Content, ContentPart } from '../../conversation/types';
 import type { GetHistoryOptions } from '../../conversation/ConversationManager';
 import type { BaseChannelConfig } from '../../config/configs/base';
 import type { StreamChunk, GenerateResponse } from '../../channel/types';
-import { ChannelError } from '../../channel/types';
+import { ChannelError, ErrorType } from '../../channel/types';
 import { parseXMLToolCalls } from '../../../tools/xmlFormatter';
 import { parseJSONToolCalls, TOOL_CALL_START } from '../../../tools/jsonFormatter';
 import { getDiffManager } from '../../../tools/file/diffManager';
@@ -381,7 +381,6 @@ export class ChatHandler {
 
                 // 检查是否已取消
                 if (request.abortSignal?.aborted) {
-                    console.log(`[ChatHandler.handleChatStream] AbortSignal is aborted at iteration ${iteration}, returning`);
                     return;
                 }
 
@@ -537,15 +536,6 @@ export class ChatHandler {
                         }
                     }
                     
-                    // 调试日志：检查 finalContent 中的计时信息
-                    console.log('[ChatHandler.handleChatStream] Yielding complete with finalContent timing:', {
-                        thinkingDuration: finalContent.thinkingDuration,
-                        responseDuration: finalContent.responseDuration,
-                        streamDuration: finalContent.streamDuration,
-                        firstChunkTime: finalContent.firstChunkTime,
-                        chunkCount: finalContent.chunkCount
-                    });
-                    
                     // 结束循环，返回完成数据（模型消息后的检查点）
                     yield {
                         conversationId,
@@ -565,16 +555,6 @@ export class ChatHandler {
                         name: call.name,
                         args: call.args
                     }));
-                    
-                    // 调试日志：检查 awaitingConfirmation 时 finalContent 中的计时信息
-                    console.log('[ChatHandler.handleChatStream] Yielding awaitingConfirmation with finalContent timing:', {
-                        thinkingDuration: finalContent.thinkingDuration,
-                        responseDuration: finalContent.responseDuration,
-                        streamDuration: finalContent.streamDuration,
-                        firstChunkTime: finalContent.firstChunkTime,
-                        chunkCount: finalContent.chunkCount,
-                        usageMetadata: finalContent.usageMetadata ? 'present' : 'absent'
-                    });
                     
                     yield {
                         conversationId,
@@ -627,16 +607,6 @@ export class ChatHandler {
                 // 检查是否有工具被取消
                 const hasCancelled = toolResults.some(r => (r.result as any).cancelled);
                 if (hasCancelled) {
-                    // 调试日志：检查 toolIteration (cancelled) 时 finalContent 中的计时信息
-                    console.log('[ChatHandler.handleChatStream] Yielding toolIteration (cancelled) with finalContent timing:', {
-                        thinkingDuration: finalContent.thinkingDuration,
-                        responseDuration: finalContent.responseDuration,
-                        streamDuration: finalContent.streamDuration,
-                        firstChunkTime: finalContent.firstChunkTime,
-                        chunkCount: finalContent.chunkCount,
-                        usageMetadata: finalContent.usageMetadata ? 'present' : 'absent'
-                    });
-                    
                     // 有工具被取消，发送最终的 toolIteration 后结束
                     yield {
                         conversationId,
@@ -647,16 +617,6 @@ export class ChatHandler {
                     };
                     return;
                 }
-                
-                // 调试日志：检查 toolIteration 时 finalContent 中的计时信息
-                console.log('[ChatHandler.handleChatStream] Yielding toolIteration with finalContent timing:', {
-                    thinkingDuration: finalContent.thinkingDuration,
-                    responseDuration: finalContent.responseDuration,
-                    streamDuration: finalContent.streamDuration,
-                    firstChunkTime: finalContent.firstChunkTime,
-                    chunkCount: finalContent.chunkCount,
-                    usageMetadata: finalContent.usageMetadata ? 'present' : 'absent'
-                });
                 
                 // 发送 toolIteration 信号（包含工具执行结果和检查点）
                 yield {
@@ -680,6 +640,13 @@ export class ChatHandler {
             };
             
         } catch (error) {
+            // 检查是否是用户取消错误
+            if (error instanceof ChannelError && error.type === ErrorType.CANCELLED_ERROR) {
+                // 用户取消，不需要 yield error，直接返回
+                // cancelled 消息已经在流式处理循环中 yield 过了
+                return;
+            }
+            
             yield {
                 conversationId: request.conversationId,
                 error: this.formatError(error)
@@ -691,9 +658,11 @@ export class ChatHandler {
      * 将附件转换为 ContentPart[] 格式（Gemini inlineData）
      *
      * 存储时包含以下字段：
-     * - displayName: Gemini API 支持的显示名称字段，发送给 API 时保留
      * - id: 附件唯一标识，仅用于存储和前端显示
      * - name: 附件名称，仅用于存储和前端显示
+     *
+     * 注意：displayName 不在此处添加，因为它只适合用于 Gemini function call 格式。
+     * 用户输入的附件在发送给 API 时，由 ConversationManager.getHistoryForAPI 统一处理。
      *
      * @param message 用户消息文本
      * @param attachments 附件列表
@@ -702,14 +671,14 @@ export class ChatHandler {
     private buildUserMessageParts(message: string, attachments?: AttachmentData[]): ContentPart[] {
         const parts: ContentPart[] = [];
         
-        // 先添加附件（作为 inlineData，包含 displayName 用于 Gemini API，id 和 name 用于存储）
+        // 先添加附件（作为 inlineData，包含 id 和 name 用于存储和前端显示）
+        // 注意：不添加 displayName，因为它只适用于 Gemini function call 格式
         if (attachments && attachments.length > 0) {
             for (const attachment of attachments) {
                 parts.push({
                     inlineData: {
                         mimeType: attachment.mimeType,
                         data: attachment.data,
-                        displayName: attachment.name, // Gemini API 支持 displayName
                         id: attachment.id,
                         name: attachment.name
                     }
@@ -1638,16 +1607,23 @@ export class ChatHandler {
             };
             
         } catch (error) {
-            // 检查是否是取消导致的错误
+            // 检查是否是用户取消错误
+            if (error instanceof ChannelError && error.type === ErrorType.CANCELLED_ERROR) {
+                // 用户取消，yield cancelled 消息
+                yield {
+                    conversationId: request.conversationId,
+                    cancelled: true as const
+                } as any;
+                return;
+            }
+            
+            // 检查是否是取消导致的错误（信号已中止）
             if (request.abortSignal?.aborted) {
-                console.log('[ChatHandler] Caught error but signal is aborted, treating as cancel');
-                // 尝试从 accumulator 获取部分内容（如果 accumulator 存在）
                 yield {
                     conversationId: request.conversationId,
                     cancelled: true as const
                 } as any;
             } else {
-                console.log('[ChatHandler] Caught error:', error);
                 yield {
                     conversationId: request.conversationId,
                     error: this.formatError(error)
@@ -2413,7 +2389,6 @@ export class ChatHandler {
 
                 // 检查是否已取消
                 if (request.abortSignal?.aborted) {
-                    console.log(`[ChatHandler.handleRetryStream] AbortSignal is aborted at iteration ${iteration}, returning`);
                     return;
                 }
  
@@ -2449,7 +2424,6 @@ export class ChatHandler {
                     for await (const chunk of response) {
                         // 检查是否已取消
                         if (request.abortSignal?.aborted) {
-                            console.log('[ChatHandler] Detected aborted signal in stream loop');
                             cancelled = true;
                             break;
                         }
@@ -2484,25 +2458,16 @@ export class ChatHandler {
                     
                     // 如果已取消，保存已接收的内容并 yield cancelled 消息
                     if (cancelled) {
-                        console.log('[ChatHandler] Cancelled flag is true, yielding cancelled message');
                         const partialContent = accumulator.getContent();
-                        console.log('[ChatHandler] Partial content has', partialContent.parts.length, 'parts');
-                        console.log('[ChatHandler] Partial content timing:', {
-                            thinkingDuration: partialContent.thinkingDuration,
-                            responseDuration: partialContent.responseDuration,
-                            streamDuration: partialContent.streamDuration
-                        });
                         if (partialContent.parts.length > 0) {
                             await this.conversationManager.addContent(conversationId, partialContent);
                             // yield cancelled 消息，包含 partialContent 以便前端更新计时信息
-                            console.log('[ChatHandler] Yielding cancelled message with content');
                             yield {
                                 conversationId,
                                 cancelled: true as const,
                                 content: partialContent
                             } as any;
                         } else {
-                            console.log('[ChatHandler] No parts, yielding cancelled without content');
                             yield {
                                 conversationId,
                                 cancelled: true as const
@@ -2664,6 +2629,16 @@ export class ChatHandler {
             };
             
         } catch (error) {
+            // 检查是否是用户取消错误
+            if (error instanceof ChannelError && error.type === ErrorType.CANCELLED_ERROR) {
+                // 用户取消，yield cancelled 消息
+                yield {
+                    conversationId: request.conversationId,
+                    cancelled: true as const
+                } as any;
+                return;
+            }
+            
             yield {
                 conversationId: request.conversationId,
                 error: this.formatError(error)
@@ -3208,6 +3183,16 @@ export class ChatHandler {
             };
             
         } catch (error) {
+            // 检查是否是用户取消错误
+            if (error instanceof ChannelError && error.type === ErrorType.CANCELLED_ERROR) {
+                // 用户取消，yield cancelled 消息
+                yield {
+                    conversationId: request.conversationId,
+                    cancelled: true as const
+                } as any;
+                return;
+            }
+            
             yield {
                 conversationId: request.conversationId,
                 error: this.formatError(error)

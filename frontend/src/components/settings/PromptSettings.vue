@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { CustomCheckbox } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { useI18n } from '@/i18n'
 
@@ -15,9 +14,8 @@ interface PromptModule {
   requiresConfig?: string
 }
 
-// 系统提示词配置
+// 系统提示词配置（功能始终启用，不可关闭）
 interface SystemPromptConfig {
-  enabled: boolean
   template: string
   customPrefix: string
   customSuffix: string
@@ -80,6 +78,21 @@ Currently active file: src/main.ts`,
     requiresConfig: '上下文感知 > 发送当前活动编辑器'
   },
   {
+    id: 'DIAGNOSTICS',
+    name: '诊断信息',
+    description: '显示工作区的错误、警告等诊断信息，帮助 AI 修复代码问题',
+    example: `====
+
+DIAGNOSTICS
+
+The following diagnostics were found in the workspace:
+
+src/main.ts:
+  Line 10: [Error] Cannot find name 'foo'. (ts)
+  Line 15: [Warning] 'bar' is defined but never used. (ts)`,
+    requiresConfig: '上下文感知 > 启用诊断信息'
+  },
+  {
     id: 'PINNED_FILES',
     name: '固定文件内容',
     description: '显示用户固定的文件的完整内容',
@@ -133,6 +146,8 @@ const DEFAULT_TEMPLATE = `You are a professional programming assistant, proficie
 
 {{$ACTIVE_EDITOR}}
 
+{{$DIAGNOSTICS}}
+
 {{$PINNED_FILES}}
 
 {{$TOOLS}}
@@ -143,15 +158,15 @@ const DEFAULT_TEMPLATE = `You are a professional programming assistant, proficie
 
 GUIDELINES
 
-- You should prioritize using the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files more efficiently.
+- Use the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files.
+- **IMPORTANT: Avoid duplicate tool calls.** Each tool should only be called once with the same parameters. Never repeat the same tool call multiple times.
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
 - When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
-- Always verify your changes by reading the relevant files after modifications when needed.
+- If the task is simple and doesn't require tools, just respond directly without calling any tools.
 - Always maintain code readability and maintainability.`
 
 // 配置状态
 const config = reactive<SystemPromptConfig>({
-  enabled: false,
   template: DEFAULT_TEMPLATE,
   customPrefix: '',
   customSuffix: ''
@@ -163,8 +178,7 @@ const originalConfig = ref<SystemPromptConfig | null>(null)
 // 是否有未保存的变化
 const hasChanges = computed(() => {
   if (!originalConfig.value) return false
-  return config.enabled !== originalConfig.value.enabled ||
-         config.template !== originalConfig.value.template ||
+  return config.template !== originalConfig.value.template ||
          config.customPrefix !== originalConfig.value.customPrefix ||
          config.customSuffix !== originalConfig.value.customSuffix
 })
@@ -183,7 +197,6 @@ async function loadConfig() {
   try {
     const result = await sendToExtension<SystemPromptConfig>('getSystemPromptConfig', {})
     if (result) {
-      config.enabled = result.enabled
       config.template = result.template || DEFAULT_TEMPLATE
       config.customPrefix = result.customPrefix || ''
       config.customSuffix = result.customSuffix || ''
@@ -203,7 +216,6 @@ async function saveConfig() {
   try {
     await sendToExtension('updateSystemPromptConfig', {
       config: {
-        enabled: config.enabled,
         template: config.template,
         customPrefix: config.customPrefix,
         customSuffix: config.customSuffix
@@ -256,25 +268,14 @@ onMounted(() => {
     </div>
     
     <template v-else>
-      <!-- 启用自定义模板 -->
-      <div class="setting-item">
-        <CustomCheckbox
-          v-model="config.enabled"
-          :label="t('components.settings.promptSettings.enable')"
-        />
-        <p class="setting-description">
-          {{ t('components.settings.promptSettings.enableDescription') }}
-        </p>
-      </div>
-      
       <!-- 模板编辑区 -->
-      <div class="template-section" :class="{ disabled: !config.enabled }">
+      <div class="template-section">
         <div class="section-header">
           <label class="section-label">
             <i class="codicon codicon-file-code"></i>
             {{ t('components.settings.promptSettings.templateSection.title') }}
           </label>
-          <button class="reset-btn" @click="resetToDefault" :disabled="!config.enabled">
+          <button class="reset-btn" @click="resetToDefault">
             <i class="codicon codicon-discard"></i>
             {{ t('components.settings.promptSettings.templateSection.resetButton') }}
           </button>
@@ -287,7 +288,6 @@ onMounted(() => {
         <textarea
           v-model="config.template"
           class="template-textarea"
-          :disabled="!config.enabled"
           :placeholder="t('components.settings.promptSettings.templateSection.placeholder')"
           rows="16"
         ></textarea>
@@ -330,7 +330,6 @@ onMounted(() => {
               <button
                 class="insert-btn"
                 @click.stop="insertModule(module.id)"
-                :disabled="!config.enabled"
                 :title="t('components.settings.promptSettings.modulesReference.insertTooltip')"
               >
                 <i class="codicon codicon-add"></i>
@@ -373,21 +372,7 @@ onMounted(() => {
   color: var(--vscode-descriptionForeground);
 }
 
-.setting-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.setting-description {
-  margin: 0;
-  font-size: 12px;
-  color: var(--vscode-descriptionForeground);
-  margin-left: 22px;
-}
-
-.template-section,
-.custom-content-section {
+.template-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -395,13 +380,6 @@ onMounted(() => {
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
   border-radius: 6px;
-  transition: opacity 0.2s;
-}
-
-.template-section.disabled,
-.custom-content-section.disabled {
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 .section-header {

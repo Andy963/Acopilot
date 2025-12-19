@@ -112,10 +112,37 @@ export class ChannelManager {
     }
     
     /**
-     * 延迟函数
+     * 延迟函数（支持取消）
+     *
+     * @param ms 延迟毫秒数
+     * @param signal 取消信号
+     * @returns Promise，如果被取消则抛出 CANCELLED_ERROR
      */
-    private delay(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    private delay(ms: number, signal?: AbortSignal): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // 如果已经取消，立即拒绝
+            if (signal?.aborted) {
+                reject(new ChannelError(
+                    ErrorType.CANCELLED_ERROR,
+                    t('modules.channel.errors.requestCancelled')
+                ));
+                return;
+            }
+            
+            const timeoutId = setTimeout(resolve, ms);
+            
+            // 监听取消信号
+            if (signal) {
+                const onAbort = () => {
+                    clearTimeout(timeoutId);
+                    reject(new ChannelError(
+                        ErrorType.CANCELLED_ERROR,
+                        t('modules.channel.errors.requestCancelled')
+                    ));
+                };
+                signal.addEventListener('abort', onAbort, { once: true });
+            }
+        });
     }
     
     /**
@@ -143,6 +170,14 @@ export class ChannelManager {
      * @returns 生成响应
      */
     private async generateNonStream(request: GenerateRequest): Promise<GenerateResponse> {
+        // 检查是否已取消
+        if (request.abortSignal?.aborted) {
+            throw new ChannelError(
+                ErrorType.CANCELLED_ERROR,
+                t('modules.channel.errors.requestCancelled')
+            );
+        }
+        
         // 1. 获取配置（此时已在 generate 中验证过）
         let config = (await this.configManager.getConfig(request.configId))!;
         
@@ -197,8 +232,16 @@ export class ChannelManager {
         // 8. 执行 HTTP 调用（带重试）
         let lastError: any;
         for (let attempt = 1; attempt <= (retryEnabled ? maxRetries : 1); attempt++) {
+            // 在每次重试前检查是否已取消
+            if (request.abortSignal?.aborted) {
+                throw new ChannelError(
+                    ErrorType.CANCELLED_ERROR,
+                    t('modules.channel.errors.requestCancelled')
+                );
+            }
+            
             try {
-                const httpResponse = await this.executeRequest(httpRequest);
+                const httpResponse = await this.executeRequest(httpRequest, request.abortSignal);
                 
                 // 检查 HTTP 状态
                 if (httpResponse.status !== 200) {
@@ -250,6 +293,14 @@ export class ChannelManager {
                     break;
                 }
                 
+                // 在调用重试回调之前再次检查是否已取消
+                if (request.abortSignal?.aborted) {
+                    throw new ChannelError(
+                        ErrorType.CANCELLED_ERROR,
+                        t('modules.channel.errors.requestCancelled')
+                    );
+                }
+                
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
                     this.retryStatusCallback({
@@ -262,8 +313,8 @@ export class ChannelManager {
                     });
                 }
                 
-                // 等待后重试
-                await this.delay(retryInterval);
+                // 等待后重试（支持取消）
+                await this.delay(retryInterval, request.abortSignal);
             }
         }
         
@@ -390,6 +441,14 @@ export class ChannelManager {
                     break;
                 }
                 
+                // 在调用重试回调之前检查是否已取消
+                if (request.abortSignal?.aborted) {
+                    throw new ChannelError(
+                        ErrorType.CANCELLED_ERROR,
+                        t('modules.channel.errors.requestCancelled')
+                    );
+                }
+                
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
                     this.retryStatusCallback({
@@ -402,8 +461,8 @@ export class ChannelManager {
                     });
                 }
                 
-                // 等待后重试
-                await this.delay(retryInterval);
+                // 等待后重试（支持取消）
+                await this.delay(retryInterval, request.abortSignal);
             }
         }
         
@@ -429,9 +488,10 @@ export class ChannelManager {
      * 执行 HTTP 请求
      *
      * @param options 请求选项
+     * @param externalSignal 外部取消信号
      * @returns HTTP 响应
      */
-    private async executeRequest(options: HttpRequestOptions): Promise<HttpResponse> {
+    private async executeRequest(options: HttpRequestOptions, externalSignal?: AbortSignal): Promise<HttpResponse> {
         const { url, method, headers, body, timeout = 60000 } = options;
         const proxyUrl = this.getProxyUrl();
         
@@ -440,6 +500,12 @@ export class ChannelManager {
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        // 监听外部取消信号
+        const onExternalAbort = () => controller.abort();
+        if (externalSignal) {
+            externalSignal.addEventListener('abort', onExternalAbort);
+        }
         
         try {
             const response = await fetchFn(url, {
@@ -459,6 +525,13 @@ export class ChannelManager {
             };
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
+                // 检查是外部取消还是超时
+                if (externalSignal?.aborted) {
+                    throw new ChannelError(
+                        ErrorType.CANCELLED_ERROR,
+                        t('modules.channel.errors.requestCancelled')
+                    );
+                }
                 throw new ChannelError(
                     ErrorType.TIMEOUT_ERROR,
                     t('modules.channel.errors.requestTimeout', { timeout })
@@ -467,6 +540,10 @@ export class ChannelManager {
             throw error;
         } finally {
             clearTimeout(timeoutId);
+            // 移除外部信号监听
+            if (externalSignal) {
+                externalSignal.removeEventListener('abort', onExternalAbort);
+            }
         }
     }
     

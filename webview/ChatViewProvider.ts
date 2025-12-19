@@ -309,12 +309,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             if (!existingConfig) {
                 // 直接通过存储适配器创建配置，指定ID
                 const config = {
-                    id: 'gemini-pro',
+                    id: 'gemini-default',
                     type: 'gemini' as const,
-                    name: 'Gemini Pro (Default)',
+                    name: 'Gemini(Default)',
                     apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE',
                     url: 'https://generativelanguage.googleapis.com/v1beta',
-                    model: 'gemini-pro',
+                    model: 'gemini-3-pro-preview',
                     timeout: 120000,
                     enabled: true,
                     createdAt: Date.now(),
@@ -1245,6 +1245,37 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 
+                case 'getDiagnosticsConfig': {
+                    try {
+                        const config = this.settingsManager.getDiagnosticsConfig();
+                        this.sendResponse(requestId, config);
+                    } catch (error: any) {
+                        this.sendError(requestId, 'GET_DIAGNOSTICS_CONFIG_ERROR', error.message || t('webview.errors.getDiagnosticsConfigFailed'));
+                    }
+                    break;
+                }
+                
+                case 'updateDiagnosticsConfig': {
+                    try {
+                        const { config } = data;
+                        await this.settingsManager.updateDiagnosticsConfig(config);
+                        this.sendResponse(requestId, { success: true });
+                    } catch (error: any) {
+                        this.sendError(requestId, 'UPDATE_DIAGNOSTICS_CONFIG_ERROR', error.message || t('webview.errors.updateDiagnosticsConfigFailed'));
+                    }
+                    break;
+                }
+                
+                case 'getWorkspaceDiagnostics': {
+                    try {
+                        const diagnostics = await this.getWorkspaceDiagnostics();
+                        this.sendResponse(requestId, { diagnostics });
+                    } catch (error: any) {
+                        this.sendError(requestId, 'GET_WORKSPACE_DIAGNOSTICS_ERROR', error.message || t('webview.errors.getWorkspaceDiagnosticsFailed'));
+                    }
+                    break;
+                }
+                
                 // ========== 系统提示词配置 ==========
                 
                 case 'getSystemPromptConfig': {
@@ -1603,6 +1634,120 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     
     /**
+     * 获取工作区的诊断信息（错误、警告等）
+     *
+     * 使用 VSCode 的 languages.getDiagnostics API 获取诊断信息
+     * 根据配置过滤严重程度、工作区范围等
+     */
+    private async getWorkspaceDiagnostics(): Promise<Array<{
+        file: string;
+        diagnostics: Array<{
+            line: number;
+            column: number;
+            severity: 'error' | 'warning' | 'information' | 'hint';
+            message: string;
+            source?: string;
+            code?: string | number;
+        }>;
+    }>> {
+        const config = this.settingsManager.getDiagnosticsConfig();
+        
+        // 如果功能未启用，返回空数组
+        if (!config.enabled) {
+            return [];
+        }
+        
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            return [];
+        }
+        
+        // 获取所有诊断信息
+        const allDiagnostics = vscode.languages.getDiagnostics();
+        
+        // 严重程度映射
+        const severityMap: Record<vscode.DiagnosticSeverity, 'error' | 'warning' | 'information' | 'hint'> = {
+            [vscode.DiagnosticSeverity.Error]: 'error',
+            [vscode.DiagnosticSeverity.Warning]: 'warning',
+            [vscode.DiagnosticSeverity.Information]: 'information',
+            [vscode.DiagnosticSeverity.Hint]: 'hint'
+        };
+        
+        // 获取打开的文件 URI 列表（如果需要只显示打开文件的诊断）
+        const openFileUris = new Set<string>();
+        if (config.openFilesOnly) {
+            for (const tabGroup of vscode.window.tabGroups.all) {
+                for (const tab of tabGroup.tabs) {
+                    if (tab.input instanceof vscode.TabInputText) {
+                        openFileUris.add(tab.input.uri.toString());
+                    }
+                }
+            }
+        }
+        
+        const result: Array<{
+            file: string;
+            diagnostics: Array<{
+                line: number;
+                column: number;
+                severity: 'error' | 'warning' | 'information' | 'hint';
+                message: string;
+                source?: string;
+                code?: string | number;
+            }>;
+        }> = [];
+        
+        let fileCount = 0;
+        
+        for (const [uri, diagnostics] of allDiagnostics) {
+            // 检查文件数量限制
+            if (config.maxFiles !== -1 && fileCount >= config.maxFiles) {
+                break;
+            }
+            
+            // 检查是否在工作区内
+            if (config.workspaceOnly) {
+                const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+                if (!workspaceFolder) {
+                    continue;
+                }
+            }
+            
+            // 如果只显示打开文件的诊断
+            if (config.openFilesOnly && !openFileUris.has(uri.toString())) {
+                continue;
+            }
+            
+            // 过滤诊断信息
+            const filteredDiagnostics = diagnostics
+                .filter(d => {
+                    const severity = severityMap[d.severity];
+                    return config.includeSeverities.includes(severity);
+                })
+                .slice(0, config.maxDiagnosticsPerFile === -1 ? undefined : config.maxDiagnosticsPerFile)
+                .map(d => ({
+                    line: d.range.start.line + 1, // 转为 1-based 行号
+                    column: d.range.start.character + 1, // 转为 1-based 列号
+                    severity: severityMap[d.severity],
+                    message: d.message,
+                    source: d.source,
+                    code: typeof d.code === 'object' ? d.code.value : d.code
+                }));
+            
+            if (filteredDiagnostics.length > 0) {
+                const relativePath = vscode.workspace.asRelativePath(uri, false);
+                result.push({
+                    file: relativePath,
+                    diagnostics: filteredDiagnostics
+                });
+                fileCount++;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
      * 检查路径是否应该被忽略（根据配置的忽略模式）
      */
     private shouldIgnorePath(relativePath: string, ignorePatterns: string[]): boolean {
@@ -1673,20 +1818,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
      * 处理取消流式请求
      */
     private handleCancelStream(conversationId: string) {
-        console.log(`[ChatViewProvider.handleCancelStream] Cancelling stream for conversation: ${conversationId}`);
-        console.log(`[ChatViewProvider.handleCancelStream] Available controllers:`, Array.from(this.streamAbortControllers.keys()));
-        
         const controller = this.streamAbortControllers.get(conversationId);
         if (controller) {
-            console.log(`[ChatViewProvider.handleCancelStream] Found controller, calling abort()`);
             controller.abort();
-            console.log(`[ChatViewProvider.handleCancelStream] Controller aborted, signal.aborted =`, controller.signal.aborted);
             this.streamAbortControllers.delete(conversationId);
             // 注意：不再在这里发送 cancelled 消息
             // cancelled 消息会由后端 ChatHandler 在 yield 时发送
             // 这样可以确保 content（包含 thinkingDuration）被正确传递
-        } else {
-            console.log(`[ChatViewProvider.handleCancelStream] No controller found for conversation: ${conversationId}`);
         }
     }
     

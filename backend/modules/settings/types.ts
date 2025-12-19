@@ -464,14 +464,9 @@ export interface PromptModule {
  * 系统提示词配置
  *
  * 允许用户自定义系统提示词模板
+ * 注意：此功能始终启用，不可关闭
  */
 export interface SystemPromptConfig {
-    /**
-     * 是否启用自定义提示词模板
-     * 禁用时使用默认模板
-     */
-    enabled: boolean;
-    
     /**
      * 自定义提示词模板
      *
@@ -499,6 +494,64 @@ export interface SystemPromptConfig {
      * 在模板中使用 {{CUSTOM_SUFFIX}} 引用
      */
     customSuffix: string;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * VSCode 诊断严重程度
+ *
+ * 与 vscode.DiagnosticSeverity 对应：
+ * - Error = 0
+ * - Warning = 1
+ * - Information = 2
+ * - Hint = 3
+ */
+export type DiagnosticSeverity = 'error' | 'warning' | 'information' | 'hint';
+
+/**
+ * 诊断信息配置
+ *
+ * 控制是否将 VSCode 诊断信息（错误/警告/建议等）发送给 AI
+ */
+export interface DiagnosticsConfig {
+    /**
+     * 是否启用诊断信息功能
+     * 默认: false
+     */
+    enabled: boolean;
+    
+    /**
+     * 要包含的诊断严重程度级别
+     * 默认: ['error', 'warning']
+     */
+    includeSeverities: DiagnosticSeverity[];
+    
+    /**
+     * 是否只包含当前工作区的诊断
+     * 默认: true
+     */
+    workspaceOnly: boolean;
+    
+    /**
+     * 是否只包含打开文件的诊断
+     * 默认: false
+     */
+    openFilesOnly: boolean;
+    
+    /**
+     * 每个文件最大显示的诊断数量
+     * -1 表示无限制
+     * 默认: 10
+     */
+    maxDiagnosticsPerFile: number;
+    
+    /**
+     * 最大显示的文件数量
+     * -1 表示无限制
+     * 默认: 20
+     */
+    maxFiles: number;
     
     [key: string]: unknown;
 }
@@ -540,6 +593,12 @@ export interface ContextAwarenessConfig {
      * 默认: true
      */
     includeActiveEditor: boolean;
+    
+    /**
+     * 诊断信息配置
+     * 控制是否发送 VSCode 诊断信息给 AI
+     */
+    diagnostics?: DiagnosticsConfig;
     
     /**
      * 自定义忽略模式（支持通配符）
@@ -976,6 +1035,24 @@ Currently active file: src/main.ts`,
         requiresConfig: 'Context Awareness > Send Active Editor'
     },
     {
+        id: 'DIAGNOSTICS',
+        name: 'Diagnostics',
+        description: 'Shows VSCode diagnostics (errors, warnings, hints) from the workspace',
+        example: `====
+
+DIAGNOSTICS
+
+The following diagnostics were found in the workspace:
+
+src/main.ts:
+  Line 10: [Error] Cannot find name 'foo'.
+  Line 25: [Warning] 'bar' is declared but never used.
+
+src/utils/helper.ts:
+  Line 5: [Error] Property 'x' does not exist on type 'Y'.`,
+        requiresConfig: 'Context Awareness > Diagnostics'
+    },
+    {
         id: 'PINNED_FILES',
         name: 'Pinned Files Content',
         description: 'Shows full content of user-pinned files',
@@ -1019,6 +1096,18 @@ Additional tools from MCP servers:
 ];
 
 /**
+ * 默认诊断信息配置
+ */
+export const DEFAULT_DIAGNOSTICS_CONFIG: DiagnosticsConfig = {
+    enabled: true,
+    includeSeverities: ['error', 'warning'],
+    workspaceOnly: true,
+    openFilesOnly: false,
+    maxDiagnosticsPerFile: 10,
+    maxFiles: 20
+};
+
+/**
  * 默认系统提示词模板
  */
 export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programming assistant, proficient in multiple programming languages and frameworks.
@@ -1031,6 +1120,8 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programmin
 
 {{$ACTIVE_EDITOR}}
 
+{{$DIAGNOSTICS}}
+
 {{$PINNED_FILES}}
 
 {{$TOOLS}}
@@ -1041,17 +1132,17 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programmin
 
 GUIDELINES
 
-- You should prioritize using the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files more efficiently.
+- Use the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files.
+- **IMPORTANT: Avoid duplicate tool calls.** Each tool should only be called once with the same parameters. Never repeat the same tool call multiple times.
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
 - When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
-- Always verify your changes by reading the relevant files after modifications when needed.
+- If the task is simple and doesn't require tools, just respond directly without calling any tools.
 - Always maintain code readability and maintainability.`;
 
 /**
  * 默认系统提示词配置
  */
 export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
-    enabled: false,
     template: DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     customPrefix: '',
     customSuffix: ''
@@ -1062,10 +1153,11 @@ export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
  */
 export const DEFAULT_CONTEXT_AWARENESS_CONFIG: ContextAwarenessConfig = {
     includeWorkspaceFiles: true,
-    maxFileDepth: 10,
+    maxFileDepth: 2,
     includeOpenTabs: true,
     maxOpenTabs: 20,
     includeActiveEditor: true,
+    diagnostics: DEFAULT_DIAGNOSTICS_CONFIG,
     ignorePatterns: [
         // 版本控制
         '.git',

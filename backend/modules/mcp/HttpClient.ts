@@ -122,13 +122,13 @@ export class HttpMcpClient extends EventEmitter {
     async connect(): Promise<void> {
         // 发送初始化请求
         const initResult = await this.sendRequest<InitializeResult>('initialize', {
-            protocolVersion: '2024-11-05',
+            protocolVersion: '2025-12-19',
             capabilities: {
                 roots: { listChanged: true }
             },
             clientInfo: {
                 name: 'LimCode',
-                version: '1.0.0'
+                version: '1.0.3'
             }
         });
         

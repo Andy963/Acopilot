@@ -27,7 +27,7 @@ export function registerMcpModule(
     const module: ModuleDefinition = {
         id: 'mcp',
         name: 'MCP Manager',
-        version: '1.0.0',
+        version: '1.0.3',
         description: 'Manage Model Context Protocol (MCP) server configuration and connections',
 
         initialize: async () => {

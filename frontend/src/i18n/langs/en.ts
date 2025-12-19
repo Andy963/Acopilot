@@ -381,7 +381,7 @@ const en: LanguageMessages = {
                         label: 'Channel Type',
                         gemini: 'Gemini API',
                         openai: 'OpenAI API',
-                        anthropic: 'Anthropic Claude'
+                        anthropic: 'Anthropic API'
                     },
                     toolMode: {
                         label: 'Tool Call Format',
@@ -606,7 +606,7 @@ const en: LanguageMessages = {
                         noMatch: 'No matching conversations found',
                         noCheckpoints: 'No checkpoints',
                         refresh: 'Refresh List',
-                        checkpointCount: 'checkpoints',
+                        checkpointCount: '{count} checkpoints',
                         confirmDelete: {
                             title: 'Confirm Deletion',
                             message: 'Are you sure you want to delete all checkpoints?',
@@ -617,9 +617,9 @@ const en: LanguageMessages = {
                         },
                         timeFormat: {
                             justNow: 'Just now',
-                            minutesAgo: '{minutes} minutes ago',
-                            hoursAgo: '{hours} hours ago',
-                            daysAgo: '{days} days ago'
+                            minutesAgo: '{count} minutes ago',
+                            hoursAgo: '{count} hours ago',
+                            daysAgo: '{count} days ago'
                         }
                     }
                 }
@@ -698,7 +698,9 @@ const en: LanguageMessages = {
                 appInfo: {
                     title: 'Application Info',
                     name: 'LimCode - Vibe Coding Assistant',
-                    version: 'Version'
+                    version: 'Version',
+                    repository: 'Repository',
+                    developer: 'Developer'
                 }
             },
             contextSettings: {
@@ -720,6 +722,22 @@ const en: LanguageMessages = {
                     title: 'Current Active Editor',
                     description: 'Send currently editing file path to AI',
                     sendActiveEditor: 'Send current active editor path'
+                },
+                diagnostics: {
+                    title: 'Diagnostics',
+                    description: 'Send workspace errors, warnings, and other diagnostics to AI to help fix code issues',
+                    enableDiagnostics: 'Enable diagnostics',
+                    severityTypes: 'Problem types',
+                    severity: {
+                        error: 'Error',
+                        warning: 'Warning',
+                        information: 'Info',
+                        hint: 'Hint'
+                    },
+                    workspaceOnly: 'Workspace files only',
+                    openFilesOnly: 'Open files only',
+                    maxPerFile: 'Max per file',
+                    maxFiles: 'Max files'
                 },
                 ignorePatterns: {
                     title: 'Ignore Patterns',
@@ -995,6 +1013,11 @@ const en: LanguageMessages = {
                         description: 'Shows the path of the currently editing file',
                         requiresConfig: 'Context Awareness > Send Active Editor'
                     },
+                    DIAGNOSTICS: {
+                        name: 'Diagnostics',
+                        description: 'Shows workspace errors, warnings and other diagnostics to help AI fix code issues',
+                        requiresConfig: 'Context Awareness > Enable Diagnostics'
+                    },
                     PINNED_FILES: {
                         name: 'Pinned Files Content',
                         description: 'Shows complete content of user-pinned files',
@@ -1116,7 +1139,9 @@ const en: LanguageMessages = {
                 appInfo: {
                     title: 'Application Info',
                     name: 'Lim Code - Vibe Coding Assistant',
-                    version: 'Version: 1.0.0'
+                    version: 'Version: 1.0.3',
+                    repository: 'Repository',
+                    developer: 'Developer'
                 }
             },
             toolSettings: {
@@ -1284,7 +1309,8 @@ const en: LanguageMessages = {
                     modeLevel: 'Level',
                     modeBudget: 'Budget',
                     levelLabel: 'Thinking Level',
-                    levelHint: 'low: Less thinking | medium: Moderate | high: Deep thinking',
+                    levelHint: 'minimal: Minimal thinking | low: Less thinking | medium: Moderate | high: Deep thinking',
+                    levelMinimal: 'Minimal',
                     levelLow: 'Low',
                     levelMedium: 'Medium',
                     levelHigh: 'High',

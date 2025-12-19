@@ -58,5 +58,5 @@ export interface PromptSection {
  */
 export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     includeWorkspaceFiles: true,
-    maxDepth: 10
+    maxDepth: 2
 }

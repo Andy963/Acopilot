@@ -1294,7 +1294,10 @@ export const useChatStore = defineStore('chat', () => {
       allMessages.value.push(newAssistantMessage)
       streamingMessageId.value = newAssistantMessageId
       
-      // 注意：不结束 streaming 状态，因为还有后续消息
+      // 确保状态正确设置，这样用户可以在后续 AI 响应期间点击取消按钮
+      // 这对于非流式模式尤为重要，因为工具执行完毕后会自动发起新的 AI 请求
+      isStreaming.value = true
+      isWaitingForResponse.value = true
     } else if (chunk.type === 'complete' && chunk.content) {
       const messageIndex = allMessages.value.findIndex(m => m.id === streamingMessageId.value)
       if (messageIndex !== -1) {
@@ -1852,15 +1855,12 @@ export const useChatStore = defineStore('chat', () => {
    * 同时清除重试状态（如果有）
    */
   async function cancelStream(): Promise<void> {
-    console.log('[chatStore.cancelStream] Called, isStreaming:', isStreaming.value, 'isWaitingForResponse:', isWaitingForResponse.value, 'conversationId:', currentConversationId.value)
-    
     // 先清除重试状态（即使不在流式中也要清除）
     if (retryStatus.value) {
       retryStatus.value = null
     }
     
     if (!isWaitingForResponse.value || !currentConversationId.value) {
-      console.log('[chatStore.cancelStream] Not waiting for response or no conversation, returning early')
       return
     }
     
@@ -1868,8 +1868,6 @@ export const useChatStore = defineStore('chat', () => {
     // 此时后端没有活跃的流（handleChatStream 已经 yield awaitingConfirmation 后返回）
     // 直接在前端清理状态，同时通知后端将工具标记为拒绝
     if (!isStreaming.value) {
-      console.log('[chatStore.cancelStream] In awaitingConfirmation state, cleaning up locally')
-      
       if (streamingMessageId.value) {
         const messageIndex = allMessages.value.findIndex(m => m.id === streamingMessageId.value)
         if (messageIndex !== -1) {
@@ -1912,7 +1910,6 @@ export const useChatStore = defineStore('chat', () => {
                 messageIndex: actualIndex,
                 toolCallIds: pendingToolIds
               })
-              console.log('[chatStore.cancelStream] Tool calls rejected in backend')
             } catch (err) {
               console.error('Failed to reject tool calls in backend:', err)
               // 即使后端更新失败，前端状态已更新，不影响用户体验
@@ -1923,20 +1920,16 @@ export const useChatStore = defineStore('chat', () => {
       }
       
       isWaitingForResponse.value = false
-      console.log('[chatStore.cancelStream] Local cleanup completed')
       return
     }
     
     // 情况1：正在流式响应，发送取消请求到后端
-    console.log('[chatStore.cancelStream] Sending cancelStream to extension')
-    
     try {
       // 发送取消请求到后端
       // 后端会返回 complete 或 cancelled chunk，那里会处理状态清理
       await sendToExtension('cancelStream', {
         conversationId: currentConversationId.value
       })
-      console.log('[chatStore.cancelStream] cancelStream sent successfully')
     } catch (err) {
       console.error('取消请求失败:', err)
       // 只有在发送取消请求失败时才在前端清理状态

@@ -381,7 +381,7 @@ const zhCN: LanguageMessages = {
                         label: '渠道类型',
                         gemini: 'Gemini API',
                         openai: 'OpenAI API',
-                        anthropic: 'Anthropic Claude'
+                        anthropic: 'Anthropic API'
                     },
                     toolMode: {
                         label: '工具调用格式',
@@ -606,7 +606,7 @@ const zhCN: LanguageMessages = {
                         noMatch: '未找到匹配的对话',
                         noCheckpoints: '暂无存档点',
                         refresh: '刷新列表',
-                        checkpointCount: '个存档点',
+                        checkpointCount: '{count} 个存档点',
                         confirmDelete: {
                             title: '确认删除',
                             message: '确定要删除的所有存档点吗？',
@@ -617,9 +617,9 @@ const zhCN: LanguageMessages = {
                         },
                         timeFormat: {
                             justNow: '刚刚',
-                            minutesAgo: '{minutes} 分钟前',
-                            hoursAgo: '{hours} 小时前',
-                            daysAgo: '{days} 天前'
+                            minutesAgo: '{count} 分钟前',
+                            hoursAgo: '{count} 小时前',
+                            daysAgo: '{count} 天前'
                         }
                     }
                 }
@@ -698,7 +698,9 @@ const zhCN: LanguageMessages = {
                 appInfo: {
                     title: '应用信息',
                     name: 'LimCode - Vibe Coding 助手',
-                    version: '版本'
+                    version: '版本',
+                    repository: '项目仓库',
+                    developer: '开发者'
                 }
             },
             contextSettings: {
@@ -720,6 +722,22 @@ const zhCN: LanguageMessages = {
                     title: '当前活动编辑器',
                     description: '将当前正在编辑的文件路径发送给 AI',
                     sendActiveEditor: '发送当前活动编辑器路径'
+                },
+                diagnostics: {
+                    title: '诊断信息',
+                    description: '将工作区的错误、警告等诊断信息发送给 AI，帮助 AI 修复代码问题',
+                    enableDiagnostics: '启用诊断信息',
+                    severityTypes: '问题类型',
+                    severity: {
+                        error: '错误',
+                        warning: '警告',
+                        information: '信息',
+                        hint: '提示'
+                    },
+                    workspaceOnly: '仅工作区内文件',
+                    openFilesOnly: '仅打开的文件',
+                    maxPerFile: '每文件最大数量',
+                    maxFiles: '最大文件数'
                 },
                 ignorePatterns: {
                     title: '忽略模式',
@@ -995,6 +1013,11 @@ const zhCN: LanguageMessages = {
                         description: '显示当前正在编辑的文件路径',
                         requiresConfig: '上下文感知 > 发送当前活动编辑器'
                     },
+                    DIAGNOSTICS: {
+                        name: '诊断信息',
+                        description: '显示工作区的错误、警告等诊断信息，帮助 AI 修复代码问题',
+                        requiresConfig: '上下文感知 > 启用诊断信息'
+                    },
                     PINNED_FILES: {
                         name: '固定文件内容',
                         description: '显示用户固定的文件的完整内容',
@@ -1116,7 +1139,9 @@ const zhCN: LanguageMessages = {
                 appInfo: {
                     title: '应用信息',
                     name: 'Lim Code - Vibe Coding助手',
-                    version: '版本：1.0.0'
+                    version: '版本：1.0.3',
+                    repository: '项目仓库',
+                    developer: '开发者'
                 }
             },
             toolSettings: {
@@ -1284,7 +1309,8 @@ const zhCN: LanguageMessages = {
                     modeLevel: '等级',
                     modeBudget: '预算',
                     levelLabel: '思考等级',
-                    levelHint: 'low: 较少思考 | medium: 中等 | high: 深度思考',
+                    levelHint: 'minimal: 最少思考 | low: 较少思考 | medium: 中等 | high: 深度思考',
+                    levelMinimal: '最少',
                     levelLow: '低',
                     levelMedium: '中',
                     levelHigh: '高',

@@ -1,10 +1,23 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, toRaw } from 'vue'
 import { CustomCheckbox } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+
+// 诊断严重程度类型
+type DiagnosticSeverity = 'error' | 'warning' | 'information' | 'hint'
+
+// 诊断配置接口
+interface DiagnosticsConfig {
+  enabled: boolean
+  includeSeverities: DiagnosticSeverity[]
+  workspaceOnly: boolean
+  openFilesOnly: boolean
+  maxDiagnosticsPerFile: number
+  maxFiles: number
+}
 
 // 上下文感知配置接口
 interface ContextAwarenessConfig {
@@ -13,18 +26,38 @@ interface ContextAwarenessConfig {
   includeOpenTabs: boolean
   maxOpenTabs: number
   includeActiveEditor: boolean
+  diagnostics?: DiagnosticsConfig
   ignorePatterns: string[]
+}
+
+// 默认诊断配置
+const DEFAULT_DIAGNOSTICS_CONFIG: DiagnosticsConfig = {
+  enabled: false,
+  includeSeverities: ['error', 'warning'],
+  workspaceOnly: true,
+  openFilesOnly: false,
+  maxDiagnosticsPerFile: 10,
+  maxFiles: 20
 }
 
 // 配置状态
 const config = reactive<ContextAwarenessConfig>({
   includeWorkspaceFiles: true,
-  maxFileDepth: 10,
+  maxFileDepth: 2,
   includeOpenTabs: true,
   maxOpenTabs: 20,
   includeActiveEditor: true,
+  diagnostics: { ...DEFAULT_DIAGNOSTICS_CONFIG },
   ignorePatterns: []
 })
+
+// 可选的诊断严重程度
+const availableSeverities: { value: DiagnosticSeverity; label: string }[] = [
+  { value: 'error', label: 'Error' },
+  { value: 'warning', label: 'Warning' },
+  { value: 'information', label: 'Information' },
+  { value: 'hint', label: 'Hint' }
+]
 
 // 是否正在加载
 const isLoading = ref(true)
@@ -52,6 +85,10 @@ async function loadConfig() {
   try {
     const response = await sendToExtension<ContextAwarenessConfig>('getContextAwarenessConfig', {})
     if (response) {
+      // 确保 diagnostics 配置存在
+      if (!response.diagnostics) {
+        response.diagnostics = { ...DEFAULT_DIAGNOSTICS_CONFIG }
+      }
       Object.assign(config, response)
     }
     
@@ -89,7 +126,9 @@ async function saveConfig() {
   saveMessage.value = ''
   
   try {
-    await sendToExtension('updateContextAwarenessConfig', { config })
+    // 使用 toRaw 将 reactive 对象转换为普通对象，避免 postMessage 克隆错误
+    const plainConfig = { ...toRaw(config) }
+    await sendToExtension('updateContextAwarenessConfig', { config: plainConfig })
     saveMessage.value = t('components.settings.contextSettings.saveSuccess')
     setTimeout(() => {
       saveMessage.value = ''
@@ -102,18 +141,26 @@ async function saveConfig() {
   }
 }
 
+// 更新配置字段并保存
+async function updateConfig<K extends keyof ContextAwarenessConfig>(field: K, value: ContextAwarenessConfig[K]) {
+  config[field] = value
+  await saveConfig()
+}
+
 // 添加忽略模式
-function addIgnorePattern() {
+async function addIgnorePattern() {
   const pattern = newIgnorePattern.value.trim()
   if (pattern && !config.ignorePatterns.includes(pattern)) {
     config.ignorePatterns.push(pattern)
     newIgnorePattern.value = ''
+    await saveConfig()
   }
 }
 
 // 移除忽略模式
-function removeIgnorePattern(index: number) {
+async function removeIgnorePattern(index: number) {
   config.ignorePatterns.splice(index, 1)
+  await saveConfig()
 }
 
 // 处理回车添加
@@ -122,6 +169,35 @@ function handleKeydown(event: KeyboardEvent) {
     event.preventDefault()
     addIgnorePattern()
   }
+}
+
+// 更新诊断配置
+async function updateDiagnosticsConfig<K extends keyof DiagnosticsConfig>(field: K, value: DiagnosticsConfig[K]) {
+  if (!config.diagnostics) {
+    config.diagnostics = { ...DEFAULT_DIAGNOSTICS_CONFIG }
+  }
+  config.diagnostics[field] = value
+  await saveConfig()
+}
+
+// 切换诊断严重程度
+async function toggleSeverity(severity: DiagnosticSeverity) {
+  if (!config.diagnostics) {
+    config.diagnostics = { ...DEFAULT_DIAGNOSTICS_CONFIG }
+  }
+  
+  const index = config.diagnostics.includeSeverities.indexOf(severity)
+  if (index === -1) {
+    config.diagnostics.includeSeverities.push(severity)
+  } else {
+    config.diagnostics.includeSeverities.splice(index, 1)
+  }
+  await saveConfig()
+}
+
+// 检查严重程度是否选中
+function isSeveritySelected(severity: DiagnosticSeverity): boolean {
+  return config.diagnostics?.includeSeverities?.includes(severity) ?? false
 }
 
 // 初始化
@@ -135,9 +211,6 @@ onMounted(() => {
 // 组件卸载时清理
 onUnmounted(() => {
   stopAutoRefresh()
-  if (saveTimeout) {
-    clearTimeout(saveTimeout)
-  }
 })
 
 // 启动自动刷新
@@ -158,19 +231,6 @@ function stopAutoRefresh() {
   }
 }
 
-// 监听配置变化自动保存
-let saveTimeout: ReturnType<typeof setTimeout> | null = null
-watch(config, () => {
-  if (!isLoading.value) {
-    // 延迟保存，避免频繁请求
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
-    }
-    saveTimeout = setTimeout(() => {
-      saveConfig()
-    }, 500)
-  }
-}, { deep: true })
 </script>
 
 <template>
@@ -192,8 +252,9 @@ watch(config, () => {
         <div class="setting-block">
           <div class="setting-row">
             <CustomCheckbox
-              v-model="config.includeWorkspaceFiles"
+              :model-value="config.includeWorkspaceFiles"
               :label="t('components.settings.contextSettings.workspaceFiles.sendFileTree')"
+              @update:model-value="(v: boolean) => updateConfig('includeWorkspaceFiles', v)"
             />
           </div>
           
@@ -202,11 +263,12 @@ watch(config, () => {
             <div class="input-with-hint">
               <input
                 type="number"
-                v-model.number="config.maxFileDepth"
+                :value="config.maxFileDepth"
                 min="-1"
                 max="100"
                 :disabled="!config.includeWorkspaceFiles"
                 class="number-input"
+                @change="(e: any) => updateConfig('maxFileDepth', Number(e.target.value))"
               />
               <span class="hint">{{ t('components.settings.contextSettings.workspaceFiles.unlimitedHint') }}</span>
             </div>
@@ -227,8 +289,9 @@ watch(config, () => {
         <div class="setting-block">
           <div class="setting-row">
             <CustomCheckbox
-              v-model="config.includeOpenTabs"
+              :model-value="config.includeOpenTabs"
               :label="t('components.settings.contextSettings.openTabs.sendOpenTabs')"
+              @update:model-value="(v: boolean) => updateConfig('includeOpenTabs', v)"
             />
           </div>
           
@@ -237,11 +300,12 @@ watch(config, () => {
             <div class="input-with-hint">
               <input
                 type="number"
-                v-model.number="config.maxOpenTabs"
+                :value="config.maxOpenTabs"
                 min="-1"
                 max="100"
                 :disabled="!config.includeOpenTabs"
                 class="number-input"
+                @change="(e: any) => updateConfig('maxOpenTabs', Number(e.target.value))"
               />
               <span class="hint">{{ t('components.settings.contextSettings.workspaceFiles.unlimitedHint') }}</span>
             </div>
@@ -262,9 +326,109 @@ watch(config, () => {
         <div class="setting-block">
           <div class="setting-row">
             <CustomCheckbox
-              v-model="config.includeActiveEditor"
+              :model-value="config.includeActiveEditor"
               :label="t('components.settings.contextSettings.activeEditor.sendActiveEditor')"
+              @update:model-value="(v: boolean) => updateConfig('includeActiveEditor', v)"
             />
+          </div>
+        </div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <!-- 诊断信息设置 -->
+      <div class="form-group">
+        <label class="group-label">
+          <i class="codicon codicon-warning"></i>
+          {{ t('components.settings.contextSettings.diagnostics.title') }}
+        </label>
+        <p class="field-description">{{ t('components.settings.contextSettings.diagnostics.description') }}</p>
+        
+        <div class="setting-block">
+          <div class="setting-row">
+            <CustomCheckbox
+              :model-value="config.diagnostics?.enabled ?? false"
+              :label="t('components.settings.contextSettings.diagnostics.enableDiagnostics')"
+              @update:model-value="(v: boolean) => updateDiagnosticsConfig('enabled', v)"
+            />
+          </div>
+          
+          <!-- 严重程度选择 -->
+          <div class="setting-row indented" :class="{ disabled: !config.diagnostics?.enabled }">
+            <label>{{ t('components.settings.contextSettings.diagnostics.severityTypes') }}</label>
+            <div class="severity-checkboxes">
+              <label
+                v-for="severity in availableSeverities"
+                :key="severity.value"
+                class="severity-checkbox"
+                :class="{
+                  checked: isSeveritySelected(severity.value),
+                  disabled: !config.diagnostics?.enabled
+                }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isSeveritySelected(severity.value)"
+                  :disabled="!config.diagnostics?.enabled"
+                  @change="toggleSeverity(severity.value)"
+                />
+                <span class="severity-label" :class="severity.value">
+                  {{ t(`components.settings.contextSettings.diagnostics.severity.${severity.value}`) }}
+                </span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- 范围选项 -->
+          <div class="setting-row indented" :class="{ disabled: !config.diagnostics?.enabled }">
+            <CustomCheckbox
+              :model-value="config.diagnostics?.workspaceOnly ?? true"
+              :label="t('components.settings.contextSettings.diagnostics.workspaceOnly')"
+              :disabled="!config.diagnostics?.enabled"
+              @update:model-value="(v: boolean) => updateDiagnosticsConfig('workspaceOnly', v)"
+            />
+          </div>
+          
+          <div class="setting-row indented" :class="{ disabled: !config.diagnostics?.enabled }">
+            <CustomCheckbox
+              :model-value="config.diagnostics?.openFilesOnly ?? false"
+              :label="t('components.settings.contextSettings.diagnostics.openFilesOnly')"
+              :disabled="!config.diagnostics?.enabled"
+              @update:model-value="(v: boolean) => updateDiagnosticsConfig('openFilesOnly', v)"
+            />
+          </div>
+          
+          <!-- 数量限制 -->
+          <div class="setting-row indented" :class="{ disabled: !config.diagnostics?.enabled }">
+            <label>{{ t('components.settings.contextSettings.diagnostics.maxPerFile') }}</label>
+            <div class="input-with-hint">
+              <input
+                type="number"
+                :value="config.diagnostics?.maxDiagnosticsPerFile ?? 10"
+                min="-1"
+                max="100"
+                :disabled="!config.diagnostics?.enabled"
+                class="number-input"
+                @change="(e: any) => updateDiagnosticsConfig('maxDiagnosticsPerFile', Number(e.target.value))"
+              />
+              <span class="hint">{{ t('components.settings.contextSettings.workspaceFiles.unlimitedHint') }}</span>
+            </div>
+          </div>
+          
+          <div class="setting-row indented" :class="{ disabled: !config.diagnostics?.enabled }">
+            <label>{{ t('components.settings.contextSettings.diagnostics.maxFiles') }}</label>
+            <div class="input-with-hint">
+              <input
+                type="number"
+                :value="config.diagnostics?.maxFiles ?? 20"
+                min="-1"
+                max="100"
+                :disabled="!config.diagnostics?.enabled"
+                class="number-input"
+                @change="(e: any) => updateDiagnosticsConfig('maxFiles', Number(e.target.value))"
+              />
+              <span class="hint">{{ t('components.settings.contextSettings.workspaceFiles.unlimitedHint') }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -467,6 +631,17 @@ watch(config, () => {
   border: 1px solid var(--vscode-input-border);
   border-radius: 4px;
   outline: none;
+  /* 隐藏数字输入框的上下箭头 */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* Chrome, Safari, Edge, Opera - 隐藏 spinner 按钮 */
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .number-input:focus {
@@ -713,5 +888,64 @@ watch(config, () => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 诊断严重程度样式 */
+.severity-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.severity-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  transition: all 0.15s;
+}
+
+.severity-checkbox:hover:not(.disabled) {
+  border-color: var(--vscode-focusBorder);
+}
+
+.severity-checkbox.checked {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.severity-checkbox.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.severity-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.severity-label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.severity-label.error {
+  color: var(--vscode-errorForeground);
+}
+
+.severity-label.warning {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.severity-label.information {
+  color: var(--vscode-editorInfo-foreground);
+}
+
+.severity-label.hint {
+  color: var(--vscode-editorHint-foreground, var(--vscode-descriptionForeground));
 }
 </style>

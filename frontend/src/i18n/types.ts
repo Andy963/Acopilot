@@ -824,6 +824,8 @@ export interface LanguageMessages {
                     title: string;
                     name: string;
                     version: string;
+                    repository: string;
+                    developer: string;
                 };
             };
             contextSettings: {
@@ -845,6 +847,22 @@ export interface LanguageMessages {
                     title: string;
                     description: string;
                     sendActiveEditor: string;
+                };
+                diagnostics: {
+                    title: string;
+                    description: string;
+                    enableDiagnostics: string;
+                    severityTypes: string;
+                    severity: {
+                        error: string;
+                        warning: string;
+                        information: string;
+                        hint: string;
+                    };
+                    workspaceOnly: string;
+                    openFilesOnly: string;
+                    maxPerFile: string;
+                    maxFiles: string;
                 };
                 ignorePatterns: {
                     title: string;
@@ -1120,6 +1138,11 @@ export interface LanguageMessages {
                         description: string;
                         requiresConfig: string;
                     };
+                    DIAGNOSTICS: {
+                        name: string;
+                        description: string;
+                        requiresConfig: string;
+                    };
                     PINNED_FILES: {
                         name: string;
                         description: string;
@@ -1242,6 +1265,8 @@ export interface LanguageMessages {
                     title: string;
                     name: string;
                     version: string;
+                    repository: string;
+                    developer: string;
                 };
             };
             toolsSettings: {
@@ -1326,6 +1351,7 @@ export interface LanguageMessages {
                     modeBudget: string;
                     levelLabel: string;
                     levelHint: string;
+                    levelMinimal: string;
                     levelLow: string;
                     levelMedium: string;
                     levelHigh: string;

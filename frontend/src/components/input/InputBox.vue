@@ -30,7 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement>()
-const currentRows = ref(props.minRows || 1)
+const currentRows = ref(props.minRows || 2)
 
 // 拖拽状态
 const isDragOver = ref(false)
@@ -48,17 +48,26 @@ function adjustHeight() {
   if (!textareaRef.value) return
   
   const textarea = textareaRef.value
-  const minRows = props.minRows || 1
+  const minRows = props.minRows || 2  // 默认最少两行
   const maxRows = props.maxRows || 6
+  
+  // 获取行高
+  const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20
+  const minHeight = minRows * lineHeight
   
   // 重置高度以获取正确的 scrollHeight
   textarea.style.height = 'auto'
   
-  // 计算行数
-  const lineHeight = parseInt(getComputedStyle(textarea).lineHeight)
+  // 获取实际内容高度
+  const contentHeight = textarea.scrollHeight
+  
+  // 计算目标高度，确保不低于最小高度
+  const targetHeight = Math.max(contentHeight, minHeight)
+  
+  // 计算实际行数
   const rows = Math.min(
     Math.max(
-      Math.ceil(textarea.scrollHeight / lineHeight),
+      Math.ceil(targetHeight / lineHeight),
       minRows
     ),
     maxRows
@@ -493,7 +502,7 @@ defineExpose({
 
 .input-textarea {
   width: 100%;
-  min-height: 40px;
+  min-height: 56px;  /* 确保至少两行高度 */
   max-height: 160px;
   padding: var(--spacing-sm, 8px);
   background: var(--vscode-input-background);

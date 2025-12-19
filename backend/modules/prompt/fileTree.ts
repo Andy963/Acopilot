@@ -125,7 +125,7 @@ function buildFileTree(
     rootPath: string,
     patterns: string[],
     depth: number = 0,
-    maxDepth: number = 10,
+    maxDepth: number = 2,
     customIgnorePatterns: string[] = []
 ): FileTreeNode[] {
     if (depth > maxDepth) {
@@ -212,7 +212,7 @@ function treeToLines(nodes: FileTreeNode[], prefix: string = ''): string[] {
  * @param customIgnorePatterns 自定义忽略模式
  * @returns 文件列表字符串，一行一个
  */
-function getSingleWorkspaceFileTree(workspacePath: string, maxDepth: number = 10, customIgnorePatterns: string[] = []): string {
+function getSingleWorkspaceFileTree(workspacePath: string, maxDepth: number = 2, customIgnorePatterns: string[] = []): string {
     // 解析 .gitignore
     const gitignorePath = path.join(workspacePath, '.gitignore')
     const patterns = parseGitignore(gitignorePath)
@@ -232,7 +232,7 @@ function getSingleWorkspaceFileTree(workspacePath: string, maxDepth: number = 10
  * @param customIgnorePatterns 自定义忽略模式
  * @returns 文件列表字符串，一行一个
  */
-export function getWorkspaceFileTree(maxDepth: number = 10, customIgnorePatterns: string[] = []): string {
+export function getWorkspaceFileTree(maxDepth: number = 2, customIgnorePatterns: string[] = []): string {
     const workspaceFolders = vscode.workspace.workspaceFolders
     if (!workspaceFolders || workspaceFolders.length === 0) {
         return ''

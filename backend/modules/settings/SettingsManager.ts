@@ -25,6 +25,7 @@ import type {
     ResizeImageToolConfig,
     RotateImageToolConfig,
     ContextAwarenessConfig,
+    DiagnosticsConfig,
     PinnedFilesConfig,
     PinnedFileItem,
     SystemPromptConfig
@@ -43,6 +44,7 @@ import {
     DEFAULT_RESIZE_IMAGE_CONFIG,
     DEFAULT_ROTATE_IMAGE_CONFIG,
     DEFAULT_CONTEXT_AWARENESS_CONFIG,
+    DEFAULT_DIAGNOSTICS_CONFIG,
     DEFAULT_PINNED_FILES_CONFIG,
     DEFAULT_SYSTEM_PROMPT_CONFIG,
     getDefaultExecuteCommandConfig
@@ -1047,6 +1049,60 @@ export class SettingsManager {
         return this.getContextAwarenessConfig().ignorePatterns || [];
     }
     
+    // ========== 诊断信息配置管理 ==========
+    
+    /**
+     * 获取诊断信息配置
+     */
+    getDiagnosticsConfig(): Readonly<DiagnosticsConfig> {
+        return this.getContextAwarenessConfig().diagnostics || DEFAULT_DIAGNOSTICS_CONFIG;
+    }
+    
+    /**
+     * 更新诊断信息配置
+     */
+    async updateDiagnosticsConfig(config: Partial<DiagnosticsConfig>): Promise<void> {
+        const contextConfig = this.getContextAwarenessConfig();
+        const oldConfig = this.getDiagnosticsConfig();
+        const newConfig = {
+            ...oldConfig,
+            ...config
+        };
+        
+        await this.updateContextAwarenessConfig({
+            ...contextConfig,
+            diagnostics: newConfig
+        });
+    }
+    
+    /**
+     * 检查诊断功能是否启用
+     */
+    isDiagnosticsEnabled(): boolean {
+        return this.getDiagnosticsConfig().enabled;
+    }
+    
+    /**
+     * 设置诊断功能启用状态
+     */
+    async setDiagnosticsEnabled(enabled: boolean): Promise<void> {
+        await this.updateDiagnosticsConfig({ enabled });
+    }
+    
+    /**
+     * 获取包含的诊断严重程度级别
+     */
+    getDiagnosticsSeverities(): string[] {
+        return this.getDiagnosticsConfig().includeSeverities;
+    }
+    
+    /**
+     * 设置包含的诊断严重程度级别
+     */
+    async setDiagnosticsSeverities(severities: ('error' | 'warning' | 'information' | 'hint')[]): Promise<void> {
+        await this.updateDiagnosticsConfig({ includeSeverities: severities });
+    }
+    
     // ========== 固定文件配置管理 ==========
     
     /**
@@ -1230,13 +1286,6 @@ export class SettingsManager {
             newValue: newConfig,
             settings: this.settings
         });
-    }
-    
-    /**
-     * 检查是否启用自定义系统提示词
-     */
-    isSystemPromptEnabled(): boolean {
-        return this.getSystemPromptConfig().enabled;
     }
     
     /**

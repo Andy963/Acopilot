@@ -610,6 +610,12 @@ watch(() => chatStore.configId, () => {
     loadConfigs()
   }
 })
+
+// 监听 currentConfig 变化，当用户在设置中修改模型后会触发 loadCurrentConfig()
+// 这样可以及时更新模型选择器的列表，而不需要等待视图切换
+watch(() => chatStore.currentConfig, () => {
+  loadConfigs()
+}, { deep: true })
 </script>
 
 <template>

@@ -25,11 +25,12 @@ export interface GeminiOptionsEnabled {
 
 /**
  * 思考等级
+ * - 'minimal': 最少思考
  * - 'low': 较少思考
  * - 'medium': 中等思考
  * - 'high': 深度思考
  */
-export type ThinkingLevel = 'low' | 'medium' | 'high';
+export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
 
 /**
  * 思考配置模式

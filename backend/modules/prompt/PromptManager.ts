@@ -10,7 +10,7 @@ import * as vscode from 'vscode'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { PromptConfig, PromptContext, PromptSection, DEFAULT_PROMPT_CONFIG } from './types'
+import type { PromptConfig, PromptContext } from './types'
 import { getWorkspaceFileTree, getWorkspaceRoot, getWorkspacesDescription, getAllWorkspaces } from './fileTree'
 import { getGlobalSettingsManager } from '../../core/settingsContext'
 
@@ -34,7 +34,7 @@ export class PromptManager {
     constructor(config: Partial<PromptConfig> = {}) {
         this.config = {
             includeWorkspaceFiles: true,
-            maxDepth: 10,
+            maxDepth: 2,
             ...config
         }
     }
@@ -91,21 +91,16 @@ export class PromptManager {
     /**
      * 生成系统提示词
      *
-     * 支持两种模式：
-     * 1. 自定义模板模式：使用用户配置的模板，通过 {{MODULE}} 占位符引用模块
-     * 2. 默认模式：按优先级顺序组装各模块
+     * 始终使用模板模式生成提示词
+     * 用户可以通过设置自定义模板内容
      */
     private generatePrompt(): string {
         const settingsManager = getGlobalSettingsManager()
         const promptConfig = settingsManager?.getSystemPromptConfig()
         
-        // 如果启用了自定义模板，使用模板化生成
-        if (promptConfig?.enabled && promptConfig.template) {
-            return this.generateFromTemplate(promptConfig.template, promptConfig.customPrefix, promptConfig.customSuffix)
-        }
-        
-        // 否则使用默认的段落式组装
-        return this.generateDefaultPrompt()
+        // 始终使用模板化生成
+        const template = promptConfig?.template || ''
+        return this.generateFromTemplate(template, promptConfig?.customPrefix || '', promptConfig?.customSuffix || '')
     }
     
     /**
@@ -116,6 +111,7 @@ export class PromptManager {
      * - {{$WORKSPACE_FILES}} - 工作区文件树
      * - {{$OPEN_TABS}} - 打开的标签页
      * - {{$ACTIVE_EDITOR}} - 当前活动编辑器
+     * - {{$DIAGNOSTICS}} - VSCode 诊断信息（错误、警告等）
      * - {{$PINNED_FILES}} - 固定文件内容
      * - {{$TOOLS}} - 工具定义（由外部填充）
      * - {{$MCP_TOOLS}} - MCP 工具定义（由外部填充）
@@ -143,6 +139,7 @@ export class PromptManager {
                     contextConfig.ignorePatterns || []
                 ))
                 : '',
+            'DIAGNOSTICS': this.wrapSection('DIAGNOSTICS', this.generateDiagnosticsSection()),
             'PINNED_FILES': this.wrapSection(
                 getGlobalSettingsManager()?.getPinnedFilesConfig()?.sectionTitle || 'PINNED FILES CONTENT',
                 this.generatePinnedFilesSection()
@@ -168,104 +165,6 @@ export class PromptManager {
     private wrapSection(title: string, content: string | null): string {
         if (!content) return ''
         return `====\n\n${title}\n\n${content}`
-    }
-    
-    /**
-     * 默认的段落式组装（原有逻辑）
-     */
-    private generateDefaultPrompt(): string {
-        const sections: PromptSection[] = []
-        
-        // 1. 自定义前缀
-        if (this.config.prefix) {
-            sections.push({
-                id: 'prefix',
-                content: this.config.prefix,
-                priority: 0
-            })
-        }
-        
-        // 2. 环境信息段落
-        const envSection = this.generateEnvironmentSection()
-        if (envSection) {
-            sections.push({
-                id: 'environment',
-                title: 'ENVIRONMENT',
-                content: envSection,
-                priority: 10
-            })
-        }
-        
-        // 3. 工作区文件树段落（根据上下文感知配置）
-        const contextConfig = getGlobalSettingsManager()?.getContextAwarenessConfig()
-        
-        if (contextConfig?.includeWorkspaceFiles ?? this.config.includeWorkspaceFiles) {
-            const maxDepth = contextConfig?.maxFileDepth ?? this.config.maxDepth ?? 10
-            const ignorePatterns = contextConfig?.ignorePatterns ?? []
-            const fileTreeSection = this.generateFileTreeSection(maxDepth, ignorePatterns)
-            if (fileTreeSection) {
-                sections.push({
-                    id: 'workspace_files',
-                    title: 'WORKSPACE FILES',
-                    content: fileTreeSection,
-                    priority: 20
-                })
-            }
-        }
-        
-        // 4. 打开的标签页段落
-        if (contextConfig?.includeOpenTabs) {
-            const openTabsSection = this.generateOpenTabsSection(contextConfig.maxOpenTabs, contextConfig.ignorePatterns || [])
-            if (openTabsSection) {
-                sections.push({
-                    id: 'open_tabs',
-                    title: 'OPEN TABS',
-                    content: openTabsSection,
-                    priority: 25
-                })
-            }
-        }
-        
-        // 5. 当前活动编辑器段落
-        if (contextConfig?.includeActiveEditor) {
-            const activeEditorSection = this.generateActiveEditorSection(contextConfig.ignorePatterns || [])
-            if (activeEditorSection) {
-                sections.push({
-                    id: 'active_editor',
-                    title: 'ACTIVE EDITOR',
-                    content: activeEditorSection,
-                    priority: 15
-                })
-            }
-        }
-        
-        // 6. 固定文件内容段落
-        const pinnedFilesSection = this.generatePinnedFilesSection()
-        if (pinnedFilesSection) {
-            const pinnedFilesConfig = getGlobalSettingsManager()?.getPinnedFilesConfig()
-            const sectionTitle = pinnedFilesConfig?.sectionTitle || 'PINNED FILES CONTENT'
-            sections.push({
-                id: 'pinned_files',
-                title: sectionTitle,
-                content: pinnedFilesSection,
-                priority: 30
-            })
-        }
-        
-        // 7. 自定义后缀
-        if (this.config.suffix) {
-            sections.push({
-                id: 'suffix',
-                content: this.config.suffix,
-                priority: 100
-            })
-        }
-        
-        // 按优先级排序
-        sections.sort((a, b) => (a.priority || 0) - (b.priority || 0))
-        
-        // 组装最终提示词
-        return this.assembleSections(sections)
     }
     
     /**
@@ -427,6 +326,115 @@ export class PromptManager {
     }
     
     /**
+     * 生成诊断信息段落
+     *
+     * 从 VSCode 获取工作区的诊断信息（错误、警告等）
+     * 根据配置过滤严重程度和文件范围
+     */
+    private generateDiagnosticsSection(): string {
+        const settingsManager = getGlobalSettingsManager()
+        if (!settingsManager) {
+            return ''
+        }
+        
+        const diagnosticsConfig = settingsManager.getDiagnosticsConfig()
+        
+        // 如果功能未启用，返回空
+        if (!diagnosticsConfig.enabled) {
+            return ''
+        }
+        
+        const workspaceFolders = vscode.workspace.workspaceFolders
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            return ''
+        }
+        
+        // 获取所有诊断信息
+        const allDiagnostics = vscode.languages.getDiagnostics()
+        
+        // 严重程度映射
+        const severityMap: Record<vscode.DiagnosticSeverity, 'error' | 'warning' | 'information' | 'hint'> = {
+            [vscode.DiagnosticSeverity.Error]: 'error',
+            [vscode.DiagnosticSeverity.Warning]: 'warning',
+            [vscode.DiagnosticSeverity.Information]: 'information',
+            [vscode.DiagnosticSeverity.Hint]: 'hint'
+        }
+        
+        // 严重程度显示名称
+        const severityLabels: Record<string, string> = {
+            'error': 'Error',
+            'warning': 'Warning',
+            'information': 'Info',
+            'hint': 'Hint'
+        }
+        
+        // 获取打开的文件 URI 列表（如果需要只显示打开文件的诊断）
+        const openFileUris = new Set<string>()
+        if (diagnosticsConfig.openFilesOnly) {
+            for (const tabGroup of vscode.window.tabGroups.all) {
+                for (const tab of tabGroup.tabs) {
+                    if (tab.input instanceof vscode.TabInputText) {
+                        openFileUris.add(tab.input.uri.toString())
+                    }
+                }
+            }
+        }
+        
+        const fileResults: string[] = []
+        let fileCount = 0
+        
+        for (const [uri, diagnostics] of allDiagnostics) {
+            // 检查文件数量限制
+            if (diagnosticsConfig.maxFiles !== -1 && fileCount >= diagnosticsConfig.maxFiles) {
+                break
+            }
+            
+            // 检查是否在工作区内
+            if (diagnosticsConfig.workspaceOnly) {
+                const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri)
+                if (!workspaceFolder) {
+                    continue
+                }
+            }
+            
+            // 如果只显示打开文件的诊断
+            if (diagnosticsConfig.openFilesOnly && !openFileUris.has(uri.toString())) {
+                continue
+            }
+            
+            // 过滤诊断信息
+            const filteredDiagnostics = diagnostics
+                .filter(d => {
+                    const severity = severityMap[d.severity]
+                    return diagnosticsConfig.includeSeverities.includes(severity)
+                })
+                .slice(0, diagnosticsConfig.maxDiagnosticsPerFile === -1 ? undefined : diagnosticsConfig.maxDiagnosticsPerFile)
+            
+            if (filteredDiagnostics.length > 0) {
+                const relativePath = vscode.workspace.asRelativePath(uri, false)
+                const lines: string[] = []
+                
+                for (const d of filteredDiagnostics) {
+                    const severity = severityMap[d.severity]
+                    const severityLabel = severityLabels[severity]
+                    const line = d.range.start.line + 1 // 转为 1-based 行号
+                    const source = d.source ? ` (${d.source})` : ''
+                    lines.push(`  Line ${line}: [${severityLabel}] ${d.message}${source}`)
+                }
+                
+                fileResults.push(`${relativePath}:\n${lines.join('\n')}`)
+                fileCount++
+            }
+        }
+        
+        if (fileResults.length === 0) {
+            return ''
+        }
+        
+        return `The following diagnostics were found in the workspace:\n\n${fileResults.join('\n\n')}`
+    }
+    
+    /**
      * 生成固定文件内容段落
      *
      * 按工作区过滤固定文件，支持多工作区场景
@@ -552,27 +560,6 @@ export class PromptManager {
             default:
                 return `${platform} ${release}`
         }
-    }
-    
-    /**
-     * 组装段落
-     */
-    private assembleSections(sections: PromptSection[]): string {
-        const parts: string[] = []
-        
-        for (const section of sections) {
-            if (!section.content) {
-                continue
-            }
-            
-            if (section.title) {
-                parts.push(`====\n\n${section.title}\n\n${section.content}`)
-            } else {
-                parts.push(section.content)
-            }
-        }
-        
-        return parts.join('\n\n')
     }
     
     /**

@@ -381,7 +381,7 @@ const ja: LanguageMessages = {
                         label: 'チャンネルタイプ',
                         gemini: 'Gemini API',
                         openai: 'OpenAI API',
-                        anthropic: 'Anthropic Claude'
+                        anthropic: 'Anthropic API'
                     },
                     toolMode: {
                         label: 'ツール呼び出し形式',
@@ -606,7 +606,7 @@ const ja: LanguageMessages = {
                         noMatch: '一致する会話が見つかりません',
                         noCheckpoints: 'チェックポイントがありません',
                         refresh: 'リストを更新',
-                        checkpointCount: '個のチェックポイント',
+                        checkpointCount: '{count} 個のチェックポイント',
                         confirmDelete: {
                             title: '削除の確認',
                             message: 'すべてのチェックポイントを削除してもよろしいですか？',
@@ -617,9 +617,9 @@ const ja: LanguageMessages = {
                         },
                         timeFormat: {
                             justNow: 'たった今',
-                            minutesAgo: '{minutes} 分前',
-                            hoursAgo: '{hours} 時間前',
-                            daysAgo: '{days} 日前'
+                            minutesAgo: '{count} 分前',
+                            hoursAgo: '{count} 時間前',
+                            daysAgo: '{count} 日前'
                         }
                     }
                 }
@@ -698,7 +698,9 @@ const ja: LanguageMessages = {
                 appInfo: {
                     title: 'アプリケーション情報',
                     name: 'LimCode - Vibe Coding アシスタント',
-                    version: 'バージョン'
+                    version: 'バージョン',
+                    repository: 'リポジトリ',
+                    developer: '開発者'
                 }
             },
             contextSettings: {
@@ -720,6 +722,22 @@ const ja: LanguageMessages = {
                     title: '現在のアクティブエディター',
                     description: '現在編集中のファイルパスを AI に送信',
                     sendActiveEditor: '現在のアクティブエディターのパスを送信'
+                },
+                diagnostics: {
+                    title: '診断情報',
+                    description: 'ワークスペースのエラー、警告などの診断情報を AI に送信して、コードの問題を修正します',
+                    enableDiagnostics: '診断情報を有効化',
+                    severityTypes: '問題の種類',
+                    severity: {
+                        error: 'エラー',
+                        warning: '警告',
+                        information: '情報',
+                        hint: 'ヒント'
+                    },
+                    workspaceOnly: 'ワークスペース内のファイルのみ',
+                    openFilesOnly: '開いているファイルのみ',
+                    maxPerFile: 'ファイルあたりの最大数',
+                    maxFiles: '最大ファイル数'
                 },
                 ignorePatterns: {
                     title: '無視パターン',
@@ -995,6 +1013,11 @@ const ja: LanguageMessages = {
                         description: '現在編集中のファイルのパスを表示します',
                         requiresConfig: 'コンテキスト認識 > アクティブエディターを送信'
                     },
+                    DIAGNOSTICS: {
+                        name: '診断情報',
+                        description: 'ワークスペースのエラー、警告などの診断情報を表示し、AI がコードの問題を修正するのを助けます',
+                        requiresConfig: 'コンテキスト認識 > 診断情報を有効化'
+                    },
                     PINNED_FILES: {
                         name: 'ピン留めファイルの内容',
                         description: 'ユーザーがピン留めしたファイルの完全な内容を表示します',
@@ -1116,7 +1139,9 @@ const ja: LanguageMessages = {
                 appInfo: {
                     title: 'アプリケーション情報',
                     name: 'Lim Code - Vibe Coding アシスタント',
-                    version: 'バージョン：1.0.0'
+                    version: 'バージョン：1.0.3',
+                    repository: 'リポジトリ',
+                    developer: '開発者'
                 }
             },
             toolSettings: {
@@ -1284,7 +1309,8 @@ const ja: LanguageMessages = {
                     modeLevel: 'レベル',
                     modeBudget: 'バジェット',
                     levelLabel: '思考レベル',
-                    levelHint: 'low: 少ない思考 | medium: 中程度 | high: 深い思考',
+                    levelHint: 'minimal: 最小限の思考 | low: 少ない思考 | medium: 中程度 | high: 深い思考',
+                    levelMinimal: '最小',
                     levelLow: '低',
                     levelMedium: '中',
                     levelHigh: '高',

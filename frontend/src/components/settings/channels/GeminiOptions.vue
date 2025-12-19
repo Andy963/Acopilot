@@ -17,6 +17,7 @@ const emit = defineEmits<{
 
 // 思考等级选项
 const thinkingLevelOptions = computed<SelectOption[]>(() => [
+  { value: 'minimal', label: t('components.channels.gemini.thinking.levelMinimal'), description: '' },
   { value: 'low', label: t('components.channels.gemini.thinking.levelLow'), description: '' },
   { value: 'medium', label: t('components.channels.gemini.thinking.levelMedium'), description: '' },
   { value: 'high', label: t('components.channels.gemini.thinking.levelHigh'), description: '' }

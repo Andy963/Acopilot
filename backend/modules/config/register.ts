@@ -31,7 +31,7 @@ export function registerConfigModule(
     return {
         id: 'config',
         name: 'Configuration Manager',
-        version: '1.0.0',
+        version: '1.0.3',
         description: 'Manage LLM channel configurations, supporting Gemini, OpenAI, Anthropic and other formats',
         
         apis: [
