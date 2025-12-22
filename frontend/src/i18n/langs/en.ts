@@ -307,6 +307,8 @@ const en: LanguageMessages = {
                 confirmExecution: 'Click to confirm execution',
                 confirm: 'Confirm Execution',
                 reject: 'Reject',
+                confirmed: 'Confirmed',
+                rejected: 'Rejected',
                 viewDiff: 'View Diff',
                 viewDiffInVSCode: 'View diff in VSCode',
                 openDiffFailed: 'Failed to open diff preview'
@@ -330,6 +332,7 @@ const en: LanguageMessages = {
                 dependencies: 'Dependencies',
                 context: 'Context',
                 prompt: 'Prompt',
+                tokenCount: 'Token Count',
                 general: 'General'
             },
             channelSettings: {
@@ -453,6 +456,11 @@ const en: LanguageMessages = {
                             label: 'Context Threshold',
                             placeholder: '80% or 100000',
                             hint: 'When total tokens exceed this threshold, automatically discard oldest conversation turns. Supports two formats: percentage (e.g. 80%) or absolute value (e.g. 100000)'
+                        },
+                        extraCut: {
+                            label: 'Extra Cut',
+                            placeholder: '0 or 10%',
+                            hint: 'Extra tokens to cut when trimming. Actual reserve = threshold - extra cut. Supports percentage or absolute value, defaults to 0'
                         },
                         autoSummarize: {
                             label: 'Auto Summarize (Coming Soon)',
@@ -989,6 +997,13 @@ const en: LanguageMessages = {
                 saveButton: 'Save Configuration',
                 saveSuccess: 'Saved successfully',
                 saveFailed: 'Save failed',
+                tokenCount: {
+                    label: 'Token Count',
+                    channelTooltip: 'Select channel for token calculation',
+                    refreshTooltip: 'Refresh token count',
+                    failed: 'Count failed',
+                    hint: 'Shows token count for template only, actual system prompt includes dynamically filled variable content'
+                },
                 modulesReference: {
                     title: 'Available Variables Reference',
                     insertTooltip: 'Insert at the end of template'
@@ -1114,6 +1129,10 @@ const en: LanguageMessages = {
                         title: 'System Prompt',
                         description: 'Customize the structure and content of system prompts'
                     },
+                    tokenCount: {
+                        title: 'Token Count',
+                        description: 'Configure API for counting tokens'
+                    },
                     general: {
                         title: 'General Settings',
                         description: 'Basic configuration options'
@@ -1139,7 +1158,7 @@ const en: LanguageMessages = {
                 appInfo: {
                     title: 'Application Info',
                     name: 'Lim Code - Vibe Coding Assistant',
-                    version: 'Version: 1.0.8',
+                    version: 'Version: 1.0.21',
                     repository: 'Repository',
                     developer: 'Developer'
                 }
@@ -1251,6 +1270,11 @@ const en: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                maxIterations: {
+                    label: 'Max Tool Calls Per Turn',
+                    hint: 'Prevents AI from infinite tool call loops, -1 for unlimited',
+                    unit: 'calls'
+                },
                 actions: {
                     refresh: 'Refresh',
                     enableAll: 'Enable All',
@@ -1272,6 +1296,34 @@ const en: LanguageMessages = {
                 config: {
                     tooltip: 'Configure Tool'
                 }
+            },
+            tokenCountSettings: {
+                description: 'Configure API for accurate token counting. When enabled, the corresponding channel\'s token counting API will be called before sending requests to get accurate token counts for more precise context management.',
+                hint: 'If not configured or API call fails, will fallback to estimation method.',
+                enableChannel: 'Enable token counting for this channel',
+                baseUrl: 'API URL',
+                apiKey: 'API Key',
+                apiKeyPlaceholder: 'Enter API Key',
+                model: 'Model Name',
+                geminiUrlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:countTokens?key={key}',
+                geminiUrlHint: 'Use {model} and {key} as placeholders',
+                geminiModelPlaceholder: 'gemini-2.5-pro',
+                anthropicUrlPlaceholder: 'https://api.anthropic.com/v1/messages/count_tokens',
+                anthropicModelPlaceholder: 'claude-sonnet-4-5',
+                comingSoon: 'Coming Soon',
+                customApi: 'Custom API',
+                openaiDocTitle: 'OpenAI Compatible API Interface',
+                openaiDocDesc: 'OpenAI does not provide a standalone token counting API. If you have a self-hosted or third-party compatible token counting service, you can configure it here.',
+                openaiUrlPlaceholder: 'https://your-api.example.com/count-tokens',
+                openaiUrlHint: 'Your custom token counting API endpoint',
+                openaiModelPlaceholder: 'gpt-4o',
+                apiDocumentation: 'API Specification',
+                requestExample: 'Request Example',
+                requestBody: '// Request Body',
+                responseFormat: '// Response Format',
+                openaiDocNote: 'Your API should return a JSON response with a total_tokens field. The request body uses OpenAI Messages format.',
+                saveSuccess: 'Configuration saved',
+                saveFailed: 'Save failed'
             },
             storageSettings: {
                 title: 'Storage Path',
@@ -1335,12 +1387,21 @@ const en: LanguageMessages = {
                     title: 'Thinking Configuration',
                     toggleHint: 'When enabled, thinking parameters will be sent to API'
                 },
+                currentThinking: {
+                    title: 'Current Round Config',
+                    sendSignatures: 'Send Current Signatures',
+                    sendSignaturesHint: 'Maintain reasoning context for current step (Recommended for Gemini)',
+                    sendContent: 'Send Current Thoughts',
+                    sendContentHint: 'Send reasoning content of the current turn',
+                },
                 historyThinking: {
-                    title: 'Historical Thinking Configuration',
-                    sendSignatures: 'Send Historical Thought Signatures',
-                    sendSignaturesHint: 'When enabled, thought signatures from historical conversations will be sent (format chosen by channel type)',
-                    sendContent: 'Send Historical Thought Content',
-                    sendContentHint: 'When enabled, thought content from historical conversations will be sent, which may significantly increase context length'
+                    title: 'History Rounds Config',
+                    sendSignatures: 'Send History Signatures',
+                    sendSignaturesHint: 'Maintain reasoning context across turns',
+                    sendContent: 'Send History Thoughts',
+                    sendContentHint: 'Let AI see thought processes of completed rounds',
+                    roundsLabel: 'History Thinking Rounds',
+                    roundsHint: 'How many non-latest rounds to send. -1 for all, 0 for none, positive N for last N rounds (e.g., 1 for only the second-to-last round)'
                 }
             },
             anthropic: {
@@ -1399,8 +1460,8 @@ const en: LanguageMessages = {
                     summaryDetailed: 'Detailed'
                 },
                 historyThinking: {
-                    sendSignaturesHint: 'When enabled, thought signatures from historical conversations will be sent (OpenAI not supported yet, placeholder only)',
-                    sendContentHint: 'When enabled, reasoning_content from historical conversations will be sent, which may significantly increase context length'
+                    sendSignaturesHint: 'When enabled, thought signatures from historical conversations will be sent (OpenAI not supported). Not recommended, and only signatures from non-latest turns are sent.',
+                    sendContentHint: 'When enabled, reasoning_content (including summaries) from historical conversations will be sent, which may significantly increase context length'
                 }
             },
             customBody: {
@@ -1440,6 +1501,36 @@ const en: LanguageMessages = {
                     coordTopLeft: '= Top-left corner',
                     coordBottomRight: '= Bottom-right corner',
                     coordCenter: '= Center point'
+                }
+            },
+            tokenCountMethod: {
+                title: 'Token Count Method',
+                label: 'Count Method',
+                placeholder: 'Select count method',
+                hint: 'Select the method for calculating token count, affects context trimming accuracy',
+                options: {
+                    channelDefault: 'Use Channel Default',
+                    gemini: 'Gemini API',
+                    openaiCustom: 'Custom OpenAI Format',
+                    openaiCustomDesc: 'Use custom API endpoint',
+                    anthropic: 'Anthropic API',
+                    local: 'Local Estimation',
+                    localDesc: '~4 chars = 1 token'
+                },
+                defaultDesc: {
+                    gemini: 'Default uses Gemini countTokens API',
+                    anthropic: 'Default uses Anthropic count_tokens API',
+                    openai: 'Default uses local estimation (OpenAI has no official API)'
+                },
+                apiConfig: {
+                    title: 'API Configuration',
+                    url: 'API URL',
+                    urlHint: 'Leave empty to use channel URL',
+                    apiKey: 'API Key',
+                    apiKeyPlaceholder: 'Enter API Key',
+                    apiKeyHint: 'Leave empty to use channel API Key',
+                    model: 'Model',
+                    modelHint: 'Model name for token counting'
                 }
             }
         },

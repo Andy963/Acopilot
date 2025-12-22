@@ -146,8 +146,8 @@ export function createFindFilesTool(): Tool {
         declaration: {
             name: 'find_files',
             description: isMultiRoot
-                ? `Find files in multiple workspaces based on one or more glob patterns. Results include workspace prefixes. Available workspaces: ${workspaces.map(w => w.name).join(', ')}`
-                : 'Find files based on one or more glob patterns',
+                ? `Find files in multiple workspaces based on one or more glob patterns. Results include workspace prefixes. Available workspaces: ${workspaces.map(w => w.name).join(', ')}\n\n**IMPORTANT**: The \`patterns\` parameter MUST be an array, even for a single pattern. Example: \`{"patterns": ["*.ts"]}\`, NOT \`{"pattern": "*.ts"}\`.`
+                : 'Find files based on one or more glob patterns.\n\n**IMPORTANT**: The `patterns` parameter MUST be an array, even for a single pattern. Example: `{"patterns": ["*.ts"]}`, NOT `{"pattern": "*.ts"}`.',
             category: 'search',
             parameters: {
                 type: 'object',
@@ -157,7 +157,7 @@ export function createFindFilesTool(): Tool {
                         items: {
                             type: 'string'
                         },
-                        description: 'List of glob patterns, e.g., ["**/*.ts", "src/**/*.js"]'
+                        description: 'Array of glob patterns to search for files. MUST be an array even for single pattern, e.g., ["**/*.ts", "src/**/*.js"]'
                     },
                     exclude: {
                         type: 'string',

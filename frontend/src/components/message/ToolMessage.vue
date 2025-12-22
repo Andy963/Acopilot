@@ -69,30 +69,84 @@ const enhancedTools = computed(() => {
 // 正在处理确认的工具 ID 集合
 const processingToolIds = ref<Set<string>>(new Set())
 
-// 确认工具执行
-async function confirmToolExecution(toolId: string, toolName: string) {
-  // 标记为正在处理（这会使按钮消失，显示 running 状态）
-  processingToolIds.value.add(toolId)
+// 用户决定状态：记录每个工具的用户决定（true=确认，false=拒绝，undefined=未决定）
+const userDecisions = ref<Map<string, boolean>>(new Map())
+
+// 计算等待确认的工具 ID 列表
+const pendingToolIds = computed(() => {
+  return enhancedTools.value
+    .filter(tool => tool.awaitingConfirmation)
+    .map(tool => tool.id)
+})
+
+// 计算是否所有等待确认的工具都已有用户决定
+const allDecisionsMade = computed(() => {
+  if (pendingToolIds.value.length === 0) return false
+  return pendingToolIds.value.every(id => userDecisions.value.has(id))
+})
+
+// 确认工具执行（只更新本地状态）
+function confirmToolExecution(toolId: string, _toolName: string) {
+  userDecisions.value.set(toolId, true)
+  // 触发响应式更新
+  userDecisions.value = new Map(userDecisions.value)
   
-  // 发送确认到后端
-  await sendToolConfirmation([{
-    id: toolId,
-    name: toolName,
-    confirmed: true
-  }])
+  // 检查是否所有决定都已做出，自动提交
+  if (allDecisionsMade.value) {
+    submitAllDecisions()
+  }
 }
 
-// 拒绝工具执行
-async function rejectToolExecution(toolId: string, toolName: string) {
-  // 标记为正在处理
-  processingToolIds.value.add(toolId)
+// 拒绝工具执行（只更新本地状态）
+function rejectToolExecution(toolId: string, _toolName: string) {
+  userDecisions.value.set(toolId, false)
+  // 触发响应式更新
+  userDecisions.value = new Map(userDecisions.value)
   
-  // 发送拒绝到后端
-  await sendToolConfirmation([{
-    id: toolId,
-    name: toolName,
-    confirmed: false
-  }])
+  // 检查是否所有决定都已做出，自动提交
+  if (allDecisionsMade.value) {
+    submitAllDecisions()
+  }
+}
+
+// 获取工具的用户决定状态
+function getToolDecision(toolId: string): boolean | undefined {
+  return userDecisions.value.get(toolId)
+}
+
+// 检查工具是否已有用户决定
+function hasUserDecision(toolId: string): boolean {
+  return userDecisions.value.has(toolId)
+}
+
+// 提交所有用户决定到后端
+async function submitAllDecisions() {
+  const toolResponses: Array<{ id: string; name: string; confirmed: boolean }> = []
+  
+  for (const tool of enhancedTools.value) {
+    if (tool.awaitingConfirmation) {
+      const decision = userDecisions.value.get(tool.id)
+      // 如果用户没有做出决定，默认为拒绝
+      const confirmed = decision === true
+      
+      toolResponses.push({
+        id: tool.id,
+        name: tool.name,
+        confirmed
+      })
+      
+      // 标记为正在处理
+      processingToolIds.value.add(tool.id)
+    }
+  }
+  
+  if (toolResponses.length === 0) return
+  
+  // 清空用户决定状态
+  userDecisions.value.clear()
+  
+  // 发送到后端
+  await sendToolConfirmation(toolResponses)
 }
 
 // 发送工具确认响应到后端
@@ -331,9 +385,9 @@ function renderToolContent(tool: ToolUsage) {
           </div>
           
           <div class="tool-action-buttons">
-            <!-- 确认按钮：当工具等待确认时显示 (status === 'pending') -->
+            <!-- 确认按钮：当工具等待确认且未做决定时显示 -->
             <button
-              v-if="tool.awaitingConfirmation"
+              v-if="tool.awaitingConfirmation && !hasUserDecision(tool.id)"
               class="confirm-btn"
               :title="t('components.message.tool.confirmExecution')"
               @click.stop="confirmToolExecution(tool.id, tool.name)"
@@ -342,9 +396,9 @@ function renderToolContent(tool: ToolUsage) {
               <span class="confirm-btn-text">{{ t('components.message.tool.confirm') }}</span>
             </button>
             
-            <!-- 拒绝按钮：当工具等待确认时显示 -->
+            <!-- 拒绝按钮：当工具等待确认且未做决定时显示 -->
             <button
-              v-if="tool.awaitingConfirmation"
+              v-if="tool.awaitingConfirmation && !hasUserDecision(tool.id)"
               class="reject-btn"
               :title="t('components.message.tool.reject')"
               @click.stop="rejectToolExecution(tool.id, tool.name)"
@@ -352,6 +406,28 @@ function renderToolContent(tool: ToolUsage) {
               <span class="reject-btn-icon codicon codicon-close"></span>
               <span class="reject-btn-text">{{ t('components.message.tool.reject') }}</span>
             </button>
+            
+            <!-- 已确认标记 -->
+            <span
+              v-if="tool.awaitingConfirmation && getToolDecision(tool.id) === true"
+              class="decision-badge decision-confirmed"
+              :title="t('components.message.tool.confirmed')"
+              @click.stop="confirmToolExecution(tool.id, tool.name)"
+            >
+              <span class="codicon codicon-check"></span>
+              <span class="decision-text">{{ t('components.message.tool.confirmed') }}</span>
+            </span>
+            
+            <!-- 已拒绝标记 -->
+            <span
+              v-if="tool.awaitingConfirmation && getToolDecision(tool.id) === false"
+              class="decision-badge decision-rejected"
+              :title="t('components.message.tool.rejected')"
+              @click.stop="rejectToolExecution(tool.id, tool.name)"
+            >
+              <span class="codicon codicon-close"></span>
+              <span class="decision-text">{{ t('components.message.tool.rejected') }}</span>
+            </span>
             
             <!-- diff 预览按钮 -->
             <button
@@ -564,6 +640,40 @@ function renderToolContent(tool: ToolUsage) {
 }
 
 .reject-btn-text {
+  white-space: nowrap;
+}
+
+/* 已做决定的标记 */
+.decision-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.decision-badge:hover {
+  opacity: 0.8;
+}
+
+.decision-confirmed {
+  background: rgba(40, 167, 69, 0.15);
+  color: var(--vscode-testing-iconPassed);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.decision-rejected {
+  background: rgba(220, 53, 69, 0.15);
+  color: var(--vscode-testing-iconFailed);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.decision-text {
   white-space: nowrap;
 }
 

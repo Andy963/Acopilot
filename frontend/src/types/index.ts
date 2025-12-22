@@ -29,6 +29,14 @@ export interface ContentPart {
      * 用于在重新加载对话时正确显示工具状态
      */
     rejected?: boolean
+    /**
+     * 流式响应中的索引 (OpenAI 格式)
+     */
+    index?: number
+    /**
+     * 流式响应中的原始参数片段
+     */
+    partialArgs?: string
   }
   functionResponse?: {
     name: string

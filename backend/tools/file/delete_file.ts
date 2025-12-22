@@ -26,13 +26,16 @@ export function createDeleteFileTool(): Tool {
     const workspaces = getAllWorkspaces();
     const isMultiRoot = workspaces.length > 1;
     
-    // 根据工作区数量生成描述
-    let description = 'Delete one or more files or directories. Supports deleting non-empty directories.';
-    let pathsDescription = 'List of file or directory paths to delete (relative to workspace root)';
+    // 数组格式强调说明
+    const arrayFormatNote = '\n\n**IMPORTANT**: The `paths` parameter MUST be an array, even for a single file. Example: `{"paths": ["file.txt"]}`, NOT `{"path": "file.txt"}`.';
     
+    // 根据工作区数量生成描述
+    let description = 'Delete one or more files or directories. Supports deleting non-empty directories.' + arrayFormatNote;
+    let pathsDescription = 'Array of file or directory paths to delete (relative to workspace root). MUST be an array even for single file, e.g., ["file.txt"]';
+
     if (isMultiRoot) {
         description += `\n\nMulti-root workspace: Must use "workspace_name/path" format. Available workspaces: ${workspaces.map(w => w.name).join(', ')}`;
-        pathsDescription = `List of file or directory paths to delete, must use "workspace_name/path" format`;
+        pathsDescription = `Array of file or directory paths to delete, must use "workspace_name/path" format. MUST be an array even for single file.`;
     }
     
     return {

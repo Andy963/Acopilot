@@ -304,6 +304,32 @@ function handleNumberChange(optionKey: string, event: any) {
       </div>
     </div>
     
+    <!-- 当前轮次思考配置 -->
+    <div class="option-section">
+      <div class="option-section-header">
+        <span class="option-section-title">
+          <i class="codicon codicon-zap"></i>
+          {{ t('components.channels.common.currentThinking.title') }}
+        </span>
+      </div>
+      
+      <div class="option-section-content">
+        <!-- OAI 不需要签名选项 -->
+        <div class="option-item checkbox-option">
+          <label class="custom-checkbox">
+            <input
+              type="checkbox"
+              :checked="config.sendCurrentThoughts ?? false"
+              @change="(e: any) => emit('update:field', 'sendCurrentThoughts', e.target.checked)"
+            />
+            <span class="checkmark"></span>
+            <span class="checkbox-text">{{ t('components.channels.common.currentThinking.sendContent') }}</span>
+          </label>
+          <span class="option-hint">{{ t('components.channels.common.currentThinking.sendContentHint') }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 历史思考配置 -->
     <div class="option-section history-thought-section">
       <div class="option-section-header">
@@ -338,6 +364,22 @@ function handleNumberChange(optionKey: string, event: any) {
             <span class="checkbox-text">{{ t('components.channels.common.historyThinking.sendContent') }}</span>
           </label>
           <span class="option-hint">{{ t('components.channels.openai.historyThinking.sendContentHint') }}</span>
+        </div>
+        
+        <!-- 历史思考回合数配置 - 条件展开 -->
+        <div
+          v-if="(config.sendHistoryThoughtSignatures ?? false) || (config.sendHistoryThoughts ?? false)"
+          class="option-item history-rounds-config"
+        >
+          <label>{{ t('components.channels.common.historyThinking.roundsLabel') }}</label>
+          <input
+            type="number"
+            :value="config.historyThinkingRounds ?? -1"
+            placeholder="-1"
+            min="-1"
+            @change="(e: any) => emit('update:field', 'historyThinkingRounds', Number(e.target.value))"
+          />
+          <span class="option-hint">{{ t('components.channels.common.historyThinking.roundsHint') }}</span>
         </div>
       </div>
     </div>

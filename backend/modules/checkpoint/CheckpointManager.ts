@@ -66,6 +66,8 @@ export interface CheckpointRecord {
     changes?: FileChange[];
     /** 所有文件的哈希映射（用于增量比较） */
     fileHashes?: Record<string, string>;
+    /** 空目录列表（相对路径） */
+    emptyDirs?: string[];
 }
 
 /**
@@ -192,11 +194,14 @@ export class CheckpointManager {
                 }
             }
             
-            // 将空目录也加入哈希
+            // 收集空目录的相对路径
+            const currentEmptyDirs: string[] = [];
             for (const dir of dirs) {
                 const relativePath = path.relative(workspaceRoot.fsPath, dir);
+                currentEmptyDirs.push(relativePath);
                 hashParts.push(`${relativePath}:empty-dir`);
             }
+            currentEmptyDirs.sort();
             
             // 计算综合内容签名
             const contentHash = crypto.createHash('sha256')
@@ -305,7 +310,8 @@ export class CheckpointManager {
                 type: isIncremental ? 'incremental' : 'full',
                 baseCheckpointId: isIncremental ? baseCheckpointId : undefined,
                 changes: isIncremental ? changes : undefined,
-                fileHashes: currentHashes
+                fileHashes: currentHashes,
+                emptyDirs: currentEmptyDirs
             };
             
             // 保存到对话元数据
@@ -801,6 +807,17 @@ export class CheckpointManager {
             
             // 跳过的文件数量（当前哈希与目标哈希相同的文件）
             skipped = Object.keys(targetHashes).length - added.length - modified.length;
+            
+            // 恢复空目录（从检查点元数据中读取）
+            const targetEmptyDirs = checkpoint.emptyDirs || [];
+            for (const relativePath of targetEmptyDirs) {
+                try {
+                    const destPath = path.join(workspaceRoot.fsPath, relativePath);
+                    await fs.mkdir(destPath, { recursive: true });
+                } catch (err) {
+                    console.warn(`[CheckpointManager] Failed to restore empty dir ${relativePath}:`, err);
+                }
+            }
             
             // 刷新 VSCode 中被修改的文档
             await this.refreshAffectedDocuments(modifiedFiles, deletedFiles);

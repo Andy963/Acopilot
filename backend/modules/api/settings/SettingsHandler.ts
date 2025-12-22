@@ -7,6 +7,7 @@
 import { t } from '../../../i18n';
 import type { SettingsManager } from '../../settings/SettingsManager';
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
+import { TokenCountService } from '../../channel/TokenCountService';
 import type {
     GetSettingsRequest,
     GetSettingsResponse,
@@ -40,10 +41,17 @@ import type {
  * 4. 处理 UI 设置
  */
 export class SettingsHandler {
+    private tokenCountService: TokenCountService;
+    
     constructor(
         private settingsManager: SettingsManager,
         private toolRegistry?: ToolRegistry
-    ) {}
+    ) {
+        const proxySettings = this.settingsManager.getProxySettings();
+        this.tokenCountService = new TokenCountService(
+            proxySettings?.enabled ? proxySettings.url : undefined
+        );
+    }
     
     /**
      * 获取设置
@@ -332,6 +340,46 @@ export class SettingsHandler {
                     config
                 };
             }
+
+            if (toolName === 'generate_image') {
+                const config = this.settingsManager.getGenerateImageConfig();
+                return {
+                    success: true,
+                    config
+                };
+            }
+
+            if (toolName === 'remove_background') {
+                const config = this.settingsManager.getRemoveBackgroundConfig();
+                return {
+                    success: true,
+                    config
+                };
+            }
+
+            if (toolName === 'crop_image') {
+                const config = this.settingsManager.getCropImageConfig();
+                return {
+                    success: true,
+                    config
+                };
+            }
+
+            if (toolName === 'resize_image') {
+                const config = this.settingsManager.getResizeImageConfig();
+                return {
+                    success: true,
+                    config
+                };
+            }
+
+            if (toolName === 'rotate_image') {
+                const config = this.settingsManager.getRotateImageConfig();
+                return {
+                    success: true,
+                    config
+                };
+            }
             
             // 获取通用工具配置
             const toolsConfig = this.settingsManager.getToolsConfig();
@@ -360,7 +408,46 @@ export class SettingsHandler {
         try {
             const { toolName, config } = request;
             
-            await this.settingsManager.updateToolConfig(toolName, config);
+            // 优先使用特定更新方法
+            if (toolName === 'list_files') {
+                await this.settingsManager.updateListFilesConfig(config);
+            } else if (toolName === 'find_files') {
+                await this.settingsManager.updateFindFilesConfig(config);
+            } else if (toolName === 'search_in_files') {
+                await this.settingsManager.updateSearchInFilesConfig(config);
+            } else if (toolName === 'apply_diff') {
+                await this.settingsManager.updateApplyDiffConfig(config);
+            } else if (toolName === 'delete_file') {
+                await this.settingsManager.updateDeleteFileConfig(config);
+            } else if (toolName === 'execute_command') {
+                await this.settingsManager.updateExecuteCommandConfig(config);
+            } else if (toolName === 'checkpoint') {
+                await this.settingsManager.updateCheckpointConfig(config);
+            } else if (toolName === 'summarize') {
+                await this.settingsManager.updateSummarizeConfig(config);
+            } else if (toolName === 'generate_image') {
+                await this.settingsManager.updateGenerateImageConfig(config);
+            } else if (toolName === 'remove_background') {
+                await this.settingsManager.updateRemoveBackgroundConfig(config);
+            } else if (toolName === 'crop_image') {
+                await this.settingsManager.updateCropImageConfig(config);
+            } else if (toolName === 'resize_image') {
+                await this.settingsManager.updateResizeImageConfig(config);
+            } else if (toolName === 'rotate_image') {
+                await this.settingsManager.updateRotateImageConfig(config);
+            } else if (toolName === 'context_awareness') {
+                await this.settingsManager.updateContextAwarenessConfig(config);
+            } else if (toolName === 'pinned_files') {
+                await this.settingsManager.updatePinnedFilesConfig(config);
+            } else if (toolName === 'system_prompt') {
+                await this.settingsManager.updateSystemPromptConfig(config);
+            } else if (toolName === 'token_count') {
+                await this.settingsManager.updateTokenCountConfig(config);
+            } else {
+                // 通用更新
+                await this.settingsManager.updateToolConfig(toolName, config);
+            }
+            
             const settings = this.settingsManager.getSettings();
             
             return {
@@ -560,6 +647,71 @@ export class SettingsHandler {
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
                     message: err.message || t('modules.api.settings.errors.updateGenerateImageConfigFailed')
+                }
+            };
+        }
+    }
+    
+    /**
+     * 计算系统提示词的 token 数
+     *
+     * @param request 包含文本内容和渠道类型
+     * @returns token 计数结果
+     */
+    async countSystemPromptTokens(request: {
+        text: string;
+        channelType: 'gemini' | 'openai' | 'anthropic';
+    }): Promise<{
+        success: boolean;
+        totalTokens?: number;
+        error?: { code: string; message: string };
+    }> {
+        try {
+            const { text, channelType } = request;
+            
+            // 获取 token 计数配置
+            const tokenCountConfig = this.settingsManager.getTokenCountConfig();
+            
+            // 更新代理设置
+            const proxySettings = this.settingsManager.getProxySettings();
+            this.tokenCountService.setProxyUrl(
+                proxySettings?.enabled ? proxySettings.url : undefined
+            );
+            
+            // 构建一个简单的 Content 对象
+            const contents = [{
+                role: 'user' as const,
+                parts: [{ text }]
+            }];
+            
+            // 调用 token 计数服务
+            const result = await this.tokenCountService.countTokens(
+                channelType,
+                tokenCountConfig,
+                contents
+            );
+            
+            if (result.success) {
+                return {
+                    success: true,
+                    totalTokens: result.totalTokens
+                };
+            } else {
+                return {
+                    success: false,
+                    error: {
+                        code: 'TOKEN_COUNT_FAILED',
+                        message: result.error || 'Token count failed'
+                    }
+                };
+            }
+        } catch (error) {
+            const err = error as any;
+            return {
+                success: false,
+                error: {
+                    code: err.code || 'UNKNOWN_ERROR',
+                    message: err.message || 'Token count failed'
                 }
             };
         }

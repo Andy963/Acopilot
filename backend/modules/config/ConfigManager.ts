@@ -103,7 +103,7 @@ export class ConfigManager {
                         maxOutputTokens: 65536,
                         // Gemini 思考配置默认值
                         thinkingConfig: {
-                            includeThoughts: false,
+                            includeThoughts: true,
                             mode: 'default',
                             thinkingLevel: 'low',
                             thinkingBudget: 1024
@@ -112,7 +112,7 @@ export class ConfigManager {
                     optionsEnabled: {
                         temperature: false,
                         maxOutputTokens: false,
-                        thinkingConfig: false
+                        thinkingConfig: true
                     }
                 };
             

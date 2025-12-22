@@ -248,6 +248,20 @@ export class GeminiFormatter extends BaseFormatter {
         // 提取完整的 Content（Gemini 已经是标准格式）
         const content = candidate.content;
         
+        // 提取思考签名并转换为内部格式，同时删除原始单数格式
+        if (content.parts) {
+            content.parts = content.parts.map(part => {
+                const { thoughtSignature, ...rest } = part as any;
+                if (thoughtSignature) {
+                    return {
+                        ...rest,
+                        thoughtSignatures: { gemini: thoughtSignature }
+                    };
+                }
+                return part;
+            });
+        }
+        
         // 存储完整的 usageMetadata（包括多模态 token 详情）
         if (response.usageMetadata) {
             content.usageMetadata = {
@@ -305,12 +319,24 @@ export class GeminiFormatter extends BaseFormatter {
         const content = candidate.content;
         const parts = content?.parts || [];
         
+        // 提取并转换思考签名（转换为内部复数格式，并删除原始单数格式）
+        const processedParts = parts.map(part => {
+            const { thoughtSignature, ...rest } = part as any;
+            if (thoughtSignature) {
+                return {
+                    ...rest,
+                    thoughtSignatures: { gemini: thoughtSignature }
+                };
+            }
+            return part;
+        });
+        
         // 检查是否完成
         const done = !!candidate.finishReason;
         
         // 构建响应块
         const streamChunk: StreamChunk = {
-            delta: parts,
+            delta: processedParts,
             done
         };
         

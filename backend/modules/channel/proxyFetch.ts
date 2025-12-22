@@ -630,68 +630,131 @@ export async function* proxyStreamFetch(
         };
     };
     
+    // 使用事件监听器代替 for await，避免提前中断时 socket 被自动销毁导致 RST
+    // for await 在被提前终止时会销毁流，发送 RST 包而不是 FIN，导致 ECONNRESET
     try {
-        for await (const chunk of socket as AsyncIterable<Buffer>) {
+        // 创建数据读取 Promise
+        const readData = (): Promise<void> => {
+            return new Promise((resolve, reject) => {
+                const onData = (chunk: Buffer) => {
+                    // 检查是否已取消
+                    if (init.signal?.aborted) {
+                        cleanup();
+                        resolve();
+                        return;
+                    }
+                    
+                    rawBuffer = Buffer.concat([rawBuffer, chunk]);
+                    
+                    if (!headersParsed) {
+                        const headerEndMarker = Buffer.from('\r\n\r\n');
+                        const headerEnd = rawBuffer.indexOf(headerEndMarker);
+                        
+                        if (headerEnd !== -1) {
+                            const headerPart = rawBuffer.subarray(0, headerEnd).toString('utf8');
+                            const statusMatch = headerPart.match(/HTTP\/\d\.\d (\d+)/);
+                            statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+                            
+                            // 检查是否是 chunked 编码
+                            if (headerPart.toLowerCase().includes('transfer-encoding: chunked')) {
+                                isChunked = true;
+                            }
+                            
+                            if (statusCode < 200 || statusCode >= 300) {
+                                // 解析错误响应体
+                                const errorBody = rawBuffer.subarray(headerEnd + 4).toString('utf8');
+                                let parsedError: any;
+                                try {
+                                    parsedError = JSON.parse(errorBody);
+                                } catch {
+                                    parsedError = errorBody;
+                                }
+                                cleanup();
+                                reject(new ChannelError(
+                                    ErrorType.API_ERROR,
+                                    t('modules.channel.errors.apiError', { status: statusCode }),
+                                    parsedError
+                                ));
+                                return;
+                            }
+                            
+                            headersParsed = true;
+                            rawBuffer = rawBuffer.subarray(headerEnd + 4);
+                        }
+                    }
+                    
+                    if (headersParsed && rawBuffer.length > 0) {
+                        if (isChunked) {
+                            // 实时解码 chunked 数据
+                            chunkedBuffer = Buffer.concat([chunkedBuffer, rawBuffer]);
+                            rawBuffer = Buffer.alloc(0);
+                            
+                            const { decoded, remaining } = decodeChunkedStream(chunkedBuffer);
+                            chunkedBuffer = Buffer.from(remaining);
+                            
+                            if (decoded) {
+                                // 使用队列存储数据，稍后 yield
+                                dataQueue.push(decoded);
+                            }
+                        } else {
+                            // 非 chunked，直接存储
+                            dataQueue.push(rawBuffer.toString('utf8'));
+                            rawBuffer = Buffer.alloc(0);
+                        }
+                    }
+                };
+                
+                const onEnd = () => {
+                    cleanup();
+                    resolve();
+                };
+                
+                const onClose = () => {
+                    cleanup();
+                    resolve();
+                };
+                
+                const onError = (err: Error) => {
+                    cleanup();
+                    reject(err);
+                };
+                
+                const cleanup = () => {
+                    socket.removeListener('data', onData);
+                    socket.removeListener('end', onEnd);
+                    socket.removeListener('close', onClose);
+                    socket.removeListener('error', onError);
+                };
+                
+                socket.on('data', onData);
+                socket.on('end', onEnd);
+                socket.on('close', onClose);
+                socket.on('error', onError);
+            });
+        };
+        
+        // 数据队列
+        const dataQueue: string[] = [];
+        let readPromise: Promise<void> | null = null;
+        let isReading = true;
+        
+        // 启动后台数据读取
+        readPromise = readData().finally(() => {
+            isReading = false;
+        });
+        
+        // 使用轮询方式 yield 数据，避免阻塞
+        while (isReading || dataQueue.length > 0) {
             // 检查是否已取消
             if (init.signal?.aborted) {
                 break;
             }
             
-            rawBuffer = Buffer.concat([rawBuffer, chunk]);
-            
-            if (!headersParsed) {
-                const headerEndMarker = Buffer.from('\r\n\r\n');
-                const headerEnd = rawBuffer.indexOf(headerEndMarker);
-                
-                if (headerEnd !== -1) {
-                    const headerPart = rawBuffer.subarray(0, headerEnd).toString('utf8');
-                    const statusMatch = headerPart.match(/HTTP\/\d\.\d (\d+)/);
-                    statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
-                    
-                    // 检查是否是 chunked 编码
-                    if (headerPart.toLowerCase().includes('transfer-encoding: chunked')) {
-                        isChunked = true;
-                    }
-                    
-                    if (statusCode < 200 || statusCode >= 300) {
-                        // 解析错误响应体
-                        const errorBody = rawBuffer.subarray(headerEnd + 4).toString('utf8');
-                        let parsedError: any;
-                        try {
-                            parsedError = JSON.parse(errorBody);
-                        } catch {
-                            parsedError = errorBody;
-                        }
-                        socket.end();
-                        throw new ChannelError(
-                            ErrorType.API_ERROR,
-                            t('modules.channel.errors.apiError', { status: statusCode }),
-                            parsedError
-                        );
-                    }
-                    
-                    headersParsed = true;
-                    rawBuffer = rawBuffer.subarray(headerEnd + 4);
-                }
-            }
-            
-            if (headersParsed && rawBuffer.length > 0) {
-                if (isChunked) {
-                    // 实时解码 chunked 数据
-                    chunkedBuffer = Buffer.concat([chunkedBuffer, rawBuffer]);
-                    rawBuffer = Buffer.alloc(0);
-                    
-                    const { decoded, remaining } = decodeChunkedStream(chunkedBuffer);
-                    chunkedBuffer = Buffer.from(remaining);
-                    
-                    if (decoded) {
-                        yield decoded;
-                    }
-                } else {
-                    // 非 chunked，直接输出
-                    yield rawBuffer.toString('utf8');
-                    rawBuffer = Buffer.alloc(0);
-                }
+            if (dataQueue.length > 0) {
+                yield dataQueue.shift()!;
+            } else if (isReading) {
+                // 等待一小段时间后重试
+                await new Promise(resolve => setTimeout(resolve, 10));
             }
         }
         
@@ -706,12 +769,41 @@ export async function* proxyStreamFetch(
                 yield rawBuffer.toString('utf8');
             }
         }
+        
+        // 等待读取完成
+        if (readPromise) {
+            await readPromise.catch(() => {});
+        }
     } finally {
         // 移除取消信号监听
         if (init.signal) {
             init.signal.removeEventListener('abort', onAbort);
         }
-        // 使用 end() 进行优雅关闭，避免 ECONNRESET
-        socket.end();
+        
+        // 优雅关闭 socket，等待完全关闭避免 ECONNRESET
+        await new Promise<void>((resolve) => {
+            // 如果 socket 已经关闭或销毁，直接返回
+            if (socket.destroyed || !socket.writable) {
+                resolve();
+                return;
+            }
+            
+            // 设置超时，防止无限等待
+            const closeTimeout = setTimeout(() => {
+                if (!socket.destroyed) {
+                    socket.destroy();
+                }
+                resolve();
+            }, 1000);
+            
+            // 监听 close 事件
+            socket.once('close', () => {
+                clearTimeout(closeTimeout);
+                resolve();
+            });
+            
+            // 发送 FIN 开始优雅关闭
+            socket.end();
+        });
     }
 }

@@ -258,12 +258,22 @@ export class OpenAIFormatter extends BaseFormatter {
                     }
                 }));
                 
-                // text 拼接为 content（有 tool_calls 时 content 为 null）
-                messages.push({
+                // 构建消息对象
+                const message: any = {
                     role: 'assistant',
-                    content: null,
+                    content: textParts.length > 0 ? textParts.map(p => p.text).join('\n') : null,
                     tool_calls: toolCalls
-                });
+                };
+                
+                // 如果有思考内容，添加 reasoning_content（DeepSeek R1 必需）
+                if (thoughtParts.length > 0) {
+                    const reasoningContent = thoughtParts.map(p => p.text).join('\n');
+                    if (reasoningContent) {
+                        message.reasoning_content = reasoningContent;
+                    }
+                }
+                
+                messages.push(message);
             } else if (functionResponseParts.length > 0) {
                 // 工具响应用 role: tool 发送
                 for (const part of functionResponseParts) {
@@ -789,19 +799,20 @@ export class OpenAIFormatter extends BaseFormatter {
             if (delta?.tool_calls && Array.isArray(delta.tool_calls)) {
                 for (const toolCall of delta.tool_calls) {
                     if (toolCall.function) {
-                        let args: Record<string, unknown> = {};
-                        try {
-                            args = JSON.parse(toolCall.function.arguments || '{}');
-                        } catch {
-                            // 流式中参数可能不完整，使用空对象
-                            args = {};
-                        }
+                        console.log('[OpenAI Stream] tool_call chunk:', JSON.stringify({
+                            index: toolCall.index,
+                            id: toolCall.id,
+                            name: toolCall.function.name,
+                            arguments: toolCall.function.arguments
+                        }));
                         parts.push({
                             functionCall: {
                                 name: toolCall.function.name || '',
-                                args,
-                                id: toolCall.id
-                            }
+                                args: {},
+                                partialArgs: toolCall.function.arguments,
+                                id: toolCall.id,
+                                index: toolCall.index
+                            } as any
                         });
                     }
                 }

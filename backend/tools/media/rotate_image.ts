@@ -373,7 +373,7 @@ export function createRotateImageTool(maxBatchTasks: number = 10): Tool {
                     // 批量模式参数
                     images: {
                         type: 'array',
-                        description: 'Batch mode: Rotate task array. Each task can independently configure input, output, angle, and format.',
+                        description: 'Batch mode: Rotate task array. Each task can independently configure input, output, angle, and format. MUST be an array even for single task.',
                         items: {
                             type: 'object',
                             properties: {

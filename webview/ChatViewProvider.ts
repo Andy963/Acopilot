@@ -745,6 +745,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 
+                case 'tools.getMaxToolIterations': {
+                    try {
+                        const maxIterations = this.settingsManager.getMaxToolIterations();
+                        this.sendResponse(requestId, { maxIterations });
+                    } catch (error: any) {
+                        this.sendError(requestId, 'GET_MAX_TOOL_ITERATIONS_ERROR', error.message || t('webview.errors.getMaxToolIterationsFailed'));
+                    }
+                    break;
+                }
+                
+                case 'tools.updateMaxToolIterations': {
+                    try {
+                        const { maxIterations } = data;
+                        await this.settingsManager.setMaxToolIterations(maxIterations);
+                        this.sendResponse(requestId, { success: true });
+                    } catch (error: any) {
+                        this.sendError(requestId, 'UPDATE_MAX_TOOL_ITERATIONS_ERROR', error.message || t('webview.errors.updateMaxToolIterationsFailed'));
+                    }
+                    break;
+                }
+                
                 case 'tools.getFindFilesConfig': {
                     try {
                         const config = this.settingsManager.getFindFilesConfig();
@@ -1379,6 +1400,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                         this.sendResponse(requestId, { success: true });
                     } catch (error: any) {
                         this.sendError(requestId, 'UPDATE_SYSTEM_PROMPT_CONFIG_ERROR', error.message || t('webview.errors.updateSystemPromptConfigFailed'));
+                    }
+                    break;
+                }
+                
+                case 'countSystemPromptTokens': {
+                    try {
+                        const { text, channelType } = data;
+                        const result = await this.settingsHandler.countSystemPromptTokens({ text, channelType });
+                        if (result.success) {
+                            this.sendResponse(requestId, { success: true, totalTokens: result.totalTokens });
+                        } else {
+                            this.sendResponse(requestId, { success: false, error: result.error?.message });
+                        }
+                    } catch (error: any) {
+                        this.sendResponse(requestId, { success: false, error: error.message || 'Token count failed' });
                     }
                     break;
                 }
@@ -2973,9 +3009,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.diffPreviewProvider.setContent(originalUri.toString(), originalContent);
             this.diffPreviewProvider.setContent(newUri.toString(), newContent);
             
-            // 打开 diff 视图
+            // 打开 diff 视图（使用 preview: false 确保即使多次点击也能保留独立的标签页）
             await vscode.commands.executeCommand('vscode.diff', originalUri, newUri, diffTitle, {
-                preview: true
+                preview: false
             });
             
         } else if (toolName === 'search_in_files') {
@@ -3090,9 +3126,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 this.diffPreviewProvider.setContent(originalUri.toString(), originalContent);
                 this.diffPreviewProvider.setContent(newUri.toString(), newContent);
                 
-                // 打开 diff 视图
+                // 打开 diff 视图（使用 preview: false 确保每个文件都有独立的标签页）
                 await vscode.commands.executeCommand('vscode.diff', originalUri, newUri, diffTitle, {
-                    preview: true
+                    preview: false
                 });
             }
         } else {

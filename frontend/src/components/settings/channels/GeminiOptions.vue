@@ -28,7 +28,7 @@ const DEFAULT_VALUES: Record<string, any> = {
   temperature: 1.0,
   maxOutputTokens: 8192,
   thinkingConfig: {
-    includeThoughts: false,
+    includeThoughts: true,
     mode: 'default',
     thinkingLevel: 'low',
     thinkingBudget: 1024
@@ -248,6 +248,44 @@ function updateThinkingConfig(field: string, value: any) {
       </div>
     </div>
     
+    <!-- 当前轮次思考配置 -->
+    <div class="option-section">
+      <div class="option-section-header">
+        <span class="option-section-title">
+          <i class="codicon codicon-zap"></i>
+          {{ t('components.channels.common.currentThinking.title') }}
+        </span>
+      </div>
+      
+      <div class="option-section-content">
+        <div class="option-item checkbox-option">
+          <label class="custom-checkbox">
+            <input
+              type="checkbox"
+              :checked="config.sendCurrentThoughtSignatures ?? true"
+              @change="(e: any) => emit('update:field', 'sendCurrentThoughtSignatures', e.target.checked)"
+            />
+            <span class="checkmark"></span>
+            <span class="checkbox-text">{{ t('components.channels.common.currentThinking.sendSignatures') }}</span>
+          </label>
+          <span class="option-hint">{{ t('components.channels.common.currentThinking.sendSignaturesHint') }}</span>
+        </div>
+        
+        <div class="option-item checkbox-option">
+          <label class="custom-checkbox">
+            <input
+              type="checkbox"
+              :checked="config.sendCurrentThoughts ?? false"
+              @change="(e: any) => emit('update:field', 'sendCurrentThoughts', e.target.checked)"
+            />
+            <span class="checkmark"></span>
+            <span class="checkbox-text">{{ t('components.channels.common.currentThinking.sendContent') }}</span>
+          </label>
+          <span class="option-hint">{{ t('components.channels.common.currentThinking.sendContentHint') }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 历史思考配置 -->
     <div class="option-section history-thought-section">
       <div class="option-section-header">
@@ -282,6 +320,22 @@ function updateThinkingConfig(field: string, value: any) {
             <span class="checkbox-text">{{ t('components.channels.common.historyThinking.sendContent') }}</span>
           </label>
           <span class="option-hint">{{ t('components.channels.gemini.historyThinking.sendContentHint') }}</span>
+        </div>
+        
+        <!-- 历史思考回合数配置 - 条件展开 -->
+        <div
+          v-if="(config.sendHistoryThoughtSignatures ?? false) || (config.sendHistoryThoughts ?? false)"
+          class="option-item history-rounds-config"
+        >
+          <label>{{ t('components.channels.common.historyThinking.roundsLabel') }}</label>
+          <input
+            type="number"
+            :value="config.historyThinkingRounds ?? -1"
+            placeholder="-1"
+            min="-1"
+            @change="(e: any) => emit('update:field', 'historyThinkingRounds', Number(e.target.value))"
+          />
+          <span class="option-hint">{{ t('components.channels.common.historyThinking.roundsHint') }}</span>
         </div>
       </div>
     </div>

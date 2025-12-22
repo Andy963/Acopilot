@@ -13,12 +13,36 @@
  */
 
 /**
+ * 不同渠道的 Token 计数
+ *
+ * 由于不同渠道（Gemini、OpenAI、Anthropic）对同一消息的 token 计算方式不同，
+ * 使用对象结构分开存储，便于按当前使用的渠道类型获取对应的 token 数。
+ *
+ * 计算方式：
+ * - 通过调用各渠道的 token 计数 API 获取精确值
+ * - 如果 API 调用失败，回退到估算方法
+ */
+export interface ChannelTokenCounts {
+    /** Gemini 渠道的 token 数 */
+    gemini?: number;
+    
+    /** OpenAI 渠道的 token 数 */
+    openai?: number;
+    
+    /** Anthropic 渠道的 token 数 */
+    anthropic?: number;
+    
+    /** 其他渠道的 token 数 */
+    [key: string]: number | undefined;
+}
+
+/**
  * 思考签名（多格式支持）
  *
  * 不同 API 提供商返回的思考签名格式不同，
  * 使用对象结构分开存储，便于区分和管理
  *
- * 思考签名示例: "Eo4KCosKAXLI2nyWeryDa/51Rbxj4E/V/8w=="
+ * 思考签名示例: "Eo4KCosKAXrI2nyWeryDa/51Rbxj4E/V/8w=="
  */
 export interface ThoughtSignatures {
     /** Gemini 格式思考签名 */
@@ -85,6 +109,8 @@ export interface ContentPart {
     functionCall?: {
         name: string;
         args: Record<string, unknown>;
+        /** 增量解析时的原始 JSON 字符串（用于流式输出） */
+        partialArgs?: string;
         id?: string; // 可选的函数调用 ID
         /**
          * 是否已被用户拒绝执行
@@ -273,7 +299,7 @@ export interface Content {
     /**
      * 模型版本（仅 model 消息有值）
      *
-     * 例如: "gemini-2.5-flash", "gpt-4o"
+     * 例如: "gemini-2.5-flash", "gpt-5o"
      * 用于标识是哪个模型生成的回复
      */
     modelVersion?: string;
@@ -382,6 +408,37 @@ export interface Content {
      * 如果未设置，前端会使用加载时的时间
      */
     timestamp?: number;
+    
+    /**
+     * 该消息按渠道分类的 token 数（仅用户消息和函数响应消息）
+     *
+     * 由于不同渠道（Gemini、OpenAI、Anthropic）对同一消息的 token 计算方式不同，
+     * 按渠道类型分别存储，在裁剪上下文时根据当前使用的渠道获取对应值。
+     *
+     * 计算方式（优先级从高到低）：
+     * 1. 调用渠道的 token 计数 API 获取精确值
+     * 2. 如果 API 调用失败，使用相邻轮次 promptTokenCount 差值计算
+     * 3. 如果没有 promptTokenCount，使用字符数估算
+     *
+     * 用于：
+     * - 估算完整历史的 token 数
+     * - 判断是否需要裁剪上下文
+     * - 避免上下文振荡问题
+     *
+     * 示例：
+     * {
+     *   gemini: 1500,
+     *   openai: 1520,
+     *   anthropic: 1480
+     * }
+     */
+    tokenCountByChannel?: ChannelTokenCounts;
+    
+    /**
+     * @deprecated 使用 tokenCountByChannel 代替
+     * 保留用于向后兼容，新代码应使用 tokenCountByChannel
+     */
+    estimatedTokenCount?: number;
     
     /**
      * @deprecated 使用 usageMetadata.thoughtsTokenCount 代替

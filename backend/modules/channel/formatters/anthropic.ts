@@ -777,13 +777,26 @@ export class AnthropicFormatter extends BaseFormatter {
                     redactedThinking: delta.data
                 });
             } else if (delta?.type === 'input_json_delta') {
-                // 工具调用参数增量（通常需要累积）
-                // 这里简化处理
+                // 工具调用参数增量
+                if (delta.partial_json !== undefined) {
+                    parts.push({
+                        functionCall: {
+                            name: '', // 名称在 block_start 中提供，这里留空供累加器合并
+                            args: {},
+                            partialArgs: delta.partial_json
+                        }
+                    });
+                }
             }
         } else if (chunk.type === 'content_block_start') {
             const block = chunk.content_block;
             
-            if (block?.type === 'thinking') {
+            if (block?.type === 'text') {
+                // 文本块开始
+                if (block.text) {
+                    parts.push({ text: block.text });
+                }
+            } else if (block?.type === 'thinking') {
                 // 思考块开始，可能包含初始内容
                 if (block.thinking) {
                     parts.push({
@@ -799,10 +812,12 @@ export class AnthropicFormatter extends BaseFormatter {
                     });
                 }
             } else if (block?.type === 'tool_use') {
+                const args = block.input || {};
                 parts.push({
                     functionCall: {
                         name: block.name,
-                        args: block.input || {},
+                        args: args,
+                        partialArgs: Object.keys(args).length > 0 ? JSON.stringify(args) : '',
                         id: block.id
                     }
                 });

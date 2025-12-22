@@ -412,7 +412,7 @@ export function createCropImageTool(maxBatchTasks: number = 10, defaultOptions?:
                     // 批量模式参数
                     images: {
                         type: 'array',
-                        description: 'Batch mode: Array of crop tasks. Each task can independently configure input, output and crop coordinates.',
+                        description: 'Batch mode: Array of crop tasks. Each task can independently configure input, output and crop coordinates. MUST be an array even for single task.',
                         items: {
                             type: 'object',
                             properties: {

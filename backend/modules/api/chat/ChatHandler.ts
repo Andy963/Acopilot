@@ -15,7 +15,8 @@ import type { SettingsManager } from '../../settings/SettingsManager';
 import type { McpManager } from '../../mcp/McpManager';
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
-import type { Content, ContentPart } from '../../conversation/types';
+import { TokenCountService, type TokenCountResult } from '../../channel/TokenCountService';
+import type { Content, ContentPart, ChannelTokenCounts } from '../../conversation/types';
 import type { GetHistoryOptions } from '../../conversation/ConversationManager';
 import type { BaseChannelConfig } from '../../config/configs/base';
 import type { StreamChunk, GenerateResponse } from '../../channel/types';
@@ -48,8 +49,8 @@ import type {
     SummarizeContextErrorData
 } from './types';
 
-/** 最大工具调用循环次数，防止无限循环 */
-const MAX_TOOL_CALL_ITERATIONS = 20;
+/** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
+const DEFAULT_MAX_TOOL_ITERATIONS = 20;
 
 /**
  * 对话回合信息
@@ -71,6 +72,16 @@ function generateToolCallId(): string {
 }
 
 /**
+ * 上下文裁剪信息
+ */
+interface ContextTrimInfo {
+    /** 裁剪后的历史（用于发送给 API） */
+    history: Content[];
+    /** 裁剪起始索引（在完整历史中的索引，0 表示没有裁剪） */
+    trimStartIndex: number;
+}
+
+/**
  * 对话处理器
  *
  * 职责：
@@ -87,6 +98,7 @@ export class ChatHandler {
     private mcpManager?: McpManager;
     private diffStorageManager?: DiffStorageManager;
     private promptManager: PromptManager;
+    private tokenCountService: TokenCountService;
     
     constructor(
         private configManager: ConfigManager,
@@ -95,6 +107,7 @@ export class ChatHandler {
         private toolRegistry?: ToolRegistry
     ) {
         this.promptManager = new PromptManager();
+        this.tokenCountService = new TokenCountService();
     }
     
     /**
@@ -109,6 +122,8 @@ export class ChatHandler {
      */
     setSettingsManager(settingsManager: SettingsManager): void {
         this.settingsManager = settingsManager;
+        // 更新 tokenCountService 的代理设置
+        this.tokenCountService.setProxyUrl(settingsManager.getEffectiveProxyUrl());
     }
     
     /**
@@ -124,6 +139,14 @@ export class ChatHandler {
      */
     setDiffStorageManager(diffStorageManager: DiffStorageManager): void {
         this.diffStorageManager = diffStorageManager;
+    }
+    
+    /**
+     * 获取单回合最大工具调用次数
+     * 从设置管理器读取，如果不可用则返回默认值
+     */
+    private getMaxToolIterations(): number {
+        return this.settingsManager?.getMaxToolIterations() ?? DEFAULT_MAX_TOOL_ITERATIONS;
     }
     
     /**
@@ -172,12 +195,14 @@ export class ChatHandler {
             
             // 4. 工具调用循环
             const chatHistoryOptions = this.buildHistoryOptions(config);
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
                 
-                // 获取对话历史
-                const history = await this.conversationManager.getHistoryForAPI(conversationId, chatHistoryOptions);
+                // 获取对话历史（应用总结过滤和上下文阈值裁剪）
+                const history = await this.getHistoryWithContextTrim(conversationId, config, chatHistoryOptions);
                 
                 // 调用 AI（非流式）
                 const response = await this.channelManager.generate({
@@ -193,7 +218,9 @@ export class ChatHandler {
                 const generateResponse = response as GenerateResponse;
                 
                 // 保存 AI 响应到历史
-                await this.conversationManager.addContent(conversationId, generateResponse.content);
+                if (generateResponse.content.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, generateResponse.content);
+                }
                 
                 // 检查是否有工具调用
                 const functionCalls = this.extractFunctionCalls(generateResponse.content);
@@ -228,7 +255,7 @@ export class ChatHandler {
                 success: false,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             
@@ -350,6 +377,9 @@ export class ChatHandler {
                 userParts
             );
             
+            // 5.1 调用 Token 计数 API 预计算用户消息的 token 数
+            await this.preCountUserMessageTokens(conversationId, config.type);
+            
             // 6. 为用户消息创建存档点（如果配置了执行后）
             if (this.checkpointManager && this.settingsManager?.shouldCreateAfterUserMessageCheckpoint()) {
                 const currentHistoryAfterUser = await this.conversationManager.getHistoryRef(conversationId);
@@ -378,15 +408,12 @@ export class ChatHandler {
             const currentHistoryCheck = await this.conversationManager.getHistoryRef(conversationId);
             const isFirstMessage = currentHistoryCheck.length === 1;  // 只有刚添加的用户消息
             
-            // 获取动态系统提示词（首条消息时刷新）
-            const dynamicSystemPrompt = isFirstMessage
-                ? this.promptManager.refreshAndGetPrompt()
-                : this.promptManager.getSystemPrompt();
-            
             // 9. 工具调用循环
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
 
                 // 检查是否已取消
@@ -429,7 +456,13 @@ export class ChatHandler {
                 
                 // 获取对话历史（应用上下文裁剪）
                 const historyOptions = this.buildHistoryOptions(config);
-                const history = await this.getHistoryWithContextTrim(conversationId, config, historyOptions);
+                const { history, trimStartIndex } = await this.getHistoryWithContextTrimInfo(conversationId, config, historyOptions);
+                
+                // 每次迭代都刷新动态系统提示词（包含 DIAGNOSTICS 等实时信息）
+                // 首条消息时使用 refreshAndGetPrompt 强制刷新缓存
+                const dynamicSystemPrompt = (isFirstMessage && iteration === 1)
+                    ? this.promptManager.refreshAndGetPrompt()
+                    : this.promptManager.getSystemPrompt(true);  // 强制刷新以获取最新的 DIAGNOSTICS
                 
                 // 记录请求开始时间（用于计算响应持续时间）
                 const requestStartTime = Date.now();
@@ -455,37 +488,43 @@ export class ChatHandler {
                     let cancelled = false;
                     let lastPartsLength = 0;
                     
-                    for await (const chunk of response) {
-                        // 检查是否已取消
-                        if (request.abortSignal?.aborted) {
+                    try {
+                        for await (const chunk of response) {
+                            // 检查是否已取消
+                            if (request.abortSignal?.aborted) {
+                                cancelled = true;
+                                break;
+                            }
+                            accumulator.add(chunk);
+                            
+                            // 获取累加器处理后的 parts（实时转换工具调用标记）
+                            const currentContent = accumulator.getContent();
+                            const currentParts = currentContent.parts;
+                            
+                            // 计算增量 delta
+                            const newDelta = currentParts.slice(lastPartsLength);
+                            lastPartsLength = currentParts.length;
+                            
+                            // 发送处理后的 chunk，附加 thinkingStartTime 供前端实时显示
+                            const processedChunk: typeof chunk & { thinkingStartTime?: number } = {
+                                ...chunk,
+                                delta: newDelta.length > 0 ? newDelta : chunk.delta
+                            };
+                            
+                            // 如果有思考开始时间，添加到 chunk
+                            const thinkingStartTime = currentContent.thinkingStartTime;
+                            if (thinkingStartTime !== undefined) {
+                                processedChunk.thinkingStartTime = thinkingStartTime;
+                            }
+                            
+                            yield { conversationId, chunk: processedChunk };
+                        }
+                    } catch (err) {
+                        // 如果是取消错误，设置 cancelled 为 true 并继续执行后续保存逻辑
+                        if (request.abortSignal?.aborted || (err instanceof ChannelError && err.type === ErrorType.CANCELLED_ERROR)) {
                             cancelled = true;
-                            break;
-                        }
-                        accumulator.add(chunk);
-                        
-                        // 获取累加器处理后的 parts（实时转换工具调用标记）
-                        const currentContent = accumulator.getContent();
-                        const currentParts = currentContent.parts;
-                        
-                        // 计算增量 delta
-                        const newDelta = currentParts.slice(lastPartsLength);
-                        lastPartsLength = currentParts.length;
-                        
-                        // 发送处理后的 chunk，附加 thinkingStartTime 供前端实时显示
-                        const processedChunk: typeof chunk & { thinkingStartTime?: number } = {
-                            ...chunk,
-                            delta: newDelta.length > 0 ? newDelta : chunk.delta
-                        };
-                        
-                        // 如果有思考开始时间，添加到 chunk
-                        const thinkingStartTime = currentContent.thinkingStartTime;
-                        if (thinkingStartTime !== undefined) {
-                            processedChunk.thinkingStartTime = thinkingStartTime;
-                        }
-                        
-                        yield { conversationId, chunk: processedChunk };
-                        if (chunk.done) {
-                            break;
+                        } else {
+                            throw err;
                         }
                     }
                     
@@ -499,6 +538,12 @@ export class ChatHandler {
                                 conversationId,
                                 cancelled: true as const,
                                 content: partialContent
+                            } as any;
+                        } else {
+                            // 即使没有内容也要发送取消信号
+                            yield {
+                                conversationId,
+                                cancelled: true as const
                             } as any;
                         }
                         return;
@@ -528,7 +573,9 @@ export class ChatHandler {
                 this.ensureFunctionCallIds(finalContent);
                 
                 // 保存 AI 响应到历史
-                await this.conversationManager.addContent(conversationId, finalContent);
+                if (finalContent.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, finalContent);
+                }
                 
                 // 检查是否有工具调用
                 const functionCalls = this.extractFunctionCalls(finalContent);
@@ -619,6 +666,9 @@ export class ChatHandler {
                     isFunctionResponse: true
                 });
                 
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 检查是否有工具被取消
                 const hasCancelled = toolResults.some(r => (r.result as any).cancelled);
                 if (hasCancelled) {
@@ -650,15 +700,18 @@ export class ChatHandler {
                 conversationId,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             
         } catch (error) {
             // 检查是否是用户取消错误
             if (error instanceof ChannelError && error.type === ErrorType.CANCELLED_ERROR) {
-                // 用户取消，不需要 yield error，直接返回
-                // cancelled 消息已经在流式处理循环中 yield 过了
+                // 用户取消，yield cancelled 消息
+                yield {
+                    conversationId: request.conversationId,
+                    cancelled: true as const
+                } as any;
                 return;
             }
             
@@ -1416,13 +1469,15 @@ export class ChatHandler {
                 isFunctionResponse: true
             });
             
-            // 7. 继续 AI 对话（让 AI 处理工具结果）
-            // 获取动态系统提示词
-            const dynamicSystemPrompt = this.promptManager.getSystemPrompt();
+            // 计算工具响应消息的 token 数
+            await this.preCountUserMessageTokens(conversationId, config.type);
             
+            // 7. 继续 AI 对话（让 AI 处理工具结果）
             // 工具调用循环
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
                 
                 // 检查是否已取消
@@ -1435,9 +1490,12 @@ export class ChatHandler {
                     return;
                 }
                 
-                // 获取对话历史
+                // 获取对话历史（应用总结过滤和上下文阈值裁剪）
                 const historyOptions = this.buildHistoryOptions(config);
-                const updatedHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+                const updatedHistory = await this.getHistoryWithContextTrim(conversationId, config, historyOptions);
+                
+                // 每次迭代都刷新动态系统提示词（包含 DIAGNOSTICS 等实时信息）
+                const dynamicSystemPrompt = this.promptManager.getSystemPrompt(true);  // 强制刷新
                 
                 // 记录请求开始时间（用于计算响应持续时间）
                 const confirmRequestStartTime = Date.now();
@@ -1461,32 +1519,38 @@ export class ChatHandler {
                     let cancelled = false;
                     let lastPartsLength = 0;
                     
-                    for await (const chunk of response) {
-                        if (request.abortSignal?.aborted) {
+                    try {
+                        for await (const chunk of response) {
+                            if (request.abortSignal?.aborted) {
+                                cancelled = true;
+                                break;
+                            }
+                            accumulator.add(chunk);
+                            
+                            const currentContent = accumulator.getContent();
+                            const currentParts = currentContent.parts;
+                            const newDelta = currentParts.slice(lastPartsLength);
+                            lastPartsLength = currentParts.length;
+                            
+                            // 添加 thinkingStartTime 供前端实时显示
+                            const confirmIterProcessedChunk: typeof chunk & { thinkingStartTime?: number } = {
+                                ...chunk,
+                                delta: newDelta.length > 0 ? newDelta : chunk.delta
+                            };
+                            
+                            const confirmIterThinkingStartTime = currentContent.thinkingStartTime;
+                            if (confirmIterThinkingStartTime !== undefined) {
+                                confirmIterProcessedChunk.thinkingStartTime = confirmIterThinkingStartTime;
+                            }
+                            
+                            yield { conversationId, chunk: confirmIterProcessedChunk };
+                        }
+                    } catch (err) {
+                        // 如果是取消错误，设置 cancelled 为 true 并继续执行后续保存逻辑
+                        if (request.abortSignal?.aborted || (err instanceof ChannelError && err.type === ErrorType.CANCELLED_ERROR)) {
                             cancelled = true;
-                            break;
-                        }
-                        accumulator.add(chunk);
-                        
-                        const currentContent = accumulator.getContent();
-                        const currentParts = currentContent.parts;
-                        const newDelta = currentParts.slice(lastPartsLength);
-                        lastPartsLength = currentParts.length;
-                        
-                        // 添加 thinkingStartTime 供前端实时显示
-                        const confirmIterProcessedChunk: typeof chunk & { thinkingStartTime?: number } = {
-                            ...chunk,
-                            delta: newDelta.length > 0 ? newDelta : chunk.delta
-                        };
-                        
-                        const confirmIterThinkingStartTime = currentContent.thinkingStartTime;
-                        if (confirmIterThinkingStartTime !== undefined) {
-                            confirmIterProcessedChunk.thinkingStartTime = confirmIterThinkingStartTime;
-                        }
-                        
-                        yield { conversationId, chunk: confirmIterProcessedChunk };
-                        if (chunk.done) {
-                            break;
+                        } else {
+                            throw err;
                         }
                     }
                     
@@ -1499,6 +1563,12 @@ export class ChatHandler {
                                 conversationId,
                                 cancelled: true as const,
                                 content: partialContent
+                            } as any;
+                        } else {
+                            // 即使没有内容也要发送取消信号
+                            yield {
+                                conversationId,
+                                cancelled: true as const
                             } as any;
                         }
                         return;
@@ -1524,7 +1594,9 @@ export class ChatHandler {
                 this.ensureFunctionCallIds(finalContent);
                 
                 // 保存响应
-                await this.conversationManager.addContent(conversationId, finalContent);
+                if (finalContent.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, finalContent);
+                }
                 
                 // 检查是否有新的工具调用
                 const newFunctionCalls = this.extractFunctionCalls(finalContent);
@@ -1594,6 +1666,9 @@ export class ChatHandler {
                     isFunctionResponse: true
                 });
                 
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 检查是否有工具被取消
                 const confirmHasCancelled = newExecutionResult.toolResults.some(r => (r.result as any).cancelled);
                 if (confirmHasCancelled) {
@@ -1622,7 +1697,7 @@ export class ChatHandler {
                 conversationId,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             
@@ -1768,14 +1843,11 @@ export class ChatHandler {
             return 0;
         }
         
-        console.log(`[Context Trim] Token count ${latestTokenCount} exceeds threshold ${threshold}, calculating trim...`);
-        
         // 识别回合
         const rounds = this.identifyRounds(history);
         
         // 至少需要保留当前回合（最后一个回合）
         if (rounds.length <= 1) {
-            console.log('[Context Trim] Only one round, cannot trim');
             return 0;
         }
         
@@ -1796,7 +1868,6 @@ export class ChatHandler {
         
         // 返回应该开始的索引
         const startIndex = rounds[roundsToSkip].startIndex;
-        console.log(`[Context Trim] Skipping ${roundsToSkip} rounds, starting from index ${startIndex}`);
         
         return startIndex;
     }
@@ -1818,17 +1889,31 @@ export class ChatHandler {
         const multimodalEnabled = config.multimodalToolsEnabled ?? false;
         const capability = getMultimodalCapability(channelType, toolMode, multimodalEnabled);
         
+        // 历史思考回合数配置
+        // 仅在发送历史思考内容或签名时生效
+        const sendHistoryThoughts = config.sendHistoryThoughts ?? false;
+        const sendHistoryThoughtSignatures = config.sendHistoryThoughtSignatures ?? false;
+        const historyThinkingRounds = (sendHistoryThoughts || sendHistoryThoughtSignatures)
+            ? (config.historyThinkingRounds ?? -1)
+            : -1;
+        
         return {
             // 当前轮次是否包含思考
             includeThoughts: thinkingEnabled,
             // 是否发送历史思考内容
-            sendHistoryThoughts: config.sendHistoryThoughts ?? false,
+            sendHistoryThoughts,
             // 是否发送历史思考签名
-            sendHistoryThoughtSignatures: config.sendHistoryThoughtSignatures ?? false,
+            sendHistoryThoughtSignatures,
+            // 是否发送当前思考内容 (默认: Anthropic 为 true, OAI/Gemini 为 false)
+            sendCurrentThoughts: config.sendCurrentThoughts ?? (config.type === 'anthropic'),
+            // 是否发送当前思考签名 (默认: OAI 为 false, Gemini 为 true)
+            sendCurrentThoughtSignatures: config.sendCurrentThoughtSignatures ?? (config.type === 'gemini'),
             // 渠道类型，用于选择对应格式的签名
             channelType: config.type as 'gemini' | 'openai' | 'anthropic' | 'custom',
             // 多模态能力，用于过滤历史中的多模态数据
-            multimodalCapability: capability
+            multimodalCapability: capability,
+            // 历史思考回合数
+            historyThinkingRounds
         };
     }
     
@@ -1853,24 +1938,28 @@ export class ChatHandler {
      * 策略：
      * 1. 如果有总结消息，从最后一个总结消息开始获取历史
      * 2. 在此基础上，如果 token 数仍超过阈值，继续从总结后的回合中裁剪
+     * 3. 使用每条消息的 tokenCountByChannel 来累加计算，避免上下文振荡
      *
      * @param conversationId 对话 ID
      * @param config 渠道配置
      * @param historyOptions 历史选项
-     * @returns 裁剪后的历史
+     * @returns 裁剪后的历史和裁剪信息
      */
-    private async getHistoryWithContextTrim(
+    private async getHistoryWithContextTrimInfo(
         conversationId: string,
         config: BaseChannelConfig,
         historyOptions: GetHistoryOptions
-    ): Promise<Content[]> {
+    ): Promise<ContextTrimInfo> {
         // 先获取完整的原始历史
         const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
         
         // 如果历史为空，直接返回
         if (fullHistory.length === 0) {
-            return [];
+            return { history: [], trimStartIndex: 0 };
         }
+        
+        // 获取当前渠道类型（gemini, openai, anthropic, custom）
+        const channelType = config.type || 'custom';
         
         // 查找最后一个总结消息
         const lastSummaryIndex = this.findLastSummaryIndex(fullHistory);
@@ -1878,41 +1967,158 @@ export class ChatHandler {
         // 确定有效的起始索引（如果有总结，从总结开始；否则从头开始）
         const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
         
-        if (lastSummaryIndex >= 0) {
-            console.log(`[Context] Found summary at index ${lastSummaryIndex}, using as starting point`);
+        // 计算系统提示词的 token 数
+        const systemPrompt = this.promptManager.getSystemPrompt();
+        let systemPromptTokens = 0;
+        if (systemPrompt) {
+            systemPromptTokens = await this.countSystemPromptTokens(systemPrompt, channelType);
         }
         
-        // 查找最新的 model 消息，获取 totalTokenCount
-        let latestTokenCount: number | undefined;
+        // 计算从 effectiveStartIndex 开始的消息 token 数
+        // 这是解决上下文振荡问题的关键：使用累加的单条消息 token 数，而不是 API 返回的累计值
+        // - 系统提示词：使用 API 计算或估算（会在发送给 API 时重新添加）
+        // - 用户消息：使用 estimatedTokenCount 或估算
+        // - model 消息：根据用户配置决定是否计算思考 token
+        let estimatedTotalTokens = systemPromptTokens;  // 从系统提示词开始
+        let hasEstimatedTokens = systemPromptTokens > 0;
+        
+        // 用于记录每个回合结束时的累计 token 数（基于自计算的累加值）
+        // 这样可以正确包含新添加的工具响应消息
+        // 注意：只累加 effectiveStartIndex 之后的消息
+        interface RoundTokenInfo {
+            startIndex: number;
+            endIndex: number;
+            cumulativeTokens: number;  // 系统提示词 + effectiveStartIndex 到这个回合结束的累计 token 数
+        }
+        const roundTokenInfos: RoundTokenInfo[] = [];
+        let currentRoundStartIndex = -1;
+        
+        // 从 historyOptions 获取用户配置
+        const sendHistoryThoughts = historyOptions.sendHistoryThoughts ?? false;
+        const sendHistoryThoughtSignatures = historyOptions.sendHistoryThoughtSignatures ?? false;
+        const sendCurrentThoughts = historyOptions.sendCurrentThoughts ?? false;
+        const sendCurrentThoughtSignatures = historyOptions.sendCurrentThoughtSignatures ?? false;
+        const historyThinkingRounds = historyOptions.historyThinkingRounds ?? -1;
+        
+        // 找到最后一个非函数响应的 user 消息索引（当前轮次的起点）
+        let lastNonFunctionResponseUserIndex = -1;
         for (let i = fullHistory.length - 1; i >= 0; i--) {
-            if (fullHistory[i].role === 'model' && fullHistory[i].usageMetadata?.totalTokenCount) {
-                latestTokenCount = fullHistory[i].usageMetadata!.totalTokenCount;
+            const message = fullHistory[i];
+            if (message.role === 'user' && !message.isFunctionResponse) {
+                lastNonFunctionResponseUserIndex = i;
                 break;
             }
         }
         
-        // 如果没有 token 记录，直接返回从起始索引开始的历史
-        if (latestTokenCount === undefined) {
-            if (effectiveStartIndex === 0) {
-                return await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+        // 识别所有回合起始位置
+        const roundStartIndices: number[] = [];
+        for (let i = 0; i < fullHistory.length; i++) {
+            const message = fullHistory[i];
+            if (message.role === 'user' && !message.isFunctionResponse) {
+                roundStartIndices.push(i);
             }
-            // 有总结消息，从总结开始
-            const fullApiHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
-            const trimRatio = effectiveStartIndex / fullHistory.length;
-            const apiStartIndex = Math.floor(fullApiHistory.length * trimRatio);
-            return fullApiHistory.slice(apiStartIndex);
+        }
+        
+        // 计算历史思考回合的有效范围（与 getHistoryForAPI 保持一致）
+        let historyThoughtMinIndex = 0;
+        let historyThoughtMaxIndex = lastNonFunctionResponseUserIndex;
+        
+        if (historyThinkingRounds === 0) {
+            historyThoughtMinIndex = fullHistory.length;
+            historyThoughtMaxIndex = -1;
+        } else if (historyThinkingRounds > 0) {
+            const totalRounds = roundStartIndices.length;
+            if (totalRounds > 1) {
+                const roundsToSkip = Math.max(0, totalRounds - 1 - historyThinkingRounds);
+                if (roundsToSkip > 0 && roundsToSkip < totalRounds) {
+                    historyThoughtMinIndex = roundStartIndices[roundsToSkip];
+                }
+            }
+        }
+        
+        // 只累加 effectiveStartIndex 之后的消息
+        for (let i = effectiveStartIndex; i < fullHistory.length; i++) {
+            const message = fullHistory[i];
+            
+            if (message.role === 'user') {
+                // 检测新回合开始（非函数响应的用户消息）
+                if (!message.isFunctionResponse) {
+                    // 保存上一个回合的信息
+                    if (currentRoundStartIndex !== -1) {
+                        roundTokenInfos.push({
+                            startIndex: currentRoundStartIndex,
+                            endIndex: i,
+                            cumulativeTokens: estimatedTotalTokens  // 此时的累计值是上一回合结束时的值
+                        });
+                    }
+                    currentRoundStartIndex = i;
+                }
+                
+                // 用户消息：优先使用 estimatedTokenCount，否则估算
+                const tokenCount = message.estimatedTokenCount ?? this.estimateMessageTokens(message);
+                estimatedTotalTokens += tokenCount;
+                hasEstimatedTokens = true;
+            } else if (message.role === 'model' && message.usageMetadata) {
+                // model 消息：根据用户配置、消息内容和回合位置决定是否计算思考 token
+                const isCurrentRound = i >= lastNonFunctionResponseUserIndex;
+                const hasThought = this.hasThoughtContent(message.parts);
+                const hasSignatures = this.hasThoughtSignatures(message.parts);
+                
+                let includeThoughtsToken = false;
+                
+                if (isCurrentRound) {
+                    // 当前轮：根据当前轮配置和消息内容决定
+                    includeThoughtsToken = (sendCurrentThoughts && hasThought) ||
+                                          (sendCurrentThoughtSignatures && hasSignatures);
+                } else {
+                    // 历史轮：根据历史轮配置、消息内容和 historyThinkingRounds 决定
+                    const isInHistoryThoughtRange = i >= historyThoughtMinIndex && i < historyThoughtMaxIndex;
+                    if (isInHistoryThoughtRange) {
+                        includeThoughtsToken = (sendHistoryThoughts && hasThought) ||
+                                              (sendHistoryThoughtSignatures && hasSignatures);
+                    }
+                }
+                
+                const modelTokens = (message.usageMetadata.candidatesTokenCount ?? 0) +
+                                   (includeThoughtsToken ? (message.usageMetadata.thoughtsTokenCount ?? 0) : 0);
+                if (modelTokens > 0) {
+                    estimatedTotalTokens += modelTokens;
+                    hasEstimatedTokens = true;
+                }
+            } else if (message.role === 'model') {
+                // model 消息没有 usageMetadata，估算 token 数
+                const modelTokens = this.estimateMessageTokens(message);
+                estimatedTotalTokens += modelTokens;
+                hasEstimatedTokens = true;
+            }
+        }
+        
+        // 保存最后一个回合
+        if (currentRoundStartIndex !== -1) {
+            roundTokenInfos.push({
+                startIndex: currentRoundStartIndex,
+                endIndex: fullHistory.length,
+                cumulativeTokens: estimatedTotalTokens
+            });
+        }
+        
+        // 如果没有任何消息，直接返回空历史
+        if (!hasEstimatedTokens) {
+            const history = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+            return { history, trimStartIndex: 0 };
         }
         
         // 检查是否启用上下文阈值检测
         if (!config.contextThresholdEnabled) {
             // 未启用阈值检测，直接返回从起始索引开始的历史
             if (effectiveStartIndex === 0) {
-                return await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+                const history = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+                return { history, trimStartIndex: 0 };
             }
             const fullApiHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
             const trimRatio = effectiveStartIndex / fullHistory.length;
             const apiStartIndex = Math.floor(fullApiHistory.length * trimRatio);
-            return fullApiHistory.slice(apiStartIndex);
+            return { history: fullApiHistory.slice(apiStartIndex), trimStartIndex: effectiveStartIndex };
         }
         
         // 获取最大上下文和阈值
@@ -1920,61 +2126,71 @@ export class ChatHandler {
         const thresholdConfig = config.contextThreshold ?? '80%';
         const threshold = this.calculateThreshold(thresholdConfig, maxContextTokens);
         
-        // 如果未超过阈值，直接返回从起始索引开始的历史
-        if (latestTokenCount <= threshold) {
+        // 如果估算总 token 未超过阈值，直接返回从起始索引开始的历史
+        if (estimatedTotalTokens <= threshold) {
             if (effectiveStartIndex === 0) {
-                return await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+                const history = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+                return { history, trimStartIndex: 0 };
             }
             const fullApiHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
             const trimRatio = effectiveStartIndex / fullHistory.length;
             const apiStartIndex = Math.floor(fullApiHistory.length * trimRatio);
-            return fullApiHistory.slice(apiStartIndex);
+            return { history: fullApiHistory.slice(apiStartIndex), trimStartIndex: effectiveStartIndex };
         }
         
-        console.log(`[Context Trim] Token count ${latestTokenCount} exceeds threshold ${threshold}, calculating trim...`);
-        
         // 超过阈值，需要裁剪
-        // 只对有效起始位置之后的历史进行回合识别
-        const historyAfterStart = fullHistory.slice(effectiveStartIndex);
-        const rounds = this.identifyRounds(historyAfterStart);
+        // 现在 roundTokenInfos 只包含 effectiveStartIndex 之后的回合，不需要再过滤
+        const roundsAfterStart = roundTokenInfos;
         
         // 至少需要保留当前回合（最后一个回合）
-        if (rounds.length <= 1) {
-            console.log('[Context Trim] Only one round after summary, cannot trim further');
+        if (roundsAfterStart.length <= 1) {
             // 即使只有一个回合也要返回从起始索引开始的历史
             const fullApiHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
             const trimRatio = effectiveStartIndex / fullHistory.length;
             const apiStartIndex = Math.floor(fullApiHistory.length * trimRatio);
-            return fullApiHistory.slice(apiStartIndex);
+            return { history: fullApiHistory.slice(apiStartIndex), trimStartIndex: effectiveStartIndex };
         }
         
-        // 估算每个回合的 token 数
-        // 使用从起始位置开始的 token 数（需要减去之前的 token）
-        // 由于 totalTokenCount 是累计值，这里用当前值估算
-        const avgTokensPerRound = latestTokenCount / rounds.length;
+        // 计算额外裁剪的 token 数
+        const extraCutConfig = config.contextTrimExtraCut ?? 0;
+        const extraCut = this.calculateThreshold(extraCutConfig, maxContextTokens);
         
-        // 计算需要保留的回合数
-        const targetTokens = threshold;
-        const roundsToKeep = Math.max(1, Math.floor(targetTokens / avgTokensPerRound));
+        // 实际保留目标 = 阈值 - 额外裁剪（裁剪更多）
+        const targetTokens = Math.max(0, threshold - extraCut);
         
-        // 需要跳过的回合数
-        const roundsToSkip = Math.max(0, rounds.length - roundsToKeep);
+        // 使用自计算的累计 token 数来计算需要跳过多少回合
+        // cumulativeTokens[j] 记录的是"回合 j 结束时"的累计 token 数（包含系统提示词和回合 0 到 j 的所有消息）
+        // 如果要从回合 k 开始（跳过回合 0 到 k-1），裁剪掉的 token = cumulativeTokens[k-1] - 系统提示词
+        let roundsToSkip = 0;
+        
+        // 从 k=1 开始尝试，k 表示要跳过的回合数（从第 k 个回合开始保留）
+        for (let k = 1; k < roundsAfterStart.length; k++) {
+            // roundsAfterStart[k-1].cumulativeTokens 是回合 k-1 结束时的累计值
+            // 裁剪掉的消息 token = 回合 0 到 k-1 的消息 = cumulativeTokens[k-1] - 系统提示词
+            const skippedTokens = roundsAfterStart[k - 1].cumulativeTokens - systemPromptTokens;
+            const remainingTokens = estimatedTotalTokens - skippedTokens;
+            
+            if (remainingTokens <= targetTokens) {
+                roundsToSkip = k;
+                break;
+            }
+        }
+        
+        // 如果遍历完还没找到合适的裁剪点，且总 token 超过阈值，只保留最后一个回合
+        if (roundsToSkip === 0 && estimatedTotalTokens > targetTokens) {
+            roundsToSkip = roundsAfterStart.length - 1;
+        }
         
         if (roundsToSkip === 0) {
             // 不需要额外裁剪，返回从起始索引开始的历史
             const fullApiHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
             const trimRatio = effectiveStartIndex / fullHistory.length;
             const apiStartIndex = Math.floor(fullApiHistory.length * trimRatio);
-            return fullApiHistory.slice(apiStartIndex);
+            return { history: fullApiHistory.slice(apiStartIndex), trimStartIndex: effectiveStartIndex };
         }
         
         // 计算在原始历史中的起始索引
-        // rounds[roundsToSkip].startIndex 是相对于 historyAfterStart 的索引
-        // 需要加上 effectiveStartIndex 得到原始历史中的索引
-        const trimStartIndexRelative = rounds[roundsToSkip].startIndex;
-        const trimStartIndex = effectiveStartIndex + trimStartIndexRelative;
-        
-        console.log(`[Context Trim] Skipping ${roundsToSkip} rounds, starting from index ${trimStartIndex}`);
+        const trimStartIndex = roundsAfterStart[roundsToSkip].startIndex;
         
         // 获取完整的 API 历史
         const fullApiHistory = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
@@ -1983,17 +2199,425 @@ export class ChatHandler {
         const trimRatio = trimStartIndex / fullHistory.length;
         const apiStartIndex = Math.floor(fullApiHistory.length * trimRatio);
         
-        const trimmedHistory = fullApiHistory.slice(apiStartIndex);
+        let trimmedHistory = fullApiHistory.slice(apiStartIndex);
+        let finalTrimStartIndex = trimStartIndex;
         
         // 确保历史以 user 消息开始（Gemini API 要求）
         if (trimmedHistory.length > 0 && trimmedHistory[0].role !== 'user') {
             const firstUserIndex = trimmedHistory.findIndex(m => m.role === 'user');
             if (firstUserIndex > 0) {
-                return trimmedHistory.slice(firstUserIndex);
+                trimmedHistory = trimmedHistory.slice(firstUserIndex);
+                // 调整起始索引
+                finalTrimStartIndex = trimStartIndex + firstUserIndex;
             }
         }
         
-        return trimmedHistory;
+        return { history: trimmedHistory, trimStartIndex: finalTrimStartIndex };
+    }
+    
+    /**
+     * 获取用于 API 调用的历史（保持向后兼容的简化版本）
+     */
+    private async getHistoryWithContextTrim(
+        conversationId: string,
+        config: BaseChannelConfig,
+        historyOptions: GetHistoryOptions
+    ): Promise<Content[]> {
+        const result = await this.getHistoryWithContextTrimInfo(conversationId, config, historyOptions);
+        return result.history;
+    }
+    
+    /**
+     * 检查消息的 parts 中是否包含思考内容
+     *
+     * @param parts 消息内容片段
+     * @returns 是否包含思考内容
+     */
+    private hasThoughtContent(parts: ContentPart[]): boolean {
+        return parts.some(part => part.thought === true);
+    }
+    
+    /**
+     * 检查消息的 parts 中是否包含思考签名
+     *
+     * @param parts 消息内容片段
+     * @returns 是否包含思考签名
+     */
+    private hasThoughtSignatures(parts: ContentPart[]): boolean {
+        return parts.some(part => part.thoughtSignatures);
+    }
+    
+    /**
+     * 预计算用户消息的 token 数
+     *
+     * 在添加用户消息后立即调用 Token 计数 API 预计算 token 数。
+     * 直接传入整个 content 到 API，不需要分开处理每个 part。
+     *
+     * 如果 API 调用失败或未配置，则使用估算方法作为回退。
+     *
+     * @param conversationId 对话 ID
+     * @param channelType 渠道类型 (gemini, openai, anthropic)
+     * @param messageIndex 可选，指定消息索引（默认取最后一个用户消息）
+     * @param forceRecount 可选，强制重新计算（用于编辑消息场景）
+     */
+    private async preCountUserMessageTokens(
+        conversationId: string,
+        channelType?: string,
+        messageIndex?: number,
+        forceRecount?: boolean
+    ): Promise<void> {
+        if (!this.settingsManager) {
+            return;
+        }
+        
+        const history = await this.conversationManager.getHistoryRef(conversationId);
+        
+        if (history.length === 0) {
+            return;
+        }
+        
+        // 获取用户消息索引
+        const targetIndex = messageIndex ?? history.length - 1;
+        const targetMessage = history[targetIndex];
+        
+        if (!targetMessage || targetMessage.role !== 'user') {
+            return;
+        }
+        
+        // 检查是否已经有 token 数（除非强制重新计算）
+        if (!forceRecount && targetMessage.tokenCountByChannel?.[channelType || ''] !== undefined) {
+            return;
+        }
+        
+        // 获取 Token 计数配置
+        const tokenCountConfig = this.settingsManager.getTokenCountConfig();
+        const normalizedChannelType = this.normalizeChannelType(channelType);
+        
+        let tokenCount: number | undefined;
+        
+        // 尝试调用 API 获取精确 token 数
+        if (normalizedChannelType && tokenCountConfig[normalizedChannelType]?.enabled) {
+            // 每次调用前更新代理设置（以便运行时更改代理生效）
+            this.tokenCountService.setProxyUrl(this.settingsManager.getEffectiveProxyUrl());
+            
+            // 直接传入整个用户消息
+            const result = await this.tokenCountService.countTokens(
+                normalizedChannelType,
+                tokenCountConfig,
+                [targetMessage]
+            );
+            
+            if (result.success && result.totalTokens !== undefined) {
+                tokenCount = result.totalTokens;
+            }
+        }
+        
+        // 如果 API 调用失败或未配置，使用估算
+        if (tokenCount === undefined) {
+            tokenCount = this.estimateMessageTokens(targetMessage);
+        }
+        
+        // 更新用户消息的 token 数
+        const tokenCountByChannel: ChannelTokenCounts = targetMessage.tokenCountByChannel || {};
+        if (channelType) {
+            tokenCountByChannel[channelType] = tokenCount;
+        }
+        
+        await this.conversationManager.updateMessage(conversationId, targetIndex, {
+            tokenCountByChannel,
+            estimatedTokenCount: tokenCount  // 向后兼容
+        });
+    }
+    
+    /**
+     * 规范化渠道类型
+     *
+     * 将渠道类型映射为 TokenCountService 支持的类型
+     */
+    private normalizeChannelType(channelType?: string): 'gemini' | 'openai' | 'anthropic' | undefined {
+        if (!channelType) return undefined;
+        
+        const type = channelType.toLowerCase();
+        if (type === 'gemini') return 'gemini';
+        if (type === 'openai') return 'openai';
+        if (type === 'anthropic') return 'anthropic';
+        
+        return undefined;
+    }
+    
+    /**
+     * 计算系统提示词的 token 数
+     *
+     * 尝试使用 API 计算精确值，失败时使用估算。
+     *
+     * @param systemPrompt 系统提示词
+     * @param channelType 渠道类型
+     * @returns token 数量
+     */
+    private async countSystemPromptTokens(
+        systemPrompt: string,
+        channelType?: string
+    ): Promise<number> {
+        if (!this.settingsManager) {
+            // 没有设置管理器，直接估算
+            return Math.ceil(systemPrompt.length / 4);
+        }
+        
+        const tokenCountConfig = this.settingsManager.getTokenCountConfig();
+        const normalizedChannelType = this.normalizeChannelType(channelType);
+        
+        // 尝试调用 API 获取精确 token 数
+        if (normalizedChannelType && tokenCountConfig[normalizedChannelType]?.enabled) {
+            // 更新代理设置
+            this.tokenCountService.setProxyUrl(this.settingsManager.getEffectiveProxyUrl());
+            
+            // 创建一个包含系统提示词的消息用于 token 计数
+            const systemMessage: Content = {
+                role: 'user',
+                parts: [{ text: systemPrompt }]
+            };
+            
+            const result = await this.tokenCountService.countTokens(
+                normalizedChannelType,
+                tokenCountConfig,
+                [systemMessage]
+            );
+            
+            if (result.success && result.totalTokens !== undefined) {
+                return result.totalTokens;
+            }
+        }
+        
+        // 回退到估算
+        return Math.ceil(systemPrompt.length / 4);
+    }
+    
+    /**
+     * 估算一条消息的 token 数
+     *
+     * 遍历消息的所有 parts，根据类型进行估算：
+     * - text: 每 4 个字符约 1 token
+     * - inlineData: 使用 estimateMultimodalTokens
+     * - functionCall: JSON 序列化后每 4 字符约 1 token
+     * - functionResponse: JSON 序列化后每 4 字符约 1 token
+     *
+     * @param message 消息
+     * @returns 估算的 token 数
+     */
+    private estimateMessageTokens(message: Content): number {
+        let tokens = 0;
+        
+        for (const part of message.parts) {
+            if (part.text) {
+                tokens += Math.ceil(part.text.length / 4);
+            }
+            if (part.inlineData) {
+                tokens += this.estimateMultimodalTokens(part.inlineData);
+            }
+            if (part.functionCall) {
+                const argsStr = JSON.stringify(part.functionCall.args);
+                tokens += Math.ceil((part.functionCall.name.length + argsStr.length) / 4);
+            }
+            if (part.functionResponse) {
+                const responseStr = JSON.stringify(part.functionResponse.response);
+                tokens += Math.ceil((part.functionResponse.name.length + responseStr.length) / 4);
+                // 如果有 parts（多模态数据）
+                if (part.functionResponse.parts) {
+                    for (const responsePart of part.functionResponse.parts) {
+                        if (responsePart.inlineData) {
+                            tokens += this.estimateMultimodalTokens(responsePart.inlineData);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 最小返回 1 token
+        return Math.max(1, tokens);
+    }
+    
+    /**
+     * 估算多媒体数据的 token 数
+     *
+     * 根据 mimeType 使用不同的估算策略：
+     * - 图片: 固定 500 tokens（Gemini 实际 258-1032）
+     * - 音频: 32 tokens/秒，按 base64 大小估算时长
+     * - 视频: 295 tokens/秒（263 图像 + 32 音频），按 base64 大小估算时长
+     * - 文档(PDF): 约 500 tokens/页，按 base64 大小估算页数
+     * - 其他: 使用保守估算 1000 tokens
+     *
+     * @param inlineData 多媒体数据
+     * @returns 估算的 token 数
+     */
+    private estimateMultimodalTokens(inlineData: { mimeType: string; data: string }): number {
+        const mimeType = inlineData.mimeType.toLowerCase();
+        
+        // 计算原始数据大小（base64 解码后约为原长度的 3/4）
+        const base64Length = inlineData.data.length;
+        const estimatedBytes = Math.floor(base64Length * 0.75);
+        
+        // 图片类型
+        if (mimeType.startsWith('image/')) {
+            // Gemini: 258-1032 tokens
+            // OpenAI: 85-1105 tokens
+            // Anthropic: 最大 1600 tokens
+            // 使用中间值 500 tokens
+            return 500;
+        }
+        
+        // 音频类型
+        if (mimeType.startsWith('audio/')) {
+            // Gemini: 32 tokens/秒
+            // 估算音频时长：
+            // - MP3: 约 16 kbps = 2 KB/秒
+            // - WAV: 约 176 kbps = 22 KB/秒
+            // - 使用平均值 10 KB/秒
+            const estimatedDurationSeconds = estimatedBytes / (10 * 1024);
+            const audioTokens = Math.ceil(estimatedDurationSeconds * 32);
+            // 设置合理的上下限
+            return Math.max(100, Math.min(audioTokens, 50000));
+        }
+        
+        // 视频类型
+        if (mimeType.startsWith('video/')) {
+            // Gemini: 263 tokens/秒 (视频帧) + 32 tokens/秒 (音频) = 295 tokens/秒
+            // 估算视频时长：
+            // - 压缩视频约 1 MB/分钟 = 17 KB/秒
+            const estimatedDurationSeconds = estimatedBytes / (17 * 1024);
+            const videoTokens = Math.ceil(estimatedDurationSeconds * 295);
+            // 设置合理的上下限
+            return Math.max(500, Math.min(videoTokens, 200000));
+        }
+        
+        // 文档类型 (PDF, DOCX 等)
+        if (mimeType === 'application/pdf' ||
+            mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            mimeType === 'application/msword') {
+            // Gemini: 每页约 215-695 tokens
+            // 估算页数：平均每页 PDF 约 50-100 KB
+            const estimatedPages = Math.max(1, Math.ceil(estimatedBytes / (75 * 1024)));
+            const docTokens = estimatedPages * 500;  // 每页 500 tokens
+            return Math.max(500, Math.min(docTokens, 100000));
+        }
+        
+        // 电子表格
+        if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+            mimeType === 'application/vnd.ms-excel' ||
+            mimeType === 'text/csv') {
+            // 按数据大小估算，每 KB 约 100 tokens
+            const spreadsheetTokens = Math.ceil(estimatedBytes / 1024) * 100;
+            return Math.max(200, Math.min(spreadsheetTokens, 50000));
+        }
+        
+        // 纯文本
+        if (mimeType.startsWith('text/')) {
+            // 文本：每 4 个字符约 1 token
+            return Math.ceil(estimatedBytes / 4);
+        }
+        
+        // 其他类型：使用保守估算
+        // 无法确定类型时，使用较大的固定值
+        return 1000;
+    }
+    
+    /**
+     * 计算应该跳过的回合数
+     *
+     * 使用每回合实际的增量 token 数从后往前累加：
+     * 1. 从最后一个回合开始，向前累加每回合的 token 增量
+     * 2. 当累加值超过阈值时，停止累加
+     * 3. 返回应该跳过的回合数
+     *
+     * 对于没有 token 信息的回合：
+     * - 使用相邻有值回合的 token 增量来估算
+     * - 如果无法估算，使用整体平均值
+     *
+     * @param rounds 回合列表（每个回合包含 startIndex, endIndex, tokenCount）
+     * @param latestTokenCount 最新的累计 token 数
+     * @param threshold 目标阈值
+     * @returns 应该跳过的回合数
+     */
+    private calculateRoundsToSkip(
+        rounds: ConversationRound[],
+        latestTokenCount: number,
+        threshold: number
+    ): number {
+        if (rounds.length <= 1) {
+            return 0;
+        }
+        
+        // 计算每个回合的增量 token 数
+        // 增量 = 当前回合结束时的累计值 - 上一个回合结束时的累计值
+        const roundIncrements: (number | undefined)[] = [];
+        
+        for (let i = 0; i < rounds.length; i++) {
+            if (i === 0) {
+                // 第一个回合的增量就是它的 tokenCount（如果有的话）
+                roundIncrements.push(rounds[0].tokenCount);
+            } else {
+                const currentToken = rounds[i].tokenCount;
+                const prevToken = rounds[i - 1].tokenCount;
+                
+                if (currentToken !== undefined && prevToken !== undefined) {
+                    roundIncrements.push(currentToken - prevToken);
+                } else if (currentToken !== undefined && prevToken === undefined) {
+                    // 上一个回合没有 token 信息，但当前有
+                    // 尝试找更早的有值回合
+                    let foundPrev: number | undefined;
+                    for (let j = i - 2; j >= 0; j--) {
+                        if (rounds[j].tokenCount !== undefined) {
+                            foundPrev = rounds[j].tokenCount;
+                            break;
+                        }
+                    }
+                    if (foundPrev !== undefined) {
+                        // 平均分配中间回合的 token
+                        const increment = currentToken - foundPrev;
+                        const missingRounds = i - (rounds.findIndex(r => r.tokenCount === foundPrev));
+                        roundIncrements.push(increment / missingRounds);
+                    } else {
+                        // 无法计算，标记为 undefined
+                        roundIncrements.push(undefined);
+                    }
+                } else {
+                    // 当前回合没有 token 信息
+                    roundIncrements.push(undefined);
+                }
+            }
+        }
+        
+        // 计算平均增量（用于填充缺失值）
+        const validIncrements = roundIncrements.filter((v): v is number => v !== undefined);
+        const avgIncrement = validIncrements.length > 0
+            ? validIncrements.reduce((a, b) => a + b, 0) / validIncrements.length
+            : latestTokenCount / rounds.length;  // 回退到简单平均
+        
+        // 填充缺失的增量值
+        const filledIncrements = roundIncrements.map(v => v ?? avgIncrement);
+        
+        // 从后往前累加，保留不超过阈值的回合
+        let accumulatedTokens = 0;
+        let roundsToKeep = 0;
+        
+        for (let i = rounds.length - 1; i >= 0; i--) {
+            const newTotal = accumulatedTokens + filledIncrements[i];
+            
+            // 如果已经有至少一个回合，且加上这个会超过阈值，就停止
+            // 这样保留的回合总 token 数不会超过阈值
+            if (roundsToKeep > 0 && newTotal > threshold) {
+                break;
+            }
+            
+            accumulatedTokens = newTotal;
+            roundsToKeep++;
+        }
+        
+        // 至少保留 1 个回合（即使这一个回合本身超过阈值）
+        roundsToKeep = Math.max(1, roundsToKeep);
+        
+        const roundsToSkip = Math.max(0, rounds.length - roundsToKeep);
+        
+        return roundsToSkip;
     }
     
     /**
@@ -2144,7 +2768,8 @@ export class ChatHandler {
                 ...msg,
                 parts: msg.parts
                     // 过滤掉思考内容（总结不需要思考过程）
-                    .filter(part => !part.thought)
+                    // 同时过滤掉只包含 thoughtSignatures 的 part（移除签名后会变成空对象）
+                    .filter(part => !part.thought && !(part.thoughtSignatures && Object.keys(part).length === 1))
                     .map(part => {
                         let cleanedPart = { ...part };
                         
@@ -2275,9 +2900,6 @@ export class ChatHandler {
                         };
                     }
                     accumulator.add(chunk);
-                    if (chunk.done) {
-                        break;
-                    }
                 }
                 
                 finalContent = accumulator.getContent();
@@ -2401,13 +3023,15 @@ export class ChatHandler {
             }
             
             // 3. 工具调用循环
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
                 
-                // 获取对话历史
+                // 获取对话历史（应用总结过滤和上下文阈值裁剪）
                 const historyOptions = this.buildHistoryOptions(config);
-                const history = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
+                const history = await this.getHistoryWithContextTrim(conversationId, config, historyOptions);
                 
                 // 调用 AI（非流式）
                 const response = await this.channelManager.generate({
@@ -2425,11 +3049,10 @@ export class ChatHandler {
                 // 为没有 id 的 functionCall 添加唯一 id（Gemini 格式不返回 id）
                 this.ensureFunctionCallIds(generateResponse.content);
                 
-                // 为没有 id 的 functionCall 添加唯一 id
-                this.ensureFunctionCallIds(generateResponse.content);
-                
                 // 保存 AI 响应到历史
-                await this.conversationManager.addContent(conversationId, generateResponse.content);
+                if (generateResponse.content.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, generateResponse.content);
+                }
                 
                 // 检查是否有工具调用
                 const functionCalls = this.extractFunctionCalls(generateResponse.content);
@@ -2456,6 +3079,9 @@ export class ChatHandler {
                     isFunctionResponse: true
                 });
                 
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 继续循环，让 AI 处理函数结果
             }
             
@@ -2464,7 +3090,7 @@ export class ChatHandler {
                 success: false,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             
@@ -2528,6 +3154,9 @@ export class ChatHandler {
             // 则先执行这些函数调用
             const orphanedFunctionCalls = await this.checkAndExecuteOrphanedFunctionCalls(conversationId);
             if (orphanedFunctionCalls) {
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 发送孤立函数调用的执行结果到前端
                 yield {
                     conversationId,
@@ -2545,13 +3174,11 @@ export class ChatHandler {
             const retryHistoryCheck = await this.conversationManager.getHistoryRef(conversationId);
             const isRetryFirstMessage = retryHistoryCheck.length === 1 && retryHistoryCheck[0].role === 'user';
             
-            const retryDynamicPrompt = isRetryFirstMessage
-                ? this.promptManager.refreshAndGetPrompt()
-                : this.promptManager.getSystemPrompt();
-            
             // 7. 工具调用循环
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
 
                 // 检查是否已取消
@@ -2564,9 +3191,15 @@ export class ChatHandler {
                     return;
                 }
  
-                // 获取对话历史
+                // 获取对话历史（应用总结过滤和上下文阈值裁剪）
                 const retryStreamHistoryOptions = this.buildHistoryOptions(config);
-                const history = await this.conversationManager.getHistoryForAPI(conversationId, retryStreamHistoryOptions);
+                const { history, trimStartIndex: retryTrimStartIndex } = await this.getHistoryWithContextTrimInfo(conversationId, config, retryStreamHistoryOptions);
+                
+                // 每次迭代都刷新动态系统提示词（包含 DIAGNOSTICS 等实时信息）
+                // 首条消息重试时使用 refreshAndGetPrompt 强制刷新缓存
+                const retryDynamicPrompt = (isRetryFirstMessage && iteration === 1)
+                    ? this.promptManager.refreshAndGetPrompt()
+                    : this.promptManager.getSystemPrompt(true);  // 强制刷新以获取最新的 DIAGNOSTICS
                 
                 // 记录请求开始时间（用于计算响应持续时间）
                 const requestStartTime = Date.now();
@@ -2592,66 +3225,68 @@ export class ChatHandler {
                     let cancelled = false;
                     let lastPartsLength = 0;
                     
-                    try {
-                    for await (const chunk of response) {
-                        // 检查是否已取消
-                        if (request.abortSignal?.aborted) {
-                            cancelled = true;
-                            break;
+                        try {
+                            for await (const chunk of response) {
+                                // 检查是否已取消
+                                if (request.abortSignal?.aborted) {
+                                    cancelled = true;
+                                    break;
+                                }
+                                accumulator.add(chunk);
+                                
+                                // 获取累加器处理后的 parts（实时转换 JSON 工具调用标记）
+                                const currentContent = accumulator.getContent();
+                                const currentParts = currentContent.parts;
+                                
+                                // 计算增量 delta（新增的 parts）
+                                const newDelta = currentParts.slice(lastPartsLength);
+                                lastPartsLength = currentParts.length;
+                                
+                                // 如果有修改过的 parts（如工具调用转换），需要发送更新
+                                // 这里简化处理：直接发送累加器的增量
+                                // 添加 thinkingStartTime 供前端实时显示
+                                const retryProcessedChunk: typeof chunk & { thinkingStartTime?: number } = {
+                                    ...chunk,
+                                    delta: newDelta.length > 0 ? newDelta : chunk.delta
+                                };
+                                
+                                const retryThinkingStartTime = currentContent.thinkingStartTime;
+                                if (retryThinkingStartTime !== undefined) {
+                                    retryProcessedChunk.thinkingStartTime = retryThinkingStartTime;
+                                }
+                                
+                                yield { conversationId, chunk: retryProcessedChunk };
+                            }
+                        } catch (err) {
+                            // 如果是取消错误，设置 cancelled 为 true 并继续执行后续保存逻辑
+                            if (request.abortSignal?.aborted || (err instanceof ChannelError && err.type === ErrorType.CANCELLED_ERROR)) {
+                                cancelled = true;
+                            } else {
+                                throw err;
+                            }
                         }
-                        accumulator.add(chunk);
                         
-                        // 获取累加器处理后的 parts（实时转换 JSON 工具调用标记）
-                        const currentContent = accumulator.getContent();
-                        const currentParts = currentContent.parts;
-                        
-                        // 计算增量 delta（新增的 parts）
-                        const newDelta = currentParts.slice(lastPartsLength);
-                        lastPartsLength = currentParts.length;
-                        
-                        // 如果有修改过的 parts（如工具调用转换），需要发送更新
-                        // 这里简化处理：直接发送累加器的增量
-                        // 添加 thinkingStartTime 供前端实时显示
-                        const retryProcessedChunk: typeof chunk & { thinkingStartTime?: number } = {
-                            ...chunk,
-                            delta: newDelta.length > 0 ? newDelta : chunk.delta
-                        };
-                        
-                        const retryThinkingStartTime = currentContent.thinkingStartTime;
-                        if (retryThinkingStartTime !== undefined) {
-                            retryProcessedChunk.thinkingStartTime = retryThinkingStartTime;
+                        // 如果已取消，保存已接收的内容并 yield cancelled 消息
+                        if (cancelled) {
+                            const partialContent = accumulator.getContent();
+                            if (partialContent.parts.length > 0) {
+                                await this.conversationManager.addContent(conversationId, partialContent);
+                                // yield cancelled 消息，包含 partialContent 以便前端更新计时信息
+                                yield {
+                                    conversationId,
+                                    cancelled: true as const,
+                                    content: partialContent
+                                } as any;
+                            } else {
+                                yield {
+                                    conversationId,
+                                    cancelled: true as const
+                                } as any;
+                            }
+                            return;
                         }
                         
-                        yield { conversationId, chunk: retryProcessedChunk };
-                        if (chunk.done) {
-                            break;
-                        }
-                    }
-                    
-                    // 如果已取消，保存已接收的内容并 yield cancelled 消息
-                    if (cancelled) {
-                        const partialContent = accumulator.getContent();
-                        if (partialContent.parts.length > 0) {
-                            await this.conversationManager.addContent(conversationId, partialContent);
-                            // yield cancelled 消息，包含 partialContent 以便前端更新计时信息
-                            yield {
-                                conversationId,
-                                cancelled: true as const,
-                                content: partialContent
-                            } as any;
-                        } else {
-                            yield {
-                                conversationId,
-                                cancelled: true as const
-                            } as any;
-                        }
-                        return;
-                    }
-                    
-                    finalContent = accumulator.getContent();
-                    } catch (streamError) {
-                        throw streamError;
-                    }
+                        finalContent = accumulator.getContent();
                 } else {
                     // 非流式响应
                     finalContent = (response as GenerateResponse).content;
@@ -2674,7 +3309,9 @@ export class ChatHandler {
                 this.ensureFunctionCallIds(finalContent);
                 
                 // 保存 AI 响应到历史
-                await this.conversationManager.addContent(conversationId, finalContent);
+                if (finalContent.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, finalContent);
+                }
                 
                 // 检查是否有工具调用
                 const functionCalls = this.extractFunctionCalls(finalContent);
@@ -2765,6 +3402,9 @@ export class ChatHandler {
                     isFunctionResponse: true
                 });
                 
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 检查是否有工具被取消
                 const retryHasCancelled = toolResults.some(r => (r.result as any).cancelled);
                 if (retryHasCancelled) {
@@ -2796,7 +3436,7 @@ export class ChatHandler {
                 conversationId,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             
@@ -2883,6 +3523,9 @@ export class ChatHandler {
                 parts: [{ text: newMessage }]
             });
             
+            // 4.5 重新计算编辑后消息的 token 数
+            await this.preCountUserMessageTokens(conversationId, config.type, messageIndex, true);
+            
             // 5. 删除后续所有消息（messageIndex+1 及之后）和关联的检查点
             const historyRef = await this.conversationManager.getHistoryRef(conversationId);
             if (messageIndex + 1 < historyRef.length) {
@@ -2895,12 +3538,14 @@ export class ChatHandler {
             
             // 6. 工具调用循环
             const editHistoryOptions = this.buildHistoryOptions(config);
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
                 
-                // 获取更新后的历史
-                const updatedHistory = await this.conversationManager.getHistoryForAPI(conversationId, editHistoryOptions);
+                // 获取更新后的历史（应用总结过滤和上下文阈值裁剪）
+                const updatedHistory = await this.getHistoryWithContextTrim(conversationId, config, editHistoryOptions);
                 
                 // 调用 AI（非流式）
                 const response = await this.channelManager.generate({
@@ -2919,7 +3564,9 @@ export class ChatHandler {
                 this.ensureFunctionCallIds(generateResponse.content);
                 
                 // 保存 AI 响应到历史
-                await this.conversationManager.addContent(conversationId, generateResponse.content);
+                if (generateResponse.content.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, generateResponse.content);
+                }
                 
                 // 检查是否有工具调用
                 const functionCalls = this.extractFunctionCalls(generateResponse.content);
@@ -2946,6 +3593,9 @@ export class ChatHandler {
                     isFunctionResponse: true
                 });
                 
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 继续循环，让 AI 处理函数结果
             }
             
@@ -2954,7 +3604,7 @@ export class ChatHandler {
                 success: false,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             
@@ -3065,6 +3715,9 @@ export class ChatHandler {
                 parts: editParts
             });
             
+            // 7.5 重新计算编辑后消息的 token 数
+            await this.preCountUserMessageTokens(conversationId, config.type, messageIndex, true);
+            
             // 8. 删除后续所有消息
             const historyRef = await this.conversationManager.getHistoryRef(conversationId);
             if (messageIndex + 1 < historyRef.length) {
@@ -3093,13 +3746,12 @@ export class ChatHandler {
             
             // 11. 判断是否是编辑首条消息（需要刷新动态系统提示词）
             const isEditFirstMessage = messageIndex === 0;
-            const editDynamicPrompt = isEditFirstMessage
-                ? this.promptManager.refreshAndGetPrompt()
-                : this.promptManager.getSystemPrompt();
             
             // 12. 工具调用循环
+            const maxToolIterations = this.getMaxToolIterations();
             let iteration = 0;
-            while (iteration < MAX_TOOL_CALL_ITERATIONS) {
+            // -1 表示无限制
+            while (maxToolIterations === -1 || iteration < maxToolIterations) {
                 iteration++;
                 
                 // 检查是否已取消
@@ -3138,9 +3790,15 @@ export class ChatHandler {
                     }
                 }
                 
-                // 获取更新后的历史
+                // 获取更新后的历史（应用总结过滤和上下文阈值裁剪）
                 const editStreamHistoryOptions = this.buildHistoryOptions(config);
-                const updatedHistory = await this.conversationManager.getHistoryForAPI(conversationId, editStreamHistoryOptions);
+                const updatedHistory = await this.getHistoryWithContextTrim(conversationId, config, editStreamHistoryOptions);
+                
+                // 每次迭代都刷新动态系统提示词（包含 DIAGNOSTICS 等实时信息）
+                // 首条消息编辑时使用 refreshAndGetPrompt 强制刷新缓存
+                const editDynamicPrompt = (isEditFirstMessage && iteration === 1)
+                    ? this.promptManager.refreshAndGetPrompt()
+                    : this.promptManager.getSystemPrompt(true);  // 强制刷新以获取最新的 DIAGNOSTICS
                 
                 // 记录请求开始时间（用于计算响应持续时间）
                 const editRequestStartTime = Date.now();
@@ -3166,36 +3824,42 @@ export class ChatHandler {
                     let cancelled = false;
                     let lastPartsLengthEdit = 0;
                     
-                    for await (const chunk of response) {
-                        // 检查是否已取消
-                        if (request.abortSignal?.aborted) {
+                    try {
+                        for await (const chunk of response) {
+                            // 检查是否已取消
+                            if (request.abortSignal?.aborted) {
+                                cancelled = true;
+                                break;
+                            }
+                            accumulator.add(chunk);
+                            
+                            // 获取累加器处理后的 parts
+                            const currentContent = accumulator.getContent();
+                            const currentParts = currentContent.parts;
+                            
+                            // 计算增量 delta
+                            const newDeltaEdit = currentParts.slice(lastPartsLengthEdit);
+                            lastPartsLengthEdit = currentParts.length;
+                            
+                            // 发送处理后的 chunk，添加 thinkingStartTime 供前端实时显示
+                            const processedChunkEdit: typeof chunk & { thinkingStartTime?: number } = {
+                                ...chunk,
+                                delta: newDeltaEdit.length > 0 ? newDeltaEdit : chunk.delta
+                            };
+                            
+                            const editThinkingStartTime = currentContent.thinkingStartTime;
+                            if (editThinkingStartTime !== undefined) {
+                                processedChunkEdit.thinkingStartTime = editThinkingStartTime;
+                            }
+                            
+                            yield { conversationId, chunk: processedChunkEdit };
+                        }
+                    } catch (err) {
+                        // 如果是取消错误，设置 cancelled 为 true 并继续执行后续保存逻辑
+                        if (request.abortSignal?.aborted || (err instanceof ChannelError && err.type === ErrorType.CANCELLED_ERROR)) {
                             cancelled = true;
-                            break;
-                        }
-                        accumulator.add(chunk);
-                        
-                        // 获取累加器处理后的 parts
-                        const currentContent = accumulator.getContent();
-                        const currentParts = currentContent.parts;
-                        
-                        // 计算增量 delta
-                        const newDeltaEdit = currentParts.slice(lastPartsLengthEdit);
-                        lastPartsLengthEdit = currentParts.length;
-                        
-                        // 发送处理后的 chunk，添加 thinkingStartTime 供前端实时显示
-                        const processedChunkEdit: typeof chunk & { thinkingStartTime?: number } = {
-                            ...chunk,
-                            delta: newDeltaEdit.length > 0 ? newDeltaEdit : chunk.delta
-                        };
-                        
-                        const editThinkingStartTime = currentContent.thinkingStartTime;
-                        if (editThinkingStartTime !== undefined) {
-                            processedChunkEdit.thinkingStartTime = editThinkingStartTime;
-                        }
-                        
-                        yield { conversationId, chunk: processedChunkEdit };
-                        if (chunk.done) {
-                            break;
+                        } else {
+                            throw err;
                         }
                     }
                     
@@ -3209,6 +3873,12 @@ export class ChatHandler {
                                 conversationId,
                                 cancelled: true as const,
                                 content: partialContent
+                            } as any;
+                        } else {
+                            // 即使没有内容也要发送取消信号
+                            yield {
+                                conversationId,
+                                cancelled: true as const
                             } as any;
                         }
                         return;
@@ -3237,7 +3907,9 @@ export class ChatHandler {
                 this.ensureFunctionCallIds(finalContent);
                 
                 // 保存 AI 响应到历史
-                await this.conversationManager.addContent(conversationId, finalContent);
+                if (finalContent.parts.length > 0) {
+                    await this.conversationManager.addContent(conversationId, finalContent);
+                }
                 
                 // 检查是否有工具调用
                 const functionCalls = this.extractFunctionCalls(finalContent);
@@ -3324,6 +3996,9 @@ export class ChatHandler {
                     isFunctionResponse: true
                 });
                 
+                // 计算工具响应消息的 token 数
+                await this.preCountUserMessageTokens(conversationId, config.type);
+                
                 // 检查是否有工具被取消
                 const editHasCancelled = toolResults.some(r => (r.result as any).cancelled);
                 if (editHasCancelled) {
@@ -3355,7 +4030,7 @@ export class ChatHandler {
                 conversationId,
                 error: {
                     code: 'MAX_TOOL_ITERATIONS',
-                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: MAX_TOOL_CALL_ITERATIONS })
+                    message: t('modules.api.chat.errors.maxToolIterations', { maxIterations: maxToolIterations })
                 }
             };
             

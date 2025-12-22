@@ -647,7 +647,7 @@ export function createRemoveBackgroundTool(maxBatchTasks: number = 5): Tool {
                     // 批量模式参数
                     images: {
                         type: 'array',
-                        description: 'Batch mode: Background removal task array. Each task can independently configure input, output, and subject description.',
+                        description: 'Batch mode: Background removal task array. Each task can independently configure input, output, and subject description. MUST be an array even for single task.',
                         items: {
                             type: 'object',
                             properties: {

@@ -11,6 +11,7 @@ import GenerateImageSettings from './GenerateImageSettings.vue'
 import DependencySettings from './DependencySettings.vue'
 import ContextSettings from './ContextSettings.vue'
 import PromptSettings from './PromptSettings.vue'
+import TokenCountSettings from './TokenCountSettings.vue'
 import { CustomScrollbar, CustomCheckbox, CustomSelect, Modal, type SelectOption } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { useI18n, SUPPORTED_LANGUAGES } from '@/i18n'
@@ -43,6 +44,7 @@ const tabs = computed<TabItem[]>(() => [
   { id: 'dependencies', label: t('components.settings.tabs.dependencies'), icon: 'codicon-package' },
   { id: 'context', label: t('components.settings.tabs.context'), icon: 'codicon-symbol-namespace' },
   { id: 'prompt', label: t('components.settings.tabs.prompt'), icon: 'codicon-note' },
+  { id: 'tokenCount', label: t('components.settings.tabs.tokenCount'), icon: 'codicon-symbol-numeric' },
   { id: 'general', label: t('components.settings.tabs.general'), icon: 'codicon-settings-gear' },
 ])
 
@@ -410,6 +412,14 @@ onMounted(() => {
             <p class="settings-description">{{ t('components.settings.settingsPanel.sections.prompt.description') }}</p>
             
             <PromptSettings />
+          </div>
+          
+          <!-- Token 计数设置 -->
+          <div v-if="settingsStore.activeTab === 'tokenCount'" class="settings-section">
+            <h4>{{ t('components.settings.settingsPanel.sections.tokenCount.title') }}</h4>
+            <p class="settings-description">{{ t('components.settings.settingsPanel.sections.tokenCount.description') }}</p>
+            
+            <TokenCountSettings />
           </div>
           
           <!-- 通用设置 -->

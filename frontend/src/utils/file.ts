@@ -8,6 +8,117 @@ import {
   SUPPORTED_DOCUMENT_TYPES
 } from '../types'
 
+/**
+ * 根据文件扩展名推断 MIME 类型
+ *
+ * 当浏览器无法识别某些文件扩展名（如 .md）时返回空字符串，
+ * 需要根据文件名来推断正确的 MIME 类型
+ *
+ * @param filename 文件名
+ * @param browserMimeType 浏览器提供的 MIME 类型（可能为空）
+ * @returns 推断的 MIME 类型
+ */
+export function inferMimeType(filename: string, browserMimeType: string): string {
+  // 如果已有有效的 MIME 类型，直接使用
+  if (browserMimeType && browserMimeType.trim() !== '') {
+    return browserMimeType
+  }
+
+  // 根据扩展名推断 MIME 类型
+  const ext = filename.toLowerCase().split('.').pop() || ''
+
+  const extensionToMimeType: Record<string, string> = {
+    // 文本/代码文件
+    'md': 'text/markdown',
+    'markdown': 'text/markdown',
+    'txt': 'text/plain',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'html': 'text/html',
+    'htm': 'text/html',
+    'css': 'text/css',
+    'js': 'text/javascript',
+    'ts': 'text/typescript',
+    'tsx': 'text/typescript',
+    'jsx': 'text/javascript',
+    'py': 'text/x-python',
+    'java': 'text/x-java',
+    'c': 'text/x-c',
+    'cpp': 'text/x-c++',
+    'h': 'text/x-c',
+    'hpp': 'text/x-c++',
+    'cs': 'text/x-csharp',
+    'go': 'text/x-go',
+    'rs': 'text/x-rust',
+    'rb': 'text/x-ruby',
+    'php': 'text/x-php',
+    'swift': 'text/x-swift',
+    'kt': 'text/x-kotlin',
+    'scala': 'text/x-scala',
+    'sh': 'text/x-shellscript',
+    'bash': 'text/x-shellscript',
+    'zsh': 'text/x-shellscript',
+    'yaml': 'text/yaml',
+    'yml': 'text/yaml',
+    'toml': 'text/toml',
+    'ini': 'text/plain',
+    'cfg': 'text/plain',
+    'conf': 'text/plain',
+    'log': 'text/plain',
+    'csv': 'text/csv',
+    'sql': 'text/x-sql',
+    'r': 'text/x-r',
+    'lua': 'text/x-lua',
+    'perl': 'text/x-perl',
+    'pl': 'text/x-perl',
+    'vue': 'text/x-vue',
+    'svelte': 'text/x-svelte',
+
+    // 图片文件
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'svg': 'image/svg+xml',
+    'bmp': 'image/bmp',
+    'ico': 'image/x-icon',
+
+    // 音频文件
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'ogg': 'audio/ogg',
+    'flac': 'audio/flac',
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+
+    // 视频文件
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'avi': 'video/x-msvideo',
+    'mov': 'video/quicktime',
+    'mkv': 'video/x-matroska',
+
+    // 文档文件
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+
+    // 压缩文件
+    'zip': 'application/zip',
+    'rar': 'application/x-rar-compressed',
+    'tar': 'application/x-tar',
+    'gz': 'application/gzip',
+    '7z': 'application/x-7z-compressed'
+  }
+
+  return extensionToMimeType[ext] || 'application/octet-stream'
+}
+
 // 获取文件类型
 export function getFileType(mimeType: string): AttachmentType {
   // 使用通用匹配，支持所有同类型文件

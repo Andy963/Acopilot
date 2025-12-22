@@ -281,3 +281,145 @@ export function createMultiTextMessage(
         parts: texts.map(text => ({ text }))
     };
 }
+
+/**
+ * 清理 functionResponse 中不应发送给 API 的内部字段
+ *
+ * 过滤的字段包括：
+ * - 顶层：diffContentId, diffId, diffs
+ * - data 字段中的：diffContentId, diffId, diffs, toolId, terminalId, multiRoot, command, cwd, shell
+ * - data.results 数组中的：diffContentId
+ *
+ * 保留的字段：killed, duration（AI 需要知道命令执行状态）
+ *
+ * @param response functionResponse.response 对象
+ * @returns 清理后的 response 对象
+ */
+export function cleanFunctionResponseForAPI(
+    response: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+    if (!response || typeof response !== 'object') {
+        return response;
+    }
+    
+    // 过滤顶层内部字段
+    const { diffContentId, diffId, diffs, ...rest } = response;
+    
+    // 检查 data 字段中是否也有这些字段
+    if (rest.data && typeof rest.data === 'object') {
+        const {
+            diffContentId: dataDiffContentId,
+            diffId: dataDiffId,
+            diffs: dataDiffs,
+            toolId: dataToolId,
+            terminalId: dataTerminalId,
+            multiRoot: dataMultiRoot,
+            // execute_command 的元数据，AI 已知
+            command: dataCommand,
+            cwd: dataCwd,
+            shell: dataShell,
+            ...dataRest
+        } = rest.data as Record<string, unknown>;
+        
+        // 检查 data.results 数组中的每个元素是否也有 diffContentId（如 search_in_files 的替换结果）
+        if (Array.isArray(dataRest.results)) {
+            dataRest.results = (dataRest.results as Array<Record<string, unknown>>).map(item => {
+                if (item && typeof item === 'object') {
+                    const { diffContentId: itemDiffContentId, ...itemRest } = item;
+                    return itemRest;
+                }
+                return item;
+            });
+        }
+        
+        rest.data = dataRest;
+    }
+    
+    return rest;
+}
+
+/**
+ * 清理 Content 中不应发送给 API 的内部字段
+ *
+ * 过滤的字段包括：
+ * - Content 元数据：isFunctionResponse, estimatedTokenCount, tokenCountByChannel
+ * - inlineData 中的：id, name（仅保留 mimeType, data, displayName）
+ * - functionCall 中的：rejected
+ * - functionResponse.response 中的内部字段（使用 cleanFunctionResponseForAPI）
+ *
+ * @param content Content 对象
+ * @returns 清理后的 Content 对象
+ */
+export function cleanContentForAPI(content: Content): Content {
+    const cleanedParts = content.parts.map(part => {
+        const cleanedPart: ContentPart = {};
+        
+        // text
+        if (part.text !== undefined) {
+            cleanedPart.text = part.text;
+        }
+        
+        // inlineData - 只保留 API 需要的字段
+        if (part.inlineData) {
+            cleanedPart.inlineData = {
+                mimeType: part.inlineData.mimeType,
+                data: part.inlineData.data
+            };
+            if (part.inlineData.displayName) {
+                cleanedPart.inlineData.displayName = part.inlineData.displayName;
+            }
+            // 不包含 id, name
+        }
+        
+        // fileData
+        if (part.fileData) {
+            cleanedPart.fileData = { ...part.fileData };
+        }
+        
+        // functionCall
+        if (part.functionCall) {
+            cleanedPart.functionCall = {
+                name: part.functionCall.name,
+                args: part.functionCall.args
+            };
+            if (part.functionCall.id) {
+                cleanedPart.functionCall.id = part.functionCall.id;
+            }
+            // 不包含 rejected
+        }
+        
+        // functionResponse - 清理内部字段
+        if (part.functionResponse) {
+            const cleanedResponse = cleanFunctionResponseForAPI(
+                part.functionResponse.response as Record<string, unknown>
+            );
+            
+            cleanedPart.functionResponse = {
+                name: part.functionResponse.name,
+                response: cleanedResponse
+            };
+            if (part.functionResponse.id) {
+                cleanedPart.functionResponse.id = part.functionResponse.id;
+            }
+            // 不包含 parts（嵌套多模态内容由 ConversationManager 单独处理）
+        }
+        
+        // thoughtSignatures
+        if (part.thoughtSignatures) {
+            cleanedPart.thoughtSignatures = part.thoughtSignatures;
+        }
+        
+        // thought
+        if (part.thought !== undefined) {
+            cleanedPart.thought = part.thought;
+        }
+        
+        return cleanedPart;
+    });
+    
+    return {
+        role: content.role,
+        parts: cleanedParts
+        // 不包含 isFunctionResponse, estimatedTokenCount, tokenCountByChannel 等元数据
+    };
+}

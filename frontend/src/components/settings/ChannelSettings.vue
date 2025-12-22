@@ -8,7 +8,8 @@ import {
   AnthropicOptions,
   CustomBodySettings,
   CustomHeadersSettings,
-  ToolOptionsSettings
+  ToolOptionsSettings,
+  TokenCountMethodSettings
 } from './channels'
 import { sendToExtension } from '@/utils/vscode'
 import { useChatStore } from '@/stores'
@@ -53,6 +54,9 @@ const showContextThreshold = ref(false)
 
 // 工具配置展开状态
 const showToolOptions = ref(false)
+
+// Token 计数方式展开状态
+const showTokenCountMethod = ref(false)
 
 // 确认对话框
 const showConfirmDialog = ref(false)
@@ -280,6 +284,11 @@ const autoSummarizeEnabled = computed(() => {
   return currentConfig.value?.autoSummarizeEnabled ?? false
 })
 
+// 裁剪时额外裁剪量
+const contextTrimExtraCut = computed(() => {
+  return currentConfig.value?.contextTrimExtraCut ?? 0
+})
+
 // 更新上下文阈值启用状态
 async function updateContextThresholdEnabled(enabled: boolean) {
   await updateConfigField('contextThresholdEnabled', enabled)
@@ -302,6 +311,28 @@ async function updateContextThreshold(value: string) {
 // 更新自动总结启用状态
 async function updateAutoSummarizeEnabled(enabled: boolean) {
   await updateConfigField('autoSummarizeEnabled', enabled)
+}
+
+// 更新裁剪时额外裁剪量
+async function updateContextTrimExtraCut(value: string | number) {
+  // 验证格式：数值 或 百分比
+  if (typeof value === 'string') {
+    if (value === '' || value === '0') {
+      await updateConfigField('contextTrimExtraCut', 0)
+    } else if (value.endsWith('%')) {
+      const percent = parseFloat(value.replace('%', ''))
+      if (!isNaN(percent) && percent >= 0 && percent <= 100) {
+        await updateConfigField('contextTrimExtraCut', value)
+      }
+    } else {
+      const numValue = parseFloat(value)
+      if (!isNaN(numValue) && numValue >= 0) {
+        await updateConfigField('contextTrimExtraCut', numValue)
+      }
+    }
+  } else if (typeof value === 'number' && value >= 0) {
+    await updateConfigField('contextTrimExtraCut', value)
+  }
 }
 
 
@@ -915,6 +946,23 @@ onMounted(async () => {
             
             <div class="option-item option-with-toggle">
               <div class="option-header">
+                <label>{{ t('components.settings.channelSettings.form.contextManagement.extraCut.label') }}</label>
+              </div>
+              <input
+                type="text"
+                :value="contextTrimExtraCut"
+                :placeholder="t('components.settings.channelSettings.form.contextManagement.extraCut.placeholder')"
+                :disabled="!contextThresholdEnabled"
+                :class="{ disabled: !contextThresholdEnabled }"
+                @change="(e: any) => updateContextTrimExtraCut(e.target.value)"
+              />
+              <span class="option-hint">
+                {{ t('components.settings.channelSettings.form.contextManagement.extraCut.hint') }}
+              </span>
+            </div>
+            
+            <div class="option-item option-with-toggle">
+              <div class="option-header">
                 <label>{{ t('components.settings.channelSettings.form.contextManagement.autoSummarize.label') }}</label>
                 <label class="toggle-switch" :title="t('components.settings.channelSettings.form.contextManagement.autoSummarize.enableTitle')" @click.stop>
                   <input
@@ -948,6 +996,27 @@ onMounted(async () => {
           <ToolOptionsSettings
             :tool-options="toolOptions"
             @update:config="updateToolOptions"
+          />
+        </div>
+      </div>
+      
+      <!-- Token 计数方式 -->
+      <div class="form-group">
+        <button
+          class="advanced-toggle"
+          @click="showTokenCountMethod = !showTokenCountMethod"
+        >
+          <i :class="['codicon', showTokenCountMethod ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
+          <span>{{ t('components.channels.tokenCountMethod.title') }}</span>
+        </button>
+        
+        <div v-if="showTokenCountMethod" class="custom-panel-wrapper">
+          <TokenCountMethodSettings
+            :token-count-method="currentConfig.tokenCountMethod || 'channel_default'"
+            :token-count-api-config="currentConfig.tokenCountApiConfig || {}"
+            :channel-type="currentConfig.type"
+            @update:token-count-method="(v: string) => updateConfigField('tokenCountMethod', v)"
+            @update:token-count-api-config="(v: any) => updateConfigField('tokenCountApiConfig', v)"
           />
         </div>
       </div>

@@ -280,6 +280,8 @@ export interface LanguageMessages {
                 confirmExecution: string;
                 confirm: string;
                 reject: string;
+                confirmed: string;
+                rejected: string;
                 viewDiff: string;
                 viewDiffInVSCode: string;
                 openDiffFailed: string;
@@ -356,6 +358,7 @@ export interface LanguageMessages {
                 dependencies: string;
                 context: string;
                 prompt: string;
+                tokenCount: string;
                 general: string;
             };
             
@@ -593,6 +596,11 @@ export interface LanguageMessages {
                         title: string;
                         enableTitle: string;
                         threshold: {
+                            label: string;
+                            placeholder: string;
+                            hint: string;
+                        };
+                        extraCut: {
                             label: string;
                             placeholder: string;
                             hint: string;
@@ -1132,6 +1140,13 @@ export interface LanguageMessages {
                 saveButton: string;
                 saveSuccess: string;
                 saveFailed: string;
+                tokenCount: {
+                    label: string;
+                    channelTooltip: string;
+                    refreshTooltip: string;
+                    failed: string;
+                    hint: string;
+                };
                 modulesReference: {
                     title: string;
                     insertTooltip: string;
@@ -1257,6 +1272,10 @@ export interface LanguageMessages {
                         title: string;
                         description: string;
                     };
+                    tokenCount: {
+                        title: string;
+                        description: string;
+                    };
                     general: {
                         title: string;
                         description: string;
@@ -1288,6 +1307,11 @@ export interface LanguageMessages {
                 };
             };
             toolsSettings: {
+                maxIterations: {
+                    label: string;
+                    hint: string;
+                    unit: string;
+                };
                 actions: {
                     refresh: string;
                     enableAll: string;
@@ -1309,6 +1333,34 @@ export interface LanguageMessages {
                 config: {
                     tooltip: string;
                 };
+            };
+            tokenCountSettings: {
+                description: string;
+                hint: string;
+                enableChannel: string;
+                baseUrl: string;
+                apiKey: string;
+                apiKeyPlaceholder: string;
+                model: string;
+                geminiUrlPlaceholder: string;
+                geminiUrlHint: string;
+                geminiModelPlaceholder: string;
+                anthropicUrlPlaceholder: string;
+                anthropicModelPlaceholder: string;
+                comingSoon: string;
+                customApi: string;
+                openaiDocTitle: string;
+                openaiDocDesc: string;
+                openaiUrlPlaceholder: string;
+                openaiUrlHint: string;
+                openaiModelPlaceholder: string;
+                apiDocumentation: string;
+                requestExample: string;
+                requestBody: string;
+                responseFormat: string;
+                openaiDocNote: string;
+                saveSuccess: string;
+                saveFailed: string;
             };
             storageSettings: {
                 title: string;
@@ -1374,12 +1426,21 @@ export interface LanguageMessages {
                     title: string;
                     toggleHint: string;
                 };
+                currentThinking: {
+                    title: string;
+                    sendSignatures: string;
+                    sendSignaturesHint: string;
+                    sendContent: string;
+                    sendContentHint: string;
+                };
                 historyThinking: {
                     title: string;
                     sendSignatures: string;
                     sendSignaturesHint: string;
                     sendContent: string;
                     sendContentHint: string;
+                    roundsLabel: string;
+                    roundsHint: string;
                 };
             };
             
@@ -1491,6 +1552,38 @@ export interface LanguageMessages {
                     coordTopLeft: string;
                     coordBottomRight: string;
                     coordCenter: string;
+                };
+            };
+            
+            /** Token 计数方式 */
+            tokenCountMethod: {
+                title: string;
+                label: string;
+                placeholder: string;
+                hint: string;
+                options: {
+                    channelDefault: string;
+                    gemini: string;
+                    openaiCustom: string;
+                    openaiCustomDesc: string;
+                    anthropic: string;
+                    local: string;
+                    localDesc: string;
+                };
+                defaultDesc: {
+                    gemini: string;
+                    anthropic: string;
+                    openai: string;
+                };
+                apiConfig: {
+                    title: string;
+                    url: string;
+                    urlHint: string;
+                    apiKey: string;
+                    apiKeyPlaceholder: string;
+                    apiKeyHint: string;
+                    model: string;
+                    modelHint: string;
                 };
             };
         };

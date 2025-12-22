@@ -176,7 +176,13 @@ export const useChatStore = defineStore('chat', () => {
    */
   function addFunctionCallToMessage(
     message: Message,
-    call: { id: string; name: string; args: Record<string, unknown> }
+    call: { 
+      id: string; 
+      name: string; 
+      args: Record<string, unknown>; 
+      partialArgs?: string; 
+      index?: number 
+    }
   ): void {
     // 更新 tools 数组
     if (!message.tools) {
@@ -197,7 +203,9 @@ export const useChatStore = defineStore('chat', () => {
       functionCall: {
         id: call.id,
         name: call.name,
-        args: call.args
+        args: call.args,
+        partialArgs: call.partialArgs,
+        index: call.index
       }
     })
   }
@@ -1043,13 +1051,52 @@ export const useChatStore = defineStore('chat', () => {
             }
           }
           
-          // 处理工具调用（原生 function call 格式）
+          // 处理工具调用（原生 function call format）
           if (part.functionCall) {
-            addFunctionCallToMessage(message, {
-              id: part.functionCall.id || generateId(),
-              name: part.functionCall.name,
-              args: part.functionCall.args
-            })
+            const fc = part.functionCall
+            const lastPart = message.parts[message.parts.length - 1]
+            
+            // 尝试合并到最后一个工具调用块
+            let merged = false
+            if (lastPart && lastPart.functionCall) {
+              const lastFc = lastPart.functionCall
+              
+              // OpenAI 模式：使用 index 匹配，或者如果没有 index 且是增量
+              const canMerge = (fc.index !== undefined && lastFc.index === fc.index) ||
+                               (fc.index === undefined && !fc.id && fc.partialArgs !== undefined)
+              
+              if (canMerge) {
+                // 合并名称和 ID
+                if (fc.name && !lastFc.name) lastFc.name = fc.name
+                if (fc.id && !lastFc.id) lastFc.id = fc.id
+                
+                // 合并参数
+                if (fc.partialArgs !== undefined) {
+                  lastFc.partialArgs = (lastFc.partialArgs || '') + fc.partialArgs
+                  // 尝试更新解析后的 args 用于预览
+                  if (lastFc.partialArgs.trim()) {
+                    try {
+                      lastFc.args = JSON.parse(lastFc.partialArgs)
+                    } catch (e) { /* 继续累积 */ }
+                  }
+                } else if (fc.args && Object.keys(fc.args).length > 0) {
+                  lastFc.args = { ...lastFc.args, ...fc.args }
+                }
+                
+                merged = true
+              }
+            }
+            
+            if (!merged) {
+              // 找不到可合并的，添加新块
+              addFunctionCallToMessage(message, {
+                id: fc.id || generateId(),
+                name: fc.name || '',
+                args: fc.args || {},
+                partialArgs: fc.partialArgs,
+                index: fc.index
+              })
+            }
           }
         }
         
@@ -1351,66 +1398,76 @@ export const useChatStore = defineStore('chat', () => {
       }
     } else if (chunk.type === 'cancelled') {
       // 用户取消了请求
+      // 尝试获取目标消息：优先使用 streamingMessageId，如果已清除则尝试寻找最后一条助手消息
+      let messageIndex = -1
       if (streamingMessageId.value) {
-        const messageIndex = allMessages.value.findIndex(m => m.id === streamingMessageId.value)
-        if (messageIndex !== -1) {
-          const message = allMessages.value[messageIndex]
-          
-          // 如果消息为空，删除它
-          // 注意：思考内容只存在于 parts 中，不在 content 中，需要检查 parts
-          const hasPartsContent = message.parts && message.parts.some(p => p.text || p.functionCall)
-          if (!message.content && !message.tools && !hasPartsContent) {
-            allMessages.value = allMessages.value.filter(m => m.id !== streamingMessageId.value)
-          } else {
-            // 构建新的 metadata 对象
-            const newMetadata = message.metadata ? { ...message.metadata } : {}
-            
-            // 从后端返回的 content 中提取计时信息（后端在取消时也会保存计时信息）
-            if (chunk.content) {
-              if (chunk.content.thinkingDuration !== undefined) {
-                newMetadata.thinkingDuration = chunk.content.thinkingDuration
-              }
-              if (chunk.content.responseDuration !== undefined) {
-                newMetadata.responseDuration = chunk.content.responseDuration
-              }
-              if (chunk.content.streamDuration !== undefined) {
-                newMetadata.streamDuration = chunk.content.streamDuration
-              }
-              if (chunk.content.firstChunkTime !== undefined) {
-                newMetadata.firstChunkTime = chunk.content.firstChunkTime
-              }
-              if (chunk.content.chunkCount !== undefined) {
-                newMetadata.chunkCount = chunk.content.chunkCount
-              }
-            }
-            
-            // 更新工具状态
-            const updatedTools = message.tools?.map(tool => {
-              if (tool.status === 'running' || tool.status === 'pending') {
-                return { ...tool, status: 'error' as const }
-              }
-              return tool
-            })
-            
-            // 创建更新后的消息对象
-            const updatedMessage: Message = {
-              ...message,
-              streaming: false,
-              metadata: newMetadata,
-              tools: updatedTools
-            }
-            
-            // 用新对象替换数组中的旧对象，确保 Vue 响应式更新
-            allMessages.value = [
-              ...allMessages.value.slice(0, messageIndex),
-              updatedMessage,
-              ...allMessages.value.slice(messageIndex + 1)
-            ]
-          }
+        messageIndex = allMessages.value.findIndex(m => m.id === streamingMessageId.value)
+      } else {
+        // 兼容性处理：如果 streamingMessageId 已被 cancelStream 清除，则寻找最后一条助手消息
+        // 仅当最后一条助手消息处于非流式状态（说明刚被 cancelStream 处理过）时才尝试更新其元数据
+        const lastMsgIndex = allMessages.value.length - 1
+        const lastMsg = allMessages.value[lastMsgIndex]
+        if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.streaming) {
+          messageIndex = lastMsgIndex
         }
-        streamingMessageId.value = null
       }
-      
+
+      if (messageIndex !== -1) {
+        const message = allMessages.value[messageIndex]
+        
+        // 如果消息为空且没有工具调用，删除它
+        // 注意：思考内容只存在于 parts 中，不在 content 中，需要检查 parts
+        const hasPartsContent = message.parts && message.parts.some(p => p.text || p.functionCall)
+        if (!message.content && !message.tools && !hasPartsContent) {
+          allMessages.value = allMessages.value.filter((_, i) => i !== messageIndex)
+        } else {
+          // 构建新的 metadata 对象
+          const newMetadata = message.metadata ? { ...message.metadata } : {}
+          
+          // 从后端返回的 content 中提取计时信息（后端在取消时也会保存计时信息）
+          if (chunk.content) {
+            if (chunk.content.thinkingDuration !== undefined) {
+              newMetadata.thinkingDuration = chunk.content.thinkingDuration
+            }
+            if (chunk.content.responseDuration !== undefined) {
+              newMetadata.responseDuration = chunk.content.responseDuration
+            }
+            if (chunk.content.streamDuration !== undefined) {
+              newMetadata.streamDuration = chunk.content.streamDuration
+            }
+            if (chunk.content.firstChunkTime !== undefined) {
+              newMetadata.firstChunkTime = chunk.content.firstChunkTime
+            }
+            if (chunk.content.chunkCount !== undefined) {
+              newMetadata.chunkCount = chunk.content.chunkCount
+            }
+          }
+          
+          // 更新工具状态
+          const updatedTools = message.tools?.map(tool => {
+            if (tool.status === 'running' || tool.status === 'pending') {
+              return { ...tool, status: 'error' as const }
+            }
+            return tool
+          })
+          
+          // 创建更新后的消息对象
+          const updatedMessage: Message = {
+            ...message,
+            streaming: false,
+            metadata: newMetadata,
+            tools: updatedTools
+          }
+          
+          // 用新对象替换数组中的旧对象，确保 Vue 响应式更新
+          allMessages.value = [
+            ...allMessages.value.slice(0, messageIndex),
+            updatedMessage,
+            ...allMessages.value.slice(messageIndex + 1)
+          ]
+        }
+      }
+      streamingMessageId.value = null
       isStreaming.value = false
       isWaitingForResponse.value = false
     } else if (chunk.type === 'error') {
@@ -1963,7 +2020,6 @@ export const useChatStore = defineStore('chat', () => {
             ]
           }
         }
-        streamingMessageId.value = null
       }
       isStreaming.value = false
       isWaitingForResponse.value = false

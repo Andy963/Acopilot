@@ -31,6 +31,10 @@ export { ChannelManager } from './ChannelManager';
 // 流式处理工具
 export { StreamAccumulator } from './StreamAccumulator';
 
+// Token 计数服务
+export { TokenCountService, createTokenCountService } from './TokenCountService';
+export type { TokenCountResult } from './TokenCountService';
+
 // 模型列表
 export type { ModelInfo } from './modelList';
 export { getModels, getGeminiModels, getOpenAIModels, getClaudeModels } from './modelList';

@@ -636,6 +636,104 @@ export interface ContextAwarenessConfig {
 }
 
 /**
+ * Token 计数 API 渠道配置
+ *
+ * 支持 Gemini、OpenAI、Anthropic 三种格式
+ */
+export interface TokenCountChannelConfig {
+    /**
+     * 是否启用此渠道的 Token 计数 API
+     */
+    enabled: boolean;
+    
+    /**
+     * API 基础 URL
+     *
+     * Gemini 示例: https://generativelanguage.googleapis.com/v1beta/models/{model}:countTokens?key={key}
+     * OpenAI 示例: https://api.openai.com/v1/chat/completions (使用 tiktoken 或 API)
+     * Anthropic 示例: https://api.anthropic.com/v1/messages/count_tokens
+     */
+    baseUrl: string;
+    
+    /**
+     * API Key
+     */
+    apiKey: string;
+    
+    /**
+     * 模型名称
+     *
+     * 用于替换 URL 中的 {model} 占位符
+     * 例如: gemini-2.5-pro
+     */
+    model: string;
+}
+
+/**
+ * Token 计数配置
+ *
+ * 允许用户配置各渠道的 Token 计数 API，用于精确计算上下文 token 数量
+ * 如果未配置或 API 调用失败，将回退到估算方法
+ */
+export interface TokenCountConfig {
+    /**
+     * Gemini 渠道配置
+     */
+    gemini?: TokenCountChannelConfig;
+    
+    /**
+     * OpenAI 渠道配置
+     */
+    openai?: TokenCountChannelConfig;
+    
+    /**
+     * Anthropic 渠道配置
+     */
+    anthropic?: TokenCountChannelConfig;
+    
+    [key: string]: unknown;
+}
+
+/**
+ * 默认 Gemini Token 计数配置
+ */
+export const DEFAULT_GEMINI_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
+    enabled: false,
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:countTokens?key={key}',
+    apiKey: '',
+    model: 'gemini-2.5-pro'
+};
+
+/**
+ * 默认 OpenAI Token 计数配置
+ */
+export const DEFAULT_OPENAI_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
+    enabled: false,
+    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    apiKey: '',
+    model: 'gpt-5'
+};
+
+/**
+ * 默认 Anthropic Token 计数配置
+ */
+export const DEFAULT_ANTHROPIC_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
+    enabled: false,
+    baseUrl: 'https://api.anthropic.com/v1/messages/count_tokens',
+    apiKey: '',
+    model: 'claude-sonnet-4-5'
+};
+
+/**
+ * 默认 Token 计数配置
+ */
+export const DEFAULT_TOKEN_COUNT_CONFIG: TokenCountConfig = {
+    gemini: DEFAULT_GEMINI_TOKEN_COUNT_CONFIG,
+    openai: DEFAULT_OPENAI_TOKEN_COUNT_CONFIG,
+    anthropic: DEFAULT_ANTHROPIC_TOKEN_COUNT_CONFIG
+};
+
+/**
  * 上下文总结配置
  */
 export interface SummarizeConfig {
@@ -700,6 +798,7 @@ export interface ToolsConfig {
     context_awareness?: ContextAwarenessConfig;
     pinned_files?: PinnedFilesConfig;
     system_prompt?: SystemPromptConfig;
+    token_count?: TokenCountConfig;
     [toolName: string]: Record<string, unknown> | undefined;
 }
 
@@ -800,6 +899,15 @@ export interface GlobalSettings {
      * 用于快速切换渠道
      */
     activeChannelId?: string;
+    
+    /**
+     * 单回合最大工具调用次数
+     *
+     * 防止 AI 无限循环调用工具
+     * -1 表示无限制
+     * 默认: 50
+     */
+    maxToolIterations?: number;
     
     /**
      * 工具启用状态
@@ -1334,7 +1442,8 @@ GUIDELINES
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
 - When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
 - If the task is simple and doesn't require tools, just respond directly without calling any tools.
-- Always maintain code readability and maintainability.`;
+- Always maintain code readability and maintainability.
+- Do not omit any code.`;
 
 /**
  * 默认系统提示词配置
@@ -1344,6 +1453,11 @@ export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
     customPrefix: '',
     customSuffix: ''
 };
+
+/**
+ * 默认单回合最大工具调用次数
+ */
+export const DEFAULT_MAX_TOOL_ITERATIONS = 50;
 
 /**
  * 默认上下文感知配置
@@ -1364,6 +1478,7 @@ export const DEFAULT_CONTEXT_AWARENESS_CONFIG: ContextAwarenessConfig = {
  * 默认全局设置
  */
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+    maxToolIterations: DEFAULT_MAX_TOOL_ITERATIONS,
     toolsEnabled: {
         // 默认所有工具启用
     },
@@ -1384,7 +1499,8 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
         rotate_image: DEFAULT_ROTATE_IMAGE_CONFIG,
         context_awareness: DEFAULT_CONTEXT_AWARENESS_CONFIG,
         pinned_files: DEFAULT_PINNED_FILES_CONFIG,
-        system_prompt: DEFAULT_SYSTEM_PROMPT_CONFIG
+        system_prompt: DEFAULT_SYSTEM_PROMPT_CONFIG,
+        token_count: DEFAULT_TOKEN_COUNT_CONFIG
     },
     defaultToolMode: 'function_call',
     proxy: {

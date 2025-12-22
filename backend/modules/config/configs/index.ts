@@ -5,7 +5,7 @@
  */
 
 // 导出基础类型
-export type { ChannelType, BaseChannelConfig, ModelInfo } from './base';
+export type { ChannelType, BaseChannelConfig, ModelInfo, TokenCountMethod, TokenCountApiConfig } from './base';
 
 // 导出各渠道配置
 export type { GeminiConfig, GeminiOptionsEnabled, ThinkingConfig, ThinkingLevel, ThinkingMode } from './gemini';

@@ -740,7 +740,7 @@ Generated images will be saved to the specified path and returned for viewing.`;
         },
         reference_images: {
             type: 'array',
-            description: 'Reference image paths array (optional). Maximum 14 images.',
+            description: 'Reference image paths array (optional). Maximum 14 images. MUST be an array even for single image, e.g., ["image.png"]',
             items: { type: 'string' }
         },
         output_path: {
@@ -776,8 +776,8 @@ Generated images will be saved to the specified path and returned for viewing.`;
         reference_images: {
             type: 'array',
             description: isMultiRoot
-                ? `Single mode: Reference image paths array (optional). Maximum 14 images. Use "workspace_name/path" format.`
-                : 'Single mode: Reference image paths array (optional). Maximum 14 images.',
+                ? `Single mode: Reference image paths array (optional). Maximum 14 images. Use "workspace_name/path" format. MUST be an array even for single image.`
+                : 'Single mode: Reference image paths array (optional). Maximum 14 images. MUST be an array even for single image, e.g., ["image.png"]',
             items: {
                 type: 'string',
                 description: isMultiRoot
@@ -822,7 +822,7 @@ Generated images will be saved to the specified path and returned for viewing.`;
                     // 批量生成模式参数
                     images: {
                         type: 'array',
-                        description: 'Batch mode: Image generation task array. Each task can independently configure prompt, reference images, and output path.',
+                        description: 'Batch mode: Image generation task array. Each task can independently configure prompt, reference images, and output path. MUST be an array even for single task, e.g., [{"prompt": "...", "output_path": "..."}]',
                         items: {
                             type: 'object',
                             properties: batchItemProperties,

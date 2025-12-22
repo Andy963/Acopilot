@@ -37,6 +37,11 @@ interface ToolInfo {
 // 国际化
 const { t } = useI18n()
 
+// 最大工具调用次数配置（初始为0，从后端加载真实值）
+const maxToolIterations = ref<number>(0)
+const isLoadingMaxIterations = ref(false)
+const isSavingMaxIterations = ref(false)
+
 // 获取所有需要的依赖（从所有工具中）
 const allDependencies = Object.values(TOOL_DEPENDENCIES).flat()
 const uniqueDependencies = [...new Set(allDependencies)]
@@ -214,15 +219,79 @@ function getCategoryIcon(category: string): string {
   return categoryIcons[category] || 'codicon-extensions'
 }
 
+// 加载最大工具调用次数配置
+async function loadMaxToolIterations() {
+  isLoadingMaxIterations.value = true
+  try {
+    const response = await sendToExtension<{ maxIterations: number }>('tools.getMaxToolIterations', {})
+    if (response?.maxIterations !== undefined) {
+      maxToolIterations.value = response.maxIterations
+    }
+  } catch (error) {
+    console.error('Failed to load maxToolIterations:', error)
+  } finally {
+    isLoadingMaxIterations.value = false
+  }
+}
+
+// 保存最大工具调用次数配置
+async function saveMaxToolIterations(value: number) {
+  isSavingMaxIterations.value = true
+  try {
+    await sendToExtension('tools.updateMaxToolIterations', { maxIterations: value })
+    maxToolIterations.value = value
+  } catch (error) {
+    console.error('Failed to save maxToolIterations:', error)
+  } finally {
+    isSavingMaxIterations.value = false
+  }
+}
+
+// 处理最大工具调用次数变化
+function handleMaxIterationsChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const value = parseInt(target.value, 10)
+  // -1 表示无限制，正整数表示具体次数
+  if (!isNaN(value) && (value === -1 || value >= 1)) {
+    saveMaxToolIterations(value)
+  }
+}
+
 // 组件挂载
 onMounted(() => {
   loadTools()
   loadDependencies()
+  loadMaxToolIterations()
 })
 </script>
 
 <template>
   <div class="tools-settings">
+    <!-- 全局配置 -->
+    <div class="global-config">
+      <div class="config-item">
+        <div class="config-label">
+          <span class="label-text">{{ t('components.settings.toolsSettings.maxIterations.label') }}</span>
+          <span class="label-hint">{{ t('components.settings.toolsSettings.maxIterations.hint') }}</span>
+        </div>
+        <div class="config-control">
+          <input
+            type="number"
+            class="iterations-input"
+            :value="maxToolIterations"
+            min="-1"
+            :disabled="isLoadingMaxIterations || isSavingMaxIterations"
+            @change="handleMaxIterationsChange"
+          />
+          <span class="unit">{{ t('components.settings.toolsSettings.maxIterations.unit') }}</span>
+          <i
+            v-if="isSavingMaxIterations"
+            class="codicon codicon-loading codicon-modifier-spin saving-indicator"
+          ></i>
+        </div>
+      </div>
+    </div>
+
     <!-- 操作按钮 -->
     <div class="tools-actions">
       <button class="action-btn" @click="loadTools" :disabled="isLoading">
@@ -370,6 +439,90 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* 全局配置 */
+.global-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.config-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.label-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.label-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.config-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.iterations-input {
+  width: 70px;
+  padding: 4px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* 隐藏数字输入框的上下箭头 */
+.iterations-input::-webkit-outer-spin-button,
+.iterations-input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.iterations-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.iterations-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.unit {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.saving-indicator {
+  font-size: 14px;
+  color: var(--vscode-foreground);
 }
 
 /* 操作按钮 */

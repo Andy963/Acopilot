@@ -121,9 +121,12 @@ export function createListFilesTool(): Tool {
     const workspaces = getAllWorkspaces();
     const isMultiRoot = workspaces.length > 1;
     
-    let pathsDescription = 'List of directory paths to list (relative to workspace root)';
+    // 数组格式强调说明
+    const arrayFormatNote = ' MUST be an array even for single directory, e.g., ["src"]';
+    
+    let pathsDescription = 'Array of directory paths to list (relative to workspace root).' + arrayFormatNote;
     if (isMultiRoot) {
-        pathsDescription = `List of directory paths to list, must use "workspace_name/path" format. Available workspaces: ${workspaces.map(w => w.name).join(', ')}`;
+        pathsDescription = `Array of directory paths to list, must use "workspace_name/path" format.${arrayFormatNote} Available workspaces: ${workspaces.map(w => w.name).join(', ')}`;
     }
     
     return {

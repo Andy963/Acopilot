@@ -322,7 +322,7 @@ export function createResizeImageTool(maxBatchTasks: number = 10): Tool {
                     // 批量模式参数
                     images: {
                         type: 'array',
-                        description: 'Batch mode: Resize task array. Each task can independently configure input, output, and target dimensions.',
+                        description: 'Batch mode: Resize task array. Each task can independently configure input, output, and target dimensions. MUST be an array even for single task.',
                         items: {
                             type: 'object',
                             properties: {

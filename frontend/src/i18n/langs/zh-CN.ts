@@ -307,6 +307,8 @@ const zhCN: LanguageMessages = {
                 confirmExecution: '点击确认执行',
                 confirm: '确认执行',
                 reject: '拒绝',
+                confirmed: '已确认',
+                rejected: '已拒绝',
                 viewDiff: '查看差异',
                 viewDiffInVSCode: '在 VSCode 中查看差异',
                 openDiffFailed: '打开 diff 预览失败'
@@ -330,6 +332,7 @@ const zhCN: LanguageMessages = {
                 dependencies: '扩展依赖',
                 context: '上下文',
                 prompt: '提示词',
+                tokenCount: 'Token 计数',
                 general: '通用'
             },
             channelSettings: {
@@ -453,6 +456,11 @@ const zhCN: LanguageMessages = {
                             label: '上下文阈值',
                             placeholder: '80% 或 100000',
                             hint: '当总 token 数超过此阈值时，自动舍弃最旧的对话回合。支持两种格式：百分比（如 80%）或绝对数值（如 100000）'
+                        },
+                        extraCut: {
+                            label: '额外裁剪量',
+                            placeholder: '0 或 10%',
+                            hint: '裁剪时额外裁剪的 token 数量。实际保留 = 阈值 - 额外裁剪量。支持百分比或绝对数值，默认为 0'
                         },
                         autoSummarize: {
                             label: '自动总结（即将推出）',
@@ -993,6 +1001,13 @@ const zhCN: LanguageMessages = {
                     title: '可用变量参考',
                     insertTooltip: '插入到模板末尾'
                 },
+                tokenCount: {
+                    label: 'Token 数量',
+                    channelTooltip: '选择用于计算 token 的渠道',
+                    refreshTooltip: '刷新 token 计数',
+                    failed: '计数失败',
+                    hint: '显示的是仅模板本身的 token 数，实际系统提示词还包含动态填充的变量内容'
+                },
                 modules: {
                     ENVIRONMENT: {
                         name: '环境信息',
@@ -1114,6 +1129,10 @@ const zhCN: LanguageMessages = {
                         title: '系统提示词',
                         description: '自定义系统提示词的结构和内容'
                     },
+                    tokenCount: {
+                        title: 'Token 计数',
+                        description: '配置用于计算 Token 数量的 API'
+                    },
                     general: {
                         title: '通用设置',
                         description: '基本配置选项'
@@ -1139,7 +1158,7 @@ const zhCN: LanguageMessages = {
                 appInfo: {
                     title: '应用信息',
                     name: 'Lim Code - Vibe Coding助手',
-                    version: '版本：1.0.8',
+                    version: '版本：1.0.21',
                     repository: '项目仓库',
                     developer: '开发者'
                 }
@@ -1251,6 +1270,11 @@ const zhCN: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                maxIterations: {
+                    label: '单回合最大工具调用次数',
+                    hint: '防止 AI 无限循环调用工具，-1 表示无限制',
+                    unit: '次'
+                },
                 actions: {
                     refresh: '刷新',
                     enableAll: '全部启用',
@@ -1272,6 +1296,34 @@ const zhCN: LanguageMessages = {
                 config: {
                     tooltip: '配置工具'
                 }
+            },
+            tokenCountSettings: {
+                description: '配置用于精确计算 Token 数量的 API。启用后，将在发送请求前调用对应渠道的 Token 计数 API 来获取准确的 Token 数量，用于更精准的上下文管理。',
+                hint: '如果未配置或 API 调用失败，将回退到估算方法。',
+                enableChannel: '启用此渠道的 Token 计数',
+                baseUrl: 'API URL',
+                apiKey: 'API Key',
+                apiKeyPlaceholder: '输入 API Key',
+                model: '模型名称',
+                geminiUrlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:countTokens?key={key}',
+                geminiUrlHint: '使用 {model} 和 {key} 作为占位符',
+                geminiModelPlaceholder: 'gemini-2.5-pro',
+                anthropicUrlPlaceholder: 'https://api.anthropic.com/v1/messages/count_tokens',
+                anthropicModelPlaceholder: 'claude-sonnet-4-5',
+                comingSoon: '即将推出',
+                customApi: '自定义 API',
+                openaiDocTitle: 'OpenAI 兼容 API 接口',
+                openaiDocDesc: 'OpenAI 官方未提供独立的 Token 计数 API。如果您有自建或第三方兼容的 Token 计数服务，可以在此配置。',
+                openaiUrlPlaceholder: 'https://your-api.example.com/count-tokens',
+                openaiUrlHint: '您的自定义 Token 计数 API 端点',
+                openaiModelPlaceholder: 'gpt-4o',
+                apiDocumentation: 'API 接口规范',
+                requestExample: '请求示例',
+                requestBody: '// 请求体',
+                responseFormat: '// 响应格式',
+                openaiDocNote: '您的 API 需要返回包含 total_tokens 字段的 JSON 响应。请求体使用 OpenAI Messages 格式。',
+                saveSuccess: '配置已保存',
+                saveFailed: '保存失败'
             },
             storageSettings: {
                 title: '存储路径',
@@ -1335,12 +1387,21 @@ const zhCN: LanguageMessages = {
                     title: '思考配置',
                     toggleHint: '启用后思考参数将发送到 API'
                 },
+                currentThinking: {
+                    title: '当前轮次回传配置',
+                    sendSignatures: '发送最新思考签名',
+                    sendSignaturesHint: '保持当前步骤的思考衔接（Gemini 推荐）',
+                    sendContent: '发送最新思考内容',
+                    sendContentHint: '回传当前轮次的推理过程',
+                },
                 historyThinking: {
-                    title: '历史思考配置',
+                    title: '历史回合回传配置',
                     sendSignatures: '发送历史思考签名',
-                    sendSignaturesHint: '启用后，将发送历史对话中的思考签名（按渠道类型选择格式）',
+                    sendSignaturesHint: '保持跨多轮交互的思考上下文',
                     sendContent: '发送历史思考内容',
-                    sendContentHint: '启用后，将发送历史对话中的思考内容，这可能会显著增加上下文长度'
+                    sendContentHint: '让 AI 看到之前已完成回合的思考过程',
+                    roundsLabel: '发送历史思考回合数',
+                    roundsHint: '控制发送多少轮非最新回合的历史对话思考。-1 表示全部，0 表示不发送历史对话，正数 N 表示发送最近 N 轮（如 1 表示只发送倒数第二回合）'
                 }
             },
             anthropic: {
@@ -1399,8 +1460,8 @@ const zhCN: LanguageMessages = {
                     summaryDetailed: '详细'
                 },
                 historyThinking: {
-                    sendSignaturesHint: '启用后，将发送历史对话中的思考签名（OpenAI 暂不支持，仅做占位）',
-                    sendContentHint: '启用后，将发送历史对话中的 reasoning_content，这可能会显著增加上下文长度'
+                    sendSignaturesHint: '启用后，将发送历史对话中的思考签名（OpenAI 暂不支持）。不建议开启，且发送的是非最新一轮对话的签名',
+                    sendContentHint: '启用后，将发送历史对话中的 reasoning_content（包括摘要），这可能会显著增加上下文长度'
                 }
             },
             customBody: {
@@ -1440,6 +1501,36 @@ const zhCN: LanguageMessages = {
                     coordTopLeft: '= 左上角',
                     coordBottomRight: '= 右下角',
                     coordCenter: '= 中心点'
+                }
+            },
+            tokenCountMethod: {
+                title: 'Token 计数方式',
+                label: '计数方式',
+                placeholder: '选择计数方式',
+                hint: '选择用于计算 token 数量的方式，影响上下文裁剪的精确度',
+                options: {
+                    channelDefault: '使用渠道默认',
+                    gemini: 'Gemini API',
+                    openaiCustom: '自定义 OpenAI 格式',
+                    openaiCustomDesc: '使用自定义 API 端点',
+                    anthropic: 'Anthropic API',
+                    local: '本地估算',
+                    localDesc: '约 4 字符 = 1 token'
+                },
+                defaultDesc: {
+                    gemini: '默认使用 Gemini countTokens API',
+                    anthropic: '默认使用 Anthropic count_tokens API',
+                    openai: '默认使用本地估算（OpenAI 无官方接口）'
+                },
+                apiConfig: {
+                    title: 'API 配置',
+                    url: 'API URL',
+                    urlHint: '留空则使用渠道的 URL',
+                    apiKey: 'API Key',
+                    apiKeyPlaceholder: '输入 API Key',
+                    apiKeyHint: '留空则使用渠道的 API Key',
+                    model: '模型',
+                    modelHint: '用于 token 计数的模型名称'
                 }
             }
         },

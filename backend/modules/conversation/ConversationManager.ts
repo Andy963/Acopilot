@@ -25,6 +25,7 @@ import {
     ConversationStats
 } from './types';
 import type { IStorageAdapter } from './storage';
+import { cleanFunctionResponseForAPI } from './helpers';
 
 /**
  * 多模态能力（用于过滤历史中的多模态数据）
@@ -50,6 +51,12 @@ export interface GetHistoryOptions {
     
     /** 是否发送历史思考签名（默认 false） */
     sendHistoryThoughtSignatures?: boolean;
+
+    /** 是否发送当前轮次的思考内容（默认根据渠道决定） */
+    sendCurrentThoughts?: boolean;
+
+    /** 是否发送当前轮次的思考签名（默认根据渠道决定） */
+    sendCurrentThoughtSignatures?: boolean;
     
     /** 渠道类型，用于选择对应格式的签名 */
     channelType?: 'gemini' | 'openai' | 'anthropic' | 'custom';
@@ -63,6 +70,18 @@ export interface GetHistoryOptions {
      * - 如果不支持 supportsImages，则过滤图片类型的 inlineData
      */
     multimodalCapability?: MultimodalCapability;
+    
+    /**
+     * 历史思考回合数
+     *
+     * 控制发送多少轮非最新回合的历史对话思考：
+     * - `-1`: 发送全部历史回合的思考（默认值）
+     * - `0`: 不发送任何历史回合的思考
+     * - 正数 `n`: 发送最近 n 轮非最新回合的思考（如 1 表示只发送倒数第二回合）
+     *
+     * 仅在 sendHistoryThoughts 或 sendHistoryThoughtSignatures 为 true 时生效
+     */
+    historyThinkingRounds?: number;
 }
 
 /**
@@ -627,7 +646,12 @@ export class ConversationManager {
         const includeThoughts = opts.includeThoughts ?? false;
         const sendHistoryThoughts = opts.sendHistoryThoughts ?? false;
         const sendHistoryThoughtSignatures = opts.sendHistoryThoughtSignatures ?? false;
+        // 当前轮次配置：如果没有传，Anthropic 默认全传，Gemini/OpenAI 默认不传文本内容
+        const sendCurrentThoughts = opts.sendCurrentThoughts ?? (opts.channelType === 'anthropic');
+        const sendCurrentThoughtSignatures = opts.sendCurrentThoughtSignatures ?? (opts.channelType === 'gemini');
         const channelType = opts.channelType;
+        // 历史思考回合数，默认 -1 表示全部
+        const historyThinkingRounds = opts.historyThinkingRounds ?? -1;
         
         // 找到最后一个非函数响应的 user 消息的索引
         let lastNonFunctionResponseUserIndex = -1;
@@ -639,25 +663,87 @@ export class ConversationManager {
             }
         }
         
+        // 识别所有回合并计算哪些回合需要发送历史思考
+        // 回合定义：从一个非函数响应的 user 消息开始，到下一个非函数响应的 user 消息之前结束
+        const roundStartIndices: number[] = [];
+        for (let i = 0; i < history.length; i++) {
+            const message = history[i];
+            if (message.role === 'user' && !message.isFunctionResponse) {
+                roundStartIndices.push(i);
+            }
+        }
+        
+        // 计算需要发送历史思考的消息索引范围
+        // historyThinkingRounds 控制发送多少轮非最新回合的思考
+        let historyThoughtMinIndex = 0;  // 最小索引（包含）
+        let historyThoughtMaxIndex = lastNonFunctionResponseUserIndex;  // 最大索引（不包含，因为最新回合由 sendCurrentThoughts 控制）
+        
+        if (historyThinkingRounds === 0) {
+            // 0 表示不发送任何历史回合的思考
+            // 设置 min > max 使范围无效
+            historyThoughtMinIndex = history.length;
+            historyThoughtMaxIndex = -1;
+        } else if (historyThinkingRounds > 0) {
+            // 正数 n 表示发送最近 n 轮非最新回合的思考
+            // 例如 historyThinkingRounds=1，总共有 5 个回合（索引 0-4），最新回合是 4
+            // 那么只发送回合 3（倒数第二回合）的思考
+            const totalRounds = roundStartIndices.length;
+            
+            if (totalRounds > 1) {
+                // 需要跳过的回合数 = 总回合数 - 1（最新回合） - historyThinkingRounds
+                const roundsToSkip = Math.max(0, totalRounds - 1 - historyThinkingRounds);
+                
+                if (roundsToSkip > 0 && roundsToSkip < totalRounds) {
+                    // 从 roundsToSkip 回合开始发送
+                    historyThoughtMinIndex = roundStartIndices[roundsToSkip];
+                }
+            }
+        }
+        // historyThinkingRounds === -1 时保持默认值，发送所有历史回合的思考
+        
         /**
          * 处理单个 part 的思考签名
          * 根据配置决定是否保留签名，并按渠道类型过滤
+         *
+         * 注意：思考签名发送不依赖于 includeThoughts（渠道是否支持思考）
+         * 这是因为历史中的签名可能来自任何渠道（如 Gemini），而当前使用其他渠道继续对话
+         * 用户可能希望将 Gemini 产生的签名发送给其他渠道
+         *
+         * @param part 要处理的 part
+         * @param isHistoryPart 是否是历史消息中的 part
+         * @param messageIndex 消息在历史中的索引
          */
         const processThoughtSignatures = (
             part: ContentPart,
-            isHistoryPart: boolean
+            isHistoryPart: boolean,
+            messageIndex: number
         ): ContentPart => {
+            // 1. 处理历史消息的签名
+            if (isHistoryPart) {
+                if (!sendHistoryThoughtSignatures) {
+                    const { thoughtSignatures, thoughtSignature, ...rest } = part as any;
+                    return rest;
+                }
+                // 检查是否在允许的历史思考回合范围内
+                const isInHistoryThoughtRange = messageIndex >= historyThoughtMinIndex && messageIndex < historyThoughtMaxIndex;
+                if (!isInHistoryThoughtRange) {
+                    const { thoughtSignatures, thoughtSignature, ...rest } = part as any;
+                    return rest;
+                }
+            } else {
+                // 2. 处理当前轮次的签名
+                // 当前轮次的签名发送由 sendCurrentThoughtSignatures 独立控制
+                if (!sendCurrentThoughtSignatures) {
+                    const { thoughtSignatures, thoughtSignature, ...rest } = part as any;
+                    return rest;
+                }
+            }
+
             if (!part.thoughtSignatures) {
                 return part;
             }
             
-            // 如果是历史 part 且不发送历史签名，移除签名
-            if (isHistoryPart && !sendHistoryThoughtSignatures) {
-                const { thoughtSignatures, ...rest } = part;
-                return rest;
-            }
-            
-            // 如果指定了渠道类型，只保留对应格式的签名
+            // 3. 如果指定了渠道类型，只保留对应格式的签名
             if (channelType && part.thoughtSignatures[channelType]) {
                 return {
                     ...part,
@@ -814,49 +900,10 @@ export class ConversationManager {
                 };
             }
             
-            // 清理不应发送给 AI 的内部字段
-            // diffContentId - 内部使用的 diff 内容引用 ID
-            // diffId - 内部使用的 diff 操作 ID
-            // diffs - AI 在 functionCall 中已经发送过的内容，不需要重复
-            // toolId - 媒体工具使用的任务 ID，用于取消操作，AI 不需要
-            // terminalId - 终端命令使用的进程 ID，用于终止进程，AI 不需要
-            // multiRoot - 是否多工作区模式，AI 已从工具声明中知道，不需要重复
-            // command/cwd/shell - execute_command 的元数据，AI 已知（在 functionCall 中）
-            // 保留: killed/duration - AI 需要知道命令是否被用户终止、执行了多久
-            let cleanedResponse = part.functionResponse.response;
-            if (cleanedResponse && typeof cleanedResponse === 'object') {
-                const { diffContentId, diffId, diffs, ...rest } = cleanedResponse as Record<string, unknown>;
-                // 检查 data 字段中是否也有这些字段
-                if (rest.data && typeof rest.data === 'object') {
-                    const {
-                        diffContentId: dataDiffContentId,
-                        diffId: dataDiffId,
-                        diffs: dataDiffs,
-                        toolId: dataToolId,
-                        terminalId: dataTerminalId,
-                        multiRoot: dataMultiRoot,
-                        // execute_command 的元数据，AI 已知
-                        command: dataCommand,
-                        cwd: dataCwd,
-                        shell: dataShell,
-                        ...dataRest
-                    } = rest.data as Record<string, unknown>;
-                    
-                    // 检查 data.results 数组中的每个元素是否也有 diffContentId（如 search_in_files 的替换结果）
-                    if (Array.isArray(dataRest.results)) {
-                        dataRest.results = (dataRest.results as Array<Record<string, unknown>>).map(item => {
-                            if (item && typeof item === 'object') {
-                                const { diffContentId: itemDiffContentId, ...itemRest } = item;
-                                return itemRest;
-                            }
-                            return item;
-                        });
-                    }
-                    
-                    rest.data = dataRest;
-                }
-                cleanedResponse = rest;
-            }
+            // 清理不应发送给 AI 的内部字段（使用共享函数确保一致性）
+            const cleanedResponse = cleanFunctionResponseForAPI(
+                part.functionResponse.response as Record<string, unknown>
+            );
             
             return {
                 ...part,
@@ -877,20 +924,34 @@ export class ConversationManager {
             
             let parts = message.parts;
             
-            // 处理思考内容
-            if (!includeThoughts) {
-                // 不包含任何思考内容
-                parts = parts.filter(part => !part.thought);
-            } else if (isHistoryMessage && !sendHistoryThoughts) {
-                // 包含当前轮次思考，但不包含历史思考内容
-                parts = parts.filter(part => !part.thought);
+            // 处理思考内容 (Thought Text/Reasoning Content)
+            // 注意：思考发送不依赖于 includeThoughts（渠道是否支持思考）
+            // 这是因为历史中的思考内容可能来自任何渠道（如 Gemini），而当前使用其他渠道继续对话
+            // 用户可能希望将 Gemini 产生的思考内容发送给 OpenAI/Anthropic 渠道
+            if (isHistoryMessage) {
+                // 历史消息：根据 sendHistoryThoughts 配置和 historyThinkingRounds 决定
+                if (!sendHistoryThoughts) {
+                    parts = parts.filter(part => !part.thought);
+                } else {
+                    // 检查当前消息是否在允许的历史思考回合范围内
+                    const isInHistoryThoughtRange = index >= historyThoughtMinIndex && index < historyThoughtMaxIndex;
+                    if (!isInHistoryThoughtRange) {
+                        parts = parts.filter(part => !part.thought);
+                    }
+                }
+            } else {
+                // 当前轮次 (Latest Round)
+                // 当前轮次的思考发送由 sendCurrentThoughts 独立控制
+                if (!sendCurrentThoughts) {
+                    parts = parts.filter(part => !part.thought);
+                }
             }
             
             // 处理思考签名、清理 inlineData 元数据、清理 functionCall 内部字段、处理被拒绝的工具响应
             // 注意：只有历史中的工具响应消息才会应用 supportsHistoryMultimodal 过滤
             // 当前轮次的工具响应始终保留多模态数据
             parts = parts
-                .map(part => processThoughtSignatures(part, isHistoryMessage))
+                .map(part => processThoughtSignatures(part, isHistoryMessage, index))
                 .map(part => cleanInlineData(part, isFunctionResponse, isHistoryMessage))
                 .map(part => part ? cleanFunctionCall(part) : part)
                 .map(part => part ? processFunctionResponse(part) : part)

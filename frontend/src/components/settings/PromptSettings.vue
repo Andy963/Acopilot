@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { sendToExtension } from '@/utils/vscode'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+
+// 渠道类型
+type ChannelType = 'gemini' | 'openai' | 'anthropic'
 
 // 提示词模块定义
 interface PromptModule {
@@ -163,7 +166,8 @@ GUIDELINES
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
 - When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
 - If the task is simple and doesn't require tools, just respond directly without calling any tools.
-- Always maintain code readability and maintainability.`
+- Always maintain code readability and maintainability.
+- Do not omit any code.`
 
 // 配置状态
 const config = reactive<SystemPromptConfig>({
@@ -187,6 +191,19 @@ const hasChanges = computed(() => {
 const isLoading = ref(true)
 const isSaving = ref(false)
 const saveMessage = ref('')
+
+// Token 计数状态
+const tokenCount = ref<number | null>(null)
+const isCountingTokens = ref(false)
+const tokenCountError = ref('')
+const selectedChannel = ref<ChannelType>('gemini')
+
+// 可用的渠道选项
+const channelOptions: { value: ChannelType; label: string }[] = [
+  { value: 'gemini', label: 'Gemini' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' }
+]
 
 // 展开的模块
 const expandedModule = ref<string | null>(null)
@@ -224,12 +241,58 @@ async function saveConfig() {
     originalConfig.value = { ...config }
     saveMessage.value = t('components.settings.promptSettings.saveSuccess')
     setTimeout(() => { saveMessage.value = '' }, 2000)
+    
+    // 保存成功后自动更新 token 计数
+    await countTokens()
   } catch (error) {
     console.error('Failed to save system prompt config:', error)
     saveMessage.value = t('components.settings.promptSettings.saveFailed')
   } finally{
     isSaving.value = false
   }
+}
+
+// 计算 token 数量
+async function countTokens() {
+  if (!config.template) {
+    tokenCount.value = null
+    return
+  }
+  
+  isCountingTokens.value = true
+  tokenCountError.value = ''
+  
+  try {
+    const result = await sendToExtension<{
+      success: boolean
+      totalTokens?: number
+      error?: string
+    }>('countSystemPromptTokens', {
+      text: config.template,
+      channelType: selectedChannel.value
+    })
+    
+    if (result?.success && result.totalTokens !== undefined) {
+      tokenCount.value = result.totalTokens
+    } else {
+      tokenCount.value = null
+      tokenCountError.value = result?.error || 'Token count failed'
+    }
+  } catch (error: any) {
+    console.error('Failed to count tokens:', error)
+    tokenCount.value = null
+    tokenCountError.value = error.message || 'Token count failed'
+  } finally {
+    isCountingTokens.value = false
+  }
+}
+
+// 格式化 token 数量显示
+function formatTokenCount(count: number): string {
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}k`
+  }
+  return count.toString()
 }
 
 // 重置为默认模板
@@ -254,8 +317,15 @@ function formatModuleId(id: string): string {
 }
 
 // 初始化
-onMounted(() => {
-  loadConfig()
+onMounted(async () => {
+  await loadConfig()
+  // 加载配置后自动计算 token 数量
+  await countTokens()
+})
+
+// 监听渠道变化，重新计算 token
+watch(selectedChannel, () => {
+  countTokens()
 })
 </script>
 
@@ -293,19 +363,73 @@ onMounted(() => {
         ></textarea>
       </div>
       
-      <!-- 保存按钮 -->
+      <!-- 保存按钮和 Token 计数 -->
       <div class="save-section">
-        <button
-          class="save-btn"
-          @click="saveConfig"
-          :disabled="isSaving || !hasChanges"
-        >
-          <i v-if="isSaving" class="codicon codicon-loading codicon-modifier-spin"></i>
-          <span v-else>{{ t('components.settings.promptSettings.saveButton') }}</span>
-        </button>
-        <span v-if="saveMessage" class="save-message" :class="{ success: saveMessage === t('components.settings.promptSettings.saveSuccess') }">
-          {{ saveMessage }}
-        </span>
+        <div class="save-row">
+          <button
+            class="save-btn"
+            @click="saveConfig"
+            :disabled="isSaving || !hasChanges"
+          >
+            <i v-if="isSaving" class="codicon codicon-loading codicon-modifier-spin"></i>
+            <span v-else>{{ t('components.settings.promptSettings.saveButton') }}</span>
+          </button>
+          <span v-if="saveMessage" class="save-message" :class="{ success: saveMessage === t('components.settings.promptSettings.saveSuccess') }">
+            {{ saveMessage }}
+          </span>
+        </div>
+        
+        <!-- Token 计数显示 -->
+        <div class="token-count-section">
+          <div class="token-count-row">
+            <label class="token-label">
+              <i class="codicon codicon-symbol-numeric"></i>
+              {{ t('components.settings.promptSettings.tokenCount.label') }}
+            </label>
+            
+            <select
+              v-model="selectedChannel"
+              class="channel-select"
+              :title="t('components.settings.promptSettings.tokenCount.channelTooltip')"
+            >
+              <option v-for="opt in channelOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+            
+            <button
+              class="refresh-btn"
+              @click="countTokens"
+              :disabled="isCountingTokens"
+              :title="t('components.settings.promptSettings.tokenCount.refreshTooltip')"
+            >
+              <i :class="['codicon', isCountingTokens ? 'codicon-loading codicon-modifier-spin' : 'codicon-refresh']"></i>
+            </button>
+            
+            <div class="token-value">
+              <template v-if="isCountingTokens">
+                <i class="codicon codicon-loading codicon-modifier-spin"></i>
+              </template>
+              <template v-else-if="tokenCount !== null">
+                <span class="token-number">{{ formatTokenCount(tokenCount) }}</span>
+                <span class="token-unit">tokens</span>
+              </template>
+              <template v-else-if="tokenCountError">
+                <span class="token-error" :title="tokenCountError">
+                  <i class="codicon codicon-warning"></i>
+                  {{ t('components.settings.promptSettings.tokenCount.failed') }}
+                </span>
+              </template>
+              <template v-else>
+                <span class="token-na">--</span>
+              </template>
+            </div>
+          </div>
+          
+          <p class="token-hint">
+            {{ t('components.settings.promptSettings.tokenCount.hint') }}
+          </p>
+        </div>
       </div>
       
       <!-- 可用变量参考 -->
@@ -467,9 +591,15 @@ onMounted(() => {
 
 .save-section {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
   padding-top: 8px;
+}
+
+.save-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .save-btn {
@@ -503,6 +633,108 @@ onMounted(() => {
 
 .save-message.success {
   color: var(--vscode-terminal-ansiGreen);
+}
+
+/* Token 计数区域 */
+.token-count-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.token-count-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.token-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.channel-select {
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.channel-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.token-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.token-number {
+  font-weight: 600;
+  color: var(--vscode-charts-blue);
+}
+
+.token-unit {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.token-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--vscode-errorForeground);
+  cursor: help;
+}
+
+.token-na {
+  color: var(--vscode-descriptionForeground);
+}
+
+.token-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
 }
 
 /* 模块参考 */

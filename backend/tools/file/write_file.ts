@@ -177,8 +177,11 @@ export function createWriteFileTool(): Tool {
     const workspaces = getAllWorkspaces();
     const isMultiRoot = workspaces.length > 1;
     
+    // 数组格式强调说明
+    const arrayFormatNote = '\n\n**IMPORTANT**: The `files` parameter MUST be an array, even for a single file. Example: `{"files": [{"path": "file.txt", "content": "..."}]}`, NOT `{"path": "file.txt", "content": "..."}`.';
+    
     // 根据工作区数量生成描述
-    let description = 'Write content to one or more files. A Diff preview will be shown for user confirmation regardless of whether the file exists. For new files, a full content diff preview will be shown. Supports auto-save or manual review mode (configured in settings).';
+    let description = 'Write content to one or more files. A Diff preview will be shown for user confirmation regardless of whether the file exists. For new files, a full content diff preview will be shown. Supports auto-save or manual review mode (configured in settings).' + arrayFormatNote;
     let pathDescription = 'File path (relative to workspace root)';
     
     if (isMultiRoot) {
@@ -210,7 +213,7 @@ export function createWriteFileTool(): Tool {
                             },
                             required: ['path', 'content']
                         },
-                        description: 'List of files to write, each element containing path and content'
+                        description: 'Array of files to write, each element containing path and content. MUST be an array even for single file.'
                     }
                 },
                 required: ['files']

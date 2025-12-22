@@ -40,6 +40,31 @@ export interface ToolOptions {
 export type ToolMode = 'function_call' | 'xml' | 'json';
 
 /**
+ * Token 计数方式
+ *
+ * - 'channel_default': 使用渠道默认方式（根据渠道类型自动选择）
+ * - 'gemini': 使用 Gemini countTokens API
+ * - 'openai_custom': 使用自定义 OpenAI 格式 API
+ * - 'anthropic': 使用 Anthropic count_tokens API
+ * - 'local': 使用本地估算方式（4 字符约等于 1 token）
+ */
+export type TokenCountMethod = 'channel_default' | 'gemini' | 'openai_custom' | 'anthropic' | 'local';
+
+/**
+ * Token 计数 API 配置
+ */
+export interface TokenCountApiConfig {
+    /** API URL */
+    url?: string;
+    
+    /** API Key */
+    apiKey?: string;
+    
+    /** 模型名称 */
+    model?: string;
+}
+
+/**
  * 自定义请求标头项
  */
 export interface CustomHeader {
@@ -224,6 +249,30 @@ export interface BaseChannelConfig {
     sendHistoryThoughts?: boolean;
     
     /**
+     * 发送历史思考的回合数
+     *
+     * 控制发送最近多少轮非最新回合的历史对话的思考签名/内容
+     * - -1: 发送全部历史回合
+     * - 0: 不发送任何历史回合（仅发送最新回合）
+     * - n (n > 0): 发送最近 n 轮历史对话（不包括最新回合）
+     *
+     * 例如：设置为 1 表示只发送倒数第二回合的思考内容
+     *
+     * 默认值：-1（全部）
+     */
+    historyThinkingRounds?: number;
+
+    /**
+     * 是否发送当前轮次思考签名 (Gemini 3/2.5 必需)
+     */
+    sendCurrentThoughtSignatures?: boolean;
+
+    /**
+     * 是否发送当前轮次思考内容 (Reasoning Content)
+     */
+    sendCurrentThoughts?: boolean;
+    
+    /**
      * 是否启用自动重试
      *
      * 启用后，当 API 返回非 200 错误时自动重试
@@ -275,6 +324,22 @@ export interface BaseChannelConfig {
     contextThreshold?: number | string;
     
     /**
+     * 裁剪时额外裁剪的 token 数量或比例
+     *
+     * 当触发上下文裁剪时，实际保留的上下文 = 阈值 - 额外裁剪值
+     * 支持两种格式：
+     * - 数值：直接指定额外裁剪的 token 数量，如 5000
+     * - 字符串百分比：如 "10%" 表示额外裁剪最大上下文的 10%
+     *
+     * 例如：阈值为 80%，额外裁剪为 10%，则实际保留 70% 的上下文
+     *
+     * 注意：如果只有一个回合，则跳过裁剪
+     *
+     * 默认值：0（不额外裁剪）
+     */
+    contextTrimExtraCut?: number | string;
+    
+    /**
      * 是否启用自动总结（占位功能，暂未实现）
      *
      * 启用后，在舍弃旧回合前先进行总结
@@ -302,6 +367,31 @@ export interface BaseChannelConfig {
      * 各工具的渠道级配置项
      */
     toolOptions?: ToolOptions;
+    
+    /**
+     * Token 计数方式
+     *
+     * - 'channel_default': 使用渠道默认方式（根据渠道类型自动选择）
+     *   - Gemini 渠道 → 使用 Gemini countTokens API
+     *   - Anthropic 渠道 → 使用 Anthropic count_tokens API
+     *   - OpenAI 渠道 → 使用本地估算
+     * - 'gemini': 使用 Gemini countTokens API
+     * - 'openai_custom': 使用自定义 OpenAI 格式 API
+     * - 'anthropic': 使用 Anthropic count_tokens API
+     * - 'local': 使用本地估算方式
+     *
+     * 默认值：'channel_default'
+     */
+    tokenCountMethod?: TokenCountMethod;
+    
+    /**
+     * Token 计数 API 配置
+     *
+     * 当 tokenCountMethod 需要 API 调用时使用
+     * - 如果不配置，将使用渠道的 url 和 apiKey
+     * - 配置后可使用独立的 Token 计数 API
+     */
+    tokenCountApiConfig?: TokenCountApiConfig;
 }
 
 /**

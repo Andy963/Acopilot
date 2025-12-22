@@ -68,9 +68,11 @@ ${paramsList}
 </tool>`;
     }).join('\n\n');
     
-    return `You have access to the following tools:
+    return `## Tool Usage Guide
 
-${toolDescriptions}
+You are a powerful AI assistant with access to various tools. You should actively use these tools to gather information, perform actions, and provide accurate responses.
+
+### How to Call Tools
 
 When you need to use a tool, respond with XML format:
 <tool_use>
@@ -90,7 +92,9 @@ When you need to use a tool, respond with XML format:
   </parameters>
 </tool_use>
 
-Example - Reading files:
+### Examples
+
+Reading files:
 <tool_use>
   <tool_name>read_file</tool_name>
   <parameters>
@@ -101,7 +105,7 @@ Example - Reading files:
   </parameters>
 </tool_use>
 
-Example - Writing files:
+Writing files:
 <tool_use>
   <tool_name>write_file</tool_name>
   <parameters>
@@ -112,7 +116,23 @@ Example - Writing files:
       </item>
     </files>
   </parameters>
-</tool_use>`;
+</tool_use>
+
+### Best Practices
+
+1. **Actively use tools**: When you need information you don't have, use the appropriate tool to get it. Don't guess or make assumptions when tools can provide accurate data.
+
+2. **Place tool calls at the end**: Structure your response so that tool calls appear at the end of your message. First provide any explanations or context, then call the necessary tools.
+
+3. **One step at a time**: After each tool call, wait for the result before proceeding. Use the tool results to inform your next steps.
+
+4. **Combine tools effectively**: You can call multiple tools in a single response when needed. Use the results from one tool to inform subsequent tool calls.
+
+---
+
+## Available Tools
+
+${toolDescriptions}`;
 }
 
 /**

@@ -168,7 +168,9 @@ Important:
 - The 'start_line' parameter is REQUIRED for accurate diff positioning
 - Include enough context to make the search unique
 - Diffs are applied in order
-- If any diff fails, the entire operation is rolled back${descriptionSuffix}`,
+- If any diff fails, the entire operation is rolled back
+
+**IMPORTANT**: The \`diffs\` parameter MUST be an array, even for a single diff. Example: \`{"path": "file.txt", "diffs": [{"search": "...", "replace": "...", "start_line": 1}]}\`${descriptionSuffix}`,
             
             parameters: {
                 type: 'object',
@@ -179,7 +181,7 @@ Important:
                     },
                     diffs: {
                         type: 'array',
-                        description: 'Array of diff objects to apply',
+                        description: 'Array of diff objects to apply. MUST be an array even for a single diff.',
                         items: {
                             type: 'object',
                             properties: {

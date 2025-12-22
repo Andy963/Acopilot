@@ -403,11 +403,6 @@ export class ChannelManager {
                     try {
                         const chunk = formatter.parseStreamChunk(rawChunk);
                         yield chunk;
-                        
-                        // 如果完成，退出循环
-                        if (chunk.done) {
-                            return;  // 成功完成，直接返回
-                        }
                     } catch (error) {
                         throw new ChannelError(
                             ErrorType.PARSE_ERROR,

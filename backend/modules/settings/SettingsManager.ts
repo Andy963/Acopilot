@@ -32,7 +32,8 @@ import type {
     PinnedFileItem,
     SystemPromptConfig,
     StoragePathConfig,
-    StorageStats
+    StorageStats,
+    TokenCountConfig
 } from './types';
 import {
     DEFAULT_GLOBAL_SETTINGS,
@@ -53,6 +54,8 @@ import {
     DEFAULT_DIAGNOSTICS_CONFIG,
     DEFAULT_PINNED_FILES_CONFIG,
     DEFAULT_SYSTEM_PROMPT_CONFIG,
+    DEFAULT_MAX_TOOL_ITERATIONS,
+    DEFAULT_TOKEN_COUNT_CONFIG,
     getDefaultExecuteCommandConfig
 } from './types';
 
@@ -143,6 +146,38 @@ export class SettingsManager {
             type: 'full',
             oldValue: oldSettings,
             newValue: this.settings,
+            settings: this.settings
+        });
+    }
+    
+    // ========== 工具调用配置 ==========
+    
+    /**
+     * 获取单回合最大工具调用次数
+     */
+    getMaxToolIterations(): number {
+        return this.settings.maxToolIterations ?? DEFAULT_MAX_TOOL_ITERATIONS;
+    }
+    
+    /**
+     * 设置单回合最大工具调用次数
+     *
+     * @param value 最大次数，-1 表示无限制，正整数表示具体次数
+     */
+    async setMaxToolIterations(value: number): Promise<void> {
+        // -1 表示无限制，正整数表示具体次数，最小为 1
+        const safeValue = value === -1 ? -1 : Math.max(1, value);
+        const oldValue = this.settings.maxToolIterations;
+        this.settings.maxToolIterations = safeValue;
+        this.settings.lastUpdated = Date.now();
+        
+        await this.storage.save(this.settings);
+        
+        this.notifyChange({
+            type: 'tools',
+            path: 'maxToolIterations',
+            oldValue,
+            newValue: safeValue,
             settings: this.settings
         });
     }
@@ -448,12 +483,16 @@ export class SettingsManager {
      * 更新工具配置
      */
     async updateToolConfig(toolName: string, config: Record<string, unknown>): Promise<void> {
-        const oldConfig = this.settings.toolsConfig?.[toolName];
+        const oldConfig = this.settings.toolsConfig?.[toolName] || {};
+        const newConfig = {
+            ...oldConfig,
+            ...config
+        };
         
         if (!this.settings.toolsConfig) {
             this.settings.toolsConfig = {};
         }
-        this.settings.toolsConfig[toolName] = config;
+        this.settings.toolsConfig[toolName] = newConfig as any;
         this.settings.lastUpdated = Date.now();
         
         await this.storage.save(this.settings);
@@ -462,7 +501,7 @@ export class SettingsManager {
             type: 'tools',
             path: `toolsConfig.${toolName}`,
             oldValue: oldConfig,
-            newValue: config,
+            newValue: newConfig,
             settings: this.settings
         });
     }
@@ -1381,6 +1420,53 @@ export class SettingsManager {
      */
     getSystemPromptSuffix(): string {
         return this.getSystemPromptConfig().customSuffix;
+    }
+    
+    // ========== Token 计数配置管理 ==========
+    
+    /**
+     * 获取 Token 计数配置
+     */
+    getTokenCountConfig(): Readonly<TokenCountConfig> {
+        return this.settings.toolsConfig?.token_count || DEFAULT_TOKEN_COUNT_CONFIG;
+    }
+    
+    /**
+     * 更新 Token 计数配置
+     */
+    async updateTokenCountConfig(config: Partial<TokenCountConfig>): Promise<void> {
+        const oldConfig = this.getTokenCountConfig();
+        const newConfig = {
+            ...oldConfig,
+            ...config
+        };
+        
+        if (!this.settings.toolsConfig) {
+            this.settings.toolsConfig = {};
+        }
+        this.settings.toolsConfig.token_count = newConfig;
+        this.settings.lastUpdated = Date.now();
+        
+        await this.storage.save(this.settings);
+        
+        this.notifyChange({
+            type: 'tools',
+            path: 'toolsConfig.token_count',
+            oldValue: oldConfig,
+            newValue: newConfig,
+            settings: this.settings
+        });
+    }
+    
+    /**
+     * 检查指定渠道的 Token 计数是否已启用
+     *
+     * @param channelType 渠道类型 (gemini, openai, anthropic)
+     * @returns 是否启用
+     */
+    isTokenCountEnabled(channelType: 'gemini' | 'openai' | 'anthropic'): boolean {
+        const config = this.getTokenCountConfig();
+        return config[channelType]?.enabled ?? false;
     }
     
     // ========== UI 设置管理 ==========

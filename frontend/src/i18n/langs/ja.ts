@@ -307,6 +307,8 @@ const ja: LanguageMessages = {
                 confirmExecution: 'クリックして実行を確認',
                 confirm: '実行を確認',
                 reject: '拒否',
+                confirmed: '確認済み',
+                rejected: '拒否済み',
                 viewDiff: '差分を表示',
                 viewDiffInVSCode: 'VSCode で差分を表示',
                 openDiffFailed: 'diff プレビューを開くのに失敗しました'
@@ -330,6 +332,7 @@ const ja: LanguageMessages = {
                 dependencies: '拡張機能の依存関係',
                 context: 'コンテキスト',
                 prompt: 'プロンプト',
+                tokenCount: 'トークンカウント',
                 general: '一般'
             },
             channelSettings: {
@@ -453,6 +456,11 @@ const ja: LanguageMessages = {
                             label: 'コンテキストしきい値',
                             placeholder: '80% または 100000',
                             hint: '合計トークン数がこのしきい値を超えると、古い会話ラウンドを自動的に破棄します。パーセンテージ（例：80%）または絶対値（例：100000）の 2 つの形式をサポートしています'
+                        },
+                        extraCut: {
+                            label: '追加カット量',
+                            placeholder: '0 または 10%',
+                            hint: 'トリミング時に追加でカットするトークン数。実際の保持 = しきい値 - 追加カット量。パーセンテージまたは絶対値をサポート、デフォルトは 0'
                         },
                         autoSummarize: {
                             label: '自動要約（近日公開）',
@@ -989,6 +997,13 @@ const ja: LanguageMessages = {
                 saveButton: '設定を保存',
                 saveSuccess: '保存しました',
                 saveFailed: '保存に失敗しました',
+                tokenCount: {
+                    label: 'トークン数',
+                    channelTooltip: 'トークン計算に使用するチャンネルを選択',
+                    refreshTooltip: 'トークン数を更新',
+                    failed: 'カウント失敗',
+                    hint: 'テンプレートのみのトークン数を表示、実際のシステムプロンプトには動的に入力される変数コンテンツが含まれます'
+                },
                 modulesReference: {
                     title: '利用可能な変数リファレンス',
                     insertTooltip: 'テンプレートの末尾に挿入'
@@ -1114,6 +1129,10 @@ const ja: LanguageMessages = {
                         title: 'システムプロンプト',
                         description: 'システムプロンプトの構造と内容をカスタマイズ'
                     },
+                    tokenCount: {
+                        title: 'トークンカウント',
+                        description: 'トークン数を計算するための API を設定'
+                    },
                     general: {
                         title: '一般設定',
                         description: '基本的な設定オプション'
@@ -1139,7 +1158,7 @@ const ja: LanguageMessages = {
                 appInfo: {
                     title: 'アプリケーション情報',
                     name: 'Lim Code - Vibe Coding アシスタント',
-                    version: 'バージョン：1.0.8',
+                    version: 'バージョン：1.0.21',
                     repository: 'リポジトリ',
                     developer: '開発者'
                 }
@@ -1251,6 +1270,11 @@ const ja: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                maxIterations: {
+                    label: 'ターンあたりの最大ツール呼び出し回数',
+                    hint: 'AI の無限ツール呼び出しループを防止、-1 で無制限',
+                    unit: '回'
+                },
                 actions: {
                     refresh: '更新',
                     enableAll: 'すべて有効化',
@@ -1272,6 +1296,34 @@ const ja: LanguageMessages = {
                 config: {
                     tooltip: 'ツールを設定'
                 }
+            },
+            tokenCountSettings: {
+                description: '正確なトークン数を計算するための API を設定します。有効にすると、リクエストを送信する前に対応するチャンネルのトークンカウント API を呼び出して、より正確なコンテキスト管理のために正確なトークン数を取得します。',
+                hint: '設定されていないか、API 呼び出しが失敗した場合は、推定方法にフォールバックします。',
+                enableChannel: 'このチャンネルのトークンカウントを有効化',
+                baseUrl: 'API URL',
+                apiKey: 'API Key',
+                apiKeyPlaceholder: 'API Key を入力',
+                model: 'モデル名',
+                geminiUrlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:countTokens?key={key}',
+                geminiUrlHint: '{model} と {key} をプレースホルダーとして使用',
+                geminiModelPlaceholder: 'gemini-2.5-pro',
+                anthropicUrlPlaceholder: 'https://api.anthropic.com/v1/messages/count_tokens',
+                anthropicModelPlaceholder: 'claude-sonnet-4-5',
+                comingSoon: '近日公開',
+                customApi: 'カスタム API',
+                openaiDocTitle: 'OpenAI 互換 API インターフェース',
+                openaiDocDesc: 'OpenAI はスタンドアロンのトークンカウント API を提供していません。自己ホスティングまたはサードパーティの互換トークンカウントサービスがある場合は、ここで設定できます。',
+                openaiUrlPlaceholder: 'https://your-api.example.com/count-tokens',
+                openaiUrlHint: 'カスタムトークンカウント API エンドポイント',
+                openaiModelPlaceholder: 'gpt-4o',
+                apiDocumentation: 'API 仕様',
+                requestExample: 'リクエスト例',
+                requestBody: '// リクエストボディ',
+                responseFormat: '// レスポンス形式',
+                openaiDocNote: 'API は total_tokens フィールドを含む JSON レスポンスを返す必要があります。リクエストボディは OpenAI Messages 形式を使用します。',
+                saveSuccess: '設定を保存しました',
+                saveFailed: '保存に失敗しました'
             },
             storageSettings: {
                 title: 'ストレージパス',
@@ -1335,12 +1387,21 @@ const ja: LanguageMessages = {
                     title: '思考設定',
                     toggleHint: '有効にすると、思考パラメータが API に送信されます'
                 },
+                currentThinking: {
+                    title: '最新ターンの思考設定',
+                    sendSignatures: '最新の思考署名を送信',
+                    sendSignaturesHint: '現在のステップの思考継続性を維持（Gemini 推奨）',
+                    sendContent: '最新の思考内容を送信',
+                    sendContentHint: '最新ターンの推論プロセスを送信',
+                },
                 historyThinking: {
-                    title: '履歴思考設定',
+                    title: '履歴ターンの思考設定',
                     sendSignatures: '履歴思考署名を送信',
-                    sendSignaturesHint: '有効にすると、履歴会話の思考署名が送信されます（チャンネルタイプに応じた形式を選択）',
+                    sendSignaturesHint: '以前のターンの思考署名を送信',
                     sendContent: '履歴思考内容を送信',
-                    sendContentHint: '有効にすると、履歴会話の思考内容が送信されます。これによりコンテキスト長が大幅に増加する可能性があります'
+                    sendContentHint: '完了した履歴ターンの思考プロセスを AI に送信',
+                    roundsLabel: '履歴思考ラウンド数',
+                    roundsHint: '最新以外のラウンドをいくつ送信するか。-1 ですべて、0 で送信なし、正の N で最近の N ラウンド（例：1 は最後から 2 番目のラウンドのみ）'
                 }
             },
             anthropic: {
@@ -1399,8 +1460,8 @@ const ja: LanguageMessages = {
                     summaryDetailed: '詳細'
                 },
                 historyThinking: {
-                    sendSignaturesHint: '有効にすると、履歴会話の思考署名が送信されます（OpenAI はまだサポートされていません、プレースホルダーのみ）',
-                    sendContentHint: '有効にすると、履歴会話の reasoning_content が送信されます。これによりコンテキスト長が大幅に増加する可能性があります'
+                    sendSignaturesHint: '有効にすると、履歴会話の思考署名が送信されます（OpenAI 未対応）。非推奨であり、最新以外のターンの署名が送信されます。',
+                    sendContentHint: '有効にすると、履歴会話の reasoning_content（要約を含む）が送信されます。これによりコンテキスト長が大幅に増加する可能性があります。'
                 }
             },
             customBody: {
@@ -1440,6 +1501,36 @@ const ja: LanguageMessages = {
                     coordTopLeft: '= 左上隅',
                     coordBottomRight: '= 右下隅',
                     coordCenter: '= 中心点'
+                }
+            },
+            tokenCountMethod: {
+                title: 'トークンカウント方式',
+                label: 'カウント方式',
+                placeholder: 'カウント方式を選択',
+                hint: 'トークン数を計算する方式を選択します。コンテキストトリミングの精度に影響します',
+                options: {
+                    channelDefault: 'チャンネルのデフォルトを使用',
+                    gemini: 'Gemini API',
+                    openaiCustom: 'カスタム OpenAI フォーマット',
+                    openaiCustomDesc: 'カスタム API エンドポイントを使用',
+                    anthropic: 'Anthropic API',
+                    local: 'ローカル推定',
+                    localDesc: '約4文字 = 1トークン'
+                },
+                defaultDesc: {
+                    gemini: 'デフォルトは Gemini countTokens API を使用',
+                    anthropic: 'デフォルトは Anthropic count_tokens API を使用',
+                    openai: 'デフォルトはローカル推定を使用（OpenAI には公式 API がありません）'
+                },
+                apiConfig: {
+                    title: 'API 設定',
+                    url: 'API URL',
+                    urlHint: '空の場合はチャンネルの URL を使用',
+                    apiKey: 'API キー',
+                    apiKeyPlaceholder: 'API キーを入力',
+                    apiKeyHint: '空の場合はチャンネルの API キーを使用',
+                    model: 'モデル',
+                    modelHint: 'トークンカウントに使用するモデル名'
                 }
             }
         },

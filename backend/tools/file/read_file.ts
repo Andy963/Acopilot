@@ -316,21 +316,24 @@ export function createReadFileTool(
     // 行号格式说明
     const lineNumberNote = '\n\n**Note**: Text files return content with line number prefixes (e.g., "   1 | code here"). The numbers and "|" are line markers and not part of the file content. Please ignore these prefixes when editing files.';
     
+    // 数组格式强调说明
+    const arrayFormatNote = '\n\n**IMPORTANT**: The `paths` parameter MUST be an array, even for a single file. Example: `{"paths": ["file.txt"]}`, NOT `{"path": "file.txt"}`.';
+    
     if (!multimodalEnabled) {
         // 未启用多模态时，只支持文本文件
-        description = 'Read the content of one or more files in the workspace. Supported types: text files.' + lineNumberNote;
+        description = 'Read the content of one or more files in the workspace. Supported types: text files.' + lineNumberNote + arrayFormatNote;
     } else if (channelType === 'openai') {
         // OpenAI 格式有特殊限制
         if (toolMode === 'function_call') {
             // OpenAI function_call 模式不支持多模态
-            description = 'Read the content of one or more files in the workspace. Supported types: text files.' + lineNumberNote;
+            description = 'Read the content of one or more files in the workspace. Supported types: text files.' + lineNumberNote + arrayFormatNote;
         } else {
             // OpenAI xml/json 模式只支持图片
-            description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP). Images are returned as multimodal data.' + lineNumberNote;
+            description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP). Images are returned as multimodal data.' + lineNumberNote + arrayFormatNote;
         }
     } else {
         // Gemini 和 Anthropic 全面支持
-        description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP), documents (PDF). Images and documents are returned as multimodal data.' + lineNumberNote;
+        description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP), documents (PDF). Images and documents are returned as multimodal data.' + lineNumberNote + arrayFormatNote;
     }
     
     // 多工作区说明
@@ -339,9 +342,9 @@ export function createReadFileTool(
     }
     
     // 路径参数描述
-    let pathsDescription = 'List of file paths (relative to workspace root)';
+    let pathsDescription = 'Array of file paths (relative to workspace root). MUST be an array even for single file, e.g., ["file.txt"]';
     if (isMultiRoot) {
-        pathsDescription = `List of file paths, must use "workspace_name/path" format. Available workspaces: ${workspaces.map(w => w.name).join(', ')}`;
+        pathsDescription = `Array of file paths, must use "workspace_name/path" format. MUST be an array even for single file. Available workspaces: ${workspaces.map(w => w.name).join(', ')}`;
     }
     
     return {

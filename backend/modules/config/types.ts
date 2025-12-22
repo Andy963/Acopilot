@@ -11,7 +11,9 @@ export type {
     GeminiConfig,
     OpenAIConfig,
     AnthropicConfig,
-    ChannelConfig
+    ChannelConfig,
+    TokenCountMethod,
+    TokenCountApiConfig
 } from './configs';
 
 // 导入 ChannelConfig 以供内部使用

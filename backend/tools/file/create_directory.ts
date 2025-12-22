@@ -55,12 +55,15 @@ export function createCreateDirectoryTool(): Tool {
     const isMultiRoot = workspaces.length > 1;
     
     // 根据工作区数量生成描述
-    let description = 'Create one or more directories in the workspace (parent directories will be created automatically)';
-    let pathsDescription = 'List of directory paths (relative to workspace root)';
+    // 数组格式强调说明
+    const arrayFormatNote = '\n\n**IMPORTANT**: The `paths` parameter MUST be an array, even for a single directory. Example: `{"paths": ["new-dir"]}`, NOT `{"path": "new-dir"}`.';
     
+    let description = 'Create one or more directories in the workspace (parent directories will be created automatically)' + arrayFormatNote;
+    let pathsDescription = 'Array of directory paths (relative to workspace root). MUST be an array even for single directory, e.g., ["new-dir"]';
+
     if (isMultiRoot) {
         description += `\n\nMulti-root workspace: Must use "workspace_name/path" format. Available workspaces: ${workspaces.map(w => w.name).join(', ')}`;
-        pathsDescription = `List of directory paths, must use "workspace_name/path" format`;
+        pathsDescription = `Array of directory paths, must use "workspace_name/path" format. MUST be an array even for single directory.`;
     }
     
     return {

@@ -14,7 +14,8 @@ import {
   validateFile,
   getFileType,
   formatFileSize,
-  createThumbnail
+  createThumbnail,
+  inferMimeType
 } from '../utils/file'
 import { generateId } from '../utils/format'
 import { useI18n } from './useI18n'
@@ -59,7 +60,9 @@ export function useAttachments() {
       return null
     }
 
-    const type = getFileType(file.type)
+    // 推断 MIME 类型（处理浏览器无法识别的扩展名，如 .md）
+    const mimeType = inferMimeType(file.name, file.type)
+    const type = getFileType(mimeType)
     
     // 创建附件对象
     const attachment: Attachment = {
@@ -67,7 +70,7 @@ export function useAttachments() {
       name: file.name,
       type,
       size: file.size,
-      mimeType: file.type,
+      mimeType,
       metadata: {}
     }
 
