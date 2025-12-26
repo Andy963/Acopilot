@@ -1297,7 +1297,8 @@ Current Workspace: /path/to/project
 Operating System: Windows 11
 Current Time: 2024-01-01T12:00:00.000Z
 Timezone: Asia/Shanghai
-User Language: zh-CN`
+User Language: zh-CN
+Please respond using the user's language by default.`
     },
     {
         id: 'WORKSPACE_FILES',

@@ -639,6 +639,8 @@ function handleRestoreAndRetry(checkpointId: string) {
   padding: var(--spacing-md, 16px) var(--spacing-md, 16px);
   border-bottom: 1px solid var(--vscode-panel-border);
   transition: background-color var(--transition-fast, 0.1s);
+  /* 性能优化：布局隔离 */
+  contain: layout;
 }
 
 .message-item:last-child {

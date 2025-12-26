@@ -264,9 +264,7 @@ export function createListFilesTool(): Tool {
                     results,
                     totalFiles,
                     totalDirs,
-                    totalPaths: pathList.length,
-                    recursive,
-                    multiRoot: isMultiRoot
+                    totalPaths: pathList.length
                 },
                 error: allSuccess ? undefined : 'Some directories failed to list'
             };

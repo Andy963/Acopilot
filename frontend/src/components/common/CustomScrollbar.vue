@@ -279,7 +279,7 @@ const trackStyle = computed(() => {
 const thumbStyle = computed(() => {
   const style: Record<string, string> = {
     height: `${thumbHeight.value}px`,
-    top: `${thumbTop.value}px`,
+    transform: `translateY(${thumbTop.value}px)`,
   }
   if (props.thumbColor) {
     style.background = props.thumbColor
@@ -301,7 +301,7 @@ const hTrackStyle = computed(() => {
 const hThumbStyle = computed(() => {
   const style: Record<string, string> = {
     width: `${thumbWidth.value}px`,
-    left: `${thumbLeft.value}px`,
+    transform: `translateX(${thumbLeft.value}px)`,
   }
   if (props.thumbColor) {
     style.background = props.thumbColor
@@ -527,8 +527,8 @@ defineExpose({
   width: 100%;
   border-radius: 0;
   cursor: grab;
-  transition: background 0.18s ease, top 0.06s linear;
-  will-change: top;
+  transition: background 0.18s ease, transform 0.06s linear;
+  will-change: transform;
   background: var(--vscode-scrollbarSlider-background, rgba(100, 100, 100, 0.4));
 }
 
@@ -539,8 +539,8 @@ defineExpose({
   height: 100%;
   border-radius: 0;
   cursor: grab;
-  transition: background 0.18s ease, left 0.06s linear;
-  will-change: left;
+  transition: background 0.18s ease, transform 0.06s linear;
+  will-change: transform;
   background: var(--vscode-scrollbarSlider-background, rgba(100, 100, 100, 0.4));
 }
 

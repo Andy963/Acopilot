@@ -32,6 +32,8 @@ interface DiffBlock {
   search: string
   replace: string
   start_line?: number
+  success?: boolean
+  error?: string
 }
 
 // 获取文件路径
@@ -40,22 +42,53 @@ const filePath = computed(() => {
 })
 
 // 获取 diff 列表
-// 优先从 result.data.diffs 获取（包含实际匹配的行号），否则使用 args.diffs
+// 优先从 args.diffs 获取原始定义，并根据 result.data.failedDiffs 标记失败状态
 const diffList = computed((): DiffBlock[] => {
-  // 优先使用 result.data.diffs（后端返回的带有实际匹配行号的 diffs）
-  const resultDiffs = (props.result?.data as Record<string, any>)?.diffs as DiffBlock[] | undefined
-  const argsDiffs = props.args.diffs as DiffBlock[] | undefined
+  const argsDiffs = (props.args.diffs as DiffBlock[] | undefined) || []
+  const failedDiffs = (props.result?.data as Record<string, any>)?.failedDiffs as any[] | undefined
   
-  // 优先使用 resultDiffs（包含后端计算的实际匹配行号）
-  const diffs = resultDiffs ?? argsDiffs
-  
-  return diffs && Array.isArray(diffs) ? diffs : []
+  // 向后兼容旧格式（带有 results 或 diffs 的情况）
+  const data = props.result?.data as Record<string, any> | undefined
+  if (data?.results || data?.diffs) {
+    const results = data.results || data.diffs
+    return argsDiffs.map((diff, i) => {
+      const res = results.find((r: any) => r.index === i) || {}
+      return {
+        ...diff,
+        success: res.success,
+        error: res.error,
+        start_line: res.matchedLine ?? res.start_line ?? diff.start_line ?? 1
+      }
+    })
+  }
+
+  // 新格式：仅使用 failedDiffs 判断
+  return argsDiffs.map((diff, i) => {
+    const failure = failedDiffs?.find(f => f.index === i)
+    return {
+      ...diff,
+      success: !failure,
+      error: failure?.error,
+      start_line: diff.start_line ?? 1
+    }
+  })
 })
 
 // 获取结果信息
 const resultData = computed(() => {
   const result = props.result as Record<string, any> | undefined
   return result?.data || null
+})
+
+// 是否为全失败
+const isFailed = computed(() => {
+  return !!props.error || (resultData.value && resultData.value.appliedCount === 0)
+})
+
+// 是否为部分成功（有成功也有失败）
+const isPartial = computed(() => {
+  const data = resultData.value
+  return !props.error && data && data.appliedCount > 0 && data.failedCount > 0
 })
 
 // 获取文件名
@@ -324,11 +357,16 @@ onBeforeUnmount(() => {
     </div>
     
     <!-- 结果状态 -->
-    <div v-if="resultData" class="result-status" :class="{ 'is-error': error }">
-      <span v-if="!error" class="codicon codicon-check status-icon success"></span>
+    <div v-if="resultData" class="result-status" :class="{ 'is-error': isFailed && !isPartial, 'is-partial': isPartial }">
+      <span v-if="!isFailed && !isPartial" class="codicon codicon-check status-icon success"></span>
+      <span v-else-if="isPartial" class="codicon codicon-check status-icon partial"></span>
       <span v-else class="codicon codicon-error status-icon error"></span>
       <span class="status-text">
-        {{ error || resultData.message || t('components.tools.file.applyDiffPanel.diffApplied') }}
+        <template v-if="error">{{ error }}</template>
+        <template v-else-if="resultData.message">{{ resultData.message }}</template>
+        <template v-else-if="isPartial">{{ t('components.tools.file.applyDiffPanel.diffApplied') }} ({{ resultData.appliedCount }}/{{ resultData.totalCount }})</template>
+        <template v-else-if="isFailed">{{ t('common.failed') }}</template>
+        <template v-else>{{ t('components.tools.file.applyDiffPanel.diffApplied') }}</template>
       </span>
       <span v-if="resultData.status === 'pending'" class="status-badge pending">{{ t('components.tools.file.applyDiffPanel.pending') }}</span>
       <span v-else-if="resultData.status === 'accepted'" class="status-badge accepted">{{ t('components.tools.file.applyDiffPanel.accepted') }}</span>
@@ -340,23 +378,34 @@ onBeforeUnmount(() => {
       <span class="error-text">{{ error }}</span>
     </div>
     
-    <!-- Diff 列表 -->
+        <!-- Diff 列表 -->
     <div class="diff-list">
       <div
         v-for="(diff, index) in diffList"
         :key="index"
         class="diff-block"
+        :class="{ 'is-failed': diff.success === false }"
       >
         <!-- Diff 头部 -->
-        <div class="diff-header">
+        <div class="diff-header" :class="{ 'is-failed': diff.success === false }">
           <div class="diff-info">
             <span class="diff-number">{{ t('components.tools.file.applyDiffPanel.diffNumber') }}{{ index + 1 }}</span>
+            
+            <!-- 状态图标 -->
+            <span v-if="diff.success === true" class="status-icon success" :title="t('common.success')">
+              <span class="codicon codicon-check"></span>
+            </span>
+            <span v-else-if="diff.success === false" class="status-icon error" :title="diff.error || t('common.failed')">
+              <span class="codicon codicon-error"></span>
+              <span class="error-msg">{{ diff.error || t('common.failed') }}</span>
+            </span>
+
             <span v-if="diff.start_line" class="start-line">
               <span class="codicon codicon-location"></span>
               {{ t('components.tools.file.applyDiffPanel.line') }} {{ diff.start_line }}
             </span>
             <!-- 统计信息 -->
-            <span class="diff-stats">
+            <span v-if="diff.success !== false" class="diff-stats">
               <span class="stat deleted">
                 <span class="codicon codicon-remove"></span>
                 {{ getDiffStats(computeDiffLines(diff.search, diff.replace, diff.start_line || 1)).deleted }}
@@ -380,7 +429,7 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- Diff 内容 -->
-        <div class="diff-content">
+        <div class="diff-content" v-if="diff.success !== false">
           <CustomScrollbar :horizontal="true" :max-height="300">
             <div class="diff-lines">
               <div
@@ -411,6 +460,16 @@ onBeforeUnmount(() => {
               <span :class="['codicon', isExpanded(index) ? 'codicon-chevron-up' : 'codicon-chevron-down']"></span>
               {{ isExpanded(index) ? t('components.tools.file.applyDiffPanel.collapse') : t('components.tools.file.applyDiffPanel.expandRemaining', { count: computeDiffLines(diff.search, diff.replace, diff.start_line || 1).length - previewLineCount }) }}
             </button>
+          </div>
+        </div>
+
+        <!-- 失败时的内容预览 -->
+        <div v-if="diff.success === false" class="diff-content-failed">
+          <div class="failed-section">
+            <div class="failed-label">{{ t('message.tool.parameters') }} (search):</div>
+            <CustomScrollbar :horizontal="true" :max-height="150">
+              <pre class="failed-code search">{{ diff.search }}</pre>
+            </CustomScrollbar>
           </div>
         </div>
       </div>
@@ -508,8 +567,17 @@ onBeforeUnmount(() => {
   border-color: var(--vscode-testing-iconFailed);
 }
 
+.result-status.is-partial {
+  background: rgba(230, 149, 0, 0.1);
+  border-color: var(--vscode-charts-orange);
+}
+
 .status-icon {
   font-size: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .status-icon.success {
@@ -518,6 +586,10 @@ onBeforeUnmount(() => {
 
 .status-icon.error {
   color: var(--vscode-testing-iconFailed);
+}
+
+.status-icon.partial {
+  color: var(--vscode-charts-yellow);
 }
 
 .status-text {
@@ -578,6 +650,12 @@ onBeforeUnmount(() => {
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--radius-sm, 2px);
   overflow: hidden;
+  transition: border-color var(--transition-fast, 0.1s);
+}
+
+.diff-block.is-failed {
+  border-color: var(--vscode-errorForeground);
+  opacity: 0.8;
 }
 
 /* Diff 头部 */
@@ -590,10 +668,36 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+.diff-header.is-failed {
+  background: rgba(255, 82, 82, 0.05);
+}
+
 .diff-info {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm, 8px);
+}
+
+.status-icon {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-icon.success {
+  color: var(--vscode-testing-iconPassed);
+}
+
+.status-icon.error {
+  color: var(--vscode-testing-iconFailed);
+}
+
+.error-msg {
+  font-size: 10px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .diff-number {
@@ -665,6 +769,37 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   background: var(--vscode-editor-background);
+}
+
+.diff-content-failed {
+  padding: var(--spacing-sm, 8px);
+  background: var(--vscode-editor-background);
+  font-size: 11px;
+}
+
+.failed-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.failed-label {
+  color: var(--vscode-descriptionForeground);
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.failed-code {
+  margin: 0;
+  padding: var(--spacing-xs, 4px);
+  background: var(--vscode-editor-inactiveSelectionBackground);
+  border-radius: var(--radius-sm, 2px);
+  font-family: var(--vscode-editor-font-family);
+  white-space: pre;
+}
+
+.failed-code.search {
+  border-left: 2px solid var(--vscode-testing-iconFailed);
 }
 
 .diff-lines {

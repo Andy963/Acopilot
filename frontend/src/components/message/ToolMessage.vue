@@ -36,18 +36,33 @@ watchEffect(() => {
 })
 
 // 增强后的工具列表，包含从 store 获取的响应
-const enhancedTools = computed(() => {
-  const result = props.tools.map((tool) => {
-    // 如果工具已经有结果，直接使用
-    if (tool.result) {
-      return { ...tool, status: 'success' as const, awaitingConfirmation: false }
+const enhancedTools = computed<ToolUsage[]>(() => {
+  return props.tools.map((tool) => {
+    // 获取响应结果
+    let response: Record<string, unknown> | null | undefined = tool.result
+    if (!response && tool.id) {
+      response = chatStore.getToolResponseById(tool.id) as Record<string, unknown> | null
     }
-    
-    // 通过工具调用 ID 查找响应
-    if (tool.id) {
-      const response = chatStore.getToolResponseById(tool.id)
-      if (response) {
-        return { ...tool, result: response, status: 'success' as const, awaitingConfirmation: false }
+
+    // 如果工具已经有结果或响应
+    if (response) {
+      // 优先从响应中获取错误
+      const error = tool.error || (response as any).error
+      let success = (response as any).success !== false && !error
+      
+      // 检查是否为部分成功 (针对 apply_diff 等工具)
+      let status: 'success' | 'error' | 'warning' = success ? 'success' : 'error'
+      const data = (response as any).data
+      if (success && data && data.appliedCount > 0 && data.failedCount > 0) {
+        status = 'warning'
+      }
+      
+      return { 
+        ...tool, 
+        result: response || undefined,
+        error, 
+        status, 
+        awaitingConfirmation: false 
       }
     }
     
@@ -63,14 +78,14 @@ const enhancedTools = computed(() => {
     const effectiveStatus = tool.status || 'running'
     return { ...tool, status: effectiveStatus, awaitingConfirmation: awaitingConfirm }
   })
-  
-  return result
 })
 
 // 正在处理确认的工具 ID 集合
+// eslint-disable-next-line no-undef
 const processingToolIds = ref<Set<string>>(new Set())
 
 // 用户决定状态：记录每个工具的用户决定（true=确认，false=拒绝，undefined=未决定）
+// eslint-disable-next-line no-undef
 const userDecisions = ref<Map<string, boolean>>(new Map())
 
 // 计算等待确认的工具 ID 列表
@@ -191,6 +206,7 @@ async function sendToolConfirmation(toolResponses: Array<{ id: string; name: str
 }
 
 // 展开状态
+// eslint-disable-next-line no-undef
 const expandedTools = ref<Set<string>>(new Set())
 
 // 切换展开/收起
@@ -286,6 +302,7 @@ function getStatusIcon(status?: string, awaitingConfirmation?: boolean): string 
     case 'running':
       return 'codicon-loading'
     case 'success':
+    case 'warning':
       return 'codicon-check'
     case 'error':
       return 'codicon-error'
@@ -304,6 +321,8 @@ function getStatusClass(status?: string, awaitingConfirmation?: boolean): string
       return 'status-success'
     case 'error':
       return 'status-error'
+    case 'warning':
+      return 'status-warning'
     case 'running':
       return 'status-running'
     case 'pending':
@@ -382,15 +401,16 @@ function renderToolContent(tool: ToolUsage) {
           <span class="tool-name">{{ getToolLabel(tool) }}</span>
           
           <!-- 状态图标 -->
-          <span
-            v-if="tool.status || tool.awaitingConfirmation"
-            :class="[
-              'status-icon',
-              'codicon',
-              getStatusIcon(tool.status, tool.awaitingConfirmation),
-              getStatusClass(tool.status, tool.awaitingConfirmation)
-            ]"
-          ></span>
+          <div v-if="tool.status || tool.awaitingConfirmation" class="status-icon-wrapper">
+            <span
+              :class="[
+                'status-icon',
+                'codicon',
+                getStatusIcon(tool.status, tool.awaitingConfirmation),
+                getStatusClass(tool.status, tool.awaitingConfirmation)
+              ]"
+            ></span>
+          </div>
           
           <!-- 执行时间 -->
           <span v-if="tool.duration" class="tool-duration">
@@ -553,11 +573,17 @@ function renderToolContent(tool: ToolUsage) {
 }
 
 .status-icon.status-warning {
-  color: var(--vscode-inputValidation-warningForeground);
+  color: var(--vscode-charts-yellow);
 }
 
 .status-icon.status-pending {
   color: var(--vscode-inputValidation-warningForeground);
+}
+
+.status-icon-wrapper {
+  display: flex;
+  align-items: center;
+  margin-left: var(--spacing-xs, 4px);
 }
 
 @keyframes spin {

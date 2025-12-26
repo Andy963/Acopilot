@@ -3,6 +3,16 @@
 All notable changes to the "Lim Code" extension will be documented in this file.
 
 
+## [1.0.23] - 2025-12-25
+
+### Improved
+  - 优化apply diff等工具的存储和显示以及实现
+
+## [1.0.22] - 2025-12-23
+
+### Fixed
+  - 修复输入框以及长对话时卡顿问题，引入消息分页，每次多加载40条
+
 ## [1.0.21] - 2025-12-22
 
 ### Fixed

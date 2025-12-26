@@ -19,6 +19,96 @@ const props = defineProps<{
   messages: Message[]
 }>()
 
+// 消息分页显示逻辑：解决消息过多导致的输入卡顿
+const VISIBLE_INCREMENT = 40
+const visibleCount = ref(VISIBLE_INCREMENT)
+
+// 是否还有更多历史消息
+const hasMore = computed(() => props.messages.length > visibleCount.value)
+
+// 增强的消息对象接口
+interface EnhancedMessage {
+  message: Message
+  actualIndex: number
+  beforeCheckpoints: CheckpointRecord[]
+  afterCheckpoints: CheckpointRecord[]
+}
+
+// 预计算可见消息的增强信息，避免在模板中进行昂贵的计算
+const enhancedVisibleMessages = computed<EnhancedMessage[]>(() => {
+  const count = visibleCount.value
+  const total = props.messages.length
+  const startIndex = Math.max(0, total - count)
+  
+  // 仅对可见的消息进行切片
+  const visibleSlice = props.messages.slice(startIndex)
+  
+  // 预先建立 ID 到 allMessages 索引的映射，提高 getActualIndex 效率
+  const idToActualIndex = new Map<string, number>()
+  chatStore.allMessages.forEach((m, idx) => {
+    idToActualIndex.set(m.id, idx)
+  })
+
+  // 预先按消息索引对检查点进行分组
+  const checkpointsByMsgIndex = new Map<number, { before: CheckpointRecord[], after: CheckpointRecord[] }>()
+  chatStore.checkpoints.forEach(cp => {
+    if (!checkpointsByMsgIndex.has(cp.messageIndex)) {
+      checkpointsByMsgIndex.set(cp.messageIndex, { before: [], after: [] })
+    }
+    const group = checkpointsByMsgIndex.get(cp.messageIndex)!
+    if (cp.phase === 'before') group.before.push(cp)
+    else group.after.push(cp)
+  })
+
+  return visibleSlice.map(message => {
+    const actualIndex = idToActualIndex.get(message.id) ?? -1
+    const cpGroup = actualIndex !== -1 ? checkpointsByMsgIndex.get(actualIndex) : null
+    
+    return {
+      message,
+      actualIndex,
+      beforeCheckpoints: cpGroup?.before || [],
+      afterCheckpoints: cpGroup?.after || []
+    }
+  })
+})
+
+// 是否正在加载更多（用于节流）
+const isLoadingMore = ref(false)
+
+// 加载更多历史消息
+function loadMore() {
+  if (isLoadingMore.value || !hasMore.value) return
+  if (!scrollbarRef.value) return
+  const container = scrollbarRef.value.getContainer()
+  if (!container) return
+
+  isLoadingMore.value = true
+  const oldScrollHeight = container.scrollHeight
+  const oldScrollTop = container.scrollTop
+
+  visibleCount.value += VISIBLE_INCREMENT
+
+  // 保持滚动位置：加载更多后，滚动条位置会因为顶部插入内容而跳动，这里手动修正
+  nextTick(() => {
+    const newScrollHeight = container.scrollHeight
+    container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight)
+    // 恢复加载状态
+    isLoadingMore.value = false
+  })
+}
+
+// 滚动事件处理：实现自动加载
+function handleScroll(e: Event) {
+  const container = e.target as HTMLElement
+  if (!container) return
+  
+  // 当滚动到距离顶部 100px 以内时自动加载
+  if (hasMore.value && !isLoadingMore.value && container.scrollTop < 100) {
+    loadMore()
+  }
+}
+
 // 从 store 读取等待状态
 const chatStore = useChatStore()
 
@@ -31,10 +121,11 @@ const needsScrollToBottom = ref(false)
 // ResizeObserver 引用
 let resizeObserver: ResizeObserver | null = null
 
-// 监听对话切换，标记需要滚动
+// 监听对话切换，标记需要滚动，并重置可见数量
 watch(() => chatStore.currentConversationId, (newId, oldId) => {
   if (newId !== oldId) {
     needsScrollToBottom.value = true
+    visibleCount.value = VISIBLE_INCREMENT // 切换对话时重置
   }
 })
 
@@ -73,6 +164,9 @@ onMounted(() => {
     const container = scrollbarRef.value.getContainer()
     if (!container) return
     
+    // 添加滚动事件监听以支持自动加载
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    
     resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { height } = entry.contentRect
@@ -91,8 +185,15 @@ onMounted(() => {
   })
 })
 
-// 清理 ResizeObserver
+// 清理监听器
 onBeforeUnmount(() => {
+  if (scrollbarRef.value) {
+    const container = scrollbarRef.value.getContainer()
+    if (container) {
+      container.removeEventListener('scroll', handleScroll)
+    }
+  }
+
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null
@@ -224,20 +325,6 @@ async function handleRestoreAndEdit(messageId: string, newContent: string, attac
   await chatStore.restoreAndEdit(actualIndex, newContent, attachments, checkpointId)
 }
 
-// 获取消息前的检查点
-function getBeforeCheckpoints(messageIndex: number): CheckpointRecord[] {
-  return chatStore.checkpoints.filter(cp =>
-    cp.messageIndex === messageIndex && cp.phase === 'before'
-  )
-}
-
-// 获取消息后的检查点
-function getAfterCheckpoints(messageIndex: number): CheckpointRecord[] {
-  return chatStore.checkpoints.filter(cp =>
-    cp.messageIndex === messageIndex && cp.phase === 'after'
-  )
-}
-
 // 检查特定工具的检查点是否需要合并显示（前后内容一致时合并）
 function shouldMergeForTool(messageIndex: number, toolName: string): boolean {
   // 如果设置为不合并，直接返回 false（从 chatStore 读取配置）
@@ -331,21 +418,26 @@ function formatCheckpointTime(timestamp: number): string {
   <div class="message-list">
     <CustomScrollbar ref="scrollbarRef" sticky-bottom>
       <div class="messages-container">
-        <template v-for="(message, displayIndex) in messages" :key="message.id">
+        <!-- 自动加载更多指示器 -->
+        <div v-if="hasMore" class="load-more-container">
+          <i class="codicon codicon-loading codicon-modifier-spin"></i>
+        </div>
+
+        <template v-for="item in enhancedVisibleMessages" :key="item.message.id">
           <!-- 消息前的检查点（或合并显示） -->
-          <template v-if="getBeforeCheckpoints(chatStore.getActualIndex(displayIndex)).length > 0">
+          <template v-if="item.beforeCheckpoints.length > 0">
             <div
-              v-for="cp in getBeforeCheckpoints(chatStore.getActualIndex(displayIndex))"
+              v-for="cp in item.beforeCheckpoints"
               :key="cp.id"
               class="checkpoint-bar"
-              :class="shouldMergeForTool(chatStore.getActualIndex(displayIndex), cp.toolName) ? 'checkpoint-merged' : 'checkpoint-before'"
+              :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'checkpoint-merged' : 'checkpoint-before'"
             >
               <div class="checkpoint-icon">
-                <i class="codicon" :class="shouldMergeForTool(chatStore.getActualIndex(displayIndex), cp.toolName) ? 'codicon-check' : 'codicon-archive'"></i>
+                <i class="codicon" :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'codicon-check' : 'codicon-archive'"></i>
               </div>
               <div class="checkpoint-info">
                 <span class="checkpoint-label">
-                  {{ shouldMergeForTool(chatStore.getActualIndex(displayIndex), cp.toolName) ? getMergedLabel(cp) : getCheckpointLabel(cp, 'before') }}
+                  {{ shouldMergeForTool(item.actualIndex, cp.toolName) ? getMergedLabel(cp) : getCheckpointLabel(cp, 'before') }}
                 </span>
                 <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount }) }}</span>
               </div>
@@ -360,16 +452,16 @@ function formatCheckpointTime(timestamp: number): string {
           
           <!-- 总结消息使用专用组件 -->
           <SummaryMessage
-            v-if="message.isSummary"
-            :message="message"
-            :message-index="chatStore.getActualIndex(displayIndex)"
+            v-if="item.message.isSummary"
+            :message="item.message"
+            :message-index="item.actualIndex"
           />
           
           <!-- 普通消息使用 MessageItem -->
           <MessageItem
             v-else
-            :message="message"
-            :message-index="chatStore.getActualIndex(displayIndex)"
+            :message="item.message"
+            :message-index="item.actualIndex"
             @edit="handleEdit"
             @delete="handleDelete"
             @retry="handleRetry"
@@ -380,11 +472,11 @@ function formatCheckpointTime(timestamp: number): string {
           />
           
           <!-- 消息后的检查点（仅当该工具的内容有变化时显示） -->
-          <template v-if="getAfterCheckpoints(chatStore.getActualIndex(displayIndex)).length > 0">
-            <template v-for="cp in getAfterCheckpoints(chatStore.getActualIndex(displayIndex))" :key="cp.id">
+          <template v-if="item.afterCheckpoints.length > 0">
+            <template v-for="cp in item.afterCheckpoints" :key="cp.id">
               <!-- 只有当该工具没有被合并时才显示 after 检查点 -->
               <div
-                v-if="!shouldMergeForTool(chatStore.getActualIndex(displayIndex), cp.toolName)"
+                v-if="!shouldMergeForTool(item.actualIndex, cp.toolName)"
                 class="checkpoint-bar checkpoint-after"
               >
                 <div class="checkpoint-icon">
@@ -470,6 +562,19 @@ function formatCheckpointTime(timestamp: number): string {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+}
+
+/* 加载更多指示器 */
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+}
+
+.load-more-container .codicon {
+  font-size: 16px;
 }
 
 /* 错误提示 - 扁平化设计，类似重试面板样式 */

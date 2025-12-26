@@ -34,10 +34,7 @@ const replacement = computed(() => props.args.replace as string | undefined)
 const dryRun = computed(() => props.args.dryRun as boolean || false)
 
 // 是否是替换模式
-const isReplaceMode = computed(() => {
-  const result = props.result as Record<string, any> | undefined
-  return result?.data?.isReplaceMode === true
-})
+const isReplaceMode = computed(() => !!props.args.replace)
 
 // 搜索结果
 interface SearchMatch {

@@ -47,6 +47,10 @@ const editContent = ref('')
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
+// 缓存高度状态以减少重排
+const cachedLineHeight = ref(0)
+const lastScrollHeight = ref(0)
+
 // 拖拽状态
 const isDragOver = ref(false)
 
@@ -107,8 +111,30 @@ function formatCheckpointDesc(checkpoint: CheckpointRecord): string {
 
 function adjustTextareaHeight() {
   if (textareaRef.value) {
-    textareaRef.value.style.height = 'auto'
-    textareaRef.value.style.height = textareaRef.value.scrollHeight + 'px'
+    const textarea = textareaRef.value
+    
+    // 获取并缓存行高
+    if (!cachedLineHeight.value) {
+      cachedLineHeight.value = parseInt(getComputedStyle(textarea).lineHeight) || 20
+    }
+    
+    // 增加高度变化检测：如果当前 scrollHeight 没变，说明不需要重设 height='auto'
+    if (textarea.scrollHeight === lastScrollHeight.value && lastScrollHeight.value !== 0) {
+      return
+    }
+
+    const oldHeight = textarea.style.height
+    textarea.style.height = 'auto'
+    const newScrollHeight = textarea.scrollHeight
+    
+    const finalHeight = newScrollHeight + 'px'
+    if (oldHeight !== finalHeight) {
+      textarea.style.height = finalHeight
+    } else {
+      textarea.style.height = oldHeight
+    }
+    
+    lastScrollHeight.value = newScrollHeight
   }
 }
 

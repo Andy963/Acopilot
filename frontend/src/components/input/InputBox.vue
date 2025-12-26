@@ -32,6 +32,10 @@ const emit = defineEmits<{
 const textareaRef = ref<HTMLTextAreaElement>()
 const currentRows = ref(props.minRows || 2)
 
+// 调整高度时的检测状态
+const cachedLineHeight = ref(0)
+const lastScrollHeight = ref(0)
+
 // 拖拽状态
 const isDragOver = ref(false)
 
@@ -51,11 +55,23 @@ function adjustHeight() {
   const minRows = props.minRows || 2  // 默认最少两行
   const maxRows = props.maxRows || 6
   
-  // 获取行高
-  const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20
+  // 获取并缓存行高，避免频繁读取 DOM
+  if (!cachedLineHeight.value) {
+    cachedLineHeight.value = parseInt(getComputedStyle(textarea).lineHeight) || 20
+  }
+  
+  const lineHeight = cachedLineHeight.value
   const minHeight = minRows * lineHeight
   
+  // 核心优化：增加高度变化检测
+  // 在固定高度模式下，scrollHeight 代表内容真实高度（即使被 height 限制）
+  // 如果它没变，说明行数没变，不需要重设 height='auto'（这会强制重排）
+  if (textarea.scrollHeight === lastScrollHeight.value && lastScrollHeight.value !== 0) {
+    return
+  }
+
   // 重置高度以获取正确的 scrollHeight
+  const oldHeight = textarea.style.height
   textarea.style.height = 'auto'
   
   // 获取实际内容高度
@@ -73,8 +89,19 @@ function adjustHeight() {
     maxRows
   )
   
-  currentRows.value = rows
-  textarea.style.height = `${rows * lineHeight}px`
+  const finalHeight = `${rows * lineHeight}px`
+  
+  // 只有当高度真正改变时才更新 DOM
+  if (oldHeight !== finalHeight) {
+    textarea.style.height = finalHeight
+    currentRows.value = rows
+  } else {
+    // 如果没变，恢复原状
+    textarea.style.height = oldHeight
+  }
+  
+  // 记录本次的内容高度，用于下次对比
+  lastScrollHeight.value = contentHeight
   
   // 更新滚动条
   nextTick(() => updateScrollbar())

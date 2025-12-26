@@ -201,10 +201,11 @@ export class PromptManager {
             lines.push(`Timezone: ${context.timezone}`)
         }
         
-        // 用户语言环境
+        // User language environment
         const userLanguage = this.getUserLanguage()
         if (userLanguage) {
             lines.push(`User Language: ${userLanguage}`)
+            lines.push(`Please respond using the user's language by default.`)
         }
         
         return lines.join('\n')

@@ -217,8 +217,7 @@ export function createFindFilesTool(): Tool {
                     successCount,
                     failCount,
                     totalCount: patternList.length,
-                    totalFiles,
-                    multiRoot: workspaces.length > 1
+                    totalFiles
                 },
                 error: allSuccess ? undefined : `${failCount} patterns failed to search`
             };

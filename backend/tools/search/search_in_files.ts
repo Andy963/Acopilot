@@ -425,11 +425,14 @@ export function createSearchInFilesTool(): Tool {
                     return {
                         success: true,
                         data: {
-                            query,
-                            replacement,
-                            isReplaceMode: true,
-                            dryRun,
-                            matches: allMatches,
+                            matches: allMatches.map(m => ({
+                                file: m.file,
+                                workspace: m.workspace,
+                                line: m.line,
+                                column: m.column,
+                                match: m.match
+                                // 替换模式下不返回 context，减小体积，前端已有 diff 视图
+                            })),
                             results: allReplacements,
                             filesModified: allReplacements.length,
                             totalReplacements,
@@ -484,8 +487,6 @@ export function createSearchInFilesTool(): Tool {
                     return {
                         success: true,
                         data: {
-                            query,
-                            isReplaceMode: false,
                             results: allResults,
                             count: allResults.length,
                             truncated: allResults.length >= maxResults,

@@ -280,7 +280,8 @@ export interface ToolUsage {
   result?: Record<string, unknown>
   error?: string
   duration?: number
-  status?: 'pending' | 'running' | 'success' | 'error'
+  status?: 'pending' | 'running' | 'success' | 'error' | 'warning'
+  awaitingConfirmation?: boolean
 }
 
 // ============ 附件相关类型 ============
