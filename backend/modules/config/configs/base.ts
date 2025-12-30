@@ -406,22 +406,33 @@ export function deepMerge(target: any, source: any): any {
         return target;
     }
     
-    if (typeof source !== 'object' || Array.isArray(source)) {
+    // 如果目标是数组，将源合并进去（如果是数组则拼接，否则作为单项追加）
+    // 这确保了 tools 等数组字段永远不会被自定义设置直接抹除，只会增加
+    if (Array.isArray(target)) {
+        const sourceItems = Array.isArray(source) ? source : [source];
+        return [...target, ...sourceItems];
+    }
+    
+    // 如果源是数组（但目标不是），由于类型冲突，采用覆盖策略
+    if (Array.isArray(source)) {
         return source;
     }
     
-    if (typeof target !== 'object' || Array.isArray(target) || target === null) {
+    // 如果源不是对象，直接覆盖
+    if (typeof source !== 'object') {
+        return source;
+    }
+    
+    // 如果目标不是对象，初始化为空对象
+    if (typeof target !== 'object' || target === null) {
         target = {};
     }
     
     const result = { ...target };
     
     for (const key of Object.keys(source)) {
-        if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
-            result[key] = deepMerge(result[key], source[key]);
-        } else {
-            result[key] = source[key];
-        }
+        // 递归合并所有子节点
+        result[key] = deepMerge(result[key], source[key]);
     }
     
     return result;
@@ -443,13 +454,13 @@ export function applyCustomBody(originalBody: any, customBody?: CustomBodyConfig
     let result = { ...originalBody };
     
     if (customBody.mode === 'simple' && customBody.items) {
-        // 简单模式：遍历键值对
+        // 简单模式：遍历所有项
         for (const item of customBody.items) {
             if (!item.enabled || !item.key || !item.key.trim()) {
                 continue;
             }
             
-            const key = item.key.trim();
+            const rawKey = item.key.trim();
             let value: any;
             
             // 尝试解析值为 JSON
@@ -460,14 +471,26 @@ export function applyCustomBody(originalBody: any, customBody?: CustomBodyConfig
                 value = item.value;
             }
             
-            // 将值合并到结果中
-            result = deepMerge(result, { [key]: value });
+            // 处理嵌套路径键名（如 "extra_body.google"）
+            if (rawKey.includes('.')) {
+                const parts = rawKey.split('.');
+                const nestedObj = {};
+                let current: any = nestedObj;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    current[parts[i]] = {};
+                    current = current[parts[i]];
+                }
+                current[parts[parts.length - 1]] = value;
+                result = deepMerge(result, nestedObj);
+            } else {
+                result = deepMerge(result, { [rawKey]: value });
+            }
         }
     } else if (customBody.mode === 'advanced' && customBody.json) {
         // 复杂模式：解析完整 JSON 并深度合并
         try {
-            const jsonValue = JSON.parse(customBody.json);
-            result = deepMerge(result, jsonValue);
+            const customData = JSON.parse(customBody.json);
+            result = deepMerge(result, customData);
         } catch (error) {
             console.warn('Failed to parse custom body JSON:', error);
         }

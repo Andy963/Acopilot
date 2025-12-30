@@ -1161,7 +1161,7 @@ const en: LanguageMessages = {
                 appInfo: {
                     title: 'Application Info',
                     name: 'Lim Code - Vibe Coding Assistant',
-                    version: 'Version: 1.0.25',
+                    version: 'Version: 1.0.26',
                     repository: 'Repository',
                     developer: 'Developer'
                 }

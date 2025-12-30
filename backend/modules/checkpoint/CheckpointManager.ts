@@ -1228,37 +1228,13 @@ export class CheckpointManager {
                 
                 // 检查文档是否在受影响列表中
                 if (modifiedSet.has(docPath)) {
-                    // 文件被修改，更新内容并保持为 dirty 状态（编辑视图）
+                    // 如果文档在受影响列表中，使用 revert 刷新
+                    // 这会丢弃未保存的更改并重新从磁盘加载，使文档回到干净的状态
                     try {
-                        // 读取磁盘上的最新内容
-                        const diskContent = await fs.readFile(doc.uri.fsPath, 'utf8');
-                        
-                        // 找到或打开编辑器
-                        let editor = vscode.window.visibleTextEditors.find(
-                            e => e.document.uri.fsPath === doc.uri.fsPath
-                        );
-                        
-                        if (!editor) {
-                            // 文档未在可见编辑器中，打开它
-                            editor = await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
-                        }
-                        
-                        if (editor) {
-                            const currentContent = doc.getText();
-                            // 只有内容不同时才替换
-                            if (currentContent !== diskContent) {
-                                const fullRange = new vscode.Range(
-                                    doc.positionAt(0),
-                                    doc.positionAt(currentContent.length)
-                                );
-                                await editor.edit(editBuilder => {
-                                    editBuilder.replace(fullRange, diskContent);
-                                });
-                                // 注意：不调用 doc.save()，保持 dirty 状态，显示为编辑视图
-                            }
-                        }
+                        await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+                        await vscode.commands.executeCommand('workbench.action.files.revert');
                     } catch (err) {
-                        console.warn(`[CheckpointManager] Failed to refresh ${doc.uri.fsPath}:`, err);
+                        console.warn(`[CheckpointManager] Failed to revert ${doc.uri.fsPath}:`, err);
                     }
                 }
                 // 删除的文件不做任何处理，让 VSCode 自然显示"文件已删除"的状态

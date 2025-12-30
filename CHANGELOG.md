@@ -3,6 +3,12 @@
 All notable changes to the "Lim Code" extension will be documented in this file.
 
 
+## [1.0.26] - 2025-12-31
+
+### Fixed
+  - 修复存档点问题
+  - 修复自定义body时的合并问题
+
 ## [1.0.25] - 2025-12-26
 
 ### Added
@@ -19,7 +25,7 @@ All notable changes to the "Lim Code" extension will be documented in this file.
   - 调整输入框逻辑，允许在工具待确认状态下发送文本内容
 
 ### Fixed
-  - 修复输入框无法右键粘贴问题
+  - 修复输入框无法右键粘贴问题，简单模式”下，支持使用 a.b.c 这样的键名
 
 ## [1.0.23] - 2025-12-25
 
