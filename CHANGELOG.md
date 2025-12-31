@@ -3,6 +3,24 @@
 All notable changes to the "Lim Code" extension will be documented in this file.
 
 
+## [1.0.29] - 2026-01-01
+
+### Backed
+  - 暂时回档到1.0.26
+
+## [1.0.28] - 2025-12-31
+
+### Fixed
+  - 修复diff无法自动确认问题
+
+## [1.0.27] - 2025-12-31
+
+### Added
+  - 支持工具确认后的分步批注提交
+
+### Fixed
+  - 修复总结对话后functionCall被错误裁剪
+
 ## [1.0.26] - 2025-12-31
 
 ### Fixed
