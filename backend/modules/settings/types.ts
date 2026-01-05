@@ -690,6 +690,11 @@ export interface TokenCountConfig {
      * Anthropic 渠道配置
      */
     anthropic?: TokenCountChannelConfig;
+
+    /**
+     * OpenAI Responses 渠道配置
+     */
+    'openai-responses'?: TokenCountChannelConfig;
     
     [key: string]: unknown;
 }
@@ -715,6 +720,16 @@ export const DEFAULT_OPENAI_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
 };
 
 /**
+ * 默认 OpenAI Responses Token 计数配置
+ */
+export const DEFAULT_OPENAI_RESPONSES_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
+    enabled: false,
+    baseUrl: 'https://api.openai.com/v1/responses/input_tokens',
+    apiKey: '',
+    model: 'gpt-5'
+};
+
+/**
  * 默认 Anthropic Token 计数配置
  */
 export const DEFAULT_ANTHROPIC_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
@@ -730,7 +745,8 @@ export const DEFAULT_ANTHROPIC_TOKEN_COUNT_CONFIG: TokenCountChannelConfig = {
 export const DEFAULT_TOKEN_COUNT_CONFIG: TokenCountConfig = {
     gemini: DEFAULT_GEMINI_TOKEN_COUNT_CONFIG,
     openai: DEFAULT_OPENAI_TOKEN_COUNT_CONFIG,
-    anthropic: DEFAULT_ANTHROPIC_TOKEN_COUNT_CONFIG
+    anthropic: DEFAULT_ANTHROPIC_TOKEN_COUNT_CONFIG,
+    'openai-responses': DEFAULT_OPENAI_RESPONSES_TOKEN_COUNT_CONFIG
 };
 
 /**
