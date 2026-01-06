@@ -3,6 +3,15 @@
 All notable changes to the "Lim Code" extension will be documented in this file.
 
 
+## [1.0.32] - 2026-01-06
+
+  - 优化了oai-responses格式，使其更符合官方示例
+
+## [1.0.31] - 2026-01-06
+
+### Fixed
+  - 修复终端工具编码显示异常问题
+
 ## [1.0.30] - 2026-01-05
 
 ### Added

@@ -11,6 +11,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
+import { StringDecoder } from 'string_decoder';
 import type { Tool, ToolResult, ToolContext } from '../types';
 
 // tree-kill 库，用于跨平台终止进程树
@@ -146,17 +147,26 @@ function getShellConfig(shellType: ShellType): {
     switch (actualShellType) {
         case 'powershell':
             if (platform === 'win32') {
-                // PowerShell 需要设置输出编码为 UTF-8
+                // PowerShell 需要设置输出编码为 UTF-8，同时设置控制台编码
                 return {
                     shell: customPath || 'powershell.exe',
                     shellArgs: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command'],
-                    prependCommand: '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;'
+                    prependCommand: '$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8;'
                 };
             }
             return { shell: customPath || 'pwsh', shellArgs: ['-NoProfile', '-Command'] };
             
         case 'cmd':
-            // Windows cmd：使用 chcp 65001 设置 UTF-8 编码
+            if (platform === 'win32') {
+                // Windows cmd：使用 powershell 包装以确保 UTF-8 输出
+                // 这种方式比直接用 chcp 65001 更可靠，特别是对于内部命令如 dir
+                const cmdExe = customPath || 'cmd.exe';
+                return {
+                    shell: 'powershell.exe',
+                    shellArgs: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command'],
+                    prependCommand: `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [System.Console]::InputEncoding = [System.Text.Encoding]::UTF8; ${cmdExe} /c`
+                };
+            }
             return {
                 shell: customPath || 'cmd.exe',
                 shellArgs: ['/c'],
@@ -179,7 +189,7 @@ function getShellConfig(shellType: ShellType): {
                 return {
                     shell: 'powershell.exe',
                     shellArgs: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command'],
-                    prependCommand: '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;'
+                    prependCommand: '$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8;'
                 };
             }
             return { shell: customPath || '/bin/zsh', shellArgs: ['-c'] };
@@ -211,7 +221,7 @@ function getShellConfig(shellType: ShellType): {
                 return {
                     shell: 'powershell.exe',
                     shellArgs: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command'],
-                    prependCommand: '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;'
+                    prependCommand: '$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8;'
                 };
             }
             return { shell: '/bin/sh', shellArgs: ['-c'] };
@@ -658,11 +668,19 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         ? [...shellConfig.shellArgs, finalCommand]
                         : [finalCommand];
 
+                    // 注入环境变量以便更好地支持 UTF-8（主要针对 Windows 上的 Unix 工具）
+                    const env = { ...process.env };
+                    if (os.platform() === 'win32') {
+                        // 很多工具（如 git, node, python）在 Windows 上通过这些变量识别编码
+                        if (!env.LANG) env.LANG = 'en_US.UTF-8';
+                        if (!env.PYTHONIOENCODING) env.PYTHONIOENCODING = 'utf-8';
+                    }
+
                     // 启动进程
                     const proc = cp.spawn(shellConfig.shell, spawnArgs, {
                         cwd: workingDir,
                         shell: false,
-                        env: { ...process.env },
+                        env,
                         windowsHide: true
                     });
 
@@ -712,11 +730,23 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         shell
                     });
 
-                    // 收集输出（使用 UTF-8 解码）并实时推送
+                    // 使用 StringDecoder 处理 UTF-8 编码，防止多字节字符截断
+                    const stdoutDecoder = new StringDecoder('utf8');
+                    const stderrDecoder = new StringDecoder('utf8');
+
+                    let stdoutRemaining = '';
+                    let stderrRemaining = '';
+
+                    // 收集输出并实时推送
                     proc.stdout?.on('data', (data: Buffer) => {
-                        const text = data.toString('utf8');
-                        const lines = text.split('\n');
-                        terminalProcess.output.push(...lines.filter((l: string) => l.length > 0));
+                        const text = stdoutDecoder.write(data);
+                        const content = stdoutRemaining + text;
+                        const lines = content.split(/\r?\n/);
+                        stdoutRemaining = lines.pop() || '';
+                        
+                        if (lines.length > 0) {
+                            terminalProcess.output.push(...lines);
+                        }
                         
                         // 实时推送输出到前端
                         emitTerminalOutput({
@@ -727,9 +757,14 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                     });
 
                     proc.stderr?.on('data', (data: Buffer) => {
-                        const text = data.toString('utf8');
-                        const lines = text.split('\n');
-                        terminalProcess.output.push(...lines.filter((l: string) => l.length > 0));
+                        const text = stderrDecoder.write(data);
+                        const content = stderrRemaining + text;
+                        const lines = content.split(/\r?\n/);
+                        stderrRemaining = lines.pop() || '';
+
+                        if (lines.length > 0) {
+                            terminalProcess.output.push(...lines);
+                        }
                         
                         // 实时推送错误输出到前端
                         emitTerminalOutput({
@@ -737,6 +772,16 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                             type: 'error',
                             data: text
                         });
+                    });
+
+                    // 进程结束时处理剩余的输出
+                    proc.on('close', () => {
+                        if (stdoutRemaining) {
+                            terminalProcess.output.push(stdoutRemaining);
+                        }
+                        if (stderrRemaining) {
+                            terminalProcess.output.push(stderrRemaining);
+                        }
                     });
 
                     // 设置超时
