@@ -8,8 +8,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import InputBox from './InputBox.vue'
 import FilePickerPanel from './FilePickerPanel.vue'
 import SendButton from './SendButton.vue'
-import ChannelSelector, { type ChannelOption } from './ChannelSelector.vue'
-import ModelSelector from './ModelSelector.vue'
+import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
 import { IconButton, Tooltip } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
@@ -59,18 +58,6 @@ const inputValue = computed({
   set: (value: string) => chatStore.setInputValue(value)
 })
 
-// 配置选项（用于 ChannelSelector）- 只显示已启用的配置
-const channelOptions = computed<ChannelOption[]>(() =>
-  configs.value
-    .filter(config => config.enabled !== false)  // 过滤掉未启用的配置
-    .map(config => ({
-      id: config.id,
-      name: config.name,
-      model: config.model || config.id,
-      type: config.type
-    }))
-)
-
 // 加载配置列表
 async function loadConfigs() {
   isLoadingConfigs.value = true
@@ -103,15 +90,69 @@ const currentModel = computed(() => {
   return currentConfig.value?.model || ''
 })
 
-// 当前配置的模型列表（本地配置中的模型）
-const currentModels = computed(() => {
-  return currentConfig.value?.models || []
+function getProviderLabel(config: any): string {
+  const type = String(config?.type || '').trim()
+  if (!type) return String(config?.name || '').trim() || 'unknown'
+  if (type === 'openai-responses') return 'openai'
+  return type
+}
+
+// 统一模型列表（跨渠道）
+const unifiedModelOptions = computed<UnifiedModelOption[]>(() => {
+  const options: UnifiedModelOption[] = []
+  const enabledConfigs = configs.value.filter(c => c?.enabled !== false)
+
+  for (const config of enabledConfigs) {
+    const providerLabel = getProviderLabel(config)
+    const channelName = String(config?.name || config?.id || providerLabel)
+
+    const models: any[] = Array.isArray(config?.models) ? config.models : []
+    const seen = new Set<string>()
+
+    for (const model of models) {
+      const modelId = String((model && typeof model === 'object') ? model.id : model || '').trim()
+      if (!modelId) continue
+      if (seen.has(modelId)) continue
+      seen.add(modelId)
+
+      const modelName = String((model && typeof model === 'object') ? (model.name || model.id) : modelId)
+      options.push({
+        key: `${config.id}::${modelId}`,
+        modelId,
+        modelName,
+        providerLabel,
+        channelName
+      })
+    }
+
+    // 确保当前选中的模型也能出现在列表里（即便 models 为空）
+    const activeModelId = String(config?.model || '').trim()
+    if (activeModelId && !seen.has(activeModelId)) {
+      options.push({
+        key: `${config.id}::${activeModelId}`,
+        modelId: activeModelId,
+        modelName: activeModelId,
+        providerLabel,
+        channelName
+      })
+    }
+  }
+
+  options.sort((a, b) => {
+    const providerCmp = a.providerLabel.localeCompare(b.providerLabel)
+    if (providerCmp !== 0) return providerCmp
+    const modelCmp = a.modelName.localeCompare(b.modelName)
+    if (modelCmp !== 0) return modelCmp
+    return a.channelName.localeCompare(b.channelName)
+  })
+
+  return options
 })
 
-// 切换渠道
-async function handleChannelChange(channelId: string) {
-  await chatStore.setConfigId(channelId)
-}
+const unifiedModelValue = computed(() => {
+  if (!chatStore.configId || !currentModel.value) return ''
+  return `${chatStore.configId}::${currentModel.value}`
+})
 
 // 更新当前渠道的模型
 async function handleModelChange(modelId: string) {
@@ -134,6 +175,21 @@ async function handleModelChange(modelId: string) {
     await chatStore.loadCurrentConfig()
   } catch (error) {
     console.error('Failed to update model:', error)
+  }
+}
+
+async function handleUnifiedModelChange(key: string) {
+  const selected = unifiedModelOptions.value.find(o => o.key === key)
+  if (!selected) return
+  if (selected.key === unifiedModelValue.value) return
+
+  const [configId] = selected.key.split('::')
+  if (configId && configId !== chatStore.configId) {
+    await chatStore.setConfigId(configId)
+  }
+
+  if (selected.modelId && selected.modelId !== currentModel.value) {
+    await handleModelChange(selected.modelId)
   }
 }
 
@@ -728,36 +784,6 @@ watch(() => chatStore.currentConfig, () => {
       </div>
     </div>
 
-    <!-- 输入框容器（包含文件选择器） -->
-    <div class="input-box-container">
-      <!-- @ 文件选择面板 -->
-      <FilePickerPanel
-        ref="filePickerRef"
-        :visible="showFilePicker"
-        :query="filePickerQuery"
-        @select="handleSelectFile"
-        @close="handleCloseAtPicker"
-        @update:query="(q) => filePickerQuery = q"
-      />
-      
-      <!-- 输入框 -->
-      <InputBox
-        ref="inputBoxRef"
-        :value="inputValue"
-        :disabled="false"
-        :placeholder="placeholder"
-        @update:value="handleInput"
-        @send="handleSend"
-        @composition-start="handleCompositionStart"
-        @composition-end="handleCompositionEnd"
-        @paste="handlePasteFiles"
-        @trigger-at-picker="handleTriggerAtPicker"
-        @close-at-picker="handleCloseAtPicker"
-        @at-query-change="handleAtQueryChange"
-        @at-picker-keydown="handleAtPickerKeydown"
-      />
-    </div>
-
     <!-- 固定文件面板（弹出） -->
     <div
       v-if="showPinnedFilesPanel"
@@ -833,10 +859,10 @@ watch(() => chatStore.currentConfig, () => {
       </div>
     </div>
 
-    <!-- 底部工具栏：附件按钮 + 固定文件按钮 + 发送按钮 -->
-    <div class="bottom-toolbar">
-      <!-- 左侧：附件按钮 + 固定文件按钮 -->
-      <div class="toolbar-left">
+    <!-- 单个输入框容器：所有控件都在同一个框内 -->
+    <div class="composer">
+      <!-- 顶部：文件/钉住 -->
+      <div class="composer-top">
         <Tooltip :content="t('components.input.attachFile')" placement="top-left">
           <IconButton
             icon="codicon-attach"
@@ -862,93 +888,113 @@ watch(() => chatStore.currentConfig, () => {
         </Tooltip>
       </div>
 
-      <!-- 右侧：压缩按钮 + Token 圆环 + 发送按钮 -->
-      <div class="toolbar-right">
-        <!-- 压缩上下文按钮 -->
-        <Tooltip :content="t('components.input.summarizeContext')" placement="top">
-          <IconButton
-            icon="codicon-fold"
-            size="small"
-            :disabled="chatStore.isWaitingForResponse || chatStore.usedTokens === 0 || isSummarizing"
-            :loading="isSummarizing"
-            class="summarize-button"
-            @click="handleSummarize"
+      <!-- 中部：输入框 + 发送按钮（在输入框内） -->
+      <div class="composer-body">
+        <div class="composer-input">
+          <!-- @ 文件选择面板 -->
+          <FilePickerPanel
+            ref="filePickerRef"
+            :visible="showFilePicker"
+            :query="filePickerQuery"
+            @select="handleSelectFile"
+            @close="handleCloseAtPicker"
+            @update:query="(q) => filePickerQuery = q"
           />
-        </Tooltip>
-        
-        <!-- Token 使用量圆环（始终显示） -->
-        <div class="token-ring-wrapper">
-          <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
-            <!-- 背景圆环 -->
-            <circle
-              cx="11"
-              cy="11"
-              :r="ringRadius"
-              fill="none"
-              stroke="var(--vscode-panel-border)"
-              stroke-width="2"
+
+          <!-- 输入框 -->
+          <InputBox
+            ref="inputBoxRef"
+            :value="inputValue"
+            :disabled="false"
+            :placeholder="placeholder"
+            variant="embedded"
+            @update:value="handleInput"
+            @send="handleSend"
+            @composition-start="handleCompositionStart"
+            @composition-end="handleCompositionEnd"
+            @paste="handlePasteFiles"
+            @trigger-at-picker="handleTriggerAtPicker"
+            @close-at-picker="handleCloseAtPicker"
+            @at-query-change="handleAtQueryChange"
+            @at-picker-keydown="handleAtPickerKeydown"
+          />
+        </div>
+      </div>
+
+      <!-- 底部：模型/渠道 + Token圆环 + Summary（同一行） -->
+      <div class="composer-footer">
+        <div class="composer-selectors">
+          <div class="model-selector-wrapper">
+            <UnifiedModelSelector
+              :model-value="unifiedModelValue"
+              :options="unifiedModelOptions"
+              :disabled="isLoadingConfigs || unifiedModelOptions.length === 0"
+              :drop-up="true"
+              @update:model-value="handleUnifiedModelChange"
             />
-            <!-- 进度圆环 -->
-            <circle
-              cx="11"
-              cy="11"
-              :r="ringRadius"
-              fill="none"
-              :stroke="tokenRingColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              :stroke-dasharray="ringCircumference"
-              :stroke-dashoffset="ringDashOffset"
-              transform="rotate(-90 11 11)"
-            />
-          </svg>
-          <!-- 悬浮提示 -->
-          <div class="token-tooltip">
-            <div class="token-tooltip-row">
-              <span class="token-tooltip-label">{{ t('components.input.tokenUsage') }}</span>
-              <span class="token-tooltip-value">{{ chatStore.tokenUsagePercent.toFixed(1) }}%</span>
-            </div>
-            <div class="token-tooltip-row">
-              <span class="token-tooltip-label">{{ t('components.input.context') }}</span>
-              <span class="token-tooltip-value">{{ formatNumber(chatStore.usedTokens) }} / {{ formatNumber(chatStore.maxContextTokens) }}</span>
-            </div>
           </div>
         </div>
-        
-        <SendButton
-          :disabled="!canSend"
-          :loading="chatStore.isWaitingForResponse"
-          @click="handleSend"
-          @cancel="handleCancel"
-        />
-      </div>
-    </div>
 
-    <!-- 选择器栏：渠道选择器 + 模型选择器 -->
-    <div class="selector-bar">
-      <!-- 渠道选择器 -->
-      <div class="channel-selector-wrapper">
-        <ChannelSelector
-          :model-value="chatStore.configId"
-          :options="channelOptions"
-          :placeholder="t('components.input.selectChannel')"
-          :disabled="isLoadingConfigs"
-          :drop-up="true"
-          @update:model-value="handleChannelChange"
-        />
-      </div>
-      
-      <!-- 分隔线 -->
-      <span class="selector-separator"></span>
-      
-      <!-- 模型选择器 -->
-      <div class="model-selector-wrapper">
-        <ModelSelector
-          :models="currentModels"
-          :current-model="currentModel"
-          :disabled="!chatStore.configId || isLoadingConfigs"
-          @update:model="handleModelChange"
-        />
+        <div class="composer-footer-actions">
+          <!-- Token 使用量圆环 -->
+          <div class="token-ring-wrapper">
+            <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
+              <!-- 背景圆环 -->
+              <circle
+                cx="11"
+                cy="11"
+                :r="ringRadius"
+                fill="none"
+                stroke="var(--vscode-panel-border)"
+                stroke-width="2"
+              />
+              <!-- 进度圆环 -->
+              <circle
+                cx="11"
+                cy="11"
+                :r="ringRadius"
+                fill="none"
+                :stroke="tokenRingColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                :stroke-dasharray="ringCircumference"
+                :stroke-dashoffset="ringDashOffset"
+                transform="rotate(-90 11 11)"
+              />
+            </svg>
+            <!-- 悬浮提示 -->
+            <div class="token-tooltip">
+              <div class="token-tooltip-row">
+                <span class="token-tooltip-label">{{ t('components.input.tokenUsage') }}</span>
+                <span class="token-tooltip-value">{{ chatStore.tokenUsagePercent.toFixed(1) }}%</span>
+              </div>
+              <div class="token-tooltip-row">
+                <span class="token-tooltip-label">{{ t('components.input.context') }}</span>
+                <span class="token-tooltip-value">{{ formatNumber(chatStore.usedTokens) }} / {{ formatNumber(chatStore.maxContextTokens) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 压缩上下文按钮 -->
+          <Tooltip :content="t('components.input.summarizeContext')" placement="top">
+            <IconButton
+              icon="codicon-fold"
+              size="small"
+              :disabled="chatStore.isWaitingForResponse || chatStore.usedTokens === 0 || isSummarizing"
+              :loading="isSummarizing"
+              class="summarize-button"
+              @click="handleSummarize"
+            />
+          </Tooltip>
+
+          <!-- 发送按钮：放到最后一排，避免挤占输入框宽度 -->
+          <SendButton
+            :disabled="!canSend"
+            :loading="chatStore.isWaitingForResponse"
+            @click="handleSend"
+            @cancel="handleCancel"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -959,15 +1005,77 @@ watch(() => chatStore.currentConfig, () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-sm, 8px);
+  gap: 6px;
+  padding: 6px 8px;
   background: var(--vscode-editor-background);
   border-top: 1px solid var(--vscode-panel-border);
+  z-index: 2000;
 }
 
-/* 输入框容器 */
-.input-box-container {
+/* 输入框整体容器：一个框里放所有控件 */
+.composer {
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  overflow: visible;
+}
+
+.composer:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
+.composer-top {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px 0 6px;
+}
+
+.composer-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.composer-input {
   position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+.composer-selectors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 240px;
+  min-width: 0;
+  max-width: 240px;
+}
+
+.composer-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* 模型选择器 */
+.model-selector-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-selector-wrapper :deep(.unified-model-selector) {
+  width: 100%;
 }
 
 /* 附件列表 */
@@ -1080,20 +1188,6 @@ watch(() => chatStore.currentConfig, () => {
   flex-shrink: 0;
 }
 
-/* 底部工具栏 */
-.bottom-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.toolbar-left,
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-}
-
 /* 附件按钮图标放大 1.2 倍 */
 .attach-button :deep(i.codicon) {
   font-size: 17px !important; /* 14px * 1.2 ≈ 17px */
@@ -1175,49 +1269,6 @@ watch(() => chatStore.currentConfig, () => {
   color: var(--vscode-foreground);
   font-family: var(--vscode-editor-font-family);
   font-size: 10px;
-}
-
-/* 选择器栏 */
-.selector-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-  padding-top: 4px;
-  border-top: 1px solid var(--vscode-panel-border);
-  max-width: 280px;
-}
-
-/* 渠道选择器 */
-.channel-selector-wrapper {
-  flex: 1;
-  min-width: 0;
-}
-
-.channel-selector-wrapper :deep(.channel-selector) {
-  width: 100%;
-}
-
-.channel-selector-wrapper :deep(.selector-dropdown) {
-  width: 180px;
-  min-width: 180px;
-}
-
-/* 模型选择器 */
-.model-selector-wrapper {
-  flex: 1;
-  min-width: 0;
-}
-
-.model-selector-wrapper :deep(.model-selector) {
-  width: 100%;
-}
-
-/* 选择器分隔线 */
-.selector-separator {
-  width: 1px;
-  height: 14px;
-  background: var(--vscode-panel-border);
-  opacity: 0.6;
 }
 
 /* 固定文件按钮 */

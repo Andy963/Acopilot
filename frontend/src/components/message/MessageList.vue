@@ -457,7 +457,7 @@ function formatCheckpointTime(timestamp: number): string {
                 </span>
                 <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount }) }}</span>
               </div>
-              <span class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp) }}</span>
+              <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp) }}</span>
               <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
                 <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
                   <i class="codicon codicon-discard"></i>
@@ -502,7 +502,7 @@ function formatCheckpointTime(timestamp: number): string {
                   <span class="checkpoint-label">{{ getCheckpointLabel(cp, 'after') }}</span>
                   <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount }) }}</span>
                 </div>
-                <span class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp) }}</span>
+                <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp) }}</span>
                 <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
                   <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
                     <i class="codicon codicon-discard"></i>
@@ -775,7 +775,7 @@ function formatCheckpointTime(timestamp: number): string {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 2px 12px;
   margin: 0;
   background: var(--vscode-editor-background);
   border-left: 2px solid var(--vscode-charts-yellow, #ddb92f);
@@ -799,8 +799,8 @@ function formatCheckpointTime(timestamp: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
@@ -817,7 +817,7 @@ function formatCheckpointTime(timestamp: number): string {
 }
 
 .checkpoint-icon .codicon {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .checkpoint-info {
@@ -861,8 +861,8 @@ function formatCheckpointTime(timestamp: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   background: transparent;
   border: none;
