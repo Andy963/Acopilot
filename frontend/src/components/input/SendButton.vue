@@ -58,8 +58,8 @@ function handleCancel() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   background: transparent;
   color: var(--vscode-foreground);
   border: none;
@@ -84,6 +84,8 @@ function handleCancel() {
 
 .send-icon {
   font-size: 16px;
+  position: relative;
+  top: 1px;
 }
 
 .stop-icon {

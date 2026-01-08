@@ -467,26 +467,6 @@ function handleRestoreAndRetry(checkpointId: string) {
     @mouseenter="showActions = true"
     @mouseleave="showActions = false"
   >
-    <div class="message-header">
-      <div class="message-role-indicator">
-        <span class="role-label">
-          {{ roleDisplayName }}
-        </span>
-      </div>
-
-      <!-- 操作按钮 -->
-      <MessageActions
-        :class="{ 'actions-visible': showActions }"
-        :message="message"
-        :can-edit="isUser"
-        :can-retry="!isUser"
-        @edit="startEdit"
-        @copy="handleCopy"
-        @delete="handleDelete"
-        @retry="handleRetryClick"
-      />
-    </div>
-    
     <!-- 重试对话框 -->
     <RetryDialog
       v-model="showRetryDialog"
@@ -591,37 +571,52 @@ function handleRestoreAndRetry(checkpointId: string) {
           :latex-only="isUser"
           class="content-text"
         />
-        
+
         <!-- 流式指示器 - 简洁下划线 -->
         <span v-if="isStreaming" class="streaming-indicator"></span>
 
-        <!-- 消息底部信息：时间 + 响应时间 + Token 速率 + Token 统计 -->
-        <div class="message-footer">
-          <div class="message-footer-left">
-            <span v-if="formattedTime" class="message-time">{{ formattedTime }}</span>
-            
-            <!-- 响应持续时间 -->
+        <!-- 消息底部信息：工具栏统一放在下方 -->
+        <div
+          v-if="formattedTime || showActions || (!isUser && (responseDuration || tokenRate || hasUsage))"
+          class="message-footer"
+          :class="{ 'user-footer': isUser }"
+        >
+          <div v-if="!isUser" class="message-footer-left">
+            <span class="role-label">{{ roleDisplayName }}</span>
+
             <span v-if="responseDuration" class="response-duration" :title="t('components.message.stats.responseDuration')">
               <i class="codicon codicon-clock"></i>{{ responseDuration }}
             </span>
-            
-            <!-- Token 速率 -->
+
             <span v-if="tokenRate" class="token-rate" :title="t('components.message.stats.tokenRate')">
               <i class="codicon codicon-zap"></i>{{ tokenRate }} t/s
             </span>
+
+            <div v-if="hasUsage" class="token-usage">
+              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
+                {{ usageMetadata.totalTokenCount }}
+              </span>
+              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
+                <span class="token-arrow">↑</span>{{ usageMetadata.promptTokenCount }}
+              </span>
+              <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
+                <span class="token-arrow">↓</span>{{ usageMetadata.candidatesTokenCount }}
+              </span>
+            </div>
           </div>
-          
-          <!-- Token 使用统计 -->
-          <div v-if="hasUsage" class="token-usage">
-            <span v-if="usageMetadata?.totalTokenCount" class="token-total">
-              {{ usageMetadata.totalTokenCount }}
-            </span>
-            <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
-              <span class="token-arrow">↑</span>{{ usageMetadata.promptTokenCount }}
-            </span>
-            <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
-              <span class="token-arrow">↓</span>{{ usageMetadata.candidatesTokenCount }}
-            </span>
+
+          <div class="message-footer-right">
+            <MessageActions
+              v-if="showActions"
+              :message="message"
+              :can-edit="isUser"
+              :can-retry="!isUser"
+              @edit="startEdit"
+              @copy="handleCopy"
+              @delete="handleDelete"
+              @retry="handleRetryClick"
+            />
+            <span v-if="formattedTime" class="message-time">{{ formattedTime }}</span>
           </div>
         </div>
         </div>
@@ -643,6 +638,16 @@ function handleRestoreAndRetry(checkpointId: string) {
   contain: layout;
 }
 
+.message-item.user-message {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.06));
+}
+
+.message-item.assistant-message {
+  background: transparent;
+}
+
 .message-item:last-child {
   border-bottom: none;
 }
@@ -654,24 +659,14 @@ function handleRestoreAndRetry(checkpointId: string) {
   max-width: 100%;
 }
 
-/* 消息头部 */
-.message-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-sm, 8px);
-}
-
-.message-role-indicator {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-}
-
 .role-label {
   font-size: 12px;
   font-weight: 600;
   color: var(--vscode-foreground);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-message .role-label {
@@ -692,19 +687,34 @@ function handleRestoreAndRetry(checkpointId: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--spacing-sm, 8px);
+  margin-top: 6px;
+  gap: 10px;
+}
+
+.message-footer.user-footer {
+  justify-content: flex-end;
+  margin-top: 2px;
 }
 
 .message-footer-left {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm, 8px);
+  min-width: 0;
+}
+
+.message-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
 .message-time {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 /* 响应持续时间 */
@@ -765,7 +775,7 @@ function handleRestoreAndRetry(checkpointId: string) {
 
 /* Token 使用统计 */
 .token-usage {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm, 8px);
   font-size: 11px;
@@ -857,16 +867,6 @@ function handleRestoreAndRetry(checkpointId: string) {
 
 .btn-save:hover {
   opacity: 0.9;
-}
-
-/* 操作按钮淡入淡出效果 */
-.message-header :deep(.message-actions) {
-  opacity: 0;
-  transition: opacity var(--transition-fast, 0.15s);
-}
-
-.message-header :deep(.message-actions.actions-visible) {
-  opacity: 1;
 }
 
 /* 思考块样式 - 使用灰色调、斜体，保持简洁 */

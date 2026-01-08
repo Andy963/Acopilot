@@ -18,6 +18,7 @@ const props = defineProps<{
   maxLength?: number
   minRows?: number
   maxRows?: number
+  variant?: 'standalone' | 'embedded'
 }>()
 
 const emit = defineEmits<{
@@ -35,6 +36,8 @@ const emit = defineEmits<{
 
 const textareaRef = ref<HTMLTextAreaElement>()
 const currentRows = ref(props.minRows || 2)
+const lastSetHeight = ref('')
+const isManuallyResized = ref(false)
 
 // 调整高度时的检测状态
 const cachedLineHeight = ref(0)
@@ -56,6 +59,13 @@ function adjustHeight() {
   if (!textareaRef.value) return
   
   const textarea = textareaRef.value
+
+  // 检测手动调整
+  if (lastSetHeight.value && textarea.style.height !== lastSetHeight.value) {
+    isManuallyResized.value = true
+  }
+  if (isManuallyResized.value) return
+
   const minRows = props.minRows || 2  // 默认最少两行
   const maxRows = props.maxRows || 6
   
@@ -98,6 +108,7 @@ function adjustHeight() {
   // 只有当高度真正改变时才更新 DOM
   if (oldHeight !== finalHeight) {
     textarea.style.height = finalHeight
+    lastSetHeight.value = finalHeight
     currentRows.value = rows
   } else {
     // 如果没变，恢复原状
@@ -584,7 +595,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="input-box" :class="{ 'drag-over': isDragOver }">
+  <div class="input-box" :class="{ 'drag-over': isDragOver, embedded: props.variant === 'embedded' }">
     <textarea
       ref="textareaRef"
       :value="value"
@@ -634,7 +645,7 @@ defineExpose({
 .input-textarea {
   width: 100%;
   min-height: 56px;  /* 确保至少两行高度 */
-  max-height: 160px;
+  /* max-height: 160px; */
   padding: var(--spacing-sm, 8px);
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
@@ -643,7 +654,7 @@ defineExpose({
   font-family: var(--vscode-font-family);
   font-size: 13px;
   line-height: 1.5;
-  resize: none;
+  resize: vertical;
   outline: none;
   transition: border-color var(--transition-fast, 0.1s);
   overflow-y: auto;
@@ -652,7 +663,17 @@ defineExpose({
   -ms-overflow-style: none;
 }
 
+.input-box.embedded .input-textarea {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
 .input-textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.input-textarea::-webkit-resizer {
   display: none;
 }
 
