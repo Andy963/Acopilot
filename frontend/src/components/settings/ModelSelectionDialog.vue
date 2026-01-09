@@ -309,7 +309,7 @@ watch(() => props.visible, (visible) => {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-md, 6px);
   font-size: 11px;
   cursor: pointer;
   transition: background 0.15s;
@@ -332,7 +332,7 @@ watch(() => props.visible, (visible) => {
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   color: var(--vscode-foreground);
   cursor: pointer;
   transition: background 0.15s;
@@ -377,7 +377,7 @@ watch(() => props.visible, (visible) => {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
@@ -405,7 +405,7 @@ watch(() => props.visible, (visible) => {
   padding: 8px;
   margin-bottom: 8px;
   border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   background: var(--vscode-input-background);
 }
 
@@ -439,7 +439,7 @@ watch(() => props.visible, (visible) => {
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   flex-shrink: 0;
@@ -481,16 +481,16 @@ watch(() => props.visible, (visible) => {
 .model-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .model-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 6px 10px;
   background: var(--vscode-list-hoverBackground);
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -513,13 +513,13 @@ watch(() => props.visible, (visible) => {
 
 .model-checkbox {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--vscode-input-border);
-  border-radius: 3px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   background: var(--vscode-input-background);
   transition: all 0.15s;
 }
@@ -539,7 +539,7 @@ watch(() => props.visible, (visible) => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .model-id {
@@ -547,12 +547,14 @@ watch(() => props.visible, (visible) => {
   font-family: var(--vscode-editor-font-family);
   color: var(--vscode-foreground);
   font-weight: 500;
+  line-height: 16px;
 }
 
 .model-name {
   font-size: 11px;
   color: var(--vscode-foreground);
   opacity: 0.8;
+  line-height: 14px;
 }
 
 .model-desc {
@@ -561,6 +563,7 @@ watch(() => props.visible, (visible) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 14px;
 }
 
 .added-badge {
@@ -570,7 +573,7 @@ watch(() => props.visible, (visible) => {
   color: var(--vscode-charts-green, #89d185);
   background: color-mix(in srgb, var(--vscode-charts-green) 20%, transparent);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -602,7 +605,7 @@ watch(() => props.visible, (visible) => {
 .btn {
   padding: 6px 12px;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
