@@ -7,6 +7,10 @@ tsconfig.json
 *.ts
 !*.d.ts
 
+# 临时文件/日志/打包产物
+.ads/**
+*.vsix
+
 # 锁文件
 pnpm-lock.yaml
 package-lock.json

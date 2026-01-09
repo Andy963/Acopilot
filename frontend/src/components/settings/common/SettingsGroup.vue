@@ -5,7 +5,7 @@
  * Unified collapsible group for settings pages (scheme C).
  */
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, useSlots, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   title: string
@@ -28,6 +28,9 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
+const slots = useSlots()
+const hasActions = computed(() => Boolean(slots.actions))
+
 const isControlled = computed(() => props.modelValue !== undefined)
 const internalExpanded = ref<boolean>(props.defaultExpanded)
 
@@ -44,6 +47,26 @@ const expanded = computed<boolean>({
 
 function toggle() {
   expanded.value = !expanded.value
+}
+
+function isInteractiveElement(target: HTMLElement | null): boolean {
+  if (!target) return false
+  return Boolean(
+    target.closest(
+      'button, a, input, select, textarea, label, [role="button"], [role="link"], [contenteditable="true"]'
+    )
+  )
+}
+
+function handleHeaderClick(event: MouseEvent) {
+  if (props.disabled) return
+  const target = event.target as HTMLElement | null
+
+  // 允许点击 actions 区域的空白处来折叠/展开，但避免点击按钮等控件时误触折叠
+  if (target?.closest('.group-actions') && isInteractiveElement(target)) return
+  if (isInteractiveElement(target)) return
+
+  toggle()
 }
 
 onMounted(() => {
@@ -69,7 +92,7 @@ watch(expanded, (value) => {
 
 <template>
   <div class="settings-group" :class="{ expanded, disabled }">
-    <div class="group-header" @click="toggle">
+    <div class="group-header" @click="handleHeaderClick">
       <div class="header-left">
         <i v-if="icon" :class="['codicon', icon]"></i>
         <div class="header-text">
@@ -81,9 +104,14 @@ watch(expanded, (value) => {
         </div>
       </div>
 
-      <div class="header-right" @click.stop>
-        <slot name="actions" />
-        <i :class="['codicon', expanded ? 'codicon-chevron-down' : 'codicon-chevron-right', 'chevron']"></i>
+      <div class="header-right">
+        <div v-if="hasActions" class="group-actions">
+          <slot name="actions" />
+        </div>
+        <i
+          :class="['codicon', expanded ? 'codicon-chevron-down' : 'codicon-chevron-right', 'chevron']"
+          @click.stop="toggle"
+        ></i>
       </div>
     </div>
 
@@ -184,6 +212,13 @@ watch(expanded, (value) => {
   flex-shrink: 0;
 }
 
+.group-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .chevron {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
@@ -205,4 +240,3 @@ watch(expanded, (value) => {
   transform: translateY(-2px);
 }
 </style>
-
