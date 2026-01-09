@@ -5,14 +5,14 @@
  * Unified collapsible group for settings pages (scheme C).
  */
 
-import { computed, onMounted, ref, useSlots, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   title: string
   icon?: string
   description?: string
   badge?: string | number
-  modelValue?: boolean
+  modelValue?: boolean | undefined
   defaultExpanded?: boolean
   storageKey?: string
   disabled?: boolean
@@ -20,6 +20,7 @@ const props = withDefaults(defineProps<{
   icon: '',
   description: '',
   badge: '',
+  modelValue: undefined,
   defaultExpanded: true,
   disabled: false
 })
@@ -27,9 +28,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
-
-const slots = useSlots()
-const hasActions = computed(() => Boolean(slots.actions))
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const internalExpanded = ref<boolean>(props.defaultExpanded)
@@ -85,13 +83,8 @@ watch(expanded, (value) => {
       </div>
 
       <div class="header-right">
-        <div v-if="hasActions" class="group-actions" @click.stop>
-          <slot name="actions" />
-        </div>
-        <i
-          :class="['codicon', expanded ? 'codicon-chevron-down' : 'codicon-chevron-right', 'chevron']"
-          @click.stop="toggle"
-        ></i>
+        <slot name="actions" />
+        <i :class="['codicon', expanded ? 'codicon-chevron-down' : 'codicon-chevron-right', 'chevron']"></i>
       </div>
     </div>
 
@@ -192,16 +185,16 @@ watch(expanded, (value) => {
   flex-shrink: 0;
 }
 
-.group-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
 .chevron {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.chevron:hover {
+  background: var(--vscode-toolbar-hoverBackground);
 }
 
 .group-content {
@@ -220,3 +213,4 @@ watch(expanded, (value) => {
   transform: translateY(-2px);
 }
 </style>
+

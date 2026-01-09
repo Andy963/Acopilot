@@ -364,7 +364,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             localResourceRoots: [
                 vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist')),
-                vscode.Uri.file(path.join(this.context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist'))
+                vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons'))
             ]
         };
 
@@ -547,7 +547,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist', 'index.css'))
         );
         const codiconsUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(this.context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'))
+            vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons', 'codicon.css'))
         );
 
         return `<!DOCTYPE html>
