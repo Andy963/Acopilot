@@ -49,26 +49,6 @@ function toggle() {
   expanded.value = !expanded.value
 }
 
-function isInteractiveElement(target: HTMLElement | null): boolean {
-  if (!target) return false
-  return Boolean(
-    target.closest(
-      'button, a, input, select, textarea, label, [role="button"], [role="link"], [contenteditable="true"]'
-    )
-  )
-}
-
-function handleHeaderClick(event: MouseEvent) {
-  if (props.disabled) return
-  const target = event.target as HTMLElement | null
-
-  // 允许点击 actions 区域的空白处来折叠/展开，但避免点击按钮等控件时误触折叠
-  if (target?.closest('.group-actions') && isInteractiveElement(target)) return
-  if (isInteractiveElement(target)) return
-
-  toggle()
-}
-
 onMounted(() => {
   if (!props.storageKey) return
   try {
@@ -92,7 +72,7 @@ watch(expanded, (value) => {
 
 <template>
   <div class="settings-group" :class="{ expanded, disabled }">
-    <div class="group-header" @click="handleHeaderClick">
+    <div class="group-header" @click="toggle">
       <div class="header-left">
         <i v-if="icon" :class="['codicon', icon]"></i>
         <div class="header-text">
@@ -105,7 +85,7 @@ watch(expanded, (value) => {
       </div>
 
       <div class="header-right">
-        <div v-if="hasActions" class="group-actions">
+        <div v-if="hasActions" class="group-actions" @click.stop>
           <slot name="actions" />
         </div>
         <i
