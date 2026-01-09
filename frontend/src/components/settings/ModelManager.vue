@@ -314,7 +314,7 @@ async function selectModel(modelId: string) {
   gap: 4px;
   padding: 4px 10px;
   border: none;
-  border-radius: var(--lc-settings-radius-sm, 4px);
+  border-radius: var(--lc-settings-radius-md, 6px);
   font-size: 11px;
   cursor: pointer;
   transition: background 0.15s;
