@@ -641,10 +641,6 @@ function handleRestoreAndRetry(checkpointId: string) {
 .message-item.user-message {
   padding-top: 10px;
   padding-bottom: 10px;
-  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.06));
-}
-
-.message-item.assistant-message {
   background: transparent;
 }
 
