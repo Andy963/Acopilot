@@ -15,6 +15,7 @@ import { CustomCheckbox, DependencyWarning } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { useDependency, TOOL_DEPENDENCIES, hasToolDependencies, getToolDependencies } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
+import SettingsGroup from './common/SettingsGroup.vue'
 import ListFilesConfig from './tools/files/list_files.vue'
 import ApplyDiffConfig from './tools/files/apply_diff.vue'
 import ExecuteCommandConfig from './tools/terminal/execute_command.vue'
@@ -223,6 +224,10 @@ function getCategoryIcon(category: string): string {
   return categoryIcons[category] || 'codicon-extensions'
 }
 
+function getCategoryEnabledCount(categoryTools: ToolInfo[]): number {
+  return categoryTools.filter(t => t.enabled).length
+}
+
 // 加载最大工具调用次数配置
 async function loadMaxToolIterations() {
   isLoadingMaxIterations.value = true
@@ -326,18 +331,16 @@ onMounted(() => {
     
     <!-- 工具列表 -->
     <div v-else class="tools-list">
-      <div 
-        v-for="(categoryTools, category) in toolsByCategory" 
+      <SettingsGroup
+        v-for="(categoryTools, category) in toolsByCategory"
         :key="category"
-        class="tool-category"
+        :title="getCategoryDisplayName(category)"
+        :icon="getCategoryIcon(category)"
+        :badge="`${getCategoryEnabledCount(categoryTools)}/${categoryTools.length}`"
+        :storage-key="`limcode.settings.tools.category.${category}`"
+        :default-expanded="true"
       >
-        <div class="category-header">
-          <i :class="['codicon', getCategoryIcon(category)]"></i>
-          <span>{{ getCategoryDisplayName(category) }}</span>
-          <span class="category-count">{{ categoryTools.length }}</span>
-        </div>
-        
-        <div class="category-tools">
+        <div class="category-rows">
           <div
             v-for="tool in categoryTools"
             :key="tool.name"
@@ -366,7 +369,7 @@ onMounted(() => {
                   v-if="hasConfigPanel(tool.name)"
                   class="config-btn"
                   :class="{ active: isConfigExpanded(tool.name) }"
-                  @click="toggleConfigPanel(tool.name)"
+                  @click.stop="toggleConfigPanel(tool.name)"
                   :title="t('components.settings.toolsSettings.config.tooltip')"
                 >
                   <i class="codicon" :class="isConfigExpanded(tool.name) ? 'codicon-chevron-up' : 'codicon-settings-gear'"></i>
@@ -433,7 +436,7 @@ onMounted(() => {
             />
           </div>
         </div>
-      </div>
+      </SettingsGroup>
     </div>
   </div>
 </template>
@@ -453,7 +456,7 @@ onMounted(() => {
   padding: 12px;
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--lc-settings-radius-lg, 8px);
 }
 
 .config-item {
@@ -494,7 +497,7 @@ onMounted(() => {
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   font-size: 13px;
   text-align: center;
   appearance: textfield;
@@ -544,7 +547,7 @@ onMounted(() => {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   font-size: 12px;
   cursor: pointer;
   transition: background-color 0.15s;
@@ -584,49 +587,13 @@ onMounted(() => {
 .tools-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* 分类 */
-.tool-category {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.category-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.category-header .codicon {
-  font-size: 14px;
-  color: var(--vscode-foreground);
-}
-
-.category-count {
-  margin-left: auto;
-  padding: 2px 8px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-/* 工具项 */
-.category-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 12px;
+.category-rows {
+  border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
+  border-radius: var(--lc-settings-radius-md, 6px);
+  overflow: hidden;
 }
 
 .tool-wrapper {
@@ -640,14 +607,18 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   transition: background-color 0.15s;
 }
 
+.tool-wrapper:not(:last-child) {
+  border-bottom: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
+}
+
 .tool-item:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--lc-settings-surface-hover, var(--vscode-list-hoverBackground));
 }
 
 .tool-item.tool-disabled {
@@ -699,7 +670,7 @@ onMounted(() => {
   height: 28px;
   background: transparent;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   transition: all 0.15s;
@@ -753,8 +724,7 @@ onMounted(() => {
 }
 
 .tool-dependency-warning {
-  margin-top: 4px;
-  margin-left: 12px;
+  margin: 6px 12px 10px;
 }
 
 /* Loading 动画 */
