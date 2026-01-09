@@ -560,6 +560,9 @@ onUnmounted(() => {
   padding: 12px;
   background: var(--vscode-textCodeBlock-background);
   border-radius: 4px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   max-height: 400px;
   overflow-y: auto;
@@ -624,7 +627,11 @@ onUnmounted(() => {
   font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
   font-size: 12px;
   line-height: 1.5;
-  display: block;
+  display: inline-block;
+  min-width: 100%;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 /* 行内代码 */

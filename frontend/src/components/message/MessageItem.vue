@@ -631,6 +631,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 8px);
+  min-width: 0;
   padding: var(--spacing-md, 16px) var(--spacing-md, 16px);
   border-bottom: 1px solid var(--vscode-panel-border);
   transition: background-color var(--transition-fast, 0.1s);
@@ -685,6 +686,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   justify-content: space-between;
   margin-top: 6px;
   gap: 10px;
+  min-height: 24px;
 }
 
 .message-footer.user-footer {
@@ -704,6 +706,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   align-items: center;
   gap: 6px;
   margin-left: auto;
+  min-height: 24px;
 }
 
 .message-time {
