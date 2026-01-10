@@ -200,6 +200,16 @@ function computeDiffLines(search: string, replace: string, startLine: number = 1
   return result
 }
 
+function computeFailedPreviewLines(search: string, startLine: number = 1): DiffLine[] {
+  const searchLines = search.split('\n')
+  let oldLineNum = startLine
+  return searchLines.map((content) => ({
+    type: 'deleted',
+    content,
+    oldLineNum: oldLineNum++
+  }))
+}
+
 // 计算最长公共子序列
 interface LCSMatch {
   oldIndex: number
@@ -464,12 +474,31 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 失败时的内容预览 -->
-        <div v-if="diff.success === false" class="diff-content-failed">
-          <div class="failed-section">
-            <div class="failed-label">{{ t('message.tool.parameters') }} (search):</div>
-            <CustomScrollbar :horizontal="true" :max-height="150">
-              <pre class="failed-code search">{{ diff.search }}</pre>
-            </CustomScrollbar>
+        <div v-if="diff.success === false" class="diff-content diff-content-failed">
+          <CustomScrollbar :horizontal="true" :max-height="150">
+            <div class="diff-lines">
+              <div
+                v-for="(line, lineIndex) in getDisplayLines(computeFailedPreviewLines(diff.search, diff.start_line || 1), index)"
+                :key="lineIndex"
+                :class="['diff-line', `line-${line.type}`]"
+              >
+                <span class="line-nums">
+                  <span class="old-num">{{ formatLineNum(line.oldLineNum, getLineNumWidth(diff)) }}</span>
+                  <span class="new-num">{{ formatLineNum(line.newLineNum, getLineNumWidth(diff)) }}</span>
+                </span>
+                <span class="line-marker">
+                  <span class="marker deleted">-</span>
+                </span>
+                <span class="line-content">{{ line.content || ' ' }}</span>
+              </div>
+            </div>
+          </CustomScrollbar>
+
+          <div v-if="needsExpand(computeFailedPreviewLines(diff.search, diff.start_line || 1))" class="expand-section">
+            <button class="expand-btn" @click="toggleExpand(index)">
+              <span :class="['codicon', isExpanded(index) ? 'codicon-chevron-up' : 'codicon-chevron-down']"></span>
+              {{ isExpanded(index) ? t('components.tools.file.applyDiffPanel.collapse') : t('components.tools.file.applyDiffPanel.expandRemaining', { count: computeFailedPreviewLines(diff.search, diff.start_line || 1).length - previewLineCount }) }}
+            </button>
           </div>
         </div>
       </div>
@@ -482,6 +511,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 8px);
+  --apply-diff-radius: 10px;
+  --apply-diff-radius-sm: 8px;
 }
 
 /* 头部 */
@@ -532,9 +563,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs, 4px);
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  background: var(--vscode-editor-inactiveSelectionBackground);
-  border-radius: var(--radius-sm, 2px);
+  padding: 6px 10px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--apply-diff-radius-sm);
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-editor-font-family);
@@ -555,20 +587,19 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  background: var(--vscode-testing-iconPassed);
-  background: rgba(0, 200, 83, 0.1);
+  padding: 6px 10px;
+  background: rgba(0, 200, 83, 0.12);
   border: 1px solid var(--vscode-testing-iconPassed);
-  border-radius: var(--radius-sm, 2px);
+  border-radius: var(--apply-diff-radius);
 }
 
 .result-status.is-error {
-  background: rgba(255, 82, 82, 0.1);
+  background: rgba(255, 82, 82, 0.12);
   border-color: var(--vscode-testing-iconFailed);
 }
 
 .result-status.is-partial {
-  background: rgba(230, 149, 0, 0.1);
+  background: rgba(230, 149, 0, 0.12);
   border-color: var(--vscode-charts-orange);
 }
 
@@ -601,7 +632,7 @@ onBeforeUnmount(() => {
 .status-badge {
   font-size: 9px;
   padding: 1px 4px;
-  border-radius: 2px;
+  border-radius: 999px;
   font-weight: 500;
 }
 
@@ -623,7 +654,7 @@ onBeforeUnmount(() => {
   padding: var(--spacing-sm, 8px);
   background: var(--vscode-inputValidation-errorBackground);
   border: 1px solid var(--vscode-inputValidation-errorBorder);
-  border-radius: var(--radius-sm, 2px);
+  border-radius: var(--apply-diff-radius);
 }
 
 .error-icon {
@@ -642,13 +673,13 @@ onBeforeUnmount(() => {
 .diff-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm, 8px);
+  gap: 10px;
 }
 
 /* 单个 Diff 块 */
 .diff-block {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--radius-sm, 2px);
+  border-radius: var(--apply-diff-radius);
   overflow: hidden;
   transition: border-color var(--transition-fast, 0.1s);
 }
@@ -663,7 +694,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+  padding: 8px 12px;
   background: var(--vscode-editor-inactiveSelectionBackground);
   border-bottom: 1px solid var(--vscode-panel-border);
 }
@@ -745,11 +776,11 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm, 2px);
+  border-radius: 6px;
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   transition: all var(--transition-fast, 0.1s);
@@ -772,34 +803,7 @@ onBeforeUnmount(() => {
 }
 
 .diff-content-failed {
-  padding: var(--spacing-sm, 8px);
   background: var(--vscode-editor-background);
-  font-size: 11px;
-}
-
-.failed-section {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.failed-label {
-  color: var(--vscode-descriptionForeground);
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.failed-code {
-  margin: 0;
-  padding: var(--spacing-xs, 4px);
-  background: var(--vscode-editor-inactiveSelectionBackground);
-  border-radius: var(--radius-sm, 2px);
-  font-family: var(--vscode-editor-font-family);
-  white-space: pre;
-}
-
-.failed-code.search {
-  border-left: 2px solid var(--vscode-testing-iconFailed);
 }
 
 .diff-lines {
