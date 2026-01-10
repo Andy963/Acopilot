@@ -1031,7 +1031,7 @@ watch(() => chatStore.currentConfig, () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px;
+  padding: 0 6px;
   min-width: 0;
   flex-wrap: nowrap;
 }
@@ -1052,7 +1052,7 @@ watch(() => chatStore.currentConfig, () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 6px;
+  padding: 0 6px;
 }
 
 .composer-selectors {
