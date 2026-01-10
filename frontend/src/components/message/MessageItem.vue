@@ -716,7 +716,7 @@ function handleRestoreAndRetry(checkpointId: string) {
 
 .message-item.user-message {
   padding-top: 10px;
-  padding-bottom: 10px;
+  padding-bottom: 4px;
   background: transparent;
 }
 
@@ -766,7 +766,7 @@ function handleRestoreAndRetry(checkpointId: string) {
 
 .message-footer.user-footer {
   justify-content: flex-end;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .message-footer-left {
