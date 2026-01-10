@@ -667,6 +667,8 @@ defineExpose({
   background: transparent;
   border: none;
   border-radius: 0;
+  padding: 1px var(--spacing-sm, 8px) 0 var(--spacing-sm, 8px);
+  min-height: 32px;
 }
 
 .input-textarea::-webkit-scrollbar {

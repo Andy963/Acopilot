@@ -507,8 +507,8 @@ const en: LanguageMessages = {
                             hint: 'Maximum retry attempts when API returns error (1-10)'
                         },
                         retryInterval: {
-                            label: 'Retry Interval (ms)',
-                            hint: 'Wait time between each retry (1000-60000 milliseconds)'
+                            label: 'Base Interval (ms)',
+                            hint: 'Base wait time for retry, doubles after each failure (exponential backoff)'
                         }
                     },
                     enabled: {
@@ -1176,8 +1176,8 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'Lim Code - Vibe Coding Assistant',
-                    version: 'Version: 1.0.38',
+                    name: 'lim-code',
+                    version: 'Version: {version}',
                     repository: 'Repository',
                     developer: 'Developer'
                 }

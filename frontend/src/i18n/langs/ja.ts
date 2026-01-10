@@ -507,8 +507,8 @@ const ja: LanguageMessages = {
                             hint: 'API がエラーを返した場合の最大リトライ回数（1-10）'
                         },
                         retryInterval: {
-                            label: 'リトライ間隔 (ms)',
-                            hint: '各リトライ間の待機時間（1000-60000 ミリ秒）'
+                            label: '基本間隔 (ms)',
+                            hint: 'リトライの基本待機時間、失敗ごとに倍増（指数バックオフ）'
                         }
                     },
                     enabled: {
@@ -1176,8 +1176,8 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'Lim Code - Vibe Coding アシスタント',
-                    version: 'バージョン：1.0.38',
+                    name: 'lim-code',
+                    version: 'バージョン：{version}',
                     repository: 'リポジトリ',
                     developer: '開発者'
                 }
