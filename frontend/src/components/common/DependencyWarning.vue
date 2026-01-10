@@ -34,38 +34,43 @@ function goToDependencySettings() {
 
 <template>
   <div :class="['dependency-warning', { compact }]">
-    <div class="warning-header">
+    <div class="warning-content">
       <span class="codicon codicon-warning warning-icon"></span>
-      <span class="warning-title">{{ t('components.common.dependencyWarning.title') }}</span>
-    </div>
-    <p v-if="message" class="warning-message">{{ message }}</p>
-    <p v-else class="warning-message">
-      {{ t('components.common.dependencyWarning.defaultMessage') }}<span class="dep-list">{{ dependencies.join(', ') }}</span>
-    </p>
-    <div class="warning-hint">
-      {{ t('components.common.dependencyWarning.hint') }} <a class="dep-link" @click="goToDependencySettings">{{ t('components.common.dependencyWarning.linkText') }}</a>
+      <span v-if="message" class="warning-text">{{ message }}</span>
+      <span v-else class="warning-text">
+        {{ t('components.common.dependencyWarning.defaultMessage') }}
+        <span class="dep-list">{{ dependencies.join(', ') }}</span>
+        <span class="separator">·</span>
+        <a class="dep-link" @click="goToDependencySettings">{{ t('components.common.dependencyWarning.linkText') }}</a>
+      </span>
     </div>
   </div>
 </template>
 
 <style scoped>
 .dependency-warning {
-  padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
-  background: var(--vscode-inputValidation-warningBackground);
-  border: 1px solid var(--vscode-inputValidation-warningBorder);
-  border-radius: var(--radius-sm, 2px);
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--vscode-inputValidation-warningBackground), transparent 85%);
+  border: 1px solid color-mix(in srgb, var(--vscode-inputValidation-warningBorder), transparent 60%);
+  border-left: 4px solid var(--vscode-charts-orange);
+  border-radius: 6px;
+  margin: 8px 0;
 }
 
 .dependency-warning.compact {
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+  padding: 4px 8px;
   background: transparent;
   border: none;
+  border-left: 3px solid var(--vscode-charts-orange);
+  margin: 4px 0;
 }
 
-.warning-header {
+.warning-content {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm, 8px);
+  gap: 8px;
+  font-size: 12px;
+  color: var(--vscode-inputValidation-warningForeground);
 }
 
 .warning-icon {
@@ -74,49 +79,33 @@ function goToDependencySettings() {
   flex-shrink: 0;
 }
 
-.warning-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--vscode-inputValidation-warningForeground);
-}
-
-.compact .warning-title {
-  font-size: 11px;
-}
-
-.warning-message {
-  margin: var(--spacing-xs, 4px) 0 0 0;
-  font-size: 11px;
-  color: var(--vscode-inputValidation-warningForeground);
+.warning-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   line-height: 1.5;
-}
-
-.compact .warning-message {
-  font-size: 10px;
 }
 
 .dep-list {
   font-weight: 600;
   font-family: var(--vscode-editor-font-family);
+  margin: 0 2px;
 }
 
-.warning-hint {
-  margin-top: var(--spacing-xs, 4px);
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-}
-
-.compact .warning-hint {
-  font-size: 10px;
+.separator {
+  margin: 0 4px;
+  opacity: 0.6;
 }
 
 .dep-link {
   color: var(--vscode-textLink-foreground);
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .dep-link:hover {
   color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
 }
 </style>

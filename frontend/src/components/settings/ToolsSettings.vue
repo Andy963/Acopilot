@@ -114,7 +114,7 @@ const savingTools = ref<Set<string>>(new Set())
 // 按分类分组的工具
 const toolsByCategory = computed(() => {
   const grouped: Record<string, ToolInfo[]> = {}
-  
+
   for (const tool of tools.value) {
     const category = tool.category || '其他'
     if (!grouped[category]) {
@@ -122,7 +122,7 @@ const toolsByCategory = computed(() => {
     }
     grouped[category].push(tool)
   }
-  
+
   return grouped
 })
 
@@ -152,7 +152,7 @@ const categoryIcons: Record<string, string> = {
 // 加载工具列表
 async function loadTools() {
   isLoading.value = true
-  
+
   try {
     const response = await sendToExtension<{ tools: ToolInfo[] }>('tools.getTools', {})
     if (response?.tools) {
@@ -168,13 +168,13 @@ async function loadTools() {
 // 切换工具开关
 async function toggleTool(toolName: string, enabled: boolean) {
   savingTools.value.add(toolName)
-  
+
   try {
     await sendToExtension('tools.setToolEnabled', {
       toolName,
       enabled
     })
-    
+
     // 更新本地状态
     const tool = tools.value.find(t => t.name === toolName)
     if (tool) {
@@ -284,19 +284,10 @@ onMounted(() => {
           <span class="label-hint">{{ t('components.settings.toolsSettings.maxIterations.hint') }}</span>
         </div>
         <div class="config-control">
-          <input
-            type="number"
-            class="iterations-input"
-            :value="maxToolIterations"
-            min="-1"
-            :disabled="isLoadingMaxIterations || isSavingMaxIterations"
-            @input="handleMaxIterationsChange"
-          />
+          <input type="number" class="iterations-input" :value="maxToolIterations" min="-1"
+            :disabled="isLoadingMaxIterations || isSavingMaxIterations" @input="handleMaxIterationsChange" />
           <span class="unit">{{ t('components.settings.toolsSettings.maxIterations.unit') }}</span>
-          <i
-            v-if="isSavingMaxIterations"
-            class="codicon codicon-loading codicon-modifier-spin saving-indicator"
-          ></i>
+          <i v-if="isSavingMaxIterations" class="codicon codicon-loading codicon-modifier-spin saving-indicator"></i>
         </div>
       </div>
     </div>
@@ -316,124 +307,80 @@ onMounted(() => {
         {{ t('components.settings.toolsSettings.actions.disableAll') }}
       </button>
     </div>
-    
+
     <!-- 加载状态 -->
     <div v-if="isLoading" class="loading-state">
       <i class="codicon codicon-loading codicon-modifier-spin"></i>
       <span>{{ t('components.settings.toolsSettings.loading') }}</span>
     </div>
-    
+
     <!-- 空状态 -->
     <div v-else-if="tools.length === 0" class="empty-state">
       <i class="codicon codicon-tools"></i>
       <span>{{ t('components.settings.toolsSettings.empty') }}</span>
     </div>
-    
+
     <!-- 工具列表 -->
     <div v-else class="tools-list">
-      <SettingsGroup
-        v-for="(categoryTools, category) in toolsByCategory"
-        :key="category"
-        :title="getCategoryDisplayName(category)"
-        :icon="getCategoryIcon(category)"
+      <SettingsGroup v-for="(categoryTools, category) in toolsByCategory" :key="category"
+        :title="getCategoryDisplayName(category)" :icon="getCategoryIcon(category)"
         :badge="`${getCategoryEnabledCount(categoryTools)}/${categoryTools.length}`"
-        :storage-key="`limcode.settings.tools.category.${category}`"
-        :default-expanded="true"
-      >
+        :storage-key="`limcode.settings.tools.category.${category}`" :default-expanded="true">
         <div class="category-rows">
-          <div
-            v-for="tool in categoryTools"
-            :key="tool.name"
-            class="tool-wrapper"
-          >
-            <div class="tool-item" :class="{ 'tool-disabled': hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) }">
+          <div v-for="tool in categoryTools" :key="tool.name" class="tool-wrapper">
+            <div class="tool-item"
+              :class="{ 'tool-disabled': hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) }">
               <div class="tool-info">
                 <div class="tool-name-row">
                   <span class="tool-name">{{ getToolDisplayName(tool.name) }}</span>
                   <!-- 依赖缺失标记 -->
-                  <span
-                    v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
-                    class="dependency-badge"
-                    :title="t('components.settings.toolsSettings.dependency.requiredTooltip')"
-                  >
+                  <!-- <span v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
+                    class="dependency-badge" :title="t('components.settings.toolsSettings.dependency.requiredTooltip')">
                     <i class="codicon codicon-warning"></i>
                     {{ t('components.settings.toolsSettings.dependency.required') }}
-                  </span>
+                  </span> -->
                 </div>
                 <div class="tool-description">{{ tool.description }}</div>
               </div>
-              
+
               <div class="tool-actions">
                 <!-- 配置按钮 -->
-                <button
-                  v-if="hasConfigPanel(tool.name)"
-                  class="config-btn"
-                  :class="{ active: isConfigExpanded(tool.name) }"
-                  @click.stop="toggleConfigPanel(tool.name)"
-                  :title="t('components.settings.toolsSettings.config.tooltip')"
-                >
-                  <i class="codicon" :class="isConfigExpanded(tool.name) ? 'codicon-chevron-up' : 'codicon-settings-gear'"></i>
+                <button v-if="hasConfigPanel(tool.name)" class="config-btn"
+                  :class="{ active: isConfigExpanded(tool.name) }" @click.stop="toggleConfigPanel(tool.name)"
+                  :title="t('components.settings.toolsSettings.config.tooltip')">
+                  <i class="codicon"
+                    :class="isConfigExpanded(tool.name) ? 'codicon-chevron-up' : 'codicon-settings-gear'"></i>
                 </button>
-                
+
                 <!-- 开关 -->
-                <div
-                  class="tool-toggle"
-                  :class="{
-                    saving: savingTools.has(tool.name),
-                    disabled: hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)
-                  }"
-                  :title="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) ? t('components.settings.toolsSettings.dependency.disabledTooltip') : ''"
-                >
-                  <CustomCheckbox
-                    :modelValue="tool.enabled"
+                <div class="tool-toggle" :class="{
+                  saving: savingTools.has(tool.name),
+                  disabled: hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)
+                }"
+                  :title="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) ? t('components.settings.toolsSettings.dependency.disabledTooltip') : ''">
+                  <CustomCheckbox :modelValue="tool.enabled"
                     :disabled="savingTools.has(tool.name) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
-                    @update:modelValue="(val: boolean) => toggleTool(tool.name, val)"
-                  />
+                    @update:modelValue="(val: boolean) => toggleTool(tool.name, val)" />
                 </div>
               </div>
             </div>
-            
+
             <!-- 依赖缺失提示 -->
-            <DependencyWarning
-              v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
-              :dependencies="getMissingDependencies(tool.name)"
-              class="tool-dependency-warning"
-            />
-            
+            <DependencyWarning v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
+              :dependencies="getMissingDependencies(tool.name)" class="tool-dependency-warning" />
+
             <!-- 配置面板 -->
-            <ListFilesConfig
-              v-if="tool.name === 'list_files' && isConfigExpanded(tool.name)"
-              :tool-name="tool.name"
-            />
-            <ApplyDiffConfig
-              v-if="tool.name === 'apply_diff' && isConfigExpanded(tool.name)"
-              :tool-name="tool.name"
-            />
-            <ExecuteCommandConfig
-              v-if="tool.name === 'execute_command' && isConfigExpanded(tool.name)"
-              :tool-name="tool.name"
-            />
-            <FindFilesConfig
-              v-if="tool.name === 'find_files' && isConfigExpanded(tool.name)"
-            />
-            <SearchInFilesConfig
-              v-if="tool.name === 'search_in_files' && isConfigExpanded(tool.name)"
-            />
-            <GenerateImageConfig
-              v-if="tool.name === 'generate_image' && isConfigExpanded(tool.name)"
-            />
-            <RemoveBackgroundConfig
-              v-if="tool.name === 'remove_background' && isConfigExpanded(tool.name)"
-            />
-            <CropImageConfig
-              v-if="tool.name === 'crop_image' && isConfigExpanded(tool.name)"
-            />
-            <ResizeImageConfig
-              v-if="tool.name === 'resize_image' && isConfigExpanded(tool.name)"
-            />
-            <RotateImageConfig
-              v-if="tool.name === 'rotate_image' && isConfigExpanded(tool.name)"
-            />
+            <ListFilesConfig v-if="tool.name === 'list_files' && isConfigExpanded(tool.name)" :tool-name="tool.name" />
+            <ApplyDiffConfig v-if="tool.name === 'apply_diff' && isConfigExpanded(tool.name)" :tool-name="tool.name" />
+            <ExecuteCommandConfig v-if="tool.name === 'execute_command' && isConfigExpanded(tool.name)"
+              :tool-name="tool.name" />
+            <FindFilesConfig v-if="tool.name === 'find_files' && isConfigExpanded(tool.name)" />
+            <SearchInFilesConfig v-if="tool.name === 'search_in_files' && isConfigExpanded(tool.name)" />
+            <GenerateImageConfig v-if="tool.name === 'generate_image' && isConfigExpanded(tool.name)" />
+            <RemoveBackgroundConfig v-if="tool.name === 'remove_background' && isConfigExpanded(tool.name)" />
+            <CropImageConfig v-if="tool.name === 'crop_image' && isConfigExpanded(tool.name)" />
+            <ResizeImageConfig v-if="tool.name === 'resize_image' && isConfigExpanded(tool.name)" />
+            <RotateImageConfig v-if="tool.name === 'rotate_image' && isConfigExpanded(tool.name)" />
           </div>
         </div>
       </SettingsGroup>
@@ -669,7 +616,7 @@ onMounted(() => {
   width: 28px;
   height: 28px;
   background: transparent;
-  border: 1px solid var(--vscode-panel-border);
+  border: none;
   border-radius: var(--lc-settings-radius-sm, 4px);
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
@@ -733,7 +680,12 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
