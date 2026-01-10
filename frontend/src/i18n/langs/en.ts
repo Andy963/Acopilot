@@ -507,8 +507,8 @@ const en: LanguageMessages = {
                             hint: 'Maximum retry attempts when API returns error (1-10)'
                         },
                         retryInterval: {
-                            label: 'Retry Interval (ms)',
-                            hint: 'Wait time between each retry (1000-60000 milliseconds)'
+                            label: 'Base Interval (ms)',
+                            hint: 'Base wait time for retry, doubles after each failure (exponential backoff)'
                         }
                     },
                     enabled: {

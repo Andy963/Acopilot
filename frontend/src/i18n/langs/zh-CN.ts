@@ -507,8 +507,8 @@ const zhCN: LanguageMessages = {
                             hint: 'API 返回错误时的最大重试次数（1-10）'
                         },
                         retryInterval: {
-                            label: '重试间隔 (ms)',
-                            hint: '每次重试之间的等待时间（1000-60000 毫秒）'
+                            label: '基础间隔 (ms)',
+                            hint: '重试的基础等待时间，每次失败后翻倍（指数退避）'
                         }
                     },
                     enabled: {

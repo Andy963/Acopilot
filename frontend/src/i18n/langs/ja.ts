@@ -507,8 +507,8 @@ const ja: LanguageMessages = {
                             hint: 'API がエラーを返した場合の最大リトライ回数（1-10）'
                         },
                         retryInterval: {
-                            label: 'リトライ間隔 (ms)',
-                            hint: '各リトライ間の待機時間（1000-60000 ミリ秒）'
+                            label: '基本間隔 (ms)',
+                            hint: 'リトライの基本待機時間、失敗ごとに倍増（指数バックオフ）'
                         }
                     },
                     enabled: {
