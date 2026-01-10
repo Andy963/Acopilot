@@ -5,7 +5,7 @@ echo "🧹 清理旧的 vsix 文件..."
 rm -f *.vsix
 
 echo "🔨 编译项目..."
-pnpm run build
+npm run build
 
 echo "📦 打包插件..."
 npx @vscode/vsce package
