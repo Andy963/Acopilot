@@ -11,7 +11,7 @@ import ToolMessage from './ToolMessage.vue'
 import MessageAttachments from './MessageAttachments.vue'
 import { MarkdownRenderer, RetryDialog, EditDialog } from '../common'
 import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
-import { formatTime } from '../../utils/format'
+import { formatModelName, formatTime } from '../../utils/format'
 import { useChatStore } from '../../stores/chatStore'
 import { useI18n } from '../../i18n'
 
@@ -387,7 +387,7 @@ const roleDisplayName = computed(() => {
   if (isUser.value) return t('components.message.roles.user')
   if (isTool.value) return t('components.message.roles.tool')
   // 助手消息显示模型版本
-  return modelVersion.value || t('components.message.roles.assistant')
+  return (modelVersion.value ? formatModelName(modelVersion.value) : '') || t('components.message.roles.assistant')
 })
 
 // Token 使用情况
@@ -396,6 +396,13 @@ const hasUsage = computed(() =>
   !isUser.value && !isTool.value && usageMetadata.value &&
   (usageMetadata.value.totalTokenCount || usageMetadata.value.promptTokenCount || usageMetadata.value.candidatesTokenCount)
 )
+
+function formatTokenCount(count: number | undefined): string {
+  if (count === undefined) return ''
+  if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
+  if (count >= 10_000) return `${Math.round(count / 1_000)}k`
+  return String(count)
+}
 
 // 响应持续时间（从请求发送到响应结束，使用后端提供的数据）
 const responseDuration = computed(() => {
@@ -651,27 +658,31 @@ function handleRestoreAndRetry(checkpointId: string) {
           <div v-if="!isUser" class="message-footer-left">
             <span class="role-label">{{ roleDisplayName }}</span>
 
-            <span v-if="responseDuration" class="response-duration" :title="t('components.message.stats.responseDuration')">
-              <i class="codicon codicon-clock"></i>{{ responseDuration }}
-            </span>
-
-            <span v-if="tokenRate" class="token-rate" :title="t('components.message.stats.tokenRate')">
-              <i class="codicon codicon-zap"></i>{{ tokenRate }} t/s
-            </span>
-
-            <div v-if="hasUsage" class="token-usage">
-              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
-                {{ usageMetadata.totalTokenCount }}
-              </span>
-              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
-                <span class="token-arrow">↑</span>{{ usageMetadata.promptTokenCount }}
-              </span>
-              <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
-                <span class="token-arrow">↓</span>{{ usageMetadata.candidatesTokenCount }}
-              </span>
-            </div>
-
-            <span
+	            <span v-if="responseDuration" class="response-duration" :title="t('components.message.stats.responseDuration')">
+	              <i class="codicon codicon-clock"></i>{{ responseDuration }}
+	            </span>
+	
+	            <span v-if="tokenRate" class="token-rate" :title="t('components.message.stats.tokenRate')">
+	              <i class="codicon codicon-zap"></i>
+	              <span class="token-rate-value">{{ tokenRate }}</span>
+	              <span class="token-rate-unit">t/s</span>
+	            </span>
+	
+	            <div v-if="hasUsage" class="token-usage">
+	              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
+	                {{ formatTokenCount(usageMetadata.totalTokenCount) }}
+	              </span>
+	              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
+	                <span class="token-arrow">↑</span>
+	                <span class="token-count">{{ formatTokenCount(usageMetadata.promptTokenCount) }}</span>
+	              </span>
+	              <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
+	                <span class="token-arrow">↓</span>
+	                <span class="token-count">{{ formatTokenCount(usageMetadata.candidatesTokenCount) }}</span>
+	              </span>
+	            </div>
+	
+	            <span
               v-if="showFinishReason"
               class="finish-reason"
               :title="t('components.message.stats.finishReason')"
@@ -739,6 +750,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .user-message .role-label {
@@ -774,6 +786,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   align-items: center;
   gap: var(--spacing-sm, 8px);
   min-width: 0;
+  line-height: 1;
 }
 
 .message-footer-right {
@@ -782,6 +795,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   gap: 6px;
   margin-left: auto;
   min-height: 24px;
+  line-height: 1;
 }
 
 .message-time {
@@ -789,6 +803,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
   white-space: nowrap;
+  line-height: 1;
 }
 
 /* 响应持续时间 */
@@ -799,11 +814,13 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  line-height: 1;
 }
 
 .response-duration .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
+  line-height: 1;
 }
 
 /* Token 速率 */
@@ -814,11 +831,14 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .token-rate .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
+  line-height: 1;
 }
 
 /* 消息内容 */
@@ -855,6 +875,8 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .finish-reason {
@@ -864,10 +886,12 @@ function handleRestoreAndRetry(checkpointId: string) {
   margin-left: 8px;
   font-size: 12px;
   opacity: 0.85;
+  line-height: 1;
 }
 
 .finish-reason .codicon {
   font-size: 14px;
+  line-height: 1;
 }
 
 .token-total {
@@ -879,11 +903,14 @@ function handleRestoreAndRetry(checkpointId: string) {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .token-arrow {
   font-size: 10px;
   opacity: 0.8;
+  line-height: 1;
 }
 
 .token-prompt .token-arrow {

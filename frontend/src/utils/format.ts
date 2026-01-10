@@ -61,6 +61,13 @@ export function formatTime(timestamp: number, format = 'YYYY-MM-DD HH:mm:ss'): s
     .replace('ss', seconds)
 }
 
+// 格式化模型名显示（去掉末尾日期版本，如 gpt-4o-2024-08-06 -> gpt-4o）
+export function formatModelName(modelName: string): string {
+  const value = String(modelName || '').trim()
+  if (!value) return ''
+  return value.replace(/-\d{4}-\d{2}-\d{2}$/, '')
+}
+
 // 格式化完整时间
 export function formatFullTime(timestamp: number): string {
   const date = new Date(timestamp)

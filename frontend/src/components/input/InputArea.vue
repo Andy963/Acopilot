@@ -13,7 +13,7 @@ import { IconButton, Tooltip } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
 import { formatFileSize } from '../../utils/file'
-import { formatNumber } from '../../utils/format'
+import { formatModelName, formatNumber } from '../../utils/format'
 import type { Attachment } from '../../types'
 import { useI18n } from '../../i18n'
 
@@ -115,7 +115,7 @@ const unifiedModelOptions = computed<UnifiedModelOption[]>(() => {
       if (seen.has(modelId)) continue
       seen.add(modelId)
 
-      const modelName = String((model && typeof model === 'object') ? (model.name || model.id) : modelId)
+      const modelName = formatModelName(String((model && typeof model === 'object') ? (model.name || model.id) : modelId))
       options.push({
         key: `${config.id}::${modelId}`,
         modelId,
@@ -131,7 +131,7 @@ const unifiedModelOptions = computed<UnifiedModelOption[]>(() => {
       options.push({
         key: `${config.id}::${activeModelId}`,
         modelId: activeModelId,
-        modelName: activeModelId,
+        modelName: formatModelName(activeModelId),
         providerLabel,
         channelName
       })
