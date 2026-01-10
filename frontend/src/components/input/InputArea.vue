@@ -1081,25 +1081,29 @@ watch(() => chatStore.currentConfig, () => {
 /* 附件列表 */
 .attachments-list {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs, 4px);
-  padding: var(--spacing-sm, 8px);
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 8px;
   background: var(--vscode-list-hoverBackground);
   border-radius: var(--radius-sm, 2px);
 }
 
 .attachment-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  background: var(--vscode-editor-background);
-  border-radius: var(--radius-sm, 2px);
-  transition: background-color var(--transition-fast, 0.1s);
+  gap: 6px;
+  padding: 2px 6px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 12px;
+  max-width: 240px;
+  border: 1px solid transparent;
+  transition: opacity var(--transition-fast, 0.1s);
 }
 
 .attachment-item:hover {
-  background: var(--vscode-list-hoverBackground);
+  opacity: 0.9;
 }
 
 .attachment-icon {
@@ -1110,10 +1114,10 @@ watch(() => chatStore.currentConfig, () => {
 
 /* 图片预览 */
 .attachment-preview {
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
@@ -1129,16 +1133,16 @@ watch(() => chatStore.currentConfig, () => {
 }
 
 .attachment-item.has-preview {
-  padding: var(--spacing-xs, 4px);
+  padding: 2px 6px;
 }
 
 /* 媒体预览包装器（视频、音频） */
 .media-preview-wrapper {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -1169,23 +1173,38 @@ watch(() => chatStore.currentConfig, () => {
 /* 居中图标（用于音频） */
 .media-center-icon {
   font-size: 16px;
-  color: var(--vscode-foreground);
+  color: inherit;
   opacity: 0.8;
 }
 
 .attachment-name {
-  flex: 1;
+  flex: 0 1 auto;
   font-size: 12px;
-  color: var(--vscode-foreground);
+  color: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 140px;
 }
 
 .attachment-size {
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  flex-shrink: 0;
+  display: none;
+}
+
+/* 附件标签内的关闭按钮缩小 */
+.attachment-item :deep(.icon-button.small) {
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+}
+
+.attachment-item :deep(.icon-button.default) {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.attachment-item :deep(.icon-button.default:hover:not(:disabled)) {
+  opacity: 1;
 }
 
 /* 附件按钮图标放大 1.2 倍 */
