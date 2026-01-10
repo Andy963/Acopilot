@@ -263,6 +263,7 @@ export interface BackendLanguageMessages {
                     configDisabled: string;
                     maxToolIterations: string;
                     unknownError: string;
+                    streamEndedUnexpectedly: string;
                     toolExecutionSuccess: string;
                     mcpToolCallFailed: string;
                     invalidMcpToolName: string;

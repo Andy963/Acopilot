@@ -728,62 +728,6 @@ watch(() => chatStore.currentConfig, () => {
 
 <template>
   <div class="input-area">
-    <!-- 附件列表 -->
-    <div v-if="hasAttachments" class="attachments-list">
-      <div
-        v-for="attachment in attachments"
-        :key="attachment.id"
-        class="attachment-item"
-        :class="{ 'has-preview': hasPreview(attachment) }"
-      >
-        <!-- 图片预览 -->
-        <img
-          v-if="attachment.type === 'image' && attachment.thumbnail"
-          :src="attachment.thumbnail"
-          :alt="attachment.name"
-          class="attachment-preview clickable"
-          @click="previewAttachment(attachment)"
-          :title="t('components.input.clickToPreview')"
-        />
-        <!-- 视频预览（缩略图 + 播放图标） -->
-        <div
-          v-else-if="attachment.type === 'video' && attachment.thumbnail"
-          class="media-preview-wrapper clickable"
-          @click="previewAttachment(attachment)"
-          :title="t('components.input.clickToPreview')"
-        >
-          <img
-            :src="attachment.thumbnail"
-            :alt="attachment.name"
-            class="attachment-preview"
-          />
-          <i class="codicon codicon-play media-overlay-icon"></i>
-        </div>
-        <!-- 音频预览（音乐图标） -->
-        <div
-          v-else-if="attachment.type === 'audio'"
-          class="media-preview-wrapper audio-placeholder clickable"
-          @click="previewAttachment(attachment)"
-          :title="t('components.input.clickToPreview')"
-        >
-          <i class="codicon codicon-unmute media-center-icon"></i>
-        </div>
-        <!-- 其他文件显示图标 -->
-        <i
-          v-else
-          :class="['codicon', getAttachmentIconClass(attachment.type), 'attachment-icon']"
-        ></i>
-        <span class="attachment-name">{{ attachment.name }}</span>
-        <span class="attachment-size">{{ formatFileSize(attachment.size) }}</span>
-        <IconButton
-          icon="codicon-close"
-          size="small"
-          :disabled="uploading"
-          @click="handleRemoveAttachment(attachment.id)"
-        />
-      </div>
-    </div>
-
     <!-- 固定文件面板（弹出） -->
     <div
       v-if="showPinnedFilesPanel"
@@ -886,6 +830,63 @@ watch(() => chatStore.currentConfig, () => {
             </span>
           </div>
         </Tooltip>
+
+        <!-- 附件列表：放在顶部工具栏右侧（同一行） -->
+        <div v-if="hasAttachments" class="attachments-list">
+          <div
+            v-for="attachment in attachments"
+            :key="attachment.id"
+            class="attachment-item"
+            :title="attachment.name"
+          >
+            <!-- 图片预览 -->
+            <img
+              v-if="attachment.type === 'image' && attachment.thumbnail"
+              :src="attachment.thumbnail"
+              :alt="attachment.name"
+              class="attachment-preview clickable"
+              @click="previewAttachment(attachment)"
+              :title="`${attachment.name} · ${t('components.input.clickToPreview')}`"
+            />
+            <!-- 视频预览（缩略图 + 播放图标） -->
+            <div
+              v-else-if="attachment.type === 'video' && attachment.thumbnail"
+              class="media-preview-wrapper clickable"
+              @click="previewAttachment(attachment)"
+              :title="`${attachment.name} · ${t('components.input.clickToPreview')}`"
+            >
+              <img
+                :src="attachment.thumbnail"
+                :alt="attachment.name"
+                class="attachment-preview"
+              />
+              <i class="codicon codicon-play media-overlay-icon"></i>
+            </div>
+            <!-- 音频预览（音乐图标） -->
+            <div
+              v-else-if="attachment.type === 'audio'"
+              class="media-preview-wrapper audio-placeholder clickable"
+              @click="previewAttachment(attachment)"
+              :title="`${attachment.name} · ${t('components.input.clickToPreview')}`"
+            >
+              <i class="codicon codicon-unmute media-center-icon"></i>
+            </div>
+            <!-- 其他文件显示图标 -->
+            <i
+              v-else
+              :class="['codicon', getAttachmentIconClass(attachment.type), 'attachment-icon']"
+            ></i>
+            <span class="attachment-name">{{ attachment.name }}</span>
+            <span class="attachment-size">{{ formatFileSize(attachment.size) }}</span>
+            <IconButton
+              icon="codicon-close"
+              size="small"
+              :disabled="uploading"
+              @click="handleRemoveAttachment(attachment.id)"
+              :title="t('components.input.remove')"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- 中部：输入框 + 发送按钮（在输入框内） -->
@@ -1029,8 +1030,10 @@ watch(() => chatStore.currentConfig, () => {
 .composer-top {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px 6px 0 6px;
+  gap: 6px;
+  padding: 4px 6px;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .composer-body {
@@ -1081,25 +1084,33 @@ watch(() => chatStore.currentConfig, () => {
 /* 附件列表 */
 .attachments-list {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs, 4px);
-  padding: var(--spacing-sm, 8px);
-  background: var(--vscode-list-hoverBackground);
-  border-radius: var(--radius-sm, 2px);
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
 }
 
 .attachment-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  background: var(--vscode-editor-background);
-  border-radius: var(--radius-sm, 2px);
-  transition: background-color var(--transition-fast, 0.1s);
+  gap: 6px;
+  padding: 2px 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 999px;
+  max-width: 220px;
+  border: 1px solid var(--vscode-input-border);
+  transition: opacity var(--transition-fast, 0.1s);
+  min-width: 0;
 }
 
 .attachment-item:hover {
-  background: var(--vscode-list-hoverBackground);
+  opacity: 0.9;
 }
 
 .attachment-icon {
@@ -1110,10 +1121,10 @@ watch(() => chatStore.currentConfig, () => {
 
 /* 图片预览 */
 .attachment-preview {
-  width: 32px;
-  height: 32px;
+  width: 18px;
+  height: 18px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 
@@ -1128,17 +1139,13 @@ watch(() => chatStore.currentConfig, () => {
   transform: scale(1.05);
 }
 
-.attachment-item.has-preview {
-  padding: var(--spacing-xs, 4px);
-}
-
 /* 媒体预览包装器（视频、音频） */
 .media-preview-wrapper {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -1160,7 +1167,7 @@ watch(() => chatStore.currentConfig, () => {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  font-size: 10px;
+  font-size: 9px;
   color: white;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   pointer-events: none;
@@ -1168,24 +1175,40 @@ watch(() => chatStore.currentConfig, () => {
 
 /* 居中图标（用于音频） */
 .media-center-icon {
-  font-size: 16px;
-  color: var(--vscode-foreground);
+  font-size: 14px;
+  color: inherit;
   opacity: 0.8;
 }
 
 .attachment-name {
-  flex: 1;
+  flex: 0 1 auto;
   font-size: 12px;
-  color: var(--vscode-foreground);
+  color: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 140px;
+  min-width: 0;
 }
 
 .attachment-size {
+  display: none;
+}
+
+/* 附件标签内的关闭按钮缩小 */
+.attachment-item :deep(.icon-button.small) {
+  width: 18px;
+  height: 18px;
   font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  flex-shrink: 0;
+}
+
+.attachment-item :deep(.icon-button.default) {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.attachment-item :deep(.icon-button.default:hover:not(:disabled)) {
+  opacity: 1;
 }
 
 /* 附件按钮图标放大 1.2 倍 */

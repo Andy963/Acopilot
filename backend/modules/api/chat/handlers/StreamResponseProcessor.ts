@@ -64,6 +64,7 @@ export class StreamResponseProcessor {
     private config: StreamProcessorConfig;
     private lastPartsLength: number = 0;
     private cancelled: boolean = false;
+    private completed: boolean = false;
 
     constructor(config: StreamProcessorConfig) {
         this.config = config;
@@ -92,6 +93,9 @@ export class StreamResponseProcessor {
                 }
 
                 this.accumulator.add(chunk);
+                if (chunk.done) {
+                    this.completed = true;
+                }
 
                 // 获取累加器处理后的 parts（实时转换工具调用标记）
                 const currentContent = this.accumulator.getContent();
@@ -154,6 +158,16 @@ export class StreamResponseProcessor {
     }
 
     /**
+     * 是否正常收到完成标记（done=true 的 chunk）
+     *
+     * 如果流式连接被中途断开但未抛错，for-await 会自然结束；
+     * 此时 completed=false 可用于识别“输出一半就断”的异常情况。
+     */
+    isCompleted(): boolean {
+        return this.completed;
+    }
+
+    /**
      * 获取取消数据（用于 yield）
      */
     getCancelledData(): CancelledData {
@@ -183,6 +197,8 @@ export class StreamResponseProcessor {
         chunkData: ProcessedChunkData;
     } {
         const content = response.content;
+        // 透传 finishReason，便于前端判断是否被截断
+        content.finishReason = response.finishReason;
         // 添加响应持续时间
         content.responseDuration = Date.now() - this.config.requestStartTime;
         content.chunkCount = 1;

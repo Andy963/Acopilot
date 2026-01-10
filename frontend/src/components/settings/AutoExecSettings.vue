@@ -12,6 +12,7 @@ import { ref, computed, onMounted } from 'vue'
 import { CustomCheckbox } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { t } from '@/i18n'
+import SettingsGroup from './common/SettingsGroup.vue'
 
 // 工具信息接口
 interface ToolInfo {
@@ -170,6 +171,10 @@ function getCategoryIcon(category: string): string {
   return categoryIcons[category] || 'codicon-extensions'
 }
 
+function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
+  return categoryTools.filter(tool => isAutoExec(tool.name)).length
+}
+
 // 检查工具是否是危险工具（默认需要确认）
 function isDangerousTool(toolName: string): boolean {
   const dangerousTools = ['delete_file', 'execute_command']
@@ -228,52 +233,57 @@ onMounted(() => {
     
     <!-- 工具列表 -->
     <div v-else class="tools-list">
-      <div 
-        v-for="(categoryTools, category) in toolsByCategory" 
+      <SettingsGroup
+        v-for="(categoryTools, category) in toolsByCategory"
         :key="category"
-        class="tool-category"
+        :title="getCategoryDisplayName(category)"
+        :icon="getCategoryIcon(category)"
+        :badge="`${getCategoryAutoExecCount(categoryTools)}/${categoryTools.length}`"
+        :storage-key="`limcode.settings.autoExec.category.${category}`"
+        :default-expanded="true"
       >
-        <div class="category-header">
-          <i :class="['codicon', getCategoryIcon(category)]"></i>
-          <span>{{ getCategoryDisplayName(category) }}</span>
-          <span class="category-count">{{ categoryTools.length }}</span>
-        </div>
-        
-        <div class="category-tools">
+        <div class="category-rows">
           <div
             v-for="tool in categoryTools"
             :key="tool.name"
-            class="tool-item"
-            :class="{ dangerous: isDangerousTool(tool.name), 'mcp-tool': isMcpTool(tool) }"
+            class="tool-wrapper"
           >
-            <div class="tool-info">
-              <div class="tool-name-row">
-                <span class="tool-name">{{ getToolDisplayName(tool) }}</span>
-                <span v-if="isDangerousTool(tool.name)" class="danger-badge">
-                  <i class="codicon codicon-warning"></i>
-                  {{ t('components.settings.autoExec.badges.dangerous') }}
-                </span>
-                <span v-if="isMcpTool(tool)" class="mcp-badge">
-                  <i class="codicon codicon-plug"></i>
-                  {{ tool.serverName }}
-                </span>
+            <div
+              class="tool-item"
+              :class="{ dangerous: isDangerousTool(tool.name), 'mcp-tool': isMcpTool(tool) }"
+            >
+              <div class="tool-info">
+                <div class="tool-name-row">
+                  <span class="tool-name">{{ getToolDisplayName(tool) }}</span>
+                  <span v-if="isDangerousTool(tool.name)" class="danger-badge">
+                    <i class="codicon codicon-warning"></i>
+                    {{ t('components.settings.autoExec.badges.dangerous') }}
+                  </span>
+                  <span v-if="isMcpTool(tool)" class="mcp-badge">
+                    <i class="codicon codicon-plug"></i>
+                    {{ tool.serverName }}
+                  </span>
+                </div>
+                <div class="tool-description">{{ tool.description }}</div>
               </div>
-              <div class="tool-description">{{ tool.description }}</div>
-            </div>
-            
-            <div class="tool-toggle" :class="{ saving: savingTools.has(tool.name) }">
-              <span class="toggle-label" :class="{ 'auto-exec': isAutoExec(tool.name) }">
-                {{ isAutoExec(tool.name) ? t('components.settings.autoExec.status.autoExecute') : t('components.settings.autoExec.status.needConfirm') }}
-              </span>
-              <CustomCheckbox
-                :modelValue="isAutoExec(tool.name)"
-                :disabled="savingTools.has(tool.name)"
-                @update:modelValue="(val: boolean) => toggleAutoExec(tool.name, val)"
-              />
+
+              <div class="tool-actions">
+                <div
+                  class="tool-toggle"
+                  :class="{ saving: savingTools.has(tool.name) }"
+                  :title="isAutoExec(tool.name) ? t('components.settings.autoExec.status.autoExecute') : t('components.settings.autoExec.status.needConfirm')"
+                >
+                  <CustomCheckbox
+                    :modelValue="isAutoExec(tool.name)"
+                    :disabled="savingTools.has(tool.name)"
+                    @update:modelValue="(val: boolean) => toggleAutoExec(tool.name, val)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </SettingsGroup>
     </div>
     
     <!-- 提示信息 -->
@@ -303,8 +313,8 @@ onMounted(() => {
   gap: 12px;
   padding: 12px;
   background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
+  border-radius: var(--lc-settings-radius-lg, 8px);
 }
 
 .settings-intro .codicon {
@@ -348,7 +358,7 @@ onMounted(() => {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   font-size: 12px;
   cursor: pointer;
   transition: background-color 0.15s;
@@ -388,49 +398,22 @@ onMounted(() => {
 .tools-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* 分类 */
-.tool-category {
+.category-rows {
+  border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
+  border-radius: var(--lc-settings-radius-md, 6px);
+  overflow: hidden;
+}
+
+.tool-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.category-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.category-header .codicon {
-  font-size: 14px;
-  color: var(--vscode-foreground);
-}
-
-.category-count {
-  margin-left: auto;
-  padding: 2px 8px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-/* 工具项 */
-.category-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 12px;
+.tool-wrapper:not(:last-child) {
+  border-bottom: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
 }
 
 .tool-item {
@@ -439,18 +422,19 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-left: 3px solid transparent;
   transition: background-color 0.15s;
 }
 
 .tool-item:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--lc-settings-surface-hover, var(--vscode-list-hoverBackground));
 }
 
 .tool-item.dangerous {
-  border-left: 3px solid var(--vscode-inputValidation-warningBorder);
+  border-left-color: var(--vscode-inputValidation-warningBorder);
 }
 
 .tool-info {
@@ -462,6 +446,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .tool-name {
@@ -505,7 +490,7 @@ onMounted(() => {
 }
 
 .tool-item.mcp-tool {
-  border-left: 3px solid var(--vscode-textLink-foreground);
+  border-left-color: var(--vscode-textLink-foreground);
 }
 
 .tool-description {
@@ -518,27 +503,20 @@ onMounted(() => {
 }
 
 /* 工具操作区 */
-.tool-toggle {
+.tool-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
+.tool-toggle {
+  flex-shrink: 0;
+}
+
 .tool-toggle.saving {
   opacity: 0.6;
   pointer-events: none;
-}
-
-.toggle-label {
-  font-size: 11px;
-  color: var(--vscode-errorForeground);
-  min-width: 50px;
-  text-align: right;
-}
-
-.toggle-label.auto-exec {
-  color: var(--vscode-terminal-ansiGreen);
 }
 
 /* 提示信息 */

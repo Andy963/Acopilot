@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import ModelSelectionDialog from './ModelSelectionDialog.vue'
 import ConfirmDialog from '../common/ConfirmDialog.vue'
 import CustomScrollbar from '../common/CustomScrollbar.vue'
+import SettingsGroup from './common/SettingsGroup.vue'
 import { sendToExtension } from '@/utils/vscode'
 import { useI18n } from '@/i18n'
 import type { ModelInfo } from '@/types'
@@ -169,9 +170,14 @@ async function selectModel(modelId: string) {
 
 <template>
   <div class="model-manager">
-    <div class="section-header">
-      <label>{{ t('components.settings.modelManager.title') }}</label>
-      <div class="header-actions">
+    <SettingsGroup
+      :title="t('components.settings.modelManager.title')"
+      icon="codicon-list-tree"
+      :badge="models.length"
+      :storage-key="`limcode.settings.modelManager.${configId}.expanded`"
+      :default-expanded="true"
+    >
+      <template #actions>
         <button class="fetch-btn" @click="openDialog">
           <i class="codicon codicon-add"></i>
           <span>{{ t('components.settings.modelManager.fetchModels') }}</span>
@@ -185,92 +191,92 @@ async function selectModel(modelId: string) {
           <i class="codicon codicon-clear-all"></i>
           <span>{{ t('components.settings.modelManager.clearAll') }}</span>
         </button>
-      </div>
-    </div>
-    
-    <!-- 已添加的模型 -->
-    <div v-if="models.length > 0" class="model-list-container">
-      <!-- 筛选输入框 -->
-      <div class="filter-input-container">
-        <i class="codicon codicon-search"></i>
-        <input
-          v-model="filterKeyword"
-          type="text"
-          :placeholder="t('components.settings.modelManager.filterPlaceholder')"
-          class="filter-input"
-        />
-        <button
-          v-if="filterKeyword"
-          class="filter-clear-btn"
-          :title="t('components.settings.modelManager.clearFilter')"
-          @click="filterKeyword = ''"
-        >
-          <i class="codicon codicon-close"></i>
-        </button>
+      </template>
+
+      <!-- 已添加的模型 -->
+      <div v-if="models.length > 0" class="model-list-container">
+        <!-- 筛选输入框 -->
+        <div class="filter-input-container">
+          <i class="codicon codicon-search"></i>
+          <input
+            v-model="filterKeyword"
+            type="text"
+            :placeholder="t('components.settings.modelManager.filterPlaceholder')"
+            class="filter-input"
+          />
+          <button
+            v-if="filterKeyword"
+            class="filter-clear-btn"
+            :title="t('components.settings.modelManager.clearFilter')"
+            @click="filterKeyword = ''"
+          >
+            <i class="codicon codicon-close"></i>
+          </button>
+        </div>
+        
+        <CustomScrollbar class="model-list-scrollbar">
+          <div class="model-list">
+            <!-- 筛选无结果提示 -->
+            <div v-if="filteredModels.length === 0 && filterKeyword" class="no-results">
+              <i class="codicon codicon-search"></i>
+              <span>{{ t('components.settings.modelManager.noResults') }}</span>
+            </div>
+            
+            <div
+              v-for="model in filteredModels"
+              :key="model.id"
+              :class="['model-item', { enabled: selectedModel === model.id }]"
+              @click="selectModel(model.id)"
+            >
+              <div class="model-status">
+                <i
+                  :class="[
+                    'codicon',
+                    selectedModel === model.id ? 'codicon-circle-filled' : 'codicon-circle-outline'
+                  ]"
+                ></i>
+              </div>
+              <div class="model-info">
+                <span class="model-id">{{ model.id }}</span>
+                <span v-if="model.name && model.name !== model.id" class="model-name">{{ model.name }}</span>
+                <span v-if="model.description" class="model-desc">{{ model.description }}</span>
+              </div>
+              <button
+                class="model-remove-btn"
+                :title="t('components.settings.modelManager.removeTooltip')"
+                @click.stop="removeModel(model.id)"
+              >
+                <i class="codicon codicon-close"></i>
+              </button>
+            </div>
+          </div>
+        </CustomScrollbar>
       </div>
       
-      <CustomScrollbar class="model-list-scrollbar">
-        <div class="model-list">
-          <!-- 筛选无结果提示 -->
-          <div v-if="filteredModels.length === 0 && filterKeyword" class="no-results">
-            <i class="codicon codicon-search"></i>
-            <span>{{ t('components.settings.modelManager.noResults') }}</span>
-          </div>
-          
-          <div
-            v-for="model in filteredModels"
-            :key="model.id"
-            :class="['model-item', { enabled: selectedModel === model.id }]"
-            @click="selectModel(model.id)"
-          >
-            <div class="model-status">
-              <i
-                :class="[
-                  'codicon',
-                  selectedModel === model.id ? 'codicon-circle-filled' : 'codicon-circle-outline'
-                ]"
-              ></i>
-            </div>
-            <div class="model-info">
-              <span class="model-id">{{ model.id }}</span>
-              <span v-if="model.name && model.name !== model.id" class="model-name">{{ model.name }}</span>
-              <span v-if="model.description" class="model-desc">{{ model.description }}</span>
-            </div>
-            <button
-              class="model-remove-btn"
-              :title="t('components.settings.modelManager.removeTooltip')"
-              @click.stop="removeModel(model.id)"
-            >
-              <i class="codicon codicon-close"></i>
-            </button>
-          </div>
-        </div>
-      </CustomScrollbar>
-    </div>
-    
-    <!-- 空状态 -->
-    <div v-else class="empty-models">
-      <i class="codicon codicon-info"></i>
-      <span>{{ t('components.settings.modelManager.empty') }}</span>
-    </div>
-    
-    <!-- 手动添加 -->
-    <div class="add-model">
-      <input
-        v-model="newModelId"
-        type="text"
-        :placeholder="t('components.settings.modelManager.addPlaceholder')"
-        @keyup.enter="addCustomModel"
-      />
-      <button
-        class="add-btn"
-        :title="t('components.settings.modelManager.addTooltip')"
-        :disabled="!newModelId.trim()"
-        @click="addCustomModel"
-      >
-        <i class="codicon codicon-add"></i>
-      </button>
-    </div>
+      <!-- 空状态 -->
+      <div v-else class="empty-models">
+        <i class="codicon codicon-info"></i>
+        <span>{{ t('components.settings.modelManager.empty') }}</span>
+      </div>
+      
+      <!-- 手动添加 -->
+      <div class="add-model">
+        <input
+          v-model="newModelId"
+          type="text"
+          :placeholder="t('components.settings.modelManager.addPlaceholder')"
+          @keyup.enter="addCustomModel"
+        />
+        <button
+          class="add-btn"
+          :title="t('components.settings.modelManager.addTooltip')"
+          :disabled="!newModelId.trim()"
+          @click="addCustomModel"
+        >
+          <i class="codicon codicon-add"></i>
+        </button>
+      </div>
+    </SettingsGroup>
     
     <!-- 模型选择对话框 -->
     <ModelSelectionDialog
@@ -301,24 +307,6 @@ async function selectModel(modelId: string) {
   gap: 8px;
 }
 
-/* 区域标题 */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.section-header label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--vscode-foreground);
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
 .fetch-btn,
 .clear-btn {
   display: flex;
@@ -326,7 +314,7 @@ async function selectModel(modelId: string) {
   gap: 4px;
   padding: 4px 10px;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-md, 6px);
   font-size: 11px;
   cursor: pointer;
   transition: background 0.15s;
@@ -365,7 +353,7 @@ async function selectModel(modelId: string) {
   height: auto;
   max-height: 280px;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-md, 6px);
   display: flex;
   flex-direction: column;
 }
@@ -410,7 +398,7 @@ async function selectModel(modelId: string) {
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   flex-shrink: 0;
@@ -463,8 +451,8 @@ async function selectModel(modelId: string) {
 .model-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px;
+  gap: 0;
+  padding: 0;
 }
 
 .model-item {
@@ -472,8 +460,8 @@ async function selectModel(modelId: string) {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: var(--vscode-list-hoverBackground);
-  border-radius: 2px;
+  background: transparent;
+  border-radius: 0;
   cursor: pointer;
   /* 只过渡背景和边框颜色，避免影响布局 */
   transition: background 0.15s, border-color 0.15s;
@@ -481,7 +469,7 @@ async function selectModel(modelId: string) {
 }
 
 .model-item:hover {
-  background: var(--vscode-list-activeSelectionBackground);
+  background: var(--lc-settings-surface-hover, var(--vscode-list-hoverBackground));
 }
 
 .model-item.enabled {
@@ -546,7 +534,7 @@ async function selectModel(modelId: string) {
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   opacity: 0;
@@ -572,7 +560,7 @@ async function selectModel(modelId: string) {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
   background: var(--vscode-textBlockQuote-background);
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-md, 6px);
 }
 
 .empty-models .codicon {
@@ -592,7 +580,7 @@ async function selectModel(modelId: string) {
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   font-size: 12px;
 }
 
@@ -615,7 +603,7 @@ async function selectModel(modelId: string) {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--lc-settings-radius-sm, 4px);
   cursor: pointer;
   transition: background 0.15s;
 }

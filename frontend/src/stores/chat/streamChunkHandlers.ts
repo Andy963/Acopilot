@@ -474,12 +474,23 @@ export function handleError(chunk: StreamChunk, state: ChatStoreState): void {
   }
   
   if (state.streamingMessageId.value) {
-    // 只删除正在流式处理的空消息
-    const messageToRemove = state.allMessages.value.find(m => m.id === state.streamingMessageId.value)
+    const messageIndex = state.allMessages.value.findIndex(m => m.id === state.streamingMessageId.value)
+    const messageToRemove = messageIndex !== -1 ? state.allMessages.value[messageIndex] : undefined
     
     // 只删除空的流式消息
     if (messageToRemove && messageToRemove.streaming && !messageToRemove.content && !messageToRemove.tools) {
       state.allMessages.value = state.allMessages.value.filter(m => m.id !== state.streamingMessageId.value)
+    } else if (messageToRemove && messageIndex !== -1) {
+      // 保留有内容的消息，但需要停止 streaming 状态并刷新工具缓冲
+      flushToolCallBuffer(messageToRemove, state)
+      if (messageToRemove.streaming) {
+        const updatedMessage: Message = { ...messageToRemove, streaming: false }
+        state.allMessages.value = [
+          ...state.allMessages.value.slice(0, messageIndex),
+          updatedMessage,
+          ...state.allMessages.value.slice(messageIndex + 1)
+        ]
+      }
     }
     state.streamingMessageId.value = null
   }

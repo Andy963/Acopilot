@@ -271,7 +271,8 @@ const ja: LanguageMessages = {
             },
             stats: {
                 responseDuration: '応答時間',
-                tokenRate: 'トークン速度'
+                tokenRate: 'トークン速度',
+                finishReason: '終了理由'
             },
             thought: {
                 thinking: '考え中...',

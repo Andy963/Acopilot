@@ -236,6 +236,7 @@ export interface LanguageMessages {
             stats: {
                 responseDuration: string;
                 tokenRate: string;
+                finishReason: string;
             };
             thought: {
                 thinking: string;

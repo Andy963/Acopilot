@@ -271,7 +271,8 @@ const zhCN: LanguageMessages = {
             },
             stats: {
                 responseDuration: '响应时间',
-                tokenRate: 'Token 速率'
+                tokenRate: 'Token 速率',
+                finishReason: '结束原因'
             },
             thought: {
                 thinking: '正在思考...',

@@ -246,6 +246,7 @@ const ja: BackendLanguageMessages = {
                     configDisabled: '設定が無効です: {configId}',
                     maxToolIterations: '最大ツール呼び出し回数に達しました ({maxIterations})',
                     unknownError: '不明なエラー',
+                    streamEndedUnexpectedly: 'ストリームが予期せず終了しました（完了マーカー未受信）。再試行してください',
                     toolExecutionSuccess: 'ツールの実行に成功しました',
                     mcpToolCallFailed: 'MCP ツール呼び出しに失敗しました',
                     invalidMcpToolName: '無効な MCP ツール名: {toolName}',

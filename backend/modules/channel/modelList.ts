@@ -103,8 +103,7 @@ export async function getOpenAIModels(config: ChannelConfig): Promise<ModelInfo[
     const models = data.data || [];
     return models.map((m: any) => ({
       id: m.id,
-      name: m.id,
-      description: `Created: ${new Date(m.created * 1000).toLocaleDateString()}`
+      name: m.id
     }));
   } catch (error) {
     console.error('Failed to get OpenAI models:', error);

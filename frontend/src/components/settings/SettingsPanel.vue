@@ -661,6 +661,13 @@ onMounted(() => {
   z-index: 100;
   display: flex;
   flex-direction: column;
+  /* Settings UI tokens (shared across pages) */
+  --lc-settings-radius-sm: 4px;
+  --lc-settings-radius-md: 6px;
+  --lc-settings-radius-lg: 8px;
+  --lc-settings-border: var(--vscode-panel-border);
+  --lc-settings-surface: var(--vscode-editor-background);
+  --lc-settings-surface-hover: var(--vscode-list-hoverBackground);
 }
 
 .settings-header {
