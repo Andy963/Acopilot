@@ -1,0 +1,48 @@
+name: Release VSIX
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build and package VSIX
+        run: bash ./build.sh
+
+      - name: Find VSIX
+        id: vsix
+        shell: bash
+        run: |
+          set -euo pipefail
+          VSIX=$(ls -1 *.vsix | head -n 1)
+          echo "vsix_path=${VSIX}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.vsix.outputs.vsix_path }}
+          generate_release_notes: true
