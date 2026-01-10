@@ -271,7 +271,8 @@ const en: LanguageMessages = {
             },
             stats: {
                 responseDuration: 'Response Duration',
-                tokenRate: 'Token Rate'
+                tokenRate: 'Token Rate',
+                finishReason: 'Finish Reason'
             },
             thought: {
                 thinking: 'Thinking...',

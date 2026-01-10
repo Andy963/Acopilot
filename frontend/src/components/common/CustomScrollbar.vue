@@ -309,6 +309,21 @@ const hThumbStyle = computed(() => {
   return style
 })
 
+// 为自定义滚动条轨道预留空间，避免透明轨道遮挡内容右侧/底部可点击区域
+const containerStyle = computed(() => {
+  const style: Record<string, string> = {}
+
+  if (showScrollbar.value) {
+    style.paddingRight = `${props.width + props.offset}px`
+  }
+
+  if (props.horizontal && showHScrollbar.value) {
+    style.paddingBottom = `${props.width + props.offset}px`
+  }
+
+  return style
+})
+
 // 容器样式（支持 maxHeight 模式）
 const wrapperStyle = computed(() => {
   if (!props.maxHeight) return {}
@@ -423,6 +438,7 @@ defineExpose({
     <div
       ref="scrollContainer"
       class="scroll-container"
+      :style="containerStyle"
       :class="{ 'enable-h-scroll': horizontal, 'auto-height': !!maxHeight }"
     >
       <slot />

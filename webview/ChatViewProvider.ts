@@ -331,10 +331,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             const existingConfig = await this.configManager.getConfig('gemini-pro');
             if (!existingConfig) {
                 const config = {
-                    id: 'gemini-default',
+                    id: 'gemini-pro',
                     type: 'gemini' as const,
                     name: 'Gemini(Default)',
-                    apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE',
+                    apiKey: process.env.GEMINI_API_KEY || '',
                     url: 'https://generativelanguage.googleapis.com/v1beta',
                     model: 'gemini-3-pro-preview',
                     timeout: 120000,
@@ -364,7 +364,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             localResourceRoots: [
                 vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist')),
-                vscode.Uri.file(path.join(this.context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist'))
+                vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons'))
             ]
         };
 
@@ -547,7 +547,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist', 'index.css'))
         );
         const codiconsUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(this.context.extensionPath, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'))
+            vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons', 'codicon.css'))
         );
 
         return `<!DOCTYPE html>

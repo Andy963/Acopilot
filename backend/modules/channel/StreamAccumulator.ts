@@ -570,6 +570,11 @@ export class StreamAccumulator {
             content.modelVersion = this.modelVersion;
         }
         
+        // 添加结束原因（如果有）
+        if (this.finishReason) {
+            content.finishReason = this.finishReason;
+        }
+        
         // 添加完整的 usageMetadata
         if (this.usageMetadata) {
             content.usageMetadata = { ...this.usageMetadata };

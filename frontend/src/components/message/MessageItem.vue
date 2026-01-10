@@ -345,6 +345,12 @@ const checkpointsBeforeMessage = computed<CheckpointRecord[]>(() => {
 
 // 模型版本
 const modelVersion = computed(() => props.message.metadata?.modelVersion)
+// 结束原因（用于判断是否被截断）
+const finishReason = computed(() => props.message.metadata?.finishReason)
+const showFinishReason = computed(() => {
+  if (!finishReason.value) return false
+  return finishReason.value.toLowerCase() !== 'stop'
+})
 
 // 角色显示名称
 const roleDisplayName = computed(() => {
@@ -603,6 +609,14 @@ function handleRestoreAndRetry(checkpointId: string) {
                 <span class="token-arrow">↓</span>{{ usageMetadata.candidatesTokenCount }}
               </span>
             </div>
+
+            <span
+              v-if="showFinishReason"
+              class="finish-reason"
+              :title="t('components.message.stats.finishReason')"
+            >
+              <i class="codicon codicon-info"></i>{{ finishReason }}
+            </span>
           </div>
 
           <div class="message-footer-right">
@@ -631,6 +645,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 8px);
+  min-width: 0;
   padding: var(--spacing-md, 16px) var(--spacing-md, 16px);
   border-bottom: 1px solid var(--vscode-panel-border);
   transition: background-color var(--transition-fast, 0.1s);
@@ -685,6 +700,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   justify-content: space-between;
   margin-top: 6px;
   gap: 10px;
+  min-height: 24px;
 }
 
 .message-footer.user-footer {
@@ -704,6 +720,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   align-items: center;
   gap: 6px;
   margin-left: auto;
+  min-height: 24px;
 }
 
 .message-time {
@@ -777,6 +794,19 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+}
+
+.finish-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.finish-reason .codicon {
+  font-size: 14px;
 }
 
 .token-total {

@@ -246,6 +246,7 @@ const en: BackendLanguageMessages = {
                     configDisabled: 'Configuration disabled: {configId}',
                     maxToolIterations: 'Maximum tool call iterations reached ({maxIterations})',
                     unknownError: 'Unknown error',
+                    streamEndedUnexpectedly: 'Stream ended unexpectedly (no completion marker received), please retry',
                     toolExecutionSuccess: 'Tool execution successful',
                     mcpToolCallFailed: 'MCP tool call failed',
                     invalidMcpToolName: 'Invalid MCP tool name: {toolName}',
