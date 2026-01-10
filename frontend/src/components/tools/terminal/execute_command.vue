@@ -35,11 +35,7 @@ const terminalStore = useTerminalStore()
 // 杀掉终端的加载状态
 const killing = ref(false)
 
-// 滚动容器引用
-const outputContainer = ref<HTMLElement | null>(null)
-
-// 是否自动滚动到底部
-const autoScroll = ref(true)
+const outputScrollRef = ref<InstanceType<typeof CustomScrollbar> | null>(null)
 
 // 获取命令参数
 const command = computed(() => props.args.command as string || '')
@@ -161,7 +157,7 @@ const statusClass = computed(() => {
   const resultError = result?.error as string | undefined
   
   // 优先检测取消状态（用户点击了取消按钮）
-  if (cancelled.value || killed.value) return 'warning'
+  if (cancelled.value || killed.value) return 'terminated'
   if (props.error || resultError) return 'error'
   if (exitCode.value !== undefined && exitCode.value !== 0) return 'error'
   if (exitCode.value === 0) return 'success'
@@ -175,6 +171,50 @@ function formatDuration(ms: number | undefined): string {
   if (ms < 1000) return `${ms}ms`
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`
+}
+
+const statusIcon = computed(() => {
+  // 检查结果中的 error 字段
+  const result = props.result as Record<string, any> | undefined
+  const resultError = result?.error as string | undefined
+
+  if (cancelled.value || killed.value) return 'codicon-circle-slash'
+  if (props.error || resultError) return 'codicon-error'
+  if (exitCode.value !== undefined && exitCode.value !== 0) return 'codicon-error'
+  if (exitCode.value === 0) return 'codicon-pass'
+  if (isRunning.value) return 'codicon-loading'
+  return 'codicon-clock'
+})
+
+const commandTooltip = computed(() => {
+  const lines: string[] = []
+
+  if (command.value) lines.push(command.value)
+  if (cwd.value) lines.push(`CWD: ${cwd.value}`)
+  if (shell.value && shell.value !== 'default') lines.push(`Shell: ${shell.value}`)
+  if (duration.value !== undefined) lines.push(formatDuration(duration.value))
+  if (statusLabel.value) lines.push(statusLabel.value)
+
+  return lines.join('\n')
+})
+
+const defaultExpanded = computed(() => {
+  // 运行中 / 失败 / 退出码非 0 / 被终止：默认展开
+  if (isRunning.value) return true
+  if (cancelled.value || killed.value) return true
+  if (props.error) return true
+  const result = props.result as Record<string, any> | undefined
+  if (result?.error) return true
+  if (exitCode.value !== undefined && exitCode.value !== 0) return true
+  return false
+})
+
+const expanded = ref(false)
+const userToggled = ref(false)
+
+function toggleExpanded() {
+  expanded.value = !expanded.value
+  userToggled.value = true
 }
 
 // 实际的终端标识（用于注册和杀死）
@@ -244,28 +284,31 @@ async function copyOutput() {
   }
 }
 
-// 滚动到底部
-function scrollToBottom() {
-  if (outputContainer.value && autoScroll.value) {
-    nextTick(() => {
-      const container = outputContainer.value
-      if (container) {
-        container.scrollTop = container.scrollHeight
-      }
-    })
-  }
-}
-
-// 监听输出变化，自动滚动
-watch(output, () => {
-  scrollToBottom()
-})
-
 // 组件挂载时，如果正在运行，注册到 store
 onMounted(() => {
   if (isRunning.value && effectiveTerminalId.value) {
     terminalStore.registerTerminal(effectiveTerminalId.value)
   }
+})
+
+// 初始化/同步默认展开状态（成功默认收起）
+watch(() => props.toolId, () => {
+  userToggled.value = false
+  expanded.value = defaultExpanded.value
+}, { immediate: true })
+
+watch(defaultExpanded, (next) => {
+  if (!userToggled.value && next) {
+    expanded.value = true
+  }
+})
+
+// 展开时，默认滚动到最底部（更像终端）
+watch(expanded, (isExpanded) => {
+  if (!isExpanded) return
+  nextTick(() => {
+    outputScrollRef.value?.scrollToBottom()
+  })
 })
 
 // 监听终端 ID 变化
@@ -284,353 +327,275 @@ watch(isRunning, (running) => {
 </script>
 
 <template>
-  <div class="execute-command-panel">
-    <!-- 头部信息 -->
-    <div class="panel-header">
-      <div class="header-info">
-        <span class="codicon codicon-terminal terminal-icon"></span>
-        <span class="title">{{ t('components.tools.terminal.executeCommandPanel.title') }}</span>
-        <span :class="['status-badge', statusClass]">{{ statusLabel }}</span>
-      </div>
-      <div class="header-actions">
-        <span v-if="duration !== undefined" class="duration">
-          {{ formatDuration(duration) }}
-        </span>
+  <div class="execute-command-panel" :class="[statusClass, { running: isRunning, expanded }]">
+    <!-- 头部信息栏 -->
+    <div
+      class="panel-header"
+      role="button"
+      tabindex="0"
+      :title="commandTooltip"
+      @click="toggleExpanded"
+      @keydown.enter.prevent="toggleExpanded"
+      @keydown.space.prevent="toggleExpanded"
+    >
+      <span
+        class="status-icon codicon"
+        :class="[statusIcon, statusClass, { 'codicon-modifier-spin': isRunning }]"
+        :title="statusLabel"
+      ></span>
+      <span class="prompt">$</span>
+      <code class="command-text" :title="commandTooltip">{{ command }}</code>
+
+      <span
+        v-if="truncated && !isRunning"
+        class="truncated-indicator codicon codicon-warning"
+        :title="t('components.tools.terminal.executeCommandPanel.truncatedInfo', { outputLines, totalLines })"
+      ></span>
+
+      <span v-if="duration !== undefined" class="duration">
+        {{ formatDuration(duration) }}
+      </span>
+
+      <div class="header-actions" @click.stop>
         <button
           v-if="isRunning"
-          class="action-btn kill-btn"
+          class="icon-btn danger"
           :disabled="killing"
           :title="t('components.tools.terminal.executeCommandPanel.terminateTooltip')"
-          @click="handleKillTerminal"
+          @click.stop="handleKillTerminal"
         >
           <span class="codicon codicon-debug-stop"></span>
-          <span class="btn-text">{{ t('components.tools.terminal.executeCommandPanel.terminate') }}</span>
         </button>
+
         <button
           v-if="output"
-          class="action-btn"
-          :class="{ 'copied': copied }"
+          class="icon-btn"
+          :class="{ success: copied }"
           :title="copied ? t('components.tools.terminal.executeCommandPanel.copied') : t('components.tools.terminal.executeCommandPanel.copyOutput')"
-          @click="copyOutput"
+          @click.stop="copyOutput"
         >
           <span :class="['codicon', copied ? 'codicon-check' : 'codicon-copy']"></span>
         </button>
+
+        <button
+          class="icon-btn"
+          :title="expanded ? t('common.collapse') : t('common.expand')"
+          @click.stop="toggleExpanded"
+        >
+          <span :class="['codicon', expanded ? 'codicon-chevron-down' : 'codicon-chevron-right']"></span>
+        </button>
       </div>
     </div>
-    
-    <!-- 命令信息 -->
-    <div class="command-info">
-      <div class="command-row">
-        <span class="prompt">$</span>
-        <code class="command-text">{{ command }}</code>
+
+    <!-- 终端输出块 -->
+    <div v-if="expanded" class="panel-body">
+      <div v-if="error || resultData.error" class="output-content error">
+        <pre class="output-code"><code>{{ error || resultData.error }}</code></pre>
       </div>
-      <div v-if="cwd" class="meta-row">
-        <span class="codicon codicon-folder-opened"></span>
-        <span class="meta-text">{{ cwd }}</span>
+
+      <div v-else-if="output || isRunning" class="output-content">
+        <CustomScrollbar
+          ref="outputScrollRef"
+          :horizontal="true"
+          :max-height="300"
+          :sticky-bottom="isRunning"
+        >
+          <pre class="output-code"><code>{{ output || t('components.tools.terminal.executeCommandPanel.waitingOutput') }}</code></pre>
+        </CustomScrollbar>
       </div>
-      <div v-if="shell !== 'default'" class="meta-row">
-        <span class="codicon codicon-terminal-bash"></span>
-        <span class="meta-text">{{ shell }}</span>
+
+      <div v-else class="output-empty">
+        <span class="codicon codicon-info"></span>
+        <span>{{ t('components.tools.terminal.executeCommandPanel.noOutput') }}</span>
       </div>
-    </div>
-    
-    <!-- 错误信息 -->
-    <div v-if="error || resultData.error" class="panel-error">
-      <span class="codicon codicon-error error-icon"></span>
-      <span class="error-text">{{ error || resultData.error }}</span>
-    </div>
-    
-    <!-- 输出内容 -->
-    <div v-else-if="output || isRunning" class="output-section">
-      <div class="output-header">
-        <span class="output-title">{{ t('components.tools.terminal.executeCommandPanel.output') }}</span>
-        <div class="output-header-right">
-          <span v-if="truncated && !isRunning" class="truncated-info">
-            {{ t('components.tools.terminal.executeCommandPanel.truncatedInfo', { outputLines, totalLines }) }}
-          </span>
-          <label v-if="isRunning" class="auto-scroll-toggle">
-            <input
-              type="checkbox"
-              v-model="autoScroll"
-              class="auto-scroll-checkbox"
-            />
-            <span class="auto-scroll-label">{{ t('components.tools.terminal.executeCommandPanel.autoScroll') }}</span>
-          </label>
-        </div>
-      </div>
-      <div class="output-content">
-        <div class="content-wrapper" ref="outputContainer">
-          <CustomScrollbar :horizontal="true">
-            <pre class="output-code"><code>{{ output || t('components.tools.terminal.executeCommandPanel.waitingOutput') }}</code></pre>
-          </CustomScrollbar>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 无输出 -->
-    <div v-else-if="!isRunning && !error" class="no-output">
-      <span class="codicon codicon-info"></span>
-      <span>{{ t('components.tools.terminal.executeCommandPanel.noOutput') }}</span>
-    </div>
-    
-    <!-- 运行中指示器 -->
-    <div v-if="isRunning" class="running-indicator">
-      <span class="spinner"></span>
-      <span>{{ t('components.tools.terminal.executeCommandPanel.executing') }}</span>
     </div>
   </div>
 </template>
 
 <style scoped>
 .execute-command-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm, 8px);
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
 }
 
-/* 头部 */
+/* 头部信息栏 */
 .panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-xs, 4px) 0;
-}
-
-.header-info {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs, 4px);
-}
-
-.terminal-icon {
-  color: var(--vscode-terminal-ansiGreen);
-  font-size: 14px;
-}
-
-.title {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--vscode-foreground);
-}
-
-.status-badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-weight: 500;
-}
-
-.status-badge.success {
-  background: var(--vscode-testing-iconPassed);
-  color: var(--vscode-editor-background);
-}
-
-.status-badge.error {
-  background: var(--vscode-testing-iconFailed);
-  color: var(--vscode-editor-background);
-}
-
-.status-badge.warning {
-  background: var(--vscode-charts-yellow);
-  color: var(--vscode-editor-background);
-}
-
-.status-badge.running {
-  background: var(--vscode-charts-blue);
-  color: var(--vscode-editor-background);
-}
-
-.status-badge.pending {
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-}
-
-.duration {
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: transparent;
-  border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: var(--radius-sm, 2px);
-  color: var(--vscode-descriptionForeground);
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--vscode-editor-inactiveSelectionBackground);
   cursor: pointer;
-  font-size: 11px;
-  transition: all var(--transition-fast, 0.1s);
+  user-select: none;
+  min-width: 0;
 }
 
-.action-btn:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-foreground);
+.panel-header:hover {
+  background: var(--vscode-list-hoverBackground);
 }
 
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.execute-command-panel.running .panel-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--vscode-charts-blue) 30%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: running-bar 1.2s linear infinite;
+  opacity: 0.7;
 }
 
-.action-btn.copied {
+@keyframes running-bar {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 200% 0%;
+  }
+}
+
+.status-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.status-icon.success {
   color: var(--vscode-testing-iconPassed);
 }
 
-.kill-btn {
+.status-icon.error {
   color: var(--vscode-testing-iconFailed);
-  border-color: var(--vscode-testing-iconFailed);
 }
 
-.kill-btn:hover {
-  background: var(--vscode-testing-iconFailed);
-  color: var(--vscode-editor-background);
+.status-icon.terminated {
+  color: var(--vscode-descriptionForeground);
 }
 
-.btn-text {
-  font-size: 10px;
+.status-icon.running {
+  color: var(--vscode-charts-blue);
 }
 
-/* 命令信息 */
-.command-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--spacing-sm, 8px);
-  background: var(--vscode-terminal-background, var(--vscode-editor-background));
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--radius-sm, 2px);
-}
-
-.command-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm, 8px);
+.status-icon.pending {
+  color: var(--vscode-descriptionForeground);
 }
 
 .prompt {
   color: var(--vscode-terminal-ansiGreen);
   font-family: var(--vscode-editor-font-family);
-  font-weight: bold;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
 .command-text {
+  flex: 1;
+  min-width: 0;
   font-family: var(--vscode-editor-font-family);
   font-size: 12px;
-  color: var(--vscode-terminal-foreground, var(--vscode-foreground));
-  word-break: break-all;
-  white-space: pre-wrap;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs, 4px);
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
-  padding-left: 16px;
-}
-
-.meta-text {
-  font-family: var(--vscode-editor-font-family);
-}
-
-/* 错误显示 */
-.panel-error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-sm, 8px);
-  background: var(--vscode-inputValidation-errorBackground);
-  border: 1px solid var(--vscode-inputValidation-errorBorder);
-  border-radius: var(--radius-sm, 2px);
-}
-
-.error-icon {
-  color: var(--vscode-inputValidation-errorForeground);
+.truncated-indicator {
   font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.duration {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
   flex-shrink: 0;
 }
 
-.error-text {
-  font-size: 12px;
-  color: var(--vscode-inputValidation-errorForeground);
-  line-height: 1.4;
-}
-
-/* 输出区域 */
-.output-section {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--radius-sm, 2px);
-  overflow: hidden;
-}
-
-.output-header {
+.header-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  background: var(--vscode-editor-inactiveSelectionBackground);
-  border-bottom: 1px solid var(--vscode-panel-border);
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity var(--transition-fast, 0.1s);
 }
 
-.output-title {
-  font-size: 11px;
-  font-weight: 500;
+.execute-command-panel:hover .header-actions {
+  opacity: 1;
+}
+
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  transition: background var(--transition-fast, 0.1s),
+    color var(--transition-fast, 0.1s),
+    opacity var(--transition-fast, 0.1s);
+}
+
+.icon-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
   color: var(--vscode-foreground);
 }
 
-.output-header-right {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.truncated-info {
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
+.icon-btn.success {
+  color: var(--vscode-testing-iconPassed);
 }
 
-.auto-scroll-toggle {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  user-select: none;
+.icon-btn.danger {
+  color: var(--vscode-testing-iconFailed);
 }
 
-.auto-scroll-checkbox {
-  width: 12px;
-  height: 12px;
-  cursor: pointer;
+.icon-btn.danger:hover {
+  background: var(--vscode-inputValidation-errorBackground);
+  border-color: var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-inputValidation-errorForeground);
 }
 
-.auto-scroll-label {
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
+/* 输出块 */
+.panel-body {
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
 }
 
 .output-content {
   background: var(--vscode-terminal-background, var(--vscode-editor-background));
 }
 
-.content-wrapper {
-  height: 200px;
-  position: relative;
+.output-content.error {
+  background: var(--vscode-inputValidation-errorBackground);
+}
+
+.output-content :deep(.scroll-container) {
+  background: transparent;
 }
 
 .output-code {
   margin: 0;
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  font-size: 11px;
+  padding: 8px 12px;
+  font-size: 12px;
   font-family: var(--vscode-editor-font-family);
   color: var(--vscode-terminal-foreground, var(--vscode-foreground));
   line-height: 1.4;
@@ -641,41 +606,13 @@ watch(isRunning, (running) => {
   font-family: inherit;
 }
 
-/* 无输出 */
-.no-output {
+.output-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-md, 16px);
+  gap: 8px;
+  padding: 10px 12px;
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
-}
-
-/* 运行中指示器 */
-.running-indicator {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-sm, 8px);
-  background: var(--vscode-editor-inactiveSelectionBackground);
-  border-radius: var(--radius-sm, 2px);
-  color: var(--vscode-foreground);
-  font-size: 11px;
-}
-
-.spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--vscode-charts-blue);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>
