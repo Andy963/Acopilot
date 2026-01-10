@@ -54,7 +54,7 @@ const isSummaryExpanded = ref(false)
  * 渲染块类型
  */
 interface RenderBlock {
-  type: 'text' | 'tool' | 'thought'
+  type: 'text' | 'tool' | 'thought' | 'thoughtTool'
   text?: string
   tools?: ToolUsage[]
 }
@@ -181,7 +181,7 @@ const renderBlocks = computed<RenderBlock[]>(() => {
   const flushText = () => {
     if (currentTextBlock.length > 0) {
       const text = filterToolCallMarkers(currentTextBlock.join(''))
-      if (text) {
+      if (text.trim()) {
         blocks.push({ type: 'text', text })
       }
       currentTextBlock = []
@@ -252,6 +252,36 @@ const renderBlocks = computed<RenderBlock[]>(() => {
   flushTools()
   
   return blocks
+})
+
+/**
+ * 将“思考块 + 工具块”合并成一个展示块
+ * 让思考过程与后续工具调用呈现为一个整体卡片
+ */
+const displayBlocks = computed<RenderBlock[]>(() => {
+  const blocks = renderBlocks.value
+  if (!blocks.length) return []
+
+  const merged: RenderBlock[] = []
+
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index]
+    const next = blocks[index + 1]
+
+    if (block.type === 'thought' && next?.type === 'tool') {
+      merged.push({
+        type: 'thoughtTool',
+        text: block.text,
+        tools: next.tools
+      })
+      index++
+      continue
+    }
+
+    merged.push(block)
+  }
+
+  return merged
 })
 
 // 判断是否正在思考中（有思考块但没有普通文本块也没有工具调用块，且消息正在流式输出，且没有最终的思考时间）
@@ -525,8 +555,39 @@ function handleRestoreAndRetry(checkpointId: string) {
         <!-- 显示模式 -->
         <div class="message-content">
         <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
-        <template v-if="renderBlocks.length > 0">
-          <template v-for="(block, index) in renderBlocks" :key="index">
+        <template v-if="displayBlocks.length > 0">
+          <template v-for="(block, index) in displayBlocks" :key="index">
+            <!-- 思考块 + 工具调用块：合并显示为一个整体 -->
+            <div v-if="block.type === 'thoughtTool'" class="thought-tool-block">
+              <div
+                class="thought-header thought-tool-header"
+                @click="isThoughtExpanded = !isThoughtExpanded"
+              >
+                <i class="codicon" :class="isThoughtExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
+                <i class="codicon codicon-lightbulb thought-icon" :class="{ 'thinking-pulse': isThinking }"></i>
+                <span class="thought-label">{{ isThinking ? t('components.message.thought.thinking') : t('components.message.thought.thoughtProcess') }}</span>
+                <span v-if="thinkingTimeDisplay" class="thought-time" :class="{ 'thinking-active': isThinking }">
+                  {{ thinkingTimeDisplay }}
+                </span>
+                <span v-if="!isThoughtExpanded" class="thought-preview">
+                  {{ (block.text || '').slice(0, 50) }}{{ (block.text || '').length > 50 ? '...' : '' }}
+                </span>
+              </div>
+              <div v-if="isThoughtExpanded" class="thought-content thought-tool-content">
+                <MarkdownRenderer
+                  :content="block.text || ''"
+                  :latex-only="false"
+                  class="thought-text"
+                />
+              </div>
+              <div class="thought-tool-tools">
+                <ToolMessage
+                  :tools="block.tools!"
+                  :embedded="true"
+                />
+              </div>
+            </div>
+
             <!-- 思考块：可折叠显示 -->
             <div v-if="block.type === 'thought'" class="thought-block">
               <div
@@ -899,9 +960,31 @@ function handleRestoreAndRetry(checkpointId: string) {
 .thought-block {
   margin: 8px 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 10px;
   background: var(--vscode-textBlockQuote-background);
   overflow: hidden;
+}
+
+/* 思考 + 工具调用合并块 */
+.thought-tool-block {
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 10px;
+  background: var(--vscode-editor-background);
+  overflow: hidden;
+}
+
+.thought-tool-header {
+  background: var(--vscode-textBlockQuote-background);
+}
+
+.thought-tool-content {
+  background: var(--vscode-textBlockQuote-background);
+}
+
+.thought-tool-tools {
+  border-top: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
 }
 
 .thought-header {
