@@ -137,6 +137,11 @@ export class GeminiFormatter extends BaseFormatter {
             'Content-Type': 'application/json'
         };
         
+        // 流式响应通常为 SSE，显式声明可提升部分代理/网关的兼容性
+        if (useStream) {
+            headers['Accept'] = 'text/event-stream';
+        }
+        
         // 只有当 apiKey 存在时才添加认证头
         if (config.apiKey) {
             if (config.useAuthorizationHeader) {

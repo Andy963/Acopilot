@@ -345,6 +345,12 @@ const checkpointsBeforeMessage = computed<CheckpointRecord[]>(() => {
 
 // 模型版本
 const modelVersion = computed(() => props.message.metadata?.modelVersion)
+// 结束原因（用于判断是否被截断）
+const finishReason = computed(() => props.message.metadata?.finishReason)
+const showFinishReason = computed(() => {
+  if (!finishReason.value) return false
+  return finishReason.value.toLowerCase() !== 'stop'
+})
 
 // 角色显示名称
 const roleDisplayName = computed(() => {
@@ -603,6 +609,14 @@ function handleRestoreAndRetry(checkpointId: string) {
                 <span class="token-arrow">↓</span>{{ usageMetadata.candidatesTokenCount }}
               </span>
             </div>
+
+            <span
+              v-if="showFinishReason"
+              class="finish-reason"
+              :title="t('components.message.stats.finishReason')"
+            >
+              <i class="codicon codicon-info"></i>{{ finishReason }}
+            </span>
           </div>
 
           <div class="message-footer-right">
@@ -780,6 +794,19 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+}
+
+.finish-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.finish-reason .codicon {
+  font-size: 14px;
 }
 
 .token-total {

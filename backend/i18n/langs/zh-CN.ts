@@ -246,6 +246,7 @@ const zhCN: BackendLanguageMessages = {
                     configDisabled: '配置已禁用: {configId}',
                     maxToolIterations: '达到最大工具调用次数限制 ({maxIterations})',
                     unknownError: '未知错误',
+                    streamEndedUnexpectedly: '流式响应异常结束（未收到完成标记），请重试',
                     toolExecutionSuccess: '工具执行成功',
                     mcpToolCallFailed: 'MCP 工具调用失败',
                     invalidMcpToolName: '无效的 MCP 工具名称: {toolName}',

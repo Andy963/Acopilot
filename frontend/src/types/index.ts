@@ -95,6 +95,13 @@ export interface Content {
   index?: number
   /** 模型版本（仅 model 消息有值），如 "gemini-2.5-flash" */
   modelVersion?: string
+  /**
+   * 结束原因（仅 model 消息有值）
+   *
+   * 用于判断响应是否因达到输出上限等原因被截断。
+   * 不同提供商取值不同，例如: "STOP", "MAX_TOKENS", "length" 等。
+   */
+  finishReason?: string
   /** Token 使用统计（仅 model 消息有值） */
   usageMetadata?: UsageMetadata
   /** 是否为函数响应消息 */
@@ -202,6 +209,8 @@ export interface MessageMetadata {
   latency?: number
   /** 完整的 token 使用统计 */
   usageMetadata?: UsageMetadata
+  /** 结束原因（用于判断是否被截断） */
+  finishReason?: string
   /**
    * 思考开始时间戳（毫秒）
    *
