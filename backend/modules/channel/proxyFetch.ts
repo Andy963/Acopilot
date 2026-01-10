@@ -458,6 +458,11 @@ export async function* proxyStreamFetch(
                 if (done) break;
                 yield decoder.decode(value, { stream: true });
             }
+            // flush TextDecoder 内部缓冲，避免最后一个字符/字节丢失
+            const rest = decoder.decode();
+            if (rest) {
+                yield rest;
+            }
         } finally {
             reader.releaseLock();
         }
@@ -737,9 +742,13 @@ export async function* proxyStreamFetch(
         const dataQueue: string[] = [];
         let readPromise: Promise<void> | null = null;
         let isReading = true;
+        let readError: Error | null = null;
         
         // 启动后台数据读取
-        readPromise = readData().finally(() => {
+        readPromise = readData().catch(err => {
+            readError = err;
+            throw err;
+        }).finally(() => {
             isReading = false;
         });
         
@@ -749,6 +758,11 @@ export async function* proxyStreamFetch(
             if (init.signal?.aborted) {
                 break;
             }
+
+            // 如果发生错误，抛出错误
+            if (readError) {
+                throw readError;
+            }
             
             if (dataQueue.length > 0) {
                 yield dataQueue.shift()!;
@@ -756,6 +770,11 @@ export async function* proxyStreamFetch(
                 // 等待一小段时间后重试
                 await new Promise(resolve => setTimeout(resolve, 10));
             }
+        }
+
+        // 如果发生错误，抛出错误
+        if (readError) {
+            throw readError;
         }
         
         // 处理剩余数据

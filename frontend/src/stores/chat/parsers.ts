@@ -121,6 +121,8 @@ export function contentToMessage(content: Content, id?: string): Message {
     metadata: {
       // 存储模型版本（仅 model 消息有值）
       modelVersion: content.modelVersion,
+      // 结束原因（用于判断是否被截断）
+      finishReason: content.finishReason,
       // 存储完整的 usageMetadata（仅 model 消息有值）
       usageMetadata: content.usageMetadata,
       // 计时信息（从后端获取）
@@ -214,6 +216,7 @@ export function contentToMessageEnhanced(content: Content, id?: string): Message
     summarizedMessageCount: content.summarizedMessageCount,  // 总结消息覆盖的消息数量
     metadata: {
       modelVersion: content.modelVersion,
+      finishReason: content.finishReason,
       usageMetadata: content.usageMetadata,
       // 从后端加载的思考持续时间
       thinkingDuration: content.thinkingDuration,

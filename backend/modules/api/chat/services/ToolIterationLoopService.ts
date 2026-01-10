@@ -212,6 +212,23 @@ export class ToolIterationLoopService {
                 }
 
                 finalContent = processor.getContent();
+
+                // 如果流式未收到完成标记但自然结束，认为是异常中断（常见表现：回复一半就断且无报错）
+                if (!processor.isCompleted()) {
+                    if (finalContent.parts.length > 0) {
+                        await this.conversationManager.addContent(conversationId, finalContent);
+                    }
+                    throw new ChannelError(
+                        ErrorType.NETWORK_ERROR,
+                        t('modules.api.chat.errors.streamEndedUnexpectedly'),
+                        {
+                            providerType: config.type,
+                            chunkCount: finalContent.chunkCount,
+                            responseDuration: finalContent.responseDuration,
+                            hasUsageMetadata: !!finalContent.usageMetadata
+                        }
+                    );
+                }
             } else {
                 // 非流式响应处理
                 const processor = new StreamResponseProcessor({
@@ -394,6 +411,8 @@ export class ToolIterationLoopService {
 
             const generateResponse = response as GenerateResponse;
             const finalContent = generateResponse.content;
+            // 透传结束原因，便于前端判断是否被截断
+            finalContent.finishReason = generateResponse.finishReason;
 
             // 转换 XML 工具调用为 functionCall 格式（如果有）
             this.toolCallParserService.convertXMLToolCallsToFunctionCalls(finalContent);

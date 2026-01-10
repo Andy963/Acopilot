@@ -331,10 +331,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             const existingConfig = await this.configManager.getConfig('gemini-pro');
             if (!existingConfig) {
                 const config = {
-                    id: 'gemini-default',
+                    id: 'gemini-pro',
                     type: 'gemini' as const,
                     name: 'Gemini(Default)',
-                    apiKey: process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE',
+                    apiKey: process.env.GEMINI_API_KEY || '',
                     url: 'https://generativelanguage.googleapis.com/v1beta',
                     model: 'gemini-3-pro-preview',
                     timeout: 120000,

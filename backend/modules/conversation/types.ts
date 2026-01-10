@@ -308,6 +308,14 @@ export interface Content {
     modelVersion?: string;
     
     /**
+     * 结束原因（仅 model 消息有值）
+     *
+     * 用于判断响应是否因为达到输出上限等原因被截断。
+     * 例如: "STOP", "MAX_TOKENS", "SAFETY" 等（不同提供商取值不同）。
+     */
+    finishReason?: string;
+    
+    /**
      * Token 使用统计（仅 model 消息有值）
      *
      * 包含完整的 usageMetadata：
