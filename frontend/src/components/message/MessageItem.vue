@@ -11,7 +11,7 @@ import ToolMessage from './ToolMessage.vue'
 import MessageAttachments from './MessageAttachments.vue'
 import { MarkdownRenderer, RetryDialog, EditDialog } from '../common'
 import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
-import { formatTime } from '../../utils/format'
+import { formatModelName, formatTime } from '../../utils/format'
 import { useChatStore } from '../../stores/chatStore'
 import { useI18n } from '../../i18n'
 
@@ -54,7 +54,7 @@ const isSummaryExpanded = ref(false)
  * 渲染块类型
  */
 interface RenderBlock {
-  type: 'text' | 'tool' | 'thought'
+  type: 'text' | 'tool' | 'thought' | 'thoughtTool'
   text?: string
   tools?: ToolUsage[]
 }
@@ -181,7 +181,7 @@ const renderBlocks = computed<RenderBlock[]>(() => {
   const flushText = () => {
     if (currentTextBlock.length > 0) {
       const text = filterToolCallMarkers(currentTextBlock.join(''))
-      if (text) {
+      if (text.trim()) {
         blocks.push({ type: 'text', text })
       }
       currentTextBlock = []
@@ -252,6 +252,36 @@ const renderBlocks = computed<RenderBlock[]>(() => {
   flushTools()
   
   return blocks
+})
+
+/**
+ * 将“思考块 + 工具块”合并成一个展示块
+ * 让思考过程与后续工具调用呈现为一个整体卡片
+ */
+const displayBlocks = computed<RenderBlock[]>(() => {
+  const blocks = renderBlocks.value
+  if (!blocks.length) return []
+
+  const merged: RenderBlock[] = []
+
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index]
+    const next = blocks[index + 1]
+
+    if (block.type === 'thought' && next?.type === 'tool') {
+      merged.push({
+        type: 'thoughtTool',
+        text: block.text,
+        tools: next.tools
+      })
+      index++
+      continue
+    }
+
+    merged.push(block)
+  }
+
+  return merged
 })
 
 // 判断是否正在思考中（有思考块但没有普通文本块也没有工具调用块，且消息正在流式输出，且没有最终的思考时间）
@@ -357,7 +387,7 @@ const roleDisplayName = computed(() => {
   if (isUser.value) return t('components.message.roles.user')
   if (isTool.value) return t('components.message.roles.tool')
   // 助手消息显示模型版本
-  return modelVersion.value || t('components.message.roles.assistant')
+  return (modelVersion.value ? formatModelName(modelVersion.value) : '') || t('components.message.roles.assistant')
 })
 
 // Token 使用情况
@@ -366,6 +396,13 @@ const hasUsage = computed(() =>
   !isUser.value && !isTool.value && usageMetadata.value &&
   (usageMetadata.value.totalTokenCount || usageMetadata.value.promptTokenCount || usageMetadata.value.candidatesTokenCount)
 )
+
+function formatTokenCount(count: number | undefined): string {
+  if (count === undefined) return ''
+  if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
+  if (count >= 10_000) return `${Math.round(count / 1_000)}k`
+  return String(count)
+}
 
 // 响应持续时间（从请求发送到响应结束，使用后端提供的数据）
 const responseDuration = computed(() => {
@@ -525,8 +562,39 @@ function handleRestoreAndRetry(checkpointId: string) {
         <!-- 显示模式 -->
         <div class="message-content">
         <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
-        <template v-if="renderBlocks.length > 0">
-          <template v-for="(block, index) in renderBlocks" :key="index">
+        <template v-if="displayBlocks.length > 0">
+          <template v-for="(block, index) in displayBlocks" :key="index">
+            <!-- 思考块 + 工具调用块：合并显示为一个整体 -->
+            <div v-if="block.type === 'thoughtTool'" class="thought-tool-block">
+              <div
+                class="thought-header thought-tool-header"
+                @click="isThoughtExpanded = !isThoughtExpanded"
+              >
+                <i class="codicon" :class="isThoughtExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
+                <i class="codicon codicon-lightbulb thought-icon" :class="{ 'thinking-pulse': isThinking }"></i>
+                <span class="thought-label">{{ isThinking ? t('components.message.thought.thinking') : t('components.message.thought.thoughtProcess') }}</span>
+                <span v-if="thinkingTimeDisplay" class="thought-time" :class="{ 'thinking-active': isThinking }">
+                  {{ thinkingTimeDisplay }}
+                </span>
+                <span v-if="!isThoughtExpanded" class="thought-preview">
+                  {{ (block.text || '').slice(0, 50) }}{{ (block.text || '').length > 50 ? '...' : '' }}
+                </span>
+              </div>
+              <div v-if="isThoughtExpanded" class="thought-content thought-tool-content">
+                <MarkdownRenderer
+                  :content="block.text || ''"
+                  :latex-only="false"
+                  class="thought-text"
+                />
+              </div>
+              <div class="thought-tool-tools">
+                <ToolMessage
+                  :tools="block.tools!"
+                  :embedded="true"
+                />
+              </div>
+            </div>
+
             <!-- 思考块：可折叠显示 -->
             <div v-if="block.type === 'thought'" class="thought-block">
               <div
@@ -590,27 +658,31 @@ function handleRestoreAndRetry(checkpointId: string) {
           <div v-if="!isUser" class="message-footer-left">
             <span class="role-label">{{ roleDisplayName }}</span>
 
-            <span v-if="responseDuration" class="response-duration" :title="t('components.message.stats.responseDuration')">
-              <i class="codicon codicon-clock"></i>{{ responseDuration }}
-            </span>
-
-            <span v-if="tokenRate" class="token-rate" :title="t('components.message.stats.tokenRate')">
-              <i class="codicon codicon-zap"></i>{{ tokenRate }} t/s
-            </span>
-
-            <div v-if="hasUsage" class="token-usage">
-              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
-                {{ usageMetadata.totalTokenCount }}
-              </span>
-              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
-                <span class="token-arrow">↑</span>{{ usageMetadata.promptTokenCount }}
-              </span>
-              <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
-                <span class="token-arrow">↓</span>{{ usageMetadata.candidatesTokenCount }}
-              </span>
-            </div>
-
-            <span
+	            <span v-if="responseDuration" class="response-duration" :title="t('components.message.stats.responseDuration')">
+	              <i class="codicon codicon-clock"></i>{{ responseDuration }}
+	            </span>
+	
+	            <span v-if="tokenRate" class="token-rate" :title="t('components.message.stats.tokenRate')">
+	              <i class="codicon codicon-zap"></i>
+	              <span class="token-rate-value">{{ tokenRate }}</span>
+	              <span class="token-rate-unit">t/s</span>
+	            </span>
+	
+	            <div v-if="hasUsage" class="token-usage">
+	              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
+	                {{ formatTokenCount(usageMetadata.totalTokenCount) }}
+	              </span>
+	              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
+	                <span class="token-arrow">↑</span>
+	                <span class="token-count">{{ formatTokenCount(usageMetadata.promptTokenCount) }}</span>
+	              </span>
+	              <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
+	                <span class="token-arrow">↓</span>
+	                <span class="token-count">{{ formatTokenCount(usageMetadata.candidatesTokenCount) }}</span>
+	              </span>
+	            </div>
+	
+	            <span
               v-if="showFinishReason"
               class="finish-reason"
               :title="t('components.message.stats.finishReason')"
@@ -655,7 +727,7 @@ function handleRestoreAndRetry(checkpointId: string) {
 
 .message-item.user-message {
   padding-top: 10px;
-  padding-bottom: 10px;
+  padding-bottom: 4px;
   background: transparent;
 }
 
@@ -678,6 +750,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .user-message .role-label {
@@ -705,7 +778,7 @@ function handleRestoreAndRetry(checkpointId: string) {
 
 .message-footer.user-footer {
   justify-content: flex-end;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .message-footer-left {
@@ -713,6 +786,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   align-items: center;
   gap: var(--spacing-sm, 8px);
   min-width: 0;
+  line-height: 1;
 }
 
 .message-footer-right {
@@ -721,6 +795,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   gap: 6px;
   margin-left: auto;
   min-height: 24px;
+  line-height: 1;
 }
 
 .message-time {
@@ -728,6 +803,7 @@ function handleRestoreAndRetry(checkpointId: string) {
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
   white-space: nowrap;
+  line-height: 1;
 }
 
 /* 响应持续时间 */
@@ -738,11 +814,13 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  line-height: 1;
 }
 
 .response-duration .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
+  line-height: 1;
 }
 
 /* Token 速率 */
@@ -753,11 +831,14 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .token-rate .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
+  line-height: 1;
 }
 
 /* 消息内容 */
@@ -794,6 +875,8 @@ function handleRestoreAndRetry(checkpointId: string) {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .finish-reason {
@@ -803,10 +886,12 @@ function handleRestoreAndRetry(checkpointId: string) {
   margin-left: 8px;
   font-size: 12px;
   opacity: 0.85;
+  line-height: 1;
 }
 
 .finish-reason .codicon {
   font-size: 14px;
+  line-height: 1;
 }
 
 .token-total {
@@ -818,11 +903,14 @@ function handleRestoreAndRetry(checkpointId: string) {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .token-arrow {
   font-size: 10px;
   opacity: 0.8;
+  line-height: 1;
 }
 
 .token-prompt .token-arrow {
@@ -899,9 +987,31 @@ function handleRestoreAndRetry(checkpointId: string) {
 .thought-block {
   margin: 8px 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 10px;
   background: var(--vscode-textBlockQuote-background);
   overflow: hidden;
+}
+
+/* 思考 + 工具调用合并块 */
+.thought-tool-block {
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 10px;
+  background: var(--vscode-editor-background);
+  overflow: hidden;
+}
+
+.thought-tool-header {
+  background: var(--vscode-textBlockQuote-background);
+}
+
+.thought-tool-content {
+  background: var(--vscode-textBlockQuote-background);
+}
+
+.thought-tool-tools {
+  border-top: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
 }
 
 .thought-header {

@@ -23,6 +23,7 @@ const { t } = useI18n()
 
 const props = defineProps<{
   tools: ToolUsage[]
+  embedded?: boolean
 }>()
 
 const chatStore = useChatStore()
@@ -372,7 +373,7 @@ function renderToolContent(tool: ToolUsage) {
 </script>
 
 <template>
-  <div class="tool-message">
+  <div class="tool-message" :class="{ embedded: !!props.embedded }">
     <div
       v-for="tool in enhancedTools"
       :key="tool.id"
@@ -499,13 +500,23 @@ function renderToolContent(tool: ToolUsage) {
   gap: var(--spacing-sm, 8px);
 }
 
+.tool-message.embedded {
+  gap: 0;
+}
+
 .tool-item {
   display: flex;
   flex-direction: column;
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--radius-sm, 2px);
+  border-radius: 8px;
   overflow: hidden;
+}
+
+.tool-message.embedded .tool-item {
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .tool-header {
@@ -515,6 +526,10 @@ function renderToolContent(tool: ToolUsage) {
   padding: var(--spacing-sm, 8px);
   cursor: pointer;
   transition: background-color var(--transition-fast, 0.1s);
+}
+
+.tool-message.embedded .tool-header {
+  padding: 8px 12px;
 }
 
 .tool-header:hover {
@@ -773,6 +788,17 @@ function renderToolContent(tool: ToolUsage) {
   padding: var(--spacing-sm, 8px);
   border-top: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.tool-message.embedded .tool-content {
+  padding: 0;
+  border-top: 1px solid var(--vscode-panel-border);
+  background: transparent;
+}
+
+.tool-message.embedded .tool-content :deep(.execute-command-panel) {
+  border: none;
+  border-radius: 0;
 }
 
 /* 默认内容样式 */

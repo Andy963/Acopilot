@@ -304,18 +304,25 @@ export class ChannelManager {
                 
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
+                    // 计算指数退避时间：retryInterval * 2^(attempt-1)
+                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    
                     this.retryStatusCallback({
                         type: 'retrying',
                         attempt: attempt + 1,
                         maxAttempts: maxRetries,
                         error: errorMessage,
                         errorDetails,
-                        nextRetryIn: retryInterval
+                        nextRetryIn: currentInterval
                     });
+                    
+                    // 等待后重试（支持取消）
+                    await this.delay(currentInterval, request.abortSignal);
+                } else {
+                    // 如果没有回调，也要等待
+                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    await this.delay(currentInterval, request.abortSignal);
                 }
-                
-                // 等待后重试（支持取消）
-                await this.delay(retryInterval, request.abortSignal);
             }
         }
         
@@ -447,18 +454,25 @@ export class ChannelManager {
                 
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
+                    // 计算指数退避时间：retryInterval * 2^(attempt-1)
+                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    
                     this.retryStatusCallback({
                         type: 'retrying',
                         attempt: attempt + 1,
                         maxAttempts: maxRetries,
                         error: errorMessage,
                         errorDetails,
-                        nextRetryIn: retryInterval
+                        nextRetryIn: currentInterval
                     });
+                    
+                    // 等待后重试（支持取消）
+                    await this.delay(currentInterval, request.abortSignal);
+                } else {
+                    // 如果没有回调，也要等待
+                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    await this.delay(currentInterval, request.abortSignal);
                 }
-                
-                // 等待后重试（支持取消）
-                await this.delay(retryInterval, request.abortSignal);
             }
         }
         
