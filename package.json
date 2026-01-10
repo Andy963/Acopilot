@@ -82,11 +82,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "build:frontend": "cd frontend && pnpm run build",
-    "build": "pnpm run compile && pnpm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run compile && npm run build:frontend",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
