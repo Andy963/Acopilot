@@ -15,10 +15,11 @@ import {
 import { sendToExtension } from '@/utils/vscode'
 import { useChatStore } from '@/stores'
 import type { ModelInfo } from '@/types'
-import { t } from '@/i18n'
+import { t, useI18n } from '@/i18n'
 
 // Chat Store - 用于同步配置状态
 const chatStore = useChatStore()
+const { actualLanguage } = useI18n()
 
 // 配置列表
 const configs = ref<any[]>([])
@@ -58,6 +59,9 @@ const showToolOptions = ref(false)
 
 // Token 计数方式展开状态
 const showTokenCountMethod = ref(false)
+
+// 多模态详情展开状态
+const showMultimodalDetails = ref(false)
 
 // 确认对话框
 const showConfirmDialog = ref(false)
@@ -116,6 +120,49 @@ async function updateOptionEnabled(optionKey: string, enabled: boolean, optionVa
 const currentConfig = computed(() => 
   configs.value.find(c => c.id === currentConfigId.value)
 )
+
+const multimodalSummaryTypes = computed(() => {
+  const config = currentConfig.value
+  if (!config) return ''
+
+  const type = config.type
+  const toolMode = config.toolMode ?? 'function_call'
+
+  const supportsImage =
+    type === 'gemini' ||
+    type === 'anthropic' ||
+    type === 'openai-responses' ||
+    (type === 'openai' && toolMode !== 'function_call')
+
+  const supportsDocument =
+    type === 'gemini' ||
+    type === 'anthropic' ||
+    type === 'openai-responses'
+
+  const types: string[] = []
+  if (supportsImage) {
+    types.push(t('components.settings.channelSettings.form.multimodal.image'))
+  }
+  if (supportsDocument) {
+    types.push(t('components.settings.channelSettings.form.multimodal.documentFormats'))
+  }
+
+  const separator = actualLanguage.value === 'en' ? ', ' : '、'
+  return types.join(separator)
+})
+
+const multimodalSummaryText = computed(() => {
+  const typesText = multimodalSummaryTypes.value
+  if (!typesText) {
+    return t('components.settings.channelSettings.form.multimodal.legend.notSupported')
+  }
+
+  return typesText
+})
+
+function toggleMultimodalDetails() {
+  showMultimodalDetails.value = !showMultimodalDetails.value
+}
 
 // 配置选项
 const configOptions = computed<SelectOption[]>(() =>
@@ -568,6 +615,7 @@ const isInitialized = ref(false)
 
 // 监听 currentConfigId 变化，同步到 chatStore（仅在初始化完成后）
 watch(currentConfigId, (newId) => {
+  showMultimodalDetails.value = false
   if (isInitialized.value && newId && newId !== chatStore.configId) {
     chatStore.setConfigId(newId)
   }
@@ -795,17 +843,33 @@ onMounted(async () => {
       
       <!-- 多模态工具 -->
       <div class="form-group">
-        <div class="checkbox-with-hint">
-          <label class="custom-checkbox">
-            <input
-              type="checkbox"
-              :checked="currentConfig.multimodalToolsEnabled ?? false"
-              @change="(e: any) => updateConfigField('multimodalToolsEnabled', e.target.checked)"
-            />
-            <span class="checkmark"></span>
-            <span class="checkbox-text">{{ t('components.settings.channelSettings.form.multimodal.label') }}</span>
-          </label>
-          <div class="multimodal-support-info">
+        <div class="multimodal-panel">
+          <div class="multimodal-panel-header">
+            <label class="custom-checkbox">
+              <input
+                type="checkbox"
+                :checked="currentConfig.multimodalToolsEnabled ?? false"
+                @change="(e: any) => updateConfigField('multimodalToolsEnabled', e.target.checked)"
+              />
+              <span class="checkmark"></span>
+              <span class="checkbox-text">{{ t('components.settings.channelSettings.form.multimodal.label') }}</span>
+            </label>
+            <button
+              type="button"
+              class="multimodal-details-toggle"
+              :aria-expanded="showMultimodalDetails"
+              @click="toggleMultimodalDetails"
+            >
+              <span>{{ showMultimodalDetails ? t('components.tools.hideDetails') : t('components.tools.viewDetails') }}</span>
+              <i :class="['codicon', showMultimodalDetails ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
+            </button>
+          </div>
+
+          <button type="button" class="multimodal-summary" @click="toggleMultimodalDetails">
+            {{ multimodalSummaryText }}
+          </button>
+
+          <div v-show="showMultimodalDetails" class="multimodal-panel-details">
             <div class="support-header">{{ t('components.settings.channelSettings.form.multimodal.supportedTypes') }}</div>
             <div class="support-list">
               <div class="support-item">
@@ -817,7 +881,7 @@ onMounted(async () => {
                 <span class="type-formats">{{ t('components.settings.channelSettings.form.multimodal.documentFormats') }}</span>
               </div>
             </div>
-            
+
             <div class="support-header" style="margin-top: 8px;">{{ t('components.settings.channelSettings.form.multimodal.capabilities') }}</div>
             <div class="channel-support-table detailed">
               <div class="channel-row header-row">
@@ -848,14 +912,14 @@ onMounted(async () => {
                 <span class="channel-feature support-no">✗</span>
                 <span class="channel-feature support-yes">✓</span>
               </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && currentConfig.toolMode !== 'function_call' }">
+              <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && (currentConfig.toolMode === 'xml' || currentConfig.toolMode === 'json') }">
                 <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiXmlJson') }}</span>
                 <span class="channel-feature support-yes">✓</span>
                 <span class="channel-feature support-no">✗</span>
                 <span class="channel-feature support-yes">✓</span>
                 <span class="channel-feature support-yes">✓</span>
               </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && currentConfig.toolMode === 'function_call' }">
+              <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && (currentConfig.toolMode === 'function_call' || !currentConfig.toolMode) }">
                 <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiFunction') }}</span>
                 <span class="channel-feature support-no">✗</span>
                 <span class="channel-feature support-no">✗</span>
@@ -863,7 +927,7 @@ onMounted(async () => {
                 <span class="channel-feature support-no">✗</span>
               </div>
             </div>
-            
+
             <div class="support-legend">
               <span class="legend-item">
                 <span class="legend-symbol support-yes">✓</span>
@@ -874,7 +938,7 @@ onMounted(async () => {
                 <span class="legend-text">{{ t('components.settings.channelSettings.form.multimodal.legend.notSupported') }}</span>
               </span>
             </div>
-            
+
             <div class="support-notes">
               <div class="note-item highlight">
                 <i class="codicon codicon-lightbulb note-icon"></i>
@@ -1808,39 +1872,96 @@ onMounted(async () => {
   margin-left: 26px;
 }
 
-/* 多模态支持信息 */
-.multimodal-support-info {
-  margin-left: 26px;
-  margin-top: 8px;
+/* 多模态折叠面板 */
+.multimodal-panel {
   padding: 10px 12px;
   background: var(--vscode-textBlockQuote-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.multimodal-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.multimodal-panel-header .custom-checkbox {
+  flex: 1;
+  margin: 0;
+}
+
+.multimodal-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-panel-border);
   border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.multimodal-details-toggle:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.multimodal-details-toggle .codicon {
+  font-size: 14px;
+}
+
+.multimodal-summary {
+  margin-left: 26px;
+  margin-top: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.multimodal-summary:hover {
+  color: var(--vscode-foreground);
+}
+
+.multimodal-panel-details {
+  margin-left: 26px;
+  margin-top: 10px;
   font-size: 11px;
 }
 
-.multimodal-support-info .support-header {
+.multimodal-panel-details .support-header {
   font-weight: 500;
   color: var(--vscode-foreground);
   margin-bottom: 6px;
 }
 
-.multimodal-support-info .support-list {
+.multimodal-panel-details .support-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.multimodal-support-info .support-item {
+.multimodal-panel-details .support-item {
   display: flex;
   gap: 8px;
 }
 
-.multimodal-support-info .type-label {
+.multimodal-panel-details .type-label {
   color: var(--vscode-descriptionForeground);
   min-width: 40px;
 }
 
-.multimodal-support-info .type-formats {
+.multimodal-panel-details .type-formats {
   color: var(--vscode-foreground);
 }
 
