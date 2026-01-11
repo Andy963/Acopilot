@@ -513,7 +513,23 @@ const en: LanguageMessages = {
                     },
                     enabled: {
                         label: 'Enable this configuration'
-                    }
+                    },
+                    sections: {
+                        identityCredentials: 'Identity & Credentials',
+                        capabilities: 'Capabilities',
+                        advancedConfig: 'Advanced Configuration'
+                    },
+                    status: {
+                        defaultConfig: 'Default config',
+                        toolsConfigured: '{count} tools loaded',
+                        localEstimate: 'Local estimate',
+                        fieldsConfigured: '{count} fields defined',
+                        headersConfigured: '{count} Header(s)',
+                        maxRetries: 'Max {count} times',
+                        thresholdValue: 'threshold'
+                    },
+                    multimodalSummary: 'Images (PNG/JPG), PDF.',
+                    viewCompatibility: 'View compatibility matrix'
                 }
             },
             tools: {
