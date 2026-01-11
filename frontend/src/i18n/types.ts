@@ -657,6 +657,22 @@ export interface LanguageMessages {
                     enabled: {
                         label: string;
                     };
+                    sections: {
+                        identityCredentials: string;
+                        capabilities: string;
+                        advancedConfig: string;
+                    };
+                    status: {
+                        defaultConfig: string;
+                        toolsConfigured: string;
+                        localEstimate: string;
+                        fieldsConfigured: string;
+                        headersConfigured: string;
+                        maxRetries: string;
+                        thresholdValue: string;
+                    };
+                    multimodalSummary: string;
+                    viewCompatibility: string;
                 };
             };
             tools: {

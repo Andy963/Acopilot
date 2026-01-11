@@ -513,7 +513,23 @@ const ja: LanguageMessages = {
                     },
                     enabled: {
                         label: 'この設定を有効化'
-                    }
+                    },
+                    sections: {
+                        identityCredentials: '認証情報',
+                        capabilities: '機能',
+                        advancedConfig: '詳細設定'
+                    },
+                    status: {
+                        defaultConfig: 'デフォルト設定',
+                        toolsConfigured: '{count} ツール読み込み済み',
+                        localEstimate: 'ローカル推定',
+                        fieldsConfigured: '{count} フィールド定義済み',
+                        headersConfigured: '{count} Header',
+                        maxRetries: '最大 {count} 回',
+                        thresholdValue: '閾値'
+                    },
+                    multimodalSummary: '画像 (PNG/JPG)、PDF。',
+                    viewCompatibility: '互換性マトリクスを見る'
                 }
             },
             tools: {

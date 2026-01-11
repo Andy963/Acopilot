@@ -36,9 +36,6 @@ const showNewDialog = ref(false)
 const newConfigName = ref('')
 const newConfigType = ref<'gemini' | 'openai' | 'openai-responses' | 'anthropic'>('gemini')
 
-// API Key 显示
-const showApiKey = ref(false)
-
 // 高级选项展开状态
 const showAdvancedOptions = ref(false)
 
@@ -47,6 +44,9 @@ const showCustomHeaders = ref(false)
 
 // 自定义 body 展开状态
 const showCustomBody = ref(false)
+
+// API Key 显示/隐藏
+const showApiKey = ref(false)
 
 // 自动重试展开状态
 const showRetryOptions = ref(false)
@@ -162,6 +162,33 @@ const multimodalSummaryText = computed(() => {
 
 function toggleMultimodalDetails() {
   showMultimodalDetails.value = !showMultimodalDetails.value
+}
+
+// Provider 图标
+const providerIcon = computed(() => {
+  const type = currentConfig.value?.type
+  switch (type) {
+    case 'gemini':
+      return 'codicon-sparkle'
+    case 'openai':
+    case 'openai-responses':
+      return 'codicon-hubot'
+    case 'anthropic':
+      return 'codicon-comment-discussion'
+    default:
+      return 'codicon-cloud'
+  }
+})
+
+// 工具调用格式显示名称
+const toolModeDisplayName = computed(() => {
+  const mode = currentConfig.value?.toolMode || 'function_call'
+  return t(`components.settings.channelSettings.form.toolMode.${mode === 'function_call' ? 'functionCall' : mode}.label`)
+})
+
+// 复制到剪贴板
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text)
 }
 
 // 配置选项
@@ -328,14 +355,85 @@ const contextThreshold = computed(() => {
   return currentConfig.value?.contextThreshold ?? '80%'
 })
 
-// 自动总结是否启用
-const autoSummarizeEnabled = computed(() => {
-  return currentConfig.value?.autoSummarizeEnabled ?? false
-})
-
 // 裁剪时额外裁剪量
 const contextTrimExtraCut = computed(() => {
   return currentConfig.value?.contextTrimExtraCut ?? 0
+})
+
+// ==================== Summary Computed Properties ====================
+
+// 上下文管理摘要
+const contextManagementSummary = computed(() => {
+  if (!contextThresholdEnabled.value) {
+    return t('common.disabled')
+  }
+  return `${t('common.enabled')} · ${contextThreshold.value} ${t('components.settings.channelSettings.form.status.thresholdValue')}`
+})
+
+// 工具配置摘要
+const toolOptionsSummary = computed(() => {
+  const opts = toolOptions.value
+  const count = Object.keys(opts).length
+  if (count === 0) {
+    return t('components.settings.channelSettings.form.status.defaultConfig')
+  }
+  return t('components.settings.channelSettings.form.status.toolsConfigured', { count })
+})
+
+// Token 计数方式摘要
+const tokenCountMethodSummary = computed(() => {
+  const method = currentConfig.value?.tokenCountMethod || 'channel_default'
+  if (method === 'channel_default') {
+    return t('components.channels.tokenCountMethod.options.channelDefault')
+  }
+  if (method === 'local') {
+    return t('components.settings.channelSettings.form.status.localEstimate')
+  }
+  return method
+})
+
+// 自定义 Body 摘要
+const customBodySummary = computed(() => {
+  if (!customBodyEnabled.value) {
+    return t('common.disabled')
+  }
+  const body = customBody.value
+  if (body.mode === 'simple') {
+    const items = body.items || []
+    const enabledCount = items.filter(i => i.enabled).length
+    if (enabledCount === 0) {
+      return t('common.enabled')
+    }
+    return t('components.settings.channelSettings.form.status.fieldsConfigured', { count: enabledCount })
+  }
+  return t('common.enabled')
+})
+
+// 自定义标头摘要
+const customHeadersSummary = computed(() => {
+  if (!customHeadersEnabled.value) {
+    return t('common.disabled')
+  }
+  const headers = customHeaders.value
+  const enabledCount = headers.filter(h => h.enabled).length
+  if (enabledCount === 0) {
+    return t('common.enabled')
+  }
+  return t('components.settings.channelSettings.form.status.headersConfigured', { count: enabledCount })
+})
+
+// 自动重试摘要
+const autoRetrySummary = computed(() => {
+  if (!retryEnabled.value) {
+    return t('common.disabled')
+  }
+  return `${t('common.enabled')} · ${t('components.settings.channelSettings.form.status.maxRetries', { count: retryCount.value })}`
+})
+
+// 高级选项摘要
+const advancedOptionsSummary = computed(() => {
+  const type = currentConfig.value?.type
+  return getTypeName(type || '')
 })
 
 // 更新上下文阈值启用状态
@@ -355,11 +453,6 @@ async function updateContextThreshold(value: string) {
   } else if (!isNaN(numValue) && numValue > 0) {
     await updateConfigField('contextThreshold', numValue)
   }
-}
-
-// 更新自动总结启用状态
-async function updateAutoSummarizeEnabled(enabled: boolean) {
-  await updateConfigField('autoSummarizeEnabled', enabled)
 }
 
 // 更新裁剪时额外裁剪量
@@ -615,6 +708,7 @@ const isInitialized = ref(false)
 
 // 监听 currentConfigId 变化，同步到 chatStore（仅在初始化完成后）
 watch(currentConfigId, (newId) => {
+  showApiKey.value = false
   showMultimodalDetails.value = false
   if (isInitialized.value && newId && newId !== chatStore.configId) {
     chatStore.setConfigId(newId)
@@ -646,7 +740,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="channel-settings">
+  <div class="channel-settings v2">
     <!-- 确认对话框 -->
     <ConfirmDialog
       v-model="showConfirmDialog"
@@ -657,8 +751,42 @@ onMounted(async () => {
       :cancel-text="t('components.settings.channelSettings.dialog.delete.cancel')"
       @confirm="onConfirmDialogConfirm"
     />
+
+    <!-- 新建对话框 -->
+    <div v-if="showNewDialog" class="config-dialog">
+      <div class="dialog-content">
+        <h4>{{ t('components.settings.channelSettings.dialog.new.title') }}</h4>
+
+        <div class="form-group">
+          <label>{{ t('components.settings.channelSettings.dialog.new.nameLabel') }}</label>
+          <input
+            v-model="newConfigName"
+            type="text"
+            :placeholder="t('components.settings.channelSettings.dialog.new.namePlaceholder')"
+            @keyup.enter="createConfig"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>{{ t('components.settings.channelSettings.dialog.new.typeLabel') }}</label>
+          <CustomSelect
+            v-model="newConfigType"
+            :options="typeOptions"
+            :placeholder="t('components.settings.channelSettings.dialog.new.typePlaceholder')"
+          />
+        </div>
+
+        <div class="dialog-actions">
+          <button class="btn secondary" @click="cancelNew">{{ t('components.settings.channelSettings.dialog.new.cancel') }}</button>
+          <button class="btn primary" @click="createConfig">{{ t('components.settings.channelSettings.dialog.new.create') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 1. 顶部：身份与凭据区 ==================== -->
     <!-- 配置选择器 -->
     <div class="config-selector">
+      <i :class="['provider-icon', 'codicon', providerIcon]"></i>
       <!-- 编辑模式：输入框 + 确认/取消按钮 -->
       <template v-if="isEditing">
         <input
@@ -676,7 +804,7 @@ onMounted(async () => {
           <i class="codicon codicon-close"></i>
         </button>
       </template>
-      
+
       <!-- 正常模式：自定义下拉框 -->
       <div v-else class="config-select-wrapper">
         <CustomSelect
@@ -685,15 +813,15 @@ onMounted(async () => {
           :placeholder="t('components.settings.channelSettings.selector.placeholder')"
         />
       </div>
-      
+
       <button v-if="!isEditing" class="icon-btn" :title="t('components.settings.channelSettings.selector.rename')" @click="startEditing">
         <i class="codicon codicon-edit"></i>
       </button>
-      
+
       <button v-if="!isEditing" class="icon-btn" :title="t('components.settings.channelSettings.selector.add')" @click="showNewDialog = true">
         <i class="codicon codicon-add"></i>
       </button>
-      
+
       <button
         v-if="!isEditing"
         class="icon-btn danger"
@@ -704,92 +832,63 @@ onMounted(async () => {
         <i class="codicon codicon-trash"></i>
       </button>
     </div>
-    
-    <!-- 新建对话框 -->
-    <div v-if="showNewDialog" class="config-dialog">
-      <div class="dialog-content">
-        <h4>{{ t('components.settings.channelSettings.dialog.new.title') }}</h4>
-        
-        <div class="form-group">
-          <label>{{ t('components.settings.channelSettings.dialog.new.nameLabel') }}</label>
-          <input
-            v-model="newConfigName"
-            type="text"
-            :placeholder="t('components.settings.channelSettings.dialog.new.namePlaceholder')"
-            @keyup.enter="createConfig"
-          />
-        </div>
-        
-        <div class="form-group">
-          <label>{{ t('components.settings.channelSettings.dialog.new.typeLabel') }}</label>
-          <CustomSelect
-            v-model="newConfigType"
-            :options="typeOptions"
-            :placeholder="t('components.settings.channelSettings.dialog.new.typePlaceholder')"
-          />
-        </div>
-        
-        <div class="dialog-actions">
-          <button class="btn secondary" @click="cancelNew">{{ t('components.settings.channelSettings.dialog.new.cancel') }}</button>
-          <button class="btn primary" @click="createConfig">{{ t('components.settings.channelSettings.dialog.new.create') }}</button>
-        </div>
-      </div>
-    </div>
-    
+
     <!-- 配置表单 -->
     <div v-if="currentConfig" class="config-form">
-      <div class="form-group">
-        <label>{{ t('components.settings.channelSettings.form.apiUrl.label') }}</label>
-        <input
-          :value="currentConfig.url"
-          type="text"
-          :placeholder="currentConfig.type === 'openai-responses' 
-            ? t('components.settings.channelSettings.form.apiUrl.placeholderResponses') 
-            : t('components.settings.channelSettings.form.apiUrl.placeholder')"
-          @input="(e: any) => updateConfigField('url', e.target.value)"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label>{{ t('components.settings.channelSettings.form.apiKey.label') }}</label>
-        <div class="input-with-action">
-          <input
-            :type="showApiKey ? 'text' : 'password'"
-            :value="currentConfig.apiKey"
-            :placeholder="t('components.settings.channelSettings.form.apiKey.placeholder')"
-            @input="(e: any) => updateConfigField('apiKey', e.target.value)"
-          />
-          <button
-            class="input-action-btn"
-            :title="showApiKey ? t('components.settings.channelSettings.form.apiKey.hide') : t('components.settings.channelSettings.form.apiKey.show')"
-            @click="showApiKey = !showApiKey"
-          >
-            <i :class="['codicon', showApiKey ? 'codicon-eye-closed' : 'codicon-eye']"></i>
-          </button>
+      <!-- 身份与凭据区 -->
+      <div class="section-group credentials-section">
+        <div class="section-title">
+          <i class="codicon codicon-key"></i>
+          <span>{{ t('components.settings.channelSettings.form.sections.identityCredentials') }}</span>
         </div>
-        
-        <!-- 使用 Authorization 格式（仅 Gemini 和 Anthropic） -->
-        <div v-if="currentConfig.type === 'gemini' || currentConfig.type === 'anthropic'" class="checkbox-group api-key-option">
-          <label class="custom-checkbox">
+
+        <div class="credentials-card">
+          <div class="credential-row api-row">
+            <i class="codicon codicon-globe row-icon"></i>
             <input
-              type="checkbox"
-              :checked="currentConfig.useAuthorizationHeader ?? false"
-              @change="(e: any) => updateConfigField('useAuthorizationHeader', e.target.checked)"
+              :value="currentConfig.url"
+              type="text"
+              class="credential-input"
+              :placeholder="currentConfig.type === 'openai-responses'
+                ? t('components.settings.channelSettings.form.apiUrl.placeholderResponses')
+                : t('components.settings.channelSettings.form.apiUrl.placeholder')"
+              @input="(e: any) => updateConfigField('url', e.target.value)"
             />
-            <span class="checkmark"></span>
-            <span class="checkbox-text">{{ t('components.settings.channelSettings.form.apiKey.useAuthorization') }}</span>
-          </label>
-          <span class="field-hint api-key-hint">
-            {{ currentConfig.type === 'gemini'
-              ? t('components.settings.channelSettings.form.apiKey.useAuthorizationHintGemini')
-              : t('components.settings.channelSettings.form.apiKey.useAuthorizationHintAnthropic')
-            }}
-          </span>
+            <button
+              v-if="currentConfig.url"
+              class="credential-action copy-btn"
+              :title="t('common.copy')"
+              @click="copyToClipboard(currentConfig.url)"
+            >
+              <i class="codicon codicon-copy"></i>
+            </button>
+          </div>
+
+          <div class="credential-row api-key-row">
+            <i class="codicon codicon-key row-icon"></i>
+            <input
+              :value="currentConfig.apiKey"
+              :type="showApiKey ? 'text' : 'password'"
+              class="credential-input"
+              :placeholder="t('components.settings.channelSettings.form.apiKey.placeholder')"
+              @input="(e: any) => updateConfigField('apiKey', e.target.value)"
+            />
+            <button
+              class="credential-action"
+              :title="showApiKey
+                ? t('components.settings.channelSettings.form.apiKey.hide')
+                : t('components.settings.channelSettings.form.apiKey.show')"
+              @click="showApiKey = !showApiKey"
+            >
+              <i :class="['codicon', showApiKey ? 'codicon-eye-closed' : 'codicon-eye']"></i>
+            </button>
+          </div>
         </div>
       </div>
-      
-      <!-- 模型管理器 -->
-      <div class="form-group">
+
+      <!-- ==================== 2. 中部：模型与性能区 ==================== -->
+      <div class="section-group model-section">
+        <!-- 模型管理器 -->
         <ModelManager
           :config-id="currentConfig.id"
           :models="currentConfig.models || []"
@@ -797,11 +896,8 @@ onMounted(async () => {
           @update:models="handleUpdateModels"
           @update:selected-model="handleUpdateSelectedModel"
         />
-      </div>
-      
-      <!-- 流式输出 -->
-      <div class="form-group checkbox-group">
-        <label class="custom-checkbox">
+
+        <label class="custom-checkbox compact">
           <input
             type="checkbox"
             :checked="currentConfig.options?.stream ?? false"
@@ -810,458 +906,426 @@ onMounted(async () => {
           <span class="checkmark"></span>
           <span class="checkbox-text">{{ t('components.settings.channelSettings.form.stream.label') }}</span>
         </label>
-      </div>
-      
-      <!-- 渠道类型显示 -->
-      <div class="form-group">
-        <label>{{ t('components.settings.channelSettings.form.channelType.label') }}</label>
-        <div class="type-display">
-          <span class="type-badge">{{ getTypeName(currentConfig.type) }}</span>
+
+        <!-- 超时时间和最大上下文 Tokens 并排 -->
+        <div class="performance-row">
+          <div class="perf-item">
+            <label>{{ t('components.settings.channelSettings.form.timeout.label') }}</label>
+            <input
+              :value="currentConfig.timeout"
+              type="number"
+              :placeholder="t('components.settings.channelSettings.form.timeout.placeholder')"
+              @input="(e: any) => updateConfigField('timeout', Number(e.target.value))"
+            />
+          </div>
+          <div class="perf-item">
+            <label>{{ t('components.settings.channelSettings.form.maxContextTokens.label') }}</label>
+            <input
+              :value="currentConfig.maxContextTokens || 128000"
+              type="number"
+              :placeholder="t('components.settings.channelSettings.form.maxContextTokens.placeholder')"
+              @input="(e: any) => updateConfigField('maxContextTokens', Number(e.target.value))"
+            />
+          </div>
         </div>
+        <span class="field-hint perf-hint">{{ t('components.settings.channelSettings.form.maxContextTokens.hint') }}</span>
       </div>
-      
-      <!-- 工具调用格式 -->
-      <div class="form-group">
-        <label>{{ t('components.settings.channelSettings.form.toolMode.label') }}</label>
-        <CustomSelect
-          :model-value="currentConfig.toolMode || 'function_call'"
-          :options="toolModeOptions"
-          :placeholder="t('components.settings.channelSettings.form.toolMode.placeholder')"
-          @update:model-value="(v: string) => updateConfigField('toolMode', v)"
-        />
-        <span class="field-hint">
-          {{ t('components.settings.channelSettings.form.toolMode.hint.functionCall') }}<br>
-          {{ t('components.settings.channelSettings.form.toolMode.hint.xml') }}<br>
-          {{ t('components.settings.channelSettings.form.toolMode.hint.json') }}
-        </span>
-        <!-- OpenAI Function Call 模式警告 -->
-        <div v-if="currentConfig.type === 'openai' && (currentConfig.toolMode === 'function_call' || !currentConfig.toolMode)" class="tool-mode-warning">
-          <i class="codicon codicon-warning"></i>
-          <span>{{ t('components.settings.channelSettings.form.toolMode.openaiWarning') }}</span>
+
+      <!-- ==================== 3. 中部：功能能力区 ==================== -->
+      <div class="section-group capabilities-section">
+        <div class="section-title">
+          <i class="codicon codicon-extensions"></i>
+          <span>{{ t('components.settings.channelSettings.form.sections.capabilities') }}</span>
         </div>
-      </div>
-      
-      <!-- 多模态工具 -->
-      <div class="form-group">
-        <div class="multimodal-panel">
-          <div class="multimodal-panel-header">
-            <label class="custom-checkbox">
-              <input
-                type="checkbox"
-                :checked="currentConfig.multimodalToolsEnabled ?? false"
-                @change="(e: any) => updateConfigField('multimodalToolsEnabled', e.target.checked)"
-              />
-              <span class="checkmark"></span>
-              <span class="checkbox-text">{{ t('components.settings.channelSettings.form.multimodal.label') }}</span>
-            </label>
-            <button
-              type="button"
-              class="multimodal-details-toggle"
-              :aria-expanded="showMultimodalDetails"
-              @click="toggleMultimodalDetails"
-            >
-              <span>{{ showMultimodalDetails ? t('components.tools.hideDetails') : t('components.tools.viewDetails') }}</span>
-              <i :class="['codicon', showMultimodalDetails ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
+
+        <!-- 工具调用格式 -->
+        <div class="capability-row">
+          <div class="capability-icon">
+            <i class="codicon codicon-symbol-method"></i>
+          </div>
+          <div class="capability-content">
+            <div class="capability-header">
+              <span class="capability-label">{{ t('components.settings.channelSettings.form.toolMode.label') }}</span>
+              <span class="capability-value">{{ toolModeDisplayName }}</span>
+            </div>
+            <CustomSelect
+              :model-value="currentConfig.toolMode || 'function_call'"
+              :options="toolModeOptions"
+              :placeholder="t('components.settings.channelSettings.form.toolMode.placeholder')"
+              class="capability-select"
+              @update:model-value="(v: string) => updateConfigField('toolMode', v)"
+            />
+          </div>
+        </div>
+
+        <!-- 多模态工具配置 -->
+        <div class="capability-row multimodal-row">
+          <div class="capability-icon">
+            <i class="codicon codicon-file-media"></i>
+          </div>
+          <div class="capability-content">
+            <div class="capability-header">
+              <label class="custom-checkbox compact">
+                <input
+                  type="checkbox"
+                  :checked="currentConfig.multimodalToolsEnabled ?? false"
+                  @change="(e: any) => updateConfigField('multimodalToolsEnabled', e.target.checked)"
+                />
+                <span class="checkmark"></span>
+                <span class="checkbox-text">{{ t('components.settings.channelSettings.form.multimodalSummary') }}</span>
+              </label>
+            </div>
+            <div class="multimodal-inline">
+              <span class="multimodal-types">{{ multimodalSummaryText }}</span>
+              <button
+                type="button"
+                class="inline-link"
+                @click="toggleMultimodalDetails"
+              >
+                {{ t('components.settings.channelSettings.form.viewCompatibility') }}
+                <i class="codicon codicon-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 多模态兼容性矩阵展开内容 -->
+        <div v-show="showMultimodalDetails" class="multimodal-matrix-panel">
+          <div class="matrix-header">
+            <span>{{ t('components.settings.channelSettings.form.multimodal.capabilities') }}</span>
+            <button class="close-btn" @click="showMultimodalDetails = false">
+              <i class="codicon codicon-close"></i>
             </button>
           </div>
+          <div class="channel-support-table detailed">
+            <div class="channel-row header-row">
+              <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.table.channel') }}</span>
+              <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.readImage') }}</span>
+              <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.readDocument') }}</span>
+              <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.generateImage') }}</span>
+              <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.historyMultimodal') }}</span>
+            </div>
+            <div class="channel-row" :class="{ current: currentConfig.type === 'gemini' }">
+              <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.geminiAll') }}</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+            </div>
+            <div class="channel-row" :class="{ current: currentConfig.type === 'anthropic' }">
+              <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.anthropicAll') }}</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+            </div>
+            <div class="channel-row" :class="{ current: currentConfig.type === 'openai-responses' }">
+              <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiResponses') }}</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-no">✗</span>
+              <span class="channel-feature support-yes">✓</span>
+            </div>
+            <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && (currentConfig.toolMode === 'xml' || currentConfig.toolMode === 'json') }">
+              <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiXmlJson') }}</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-no">✗</span>
+              <span class="channel-feature support-yes">✓</span>
+              <span class="channel-feature support-yes">✓</span>
+            </div>
+            <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && (currentConfig.toolMode === 'function_call' || !currentConfig.toolMode) }">
+              <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiFunction') }}</span>
+              <span class="channel-feature support-no">✗</span>
+              <span class="channel-feature support-no">✗</span>
+              <span class="channel-feature support-no">✗</span>
+              <span class="channel-feature support-no">✗</span>
+            </div>
+          </div>
+          <div class="support-legend">
+            <span class="legend-item">
+              <span class="legend-symbol support-yes">✓</span>
+              <span class="legend-text">{{ t('components.settings.channelSettings.form.multimodal.legend.supported') }}</span>
+            </span>
+            <span class="legend-item">
+              <span class="legend-symbol support-no">✗</span>
+              <span class="legend-text">{{ t('components.settings.channelSettings.form.multimodal.legend.notSupported') }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
 
-          <button type="button" class="multimodal-summary" @click="toggleMultimodalDetails">
-            {{ multimodalSummaryText }}
+      <!-- ==================== 4. 下部：逻辑配置广场 ==================== -->
+      <div class="section-group accordion-square">
+        <div class="section-title">
+          <i class="codicon codicon-settings-gear"></i>
+          <span>{{ t('components.settings.channelSettings.form.sections.advancedConfig') }}</span>
+        </div>
+
+        <!-- 上下文管理 -->
+        <div
+          class="accordion-item"
+          :class="{ disabled: !contextThresholdEnabled, expanded: showContextThreshold }"
+        >
+          <button class="accordion-header" @click="showContextThreshold = !showContextThreshold">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-history item-icon"></i>
+            <span class="item-title">{{ t('components.settings.channelSettings.form.contextManagement.title') }}</span>
+            <span class="item-summary">{{ contextManagementSummary }}</span>
+            <label class="toggle-switch" @click.stop>
+              <input
+                type="checkbox"
+                :checked="contextThresholdEnabled"
+                @change="(e: any) => updateContextThresholdEnabled(e.target.checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
           </button>
-
-          <div v-show="showMultimodalDetails" class="multimodal-panel-details">
-            <div class="support-header">{{ t('components.settings.channelSettings.form.multimodal.supportedTypes') }}</div>
-            <div class="support-list">
-              <div class="support-item">
-                <span class="type-label">{{ t('components.settings.channelSettings.form.multimodal.image') }}</span>
-                <span class="type-formats">{{ t('components.settings.channelSettings.form.multimodal.imageFormats') }}</span>
-              </div>
-              <div class="support-item">
-                <span class="type-label">{{ t('components.settings.channelSettings.form.multimodal.document') }}</span>
-                <span class="type-formats">{{ t('components.settings.channelSettings.form.multimodal.documentFormats') }}</span>
-              </div>
-            </div>
-
-            <div class="support-header" style="margin-top: 8px;">{{ t('components.settings.channelSettings.form.multimodal.capabilities') }}</div>
-            <div class="channel-support-table detailed">
-              <div class="channel-row header-row">
-                <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.table.channel') }}</span>
-                <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.readImage') }}</span>
-                <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.readDocument') }}</span>
-                <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.generateImage') }}</span>
-                <span class="channel-feature">{{ t('components.settings.channelSettings.form.multimodal.table.historyMultimodal') }}</span>
-              </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'gemini' }">
-                <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.geminiAll') }}</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-              </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'anthropic' }">
-                <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.anthropicAll') }}</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-              </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'openai-responses' }">
-                <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiResponses') }}</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-no">✗</span>
-                <span class="channel-feature support-yes">✓</span>
-              </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && (currentConfig.toolMode === 'xml' || currentConfig.toolMode === 'json') }">
-                <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiXmlJson') }}</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-no">✗</span>
-                <span class="channel-feature support-yes">✓</span>
-                <span class="channel-feature support-yes">✓</span>
-              </div>
-              <div class="channel-row" :class="{ current: currentConfig.type === 'openai' && (currentConfig.toolMode === 'function_call' || !currentConfig.toolMode) }">
-                <span class="channel-name">{{ t('components.settings.channelSettings.form.multimodal.channels.openaiFunction') }}</span>
-                <span class="channel-feature support-no">✗</span>
-                <span class="channel-feature support-no">✗</span>
-                <span class="channel-feature support-no">✗</span>
-                <span class="channel-feature support-no">✗</span>
-              </div>
-            </div>
-
-            <div class="support-legend">
-              <span class="legend-item">
-                <span class="legend-symbol support-yes">✓</span>
-                <span class="legend-text">{{ t('components.settings.channelSettings.form.multimodal.legend.supported') }}</span>
-              </span>
-              <span class="legend-item">
-                <span class="legend-symbol support-no">✗</span>
-                <span class="legend-text">{{ t('components.settings.channelSettings.form.multimodal.legend.notSupported') }}</span>
-              </span>
-            </div>
-
-            <div class="support-notes">
-              <div class="note-item highlight">
-                <i class="codicon codicon-lightbulb note-icon"></i>
-                <span class="note-text">{{ t('components.settings.channelSettings.form.multimodal.notes.requireEnable') }}</span>
-              </div>
-              <div class="note-item">
-                <i class="codicon codicon-info note-icon"></i>
-                <span class="note-text">{{ t('components.settings.channelSettings.form.multimodal.notes.userAttachment') }}</span>
-              </div>
-              <div class="note-item">
-                <i class="codicon codicon-info note-icon"></i>
-                <span class="note-text">{{ t('components.settings.channelSettings.form.multimodal.notes.geminiAnthropic') }}</span>
-              </div>
-              <div class="note-item">
-                <i class="codicon codicon-info note-icon"></i>
-                <span class="note-text">{{ t('components.settings.channelSettings.form.multimodal.notes.openaiResponses') }}</span>
-              </div>
-              <div class="note-item">
-                <i class="codicon codicon-info note-icon"></i>
-                <span class="note-text">{{ t('components.settings.channelSettings.form.multimodal.notes.openaiXmlJson') }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="form-group">
-        <label>{{ t('components.settings.channelSettings.form.timeout.label') }}</label>
-        <input
-          :value="currentConfig.timeout"
-          type="number"
-          :placeholder="t('components.settings.channelSettings.form.timeout.placeholder')"
-          @input="(e: any) => updateConfigField('timeout', Number(e.target.value))"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label>{{ t('components.settings.channelSettings.form.maxContextTokens.label') }}</label>
-        <input
-          :value="currentConfig.maxContextTokens || 128000"
-          type="number"
-          :placeholder="t('components.settings.channelSettings.form.maxContextTokens.placeholder')"
-          @input="(e: any) => updateConfigField('maxContextTokens', Number(e.target.value))"
-        />
-        <span class="field-hint">{{ t('components.settings.channelSettings.form.maxContextTokens.hint') }}</span>
-      </div>
-      
-      <!-- 上下文阈值设置 -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showContextThreshold = !showContextThreshold"
-        >
-          <i :class="['codicon', showContextThreshold ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.settings.channelSettings.form.contextManagement.title') }}</span>
-          <label class="toggle-switch header-toggle" :title="t('components.settings.channelSettings.form.contextManagement.enableTitle')" @click.stop>
-            <input
-              type="checkbox"
-              :checked="contextThresholdEnabled"
-              @change="(e: any) => updateContextThresholdEnabled(e.target.checked)"
-            />
-            <span class="toggle-slider"></span>
-          </label>
-        </button>
-        
-        <div v-if="showContextThreshold" class="custom-panel-wrapper">
-          <div class="context-threshold-options">
-            <div class="option-item option-with-toggle">
-              <div class="option-header">
+          <div v-if="showContextThreshold" class="accordion-content">
+            <div class="context-threshold-options">
+              <div class="option-item">
                 <label>{{ t('components.settings.channelSettings.form.contextManagement.threshold.label') }}</label>
+                <input
+                  type="text"
+                  :value="contextThreshold"
+                  :placeholder="t('components.settings.channelSettings.form.contextManagement.threshold.placeholder')"
+                  :disabled="!contextThresholdEnabled"
+                  :class="{ disabled: !contextThresholdEnabled }"
+                  @input="(e: any) => updateContextThreshold(e.target.value)"
+                />
+                <span class="option-hint">{{ t('components.settings.channelSettings.form.contextManagement.threshold.hint') }}</span>
               </div>
-              <input
-                type="text"
-                :value="contextThreshold"
-                :placeholder="t('components.settings.channelSettings.form.contextManagement.threshold.placeholder')"
-                :disabled="!contextThresholdEnabled"
-                :class="{ disabled: !contextThresholdEnabled }"
-                @input="(e: any) => updateContextThreshold(e.target.value)"
-              />
-              <span class="option-hint">
-                {{ t('components.settings.channelSettings.form.contextManagement.threshold.hint') }}
-              </span>
-            </div>
-            
-            <div class="option-item option-with-toggle">
-              <div class="option-header">
+
+              <div class="option-item">
                 <label>{{ t('components.settings.channelSettings.form.contextManagement.extraCut.label') }}</label>
+                <input
+                  type="text"
+                  :value="contextTrimExtraCut"
+                  :placeholder="t('components.settings.channelSettings.form.contextManagement.extraCut.placeholder')"
+                  :disabled="!contextThresholdEnabled"
+                  :class="{ disabled: !contextThresholdEnabled }"
+                  @input="(e: any) => updateContextTrimExtraCut(e.target.value)"
+                />
+                <span class="option-hint">{{ t('components.settings.channelSettings.form.contextManagement.extraCut.hint') }}</span>
               </div>
-              <input
-                type="text"
-                :value="contextTrimExtraCut"
-                :placeholder="t('components.settings.channelSettings.form.contextManagement.extraCut.placeholder')"
-                :disabled="!contextThresholdEnabled"
-                :class="{ disabled: !contextThresholdEnabled }"
-                @input="(e: any) => updateContextTrimExtraCut(e.target.value)"
-              />
-              <span class="option-hint">
-                {{ t('components.settings.channelSettings.form.contextManagement.extraCut.hint') }}
-              </span>
-            </div>
-            
-            <div class="option-item option-with-toggle">
-              <div class="option-header">
-                <label>{{ t('components.settings.channelSettings.form.contextManagement.autoSummarize.label') }}</label>
-                <label class="toggle-switch" :title="t('components.settings.channelSettings.form.contextManagement.autoSummarize.enableTitle')" @click.stop>
-                  <input
-                    type="checkbox"
-                    :checked="autoSummarizeEnabled"
-                    disabled
-                    @change="(e: any) => updateAutoSummarizeEnabled(e.target.checked)"
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <span class="option-hint">
-                {{ t('components.settings.channelSettings.form.contextManagement.autoSummarize.hint') }}
-              </span>
             </div>
           </div>
         </div>
-      </div>
-      
-      <!-- 工具配置 -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showToolOptions = !showToolOptions"
+
+        <!-- 工具配置 -->
+        <div
+          class="accordion-item"
+          :class="{ expanded: showToolOptions }"
         >
-          <i :class="['codicon', showToolOptions ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.settings.channelSettings.form.toolOptions.title') }}</span>
-        </button>
-        
-        <div v-if="showToolOptions" class="custom-panel-wrapper">
-          <ToolOptionsSettings
-            :tool-options="toolOptions"
-            @update:config="updateToolOptions"
-          />
-        </div>
-      </div>
-      
-      <!-- Token 计数方式 -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showTokenCountMethod = !showTokenCountMethod"
-        >
-          <i :class="['codicon', showTokenCountMethod ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.channels.tokenCountMethod.title') }}</span>
-        </button>
-        
-        <div v-if="showTokenCountMethod" class="custom-panel-wrapper">
-          <TokenCountMethodSettings
-            :token-count-method="currentConfig.tokenCountMethod || 'channel_default'"
-            :token-count-api-config="currentConfig.tokenCountApiConfig || {}"
-            :channel-type="currentConfig.type"
-            @update:token-count-method="(v: string) => updateConfigField('tokenCountMethod', v)"
-            @update:token-count-api-config="(v: any) => updateConfigField('tokenCountApiConfig', v)"
-          />
-        </div>
-      </div>
-      
-      <!-- 高级选项 -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showAdvancedOptions = !showAdvancedOptions"
-        >
-          <i :class="['codicon', showAdvancedOptions ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.settings.channelSettings.form.advancedOptions.title') }}</span>
-        </button>
-        
-        <div v-if="showAdvancedOptions" class="advanced-options">
-          <!-- Gemini 选项 -->
-          <GeminiOptions
-            v-if="currentConfig.type === 'gemini'"
-            :config="currentConfig"
-            @update:option="updateOption"
-            @update:option-enabled="updateOptionEnabled"
-            @update:field="updateConfigField"
-          />
-          
-          <!-- OpenAI 选项 -->
-          <OpenAIOptions
-            v-if="currentConfig.type === 'openai'"
-            :config="currentConfig"
-            @update:option="updateOption"
-            @update:option-enabled="updateOptionEnabled"
-            @update:field="updateConfigField"
-          />
-          
-          <!-- OpenAI Responses 选项 -->
-          <OpenAIResponsesOptions
-            v-if="currentConfig.type === 'openai-responses'"
-            :config="currentConfig"
-            @update:option="updateOption"
-            @update:option-enabled="updateOptionEnabled"
-            @update:field="updateConfigField"
-          />
-          
-          <!-- Anthropic 选项 -->
-          <AnthropicOptions
-            v-if="currentConfig.type === 'anthropic'"
-            :config="currentConfig"
-            @update:option="updateOption"
-            @update:option-enabled="updateOptionEnabled"
-            @update:field="updateConfigField"
-          />
-        </div>
-      </div>
-      
-      <!-- 自定义 Body -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showCustomBody = !showCustomBody"
-        >
-          <i :class="['codicon', showCustomBody ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.settings.channelSettings.form.customBody.title') }}</span>
-          <label class="toggle-switch header-toggle" :title="t('components.settings.channelSettings.form.customBody.enableTitle')" @click.stop>
-            <input
-              type="checkbox"
-              :checked="customBodyEnabled"
-              @change="(e: any) => updateCustomBodyEnabled(e.target.checked)"
+          <button class="accordion-header" @click="showToolOptions = !showToolOptions">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-tools item-icon"></i>
+            <span class="item-title">{{ t('components.settings.channelSettings.form.toolOptions.title') }}</span>
+            <span class="item-summary">{{ toolOptionsSummary }}</span>
+          </button>
+          <div v-if="showToolOptions" class="accordion-content">
+            <ToolOptionsSettings
+              :tool-options="toolOptions"
+              @update:config="updateToolOptions"
             />
-            <span class="toggle-slider"></span>
-          </label>
-        </button>
-        
-        <div v-if="showCustomBody" class="custom-panel-wrapper">
-          <CustomBodySettings
-            :custom-body="customBody"
-            :enabled="customBodyEnabled"
-            @update:enabled="updateCustomBodyEnabled"
-            @update:config="updateCustomBodyConfig"
-          />
+          </div>
         </div>
-      </div>
-      
-      <!-- 自定义标头 -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showCustomHeaders = !showCustomHeaders"
+
+        <!-- Token 计数方式 -->
+        <div
+          class="accordion-item"
+          :class="{ expanded: showTokenCountMethod }"
         >
-          <i :class="['codicon', showCustomHeaders ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.settings.channelSettings.form.customHeaders.title') }}</span>
-          <label class="toggle-switch header-toggle" :title="t('components.settings.channelSettings.form.customHeaders.enableTitle')" @click.stop>
-            <input
-              type="checkbox"
-              :checked="customHeadersEnabled"
-              @change="(e: any) => updateCustomHeadersEnabled(e.target.checked)"
+          <button class="accordion-header" @click="showTokenCountMethod = !showTokenCountMethod">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-symbol-number item-icon"></i>
+            <span class="item-title">{{ t('components.channels.tokenCountMethod.title') }}</span>
+            <span class="item-summary">{{ tokenCountMethodSummary }}</span>
+            <button
+              class="inline-link summary-link"
+              @click.stop="showTokenCountMethod = !showTokenCountMethod"
+            >
+              {{ t('components.settings.channelSettings.form.viewCompatibility') }}
+              <i class="codicon codicon-chevron-right"></i>
+            </button>
+          </button>
+          <div v-if="showTokenCountMethod" class="accordion-content">
+            <TokenCountMethodSettings
+              :token-count-method="currentConfig.tokenCountMethod || 'channel_default'"
+              :token-count-api-config="currentConfig.tokenCountApiConfig || {}"
+              :channel-type="currentConfig.type"
+              @update:token-count-method="(v: string) => updateConfigField('tokenCountMethod', v)"
+              @update:token-count-api-config="(v: any) => updateConfigField('tokenCountApiConfig', v)"
             />
-            <span class="toggle-slider"></span>
-          </label>
-        </button>
-        
-        <div v-if="showCustomHeaders" class="custom-panel-wrapper">
-          <CustomHeadersSettings
-            :headers="customHeaders"
-            :enabled="customHeadersEnabled"
-            @update:enabled="updateCustomHeadersEnabled"
-            @update:headers="updateCustomHeaders"
-          />
+          </div>
         </div>
-      </div>
-      
-      <!-- 自动重试 -->
-      <div class="form-group">
-        <button
-          class="advanced-toggle"
-          @click="showRetryOptions = !showRetryOptions"
+
+        <!-- 分割线 -->
+        <div class="accordion-divider"></div>
+
+        <!-- 自定义 Body -->
+        <div
+          class="accordion-item"
+          :class="{ disabled: !customBodyEnabled, expanded: showCustomBody }"
         >
-          <i :class="['codicon', showRetryOptions ? 'codicon-chevron-down' : 'codicon-chevron-right']"></i>
-          <span>{{ t('components.settings.channelSettings.form.autoRetry.title') }}</span>
-          <label class="toggle-switch header-toggle" :title="t('components.settings.channelSettings.form.autoRetry.enableTitle')" @click.stop>
-            <input
-              type="checkbox"
-              :checked="retryEnabled"
-              @change="(e: any) => updateRetryEnabled(e.target.checked)"
+          <button class="accordion-header" @click="showCustomBody = !showCustomBody">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-code item-icon"></i>
+            <span class="item-title">{{ t('components.settings.channelSettings.form.customBody.title') }}</span>
+            <span class="item-summary">{{ customBodySummary }}</span>
+            <label class="toggle-switch" @click.stop>
+              <input
+                type="checkbox"
+                :checked="customBodyEnabled"
+                @change="(e: any) => updateCustomBodyEnabled(e.target.checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </button>
+          <div v-if="showCustomBody" class="accordion-content">
+            <CustomBodySettings
+              :custom-body="customBody"
+              :enabled="customBodyEnabled"
+              @update:enabled="updateCustomBodyEnabled"
+              @update:config="updateCustomBodyConfig"
             />
-            <span class="toggle-slider"></span>
-          </label>
-        </button>
-        
-        <div v-if="showRetryOptions" class="custom-panel-wrapper">
-          <div class="retry-options">
-            <div class="option-item option-with-toggle">
-              <div class="option-header">
+          </div>
+        </div>
+
+        <!-- 自定义标头 -->
+        <div
+          class="accordion-item"
+          :class="{ disabled: !customHeadersEnabled, expanded: showCustomHeaders }"
+        >
+          <button class="accordion-header" @click="showCustomHeaders = !showCustomHeaders">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-list-unordered item-icon"></i>
+            <span class="item-title">{{ t('components.settings.channelSettings.form.customHeaders.title') }}</span>
+            <span class="item-summary">{{ customHeadersSummary }}</span>
+            <label class="toggle-switch" @click.stop>
+              <input
+                type="checkbox"
+                :checked="customHeadersEnabled"
+                @change="(e: any) => updateCustomHeadersEnabled(e.target.checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </button>
+          <div v-if="showCustomHeaders" class="accordion-content">
+            <CustomHeadersSettings
+              :headers="customHeaders"
+              :enabled="customHeadersEnabled"
+              @update:enabled="updateCustomHeadersEnabled"
+              @update:headers="updateCustomHeaders"
+            />
+          </div>
+        </div>
+
+        <!-- 自动重试 -->
+        <div
+          class="accordion-item"
+          :class="{ disabled: !retryEnabled, expanded: showRetryOptions }"
+        >
+          <button class="accordion-header" @click="showRetryOptions = !showRetryOptions">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-sync item-icon"></i>
+            <span class="item-title">{{ t('components.settings.channelSettings.form.autoRetry.title') }}</span>
+            <span class="item-summary">{{ autoRetrySummary }}</span>
+            <label class="toggle-switch" @click.stop>
+              <input
+                type="checkbox"
+                :checked="retryEnabled"
+                @change="(e: any) => updateRetryEnabled(e.target.checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </button>
+          <div v-if="showRetryOptions" class="accordion-content">
+            <div class="retry-options">
+              <div class="option-item">
                 <label>{{ t('components.settings.channelSettings.form.autoRetry.retryCount.label') }}</label>
+                <input
+                  type="number"
+                  :value="retryCount"
+                  min="1"
+                  max="10"
+                  :disabled="!retryEnabled"
+                  :class="{ disabled: !retryEnabled }"
+                  @input="(e: any) => updateRetryCount(Number(e.target.value))"
+                />
+                <span class="option-hint">{{ t('components.settings.channelSettings.form.autoRetry.retryCount.hint') }}</span>
               </div>
-              <input
-                type="number"
-                :value="retryCount"
-                min="1"
-                max="10"
-                :disabled="!retryEnabled"
-                :class="{ disabled: !retryEnabled }"
-                @input="(e: any) => updateRetryCount(Number(e.target.value))"
-              />
-              <span class="option-hint">{{ t('components.settings.channelSettings.form.autoRetry.retryCount.hint') }}</span>
-            </div>
-            
-            <div class="option-item option-with-toggle">
-              <div class="option-header">
+
+              <div class="option-item">
                 <label>{{ t('components.settings.channelSettings.form.autoRetry.retryInterval.label') }}</label>
+                <input
+                  type="number"
+                  :value="retryInterval"
+                  min="1000"
+                  max="60000"
+                  step="1000"
+                  :disabled="!retryEnabled"
+                  :class="{ disabled: !retryEnabled }"
+                  @input="(e: any) => updateRetryInterval(Number(e.target.value))"
+                />
+                <span class="option-hint">{{ t('components.settings.channelSettings.form.autoRetry.retryInterval.hint') }}</span>
               </div>
-              <input
-                type="number"
-                :value="retryInterval"
-                min="1000"
-                max="60000"
-                step="1000"
-                :disabled="!retryEnabled"
-                :class="{ disabled: !retryEnabled }"
-                @input="(e: any) => updateRetryInterval(Number(e.target.value))"
-              />
-              <span class="option-hint">{{ t('components.settings.channelSettings.form.autoRetry.retryInterval.hint') }}</span>
             </div>
           </div>
         </div>
+
+        <!-- 高级选项 -->
+        <div
+          class="accordion-item"
+          :class="{ expanded: showAdvancedOptions }"
+        >
+          <button class="accordion-header" @click="showAdvancedOptions = !showAdvancedOptions">
+            <i class="codicon codicon-chevron-right expand-icon"></i>
+            <i class="codicon codicon-beaker item-icon"></i>
+            <span class="item-title">{{ t('components.settings.channelSettings.form.advancedOptions.title') }}</span>
+            <span class="item-summary">{{ advancedOptionsSummary }}</span>
+          </button>
+          <div v-if="showAdvancedOptions" class="accordion-content">
+            <!-- Gemini 选项 -->
+            <GeminiOptions
+              v-if="currentConfig.type === 'gemini'"
+              :config="currentConfig"
+              @update:option="updateOption"
+              @update:option-enabled="updateOptionEnabled"
+              @update:field="updateConfigField"
+            />
+
+            <!-- OpenAI 选项 -->
+            <OpenAIOptions
+              v-if="currentConfig.type === 'openai'"
+              :config="currentConfig"
+              @update:option="updateOption"
+              @update:option-enabled="updateOptionEnabled"
+              @update:field="updateConfigField"
+            />
+
+            <!-- OpenAI Responses 选项 -->
+            <OpenAIResponsesOptions
+              v-if="currentConfig.type === 'openai-responses'"
+              :config="currentConfig"
+              @update:option="updateOption"
+              @update:option-enabled="updateOptionEnabled"
+              @update:field="updateConfigField"
+            />
+
+            <!-- Anthropic 选项 -->
+            <AnthropicOptions
+              v-if="currentConfig.type === 'anthropic'"
+              :config="currentConfig"
+              @update:option="updateOption"
+              @update:option-enabled="updateOptionEnabled"
+              @update:field="updateConfigField"
+            />
+          </div>
+        </div>
       </div>
-      
-      <div class="form-group checkbox-group">
+
+      <!-- ==================== 5. 底部：启用此配置 ==================== -->
+      <div class="footer-section">
         <label class="custom-checkbox">
           <input
             type="checkbox"
@@ -1277,17 +1341,25 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.channel-settings {
+/* ==================== V2 布局样式 ==================== */
+.channel-settings.v2 {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* 配置选择器 */
+/* 配置选择器 - 带 Provider 图标 */
 .config-selector {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.provider-icon {
+  font-size: 18px;
+  color: var(--vscode-foreground);
+  opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .config-select-wrapper {
@@ -1301,7 +1373,7 @@ onMounted(async () => {
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
+  border-radius: 6px;
   font-size: 13px;
 }
 
@@ -1319,9 +1391,10 @@ onMounted(async () => {
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: 6px;
   color: var(--vscode-foreground);
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 .icon-btn:hover {
@@ -1350,13 +1423,13 @@ onMounted(async () => {
   padding: 16px;
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 2px;
+  border-radius: 8px;
 }
 
 .dialog-content h4 {
   margin: 0 0 16px 0;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .dialog-actions {
@@ -1367,11 +1440,12 @@ onMounted(async () => {
 }
 
 .btn {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border: none;
-  border-radius: 2px;
+  border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 .btn.primary {
@@ -1394,19 +1468,15 @@ onMounted(async () => {
 
 /* 表单 */
 .config-form {
-  padding-top: 8px;
-  border-top: 1px solid var(--vscode-panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
 }
 
 .form-group label {
@@ -1422,14 +1492,13 @@ onMounted(async () => {
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
+  border-radius: 6px;
   font-size: 13px;
 }
 
-/* 隐藏数字输入框的上下箭头 */
 .form-group input[type="number"] {
   appearance: textfield;
-  -moz-appearance: textfield; /* Firefox */
+  -moz-appearance: textfield;
 }
 
 .form-group input[type="number"]::-webkit-outer-spin-button,
@@ -1444,236 +1513,500 @@ onMounted(async () => {
   border-color: var(--vscode-focusBorder);
 }
 
-/* 带操作按钮的输入框 */
-.input-with-action {
+/* ==================== 区块分组样式 ==================== */
+.section-group {
+  padding: 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+}
+
+.section-title {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
 }
 
-.input-with-action input {
+.section-title .codicon {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ==================== 身份与凭据区 ==================== */
+.credentials-section {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.credentials-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.credential-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+}
+
+.row-icon {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.credential-input {
   flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  border: none;
+  font-size: 13px;
+  outline: none;
 }
 
-.input-action-btn {
+.credential-input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.credential-action {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
+  background: transparent;
   border: none;
-  border-radius: 2px;
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground);
   cursor: pointer;
-}
-
-.input-action-btn:hover {
-  background: var(--vscode-button-secondaryHoverBackground);
-}
-
-/* 自定义勾选框 */
-.checkbox-group {
-  flex-direction: row;
-  align-items: center;
-}
-
-.custom-checkbox {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: normal;
-  position: relative;
-  padding-left: 26px;
-  user-select: none;
-}
-
-.custom-checkbox input {
-  position: absolute;
+  flex-shrink: 0;
   opacity: 0;
-  cursor: pointer;
-  height: 0;
-  width: 0;
+  transition: opacity 0.15s;
 }
 
-.custom-checkbox .checkmark {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 16px;
-  width: 16px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 3px;
-  transition: all 0.15s;
+.credential-row:hover .credential-action {
+  opacity: 1;
 }
 
-.custom-checkbox:hover .checkmark {
-  border-color: var(--vscode-focusBorder);
-}
-
-.custom-checkbox input:checked ~ .checkmark {
-  background: var(--vscode-button-background);
-  border-color: var(--vscode-button-background);
-}
-
-.custom-checkbox .checkmark::after {
-  content: '';
-  position: absolute;
-  display: none;
-  left: 5px;
-  top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid var(--vscode-button-foreground);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.custom-checkbox input:checked ~ .checkmark::after {
-  display: block;
-}
-
-.checkbox-text {
-  margin-left: 4px;
-}
-
-/* 类型显示 */
-.type-display {
-  padding: 6px 10px;
-  background: var(--vscode-textBlockQuote-background);
-  border-radius: 2px;
-}
-
-.type-badge {
-  font-size: 12px;
-  font-family: var(--vscode-editor-font-family);
+.credential-action:hover {
+  background: var(--vscode-toolbar-hoverBackground);
   color: var(--vscode-foreground);
-  opacity: 0.8;
 }
 
-/* 高级选项 */
-.advanced-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 10px;
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  border: none;
-  border-radius: 2px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.advanced-toggle:hover {
-  background: var(--vscode-button-secondaryHoverBackground);
-}
-
-.advanced-toggle .codicon {
-  font-size: 14px;
-}
-
-.advanced-options {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--vscode-textBlockQuote-background);
-  border-radius: 2px;
+/* ==================== 模型与性能区 ==================== */
+.model-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+.performance-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.perf-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.perf-item label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+}
+
+.perf-item input {
+  padding: 6px 10px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  font-size: 13px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.perf-item input::-webkit-outer-spin-button,
+.perf-item input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.perf-item input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.perf-hint {
+  margin-top: -4px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+/* ==================== 功能能力区 ==================== */
+.capabilities-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capability-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  background: var(--vscode-textBlockQuote-background);
+  border-radius: 6px;
+}
+
+.capability-icon {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.capability-icon .codicon {
+  font-size: 16px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.capability-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capability-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.capability-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.capability-value {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  padding: 2px 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 4px;
+}
+
+.capability-select {
+  margin-top: 4px;
+}
+
+/* 多模态行 */
+.multimodal-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.multimodal-types {
+  font-size: 11px;
+  color: var(--vscode-charts-purple, #b267e6);
+}
+
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--vscode-textLink-foreground);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.inline-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.inline-link .codicon {
+  font-size: 12px;
+}
+
+/* 紧凑型 checkbox */
+.custom-checkbox.compact {
+  padding-left: 22px;
+  font-size: 12px;
+}
+
+.custom-checkbox.compact .checkmark {
+  width: 14px;
+  height: 14px;
+}
+
+.custom-checkbox.compact .checkmark::after {
+  left: 4px;
+  top: 1px;
+  width: 3px;
+  height: 7px;
+}
+
+/* 多模态矩阵面板 */
+.multimodal-matrix-panel {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.matrix-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+/* ==================== 逻辑配置广场 ==================== */
+.accordion-square {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.accordion-square .section-title {
+  margin-bottom: 8px;
+}
+
+.accordion-divider {
+  height: 1px;
+  background: var(--vscode-panel-border);
+  margin: 4px 0;
+  opacity: 0.5;
+}
+
+.accordion-item {
+  border-radius: 6px;
+  overflow: hidden;
+  transition: background 0.15s;
+}
+
+.accordion-item + .accordion-item {
+  margin-top: 2px;
+}
+
+.accordion-item.disabled .accordion-header {
+  opacity: 0.5;
+}
+
+.accordion-item.expanded {
+  background: var(--vscode-settings-headerHoverBackground, var(--vscode-textBlockQuote-background));
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.accordion-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.expand-icon {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.accordion-item.expanded .expand-icon {
+  transform: rotate(90deg);
+}
+
+.item-icon {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+/* 图标颜色 */
+.accordion-item .codicon-history {
+  color: var(--vscode-charts-blue, #3794ff);
+}
+
+.accordion-item .codicon-tools {
+  color: var(--vscode-charts-orange, #d18616);
+}
+
+.accordion-item .codicon-symbol-number {
+  color: var(--vscode-charts-purple, #b267e6);
+}
+
+.accordion-item .codicon-code {
+  color: var(--vscode-charts-green, #89d185);
+}
+
+.accordion-item .codicon-list-unordered {
+  color: var(--vscode-charts-yellow, #ddb92f);
+}
+
+.accordion-item .codicon-sync {
+  color: var(--vscode-charts-blue, #3794ff);
+}
+
+.accordion-item .codicon-beaker {
+  color: var(--vscode-charts-red, #f48771);
+}
+
+.item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  text-align: left;
+}
+
+.item-summary {
+  flex: 1;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-link {
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.accordion-content {
+  padding: 12px;
+  background: var(--vscode-textBlockQuote-background);
+  border-radius: 0 0 6px 6px;
+}
+
+/* ==================== 内部选项样式 ==================== */
 .option-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+.option-item + .option-item {
+  margin-top: 12px;
+}
+
 .option-item label {
   font-size: 11px;
   font-weight: 500;
   color: var(--vscode-foreground);
-  opacity: 0.9;
 }
 
+.option-item input[type="text"],
 .option-item input[type="number"] {
-  padding: 5px 8px;
+  padding: 6px 10px;
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
+  border-radius: 6px;
   font-size: 12px;
   appearance: textfield;
-  -moz-appearance: textfield; /* Firefox */
+  -moz-appearance: textfield;
 }
 
-/* 隐藏数字输入框的上下箭头 */
-.option-item input[type="number"]::-webkit-outer-spin-button,
-.option-item input[type="number"]::-webkit-inner-spin-button {
+.option-item input::-webkit-outer-spin-button,
+.option-item input::-webkit-inner-spin-button {
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
 }
 
-.option-item input[type="number"]:focus {
+.option-item input:focus {
   outline: none;
   border-color: var(--vscode-focusBorder);
+}
+
+.option-item input.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .option-hint {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
-  opacity: 0.8;
+  line-height: 1.4;
 }
 
-.option-item.checkbox-option {
-  flex-direction: row;
-  align-items: center;
-}
-
-.option-item.checkbox-option .custom-checkbox {
-  padding-left: 22px;
-}
-
-.option-item.checkbox-option .checkmark {
-  width: 14px;
-  height: 14px;
-}
-
-.option-item.checkbox-option .checkbox-text {
-  font-size: 11px;
-}
-
-/* 带开关的配置项 */
-.option-item.option-with-toggle {
-  position: relative;
-}
-
-.option-header {
+.context-threshold-options,
+.retry-options {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
+  flex-direction: column;
 }
 
-.option-header label:first-child {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--vscode-foreground);
-  opacity: 0.9;
-}
-
-/* 开关样式 */
+/* ==================== 开关样式 ==================== */
 .toggle-switch {
   position: relative;
   display: inline-block;
   width: 32px;
   height: 16px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -1722,27 +2055,158 @@ onMounted(async () => {
   border-color: var(--vscode-focusBorder);
 }
 
-/* 禁用状态的输入框 */
-.option-item input.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* ==================== 自定义勾选框 ==================== */
+.custom-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: normal;
+  position: relative;
+  padding-left: 26px;
+  user-select: none;
 }
 
-/* 字段提示文字 */
-.field-hint {
-  font-size: 11px;
+.custom-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox .checkmark {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 16px;
+  width: 16px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.custom-checkbox:hover .checkmark {
+  border-color: var(--vscode-focusBorder);
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+.custom-checkbox .checkmark::after {
+  content: '';
+  position: absolute;
+  display: none;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--vscode-button-foreground);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.custom-checkbox input:checked ~ .checkmark::after {
+  display: block;
+}
+
+.checkbox-text {
+  margin-left: 4px;
+}
+
+/* ==================== 底部启用区 ==================== */
+.footer-section {
+  padding: 12px;
+  background: var(--vscode-textBlockQuote-background);
+  border-radius: 8px;
+}
+
+/* ==================== 渠道支持表格 ==================== */
+.channel-support-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-size: 10px;
+}
+
+.channel-support-table.detailed {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.channel-row {
+  display: grid;
+  grid-template-columns: 120px repeat(4, 1fr);
+  gap: 4px;
+  padding: 6px 8px;
+}
+
+.channel-row.header-row {
+  background: var(--vscode-textBlockQuote-background);
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.channel-row.current {
+  background: rgba(0, 122, 204, 0.15);
+}
+
+.channel-row .channel-name {
+  font-weight: 500;
+}
+
+.channel-row .channel-feature {
+  text-align: center;
+}
+
+.channel-feature.support-yes {
+  color: var(--vscode-charts-green, #89d185);
+}
+
+.channel-feature.support-no {
+  color: var(--vscode-errorForeground, #f48771);
+}
+
+/* 图例 */
+.support-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-symbol {
+  font-weight: bold;
+}
+
+.legend-text {
   color: var(--vscode-descriptionForeground);
-  line-height: 1.5;
-  opacity: 0.8;
 }
 
-/* 选项分组 */
+/* ==================== 其他保留样式 ==================== */
+.advanced-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .option-section {
   margin-top: 8px;
   padding: 12px;
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .option-section-header {
@@ -1772,10 +2236,6 @@ onMounted(async () => {
   color: var(--vscode-charts-blue, #3794ff);
 }
 
-.history-thought-section {
-  margin-top: 12px;
-}
-
 .option-section-content {
   display: flex;
   flex-direction: column;
@@ -1785,6 +2245,13 @@ onMounted(async () => {
 .option-section-content.disabled {
   opacity: 0.5;
   pointer-events: none;
+}
+
+.option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
 /* 单选按钮组 */
@@ -1841,280 +2308,6 @@ onMounted(async () => {
 }
 
 .radio-text {
-  color: var(--vscode-foreground);
-}
-
-/* 标头面板的开关放在按钮右侧 */
-.advanced-toggle .header-toggle {
-  margin-left: auto;
-}
-
-/* 通用面板包装器 */
-.custom-panel-wrapper {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--vscode-textBlockQuote-background);
-  border-radius: 2px;
-}
-
-/* 带提示的勾选框容器 */
-.checkbox-with-hint {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.checkbox-with-hint .custom-checkbox {
-  padding-left: 26px;
-}
-
-.checkbox-with-hint .field-hint {
-  margin-left: 26px;
-}
-
-/* 多模态折叠面板 */
-.multimodal-panel {
-  padding: 10px 12px;
-  background: var(--vscode-textBlockQuote-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
-}
-
-.multimodal-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.multimodal-panel-header .custom-checkbox {
-  flex: 1;
-  margin: 0;
-}
-
-.multimodal-details-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  font-size: 11px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.multimodal-details-toggle:hover {
-  background: var(--vscode-button-secondaryHoverBackground);
-}
-
-.multimodal-details-toggle .codicon {
-  font-size: 14px;
-}
-
-.multimodal-summary {
-  margin-left: 26px;
-  margin-top: 4px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  text-align: left;
-  cursor: pointer;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.multimodal-summary:hover {
-  color: var(--vscode-foreground);
-}
-
-.multimodal-panel-details {
-  margin-left: 26px;
-  margin-top: 10px;
-  font-size: 11px;
-}
-
-.multimodal-panel-details .support-header {
-  font-weight: 500;
-  color: var(--vscode-foreground);
-  margin-bottom: 6px;
-}
-
-.multimodal-panel-details .support-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.multimodal-panel-details .support-item {
-  display: flex;
-  gap: 8px;
-}
-
-.multimodal-panel-details .type-label {
-  color: var(--vscode-descriptionForeground);
-  min-width: 40px;
-}
-
-.multimodal-panel-details .type-formats {
-  color: var(--vscode-foreground);
-}
-
-/* 渠道支持表格 */
-.channel-support-table {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 10px;
-}
-
-.channel-support-table.detailed {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.channel-row {
-  display: grid;
-  grid-template-columns: 120px repeat(4, 1fr);
-  gap: 4px;
-  padding: 4px 6px;
-  border-radius: 2px;
-}
-
-.channel-support-table.detailed .channel-row {
-  border-radius: 0;
-}
-
-.channel-row.header-row {
-  background: var(--vscode-editor-background);
-  font-weight: 500;
-  color: var(--vscode-foreground);
-  opacity: 0.8;
-}
-
-.channel-row.current {
-  background: rgba(0, 122, 204, 0.15);
-}
-
-.channel-row .channel-name {
-  font-weight: 500;
-}
-
-.channel-row .channel-feature {
-  text-align: center;
-}
-
-.channel-feature.support-yes {
-  color: var(--vscode-charts-green, #89d185);
-}
-
-.channel-feature.support-no {
-  color: var(--vscode-errorForeground, #f48771);
-}
-
-.channel-feature.support-partial {
-  color: var(--vscode-charts-yellow, #ddb92f);
-}
-
-/* 图例 */
-.support-legend {
-  display: flex;
-  gap: 16px;
-  margin-top: 8px;
-  font-size: 10px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.legend-symbol {
-  font-weight: bold;
-}
-
-.legend-text {
-  color: var(--vscode-descriptionForeground);
-}
-
-/* 支持说明 */
-.support-notes {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.note-item {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-}
-
-.note-item.warning {
-  color: var(--vscode-charts-yellow, #ddb92f);
-}
-
-.note-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  color: var(--vscode-charts-blue, #3794ff);
-}
-
-.note-item.warning .note-icon {
-  color: var(--vscode-charts-yellow, #ddb92f);
-}
-
-.note-text {
-  color: var(--vscode-descriptionForeground);
-  line-height: 1.4;
-}
-
-.note-item.warning .note-text {
-  color: var(--vscode-charts-yellow, #ddb92f);
-}
-
-/* 工具模式警告 */
-.tool-mode-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  background: rgba(221, 185, 47, 0.1);
-  border: 1px solid var(--vscode-charts-yellow, #ddb92f);
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--vscode-charts-yellow, #ddb92f);
-  line-height: 1.5;
-}
-
-.tool-mode-warning .codicon {
-  flex-shrink: 0;
-  font-size: 14px;
-  margin-top: 1px;
-}
-
-/* 高亮提示 */
-.note-item.highlight {
-  background: rgba(0, 122, 204, 0.1);
-  padding: 6px 8px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-}
-
-.note-item.highlight .note-icon {
-  color: var(--vscode-button-background, #007acc);
-}
-
-.note-item.highlight .note-text {
   color: var(--vscode-foreground);
 }
 </style>

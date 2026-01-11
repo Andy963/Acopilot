@@ -513,7 +513,23 @@ const zhCN: LanguageMessages = {
                     },
                     enabled: {
                         label: '启用此配置'
-                    }
+                    },
+                    sections: {
+                        identityCredentials: '身份与凭据',
+                        capabilities: '功能能力',
+                        advancedConfig: '逻辑配置广场'
+                    },
+                    status: {
+                        defaultConfig: '默认配置',
+                        toolsConfigured: '已加载 {count} 个工具',
+                        localEstimate: '本地估算',
+                        fieldsConfigured: '已定义 {count} 个字段',
+                        headersConfigured: '{count} 个 Header',
+                        maxRetries: '最多 {count} 次',
+                        thresholdValue: '阈值'
+                    },
+                    multimodalSummary: '文档图片 (PNG/JPG)，PDF。',
+                    viewCompatibility: '查看兼容性矩阵'
                 }
             },
             tools: {
