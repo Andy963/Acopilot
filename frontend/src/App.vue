@@ -15,6 +15,7 @@ import { useChatStore, useSettingsStore, useTerminalStore } from './stores'
 import { useAttachments } from './composables'
 import { useI18n, setLanguage } from './i18n'
 import { copyToClipboard } from './utils'
+import { generateConversationTitleFromMessages } from './utils/conversationTitle'
 import { sendToExtension, onMessageFromExtension } from './utils/vscode'
 import type { Attachment, Message } from './types'
 
@@ -32,6 +33,10 @@ const terminalStore = useTerminalStore()
 const conversationTitle = computed(() => {
   const title = chatStore.currentConversation.value?.title?.trim()
   if (title) return title
+
+  const fallbackTitle = generateConversationTitleFromMessages(chatStore.messages)
+  if (fallbackTitle) return fallbackTitle
+
   return t('components.history.noTitle')
 })
 
