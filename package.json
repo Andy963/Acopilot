@@ -34,7 +34,7 @@
       {
         "command": "limcode.showHistory",
         "title": "对话历史",
-        "icon": "$(history)"
+        "icon": "$(arrow-left)"
       },
       {
         "command": "limcode.showSettings",
