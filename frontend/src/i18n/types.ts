@@ -442,6 +442,27 @@ export interface LanguageMessages {
                         maxOutputLines: string;
                         maxOutputLinesHint: string;
                         unlimitedLines: string;
+                        risk: {
+                            title: string;
+                            enabled: string;
+                            autoExecuteUpTo: {
+                                label: string;
+                                hint: string;
+                                low: string;
+                                medium: string;
+                            };
+                            confirmOn: string;
+                            categories: {
+                                destructive: string;
+                                gitHistory: string;
+                                privilege: string;
+                                network: string;
+                            };
+                            allowPatterns: string;
+                            allowPatternsHint: string;
+                            denyPatterns: string;
+                            denyPatternsHint: string;
+                        };
                         tips: {
                             onlyEnabledUsed: string;
                             statusMeaning: string;

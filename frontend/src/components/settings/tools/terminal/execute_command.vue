@@ -35,6 +35,18 @@ interface ExecuteCommandConfig {
   shells: ShellConfig[]
   defaultTimeout: number
   maxOutputLines: number
+  riskPolicy?: {
+    enabled: boolean
+    autoExecuteUpTo: 'low' | 'medium' | 'high' | 'critical'
+    confirmOn: {
+      destructive: boolean
+      gitHistory: boolean
+      privilege: boolean
+      network: boolean
+    }
+    allowPatterns: string[]
+    denyPatterns: string[]
+  }
 }
 
 // 配置状态
@@ -63,6 +75,29 @@ const maxOutputLinesOptions = computed<SelectOption[]>(() => [
   { value: '-1', label: t('components.settings.toolSettings.terminal.executeCommand.unlimitedLines') }
 ])
 
+const riskAutoExecuteOptions = computed<SelectOption[]>(() => [
+  { value: 'low', label: t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.low') },
+  { value: 'medium', label: t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.medium') }
+])
+
+function ensureRiskPolicy() {
+  if (!config.value) return
+  if (!config.value.riskPolicy) {
+    config.value.riskPolicy = {
+      enabled: true,
+      autoExecuteUpTo: 'low',
+      confirmOn: {
+        destructive: true,
+        gitHistory: true,
+        privilege: true,
+        network: true
+      },
+      allowPatterns: [],
+      denyPatterns: []
+    }
+  }
+}
+
 // 加载配置
 async function loadConfig() {
   isLoading.value = true
@@ -75,6 +110,7 @@ async function loadConfig() {
     )
     if (response?.config) {
       config.value = response.config
+      ensureRiskPolicy()
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('components.settings.toolSettings.common.error')
@@ -87,6 +123,7 @@ async function loadConfig() {
 // 保存配置
 async function saveConfig() {
   if (!config.value) return
+  ensureRiskPolicy()
   
   isSaving.value = true
   error.value = null
@@ -151,6 +188,62 @@ async function updateMaxOutputLines(lines: number) {
   
   config.value.maxOutputLines = lines
   await saveConfig()
+}
+
+function updateRiskEnabled(enabled: boolean) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.enabled = enabled
+  }
+  saveConfig()
+}
+
+function updateAutoExecuteUpTo(value: string) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.autoExecuteUpTo = value as any
+  }
+  saveConfig()
+}
+
+function updateConfirmOn(key: 'destructive' | 'gitHistory' | 'privilege' | 'network', value: boolean) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.confirmOn[key] = value
+  }
+  saveConfig()
+}
+
+function parsePatterns(text: string): string[] {
+  return (text || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+function patternsToText(patterns: string[] | undefined): string {
+  return (patterns || []).join('\n')
+}
+
+function updateAllowPatterns(text: string) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.allowPatterns = parsePatterns(text)
+  }
+  saveConfig()
+}
+
+function updateDenyPatterns(text: string) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.denyPatterns = parsePatterns(text)
+  }
+  saveConfig()
 }
 
 
@@ -301,6 +394,85 @@ onMounted(() => {
             @update:model-value="(val: string) => updateMaxOutputLines(Number(val))"
           />
           <span class="output-lines-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.maxOutputLinesHint') }}</span>
+        </div>
+      </div>
+
+      <!-- 命令风险策略 -->
+      <div class="config-section">
+        <div class="section-header">
+          <i class="codicon codicon-shield"></i>
+          <span>{{ t('components.settings.toolSettings.terminal.executeCommand.risk.title') }}</span>
+        </div>
+
+        <div class="risk-config">
+          <CustomCheckbox
+            :model-value="config.riskPolicy?.enabled ?? true"
+            :label="t('components.settings.toolSettings.terminal.executeCommand.risk.enabled')"
+            @update:model-value="updateRiskEnabled"
+          />
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.label') }}</label>
+            <CustomSelect
+              :model-value="config.riskPolicy?.autoExecuteUpTo ?? 'low'"
+              :options="riskAutoExecuteOptions"
+              :disabled="!(config.riskPolicy?.enabled ?? true)"
+              @update:model-value="updateAutoExecuteUpTo"
+            />
+            <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.hint') }}</div>
+          </div>
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.confirmOn') }}</label>
+            <div class="risk-checkboxes">
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.destructive ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.destructive')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('destructive', v)"
+              />
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.gitHistory ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.gitHistory')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('gitHistory', v)"
+              />
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.privilege ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.privilege')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('privilege', v)"
+              />
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.network ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.network')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('network', v)"
+              />
+            </div>
+          </div>
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.allowPatterns') }}</label>
+            <textarea
+              class="risk-textarea"
+              :disabled="!(config.riskPolicy?.enabled ?? true)"
+              :value="patternsToText(config.riskPolicy?.allowPatterns)"
+              @input="(e: any) => updateAllowPatterns(e.target.value)"
+            ></textarea>
+            <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.allowPatternsHint') }}</div>
+          </div>
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.denyPatterns') }}</label>
+            <textarea
+              class="risk-textarea"
+              :disabled="!(config.riskPolicy?.enabled ?? true)"
+              :value="patternsToText(config.riskPolicy?.denyPatterns)"
+              @input="(e: any) => updateDenyPatterns(e.target.value)"
+            ></textarea>
+            <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.denyPatternsHint') }}</div>
+          </div>
         </div>
       </div>
       
@@ -623,5 +795,54 @@ onMounted(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 风险策略 */
+.risk-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.risk-row.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.risk-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.risk-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.risk-checkboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.risk-textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  resize: vertical;
 }
 </style>

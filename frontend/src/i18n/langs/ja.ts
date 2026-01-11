@@ -1259,6 +1259,27 @@ const ja: LanguageMessages = {
                         maxOutputLines: '最大出力行数',
                         maxOutputLinesHint: 'AI に送信されるターミナル出力の最後の N 行、出力過多を避けるため',
                         unlimitedLines: '無制限',
+                        risk: {
+                            title: 'コマンド安全ポリシー',
+                            enabled: 'コマンドリスクポリシーを有効化',
+                            autoExecuteUpTo: {
+                                label: '自動実行の上限',
+                                hint: 'このリスクレベルを超えるコマンドは、execute_command が自動実行でも確認が必要です',
+                                low: '低リスクのみ',
+                                medium: '中リスクまで'
+                            },
+                            confirmOn: '以下は常に確認を要求',
+                            categories: {
+                                destructive: '破壊的操作（rm/del/リダイレクト）',
+                                gitHistory: 'Git の破壊的操作（reset/clean/push --force）',
+                                privilege: '権限昇格（sudo）',
+                                network: 'ネットワークダウンロード/インストール'
+                            },
+                            allowPatterns: '許可リスト（正規表現、1 行 1 件）',
+                            allowPatternsHint: '許可リストに一致するコマンドは確認をスキップ（大文字小文字を区別しない正規表現）',
+                            denyPatterns: '拒否リスト（正規表現、1 行 1 件）',
+                            denyPatternsHint: '拒否リストに一致するコマンドはブロック（大文字小文字を区別しない正規表現）'
+                        },
                         tips: {
                             onlyEnabledUsed: '• 有効で利用可能なシェルのみが AI で使用されます',
                             statusMeaning: '• ✓ は利用可能、✗ は利用不可を意味します',

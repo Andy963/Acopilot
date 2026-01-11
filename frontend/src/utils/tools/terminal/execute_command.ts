@@ -4,6 +4,7 @@
 
 import { registerTool } from '../../toolRegistry'
 import ExecuteCommandComponent from '../../../components/tools/terminal/execute_command.vue'
+import { assessCommandRisk } from '@/utils/commandRisk'
 
 // 注册 execute_command 工具
 registerTool('execute_command', {
@@ -17,7 +18,18 @@ registerTool('execute_command', {
     const cwd = args.cwd as string
     const shell = args.shell as string
     
-    let desc = command
+    const risk = assessCommandRisk(command)
+    const riskLabelMap: Record<string, string> = {
+      low: '低',
+      medium: '中',
+      high: '高',
+      critical: '致命'
+    }
+
+    let desc = `[风险: ${riskLabelMap[risk.level] || risk.level}] ${command}`
+    if (risk.reasons.length > 0) {
+      desc += `\n原因: ${risk.reasons.slice(0, 2).join('；')}`
+    }
     if (cwd) {
       desc += `\n目录: ${cwd}`
     }
