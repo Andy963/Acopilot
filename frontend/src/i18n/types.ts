@@ -132,6 +132,8 @@ export interface LanguageMessages {
                 checkpointHint: string;
                 cancel: string;
                 delete: string;
+                directDelete: string;
+                restoreAndDelete: string;
                 restoreToUserMessage: string;
                 restoreToAssistantMessage: string;
                 restoreToToolBatch: string;
@@ -155,6 +157,8 @@ export interface LanguageMessages {
                 checkpointHint: string;
                 cancel: string;
                 retry: string;
+                directRetry: string;
+                restoreAndRetry: string;
                 restoreToUserMessage: string;
                 restoreToAssistantMessage: string;
                 restoreToToolBatch: string;
