@@ -8,6 +8,21 @@ All notable changes to the "Lim Code" extension will be documented in this file.
 ### Fixed
   - 修复cmd工具无法执行的问题
 
+## [1.0.40] - 2026-01-11
+
+### Added
+  - execute_command 风险策略（前后端）
+
+### Fixed
+  - 修复 markdown/text 附件处理
+  - 修复模型名称下沿被裁剪问题
+  - 修复渠道设置下拉层级遮挡问题
+  - 优化重试/删除对话框体验
+
+### Improved
+  - 调整历史/返回按钮位置
+  - 渠道设置界面优化（折叠多模态细节等）
+
 ## [1.0.37] - 2026-01-08
 
 ### Fixed
