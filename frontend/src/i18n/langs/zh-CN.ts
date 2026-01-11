@@ -1330,6 +1330,8 @@ const zhCN: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                mcpNote: 'MCP 工具由 MCP 服务提供，无法在此禁用',
+                mcpDisableTooltip: '由 MCP 服务提供，无法在此禁用',
                 maxIterations: {
                     label: '单回合最大工具调用次数',
                     hint: '防止 AI 无限循环调用工具，-1 表示无限制',
@@ -1340,6 +1342,30 @@ const zhCN: LanguageMessages = {
                     enableAll: '全部启用',
                     disableAll: '全部禁用'
                 },
+                badges: {
+                    enabled: '启用',
+                    autoExec: '自动'
+                },
+                columns: {
+                    enabled: '启用',
+                    auto: '自动',
+                    config: '配置'
+                },
+                exec: {
+                    autoEnabled: '启用'
+                },
+                dangerConfirm: {
+                    title: '确认开启自动执行',
+                    message: '你正在为危险工具 {tool} 开启自动执行，这可能导致不可恢复的修改。是否继续？',
+                    confirm: '继续开启',
+                    cancel: '取消'
+                },
+                enableAllDangerous: {
+                    title: '批量开启自动执行',
+                    message: '检测到危险工具（delete_file / execute_command）。是否也将它们设为自动执行？',
+                    confirm: '包含危险工具',
+                    cancel: '跳过危险工具'
+                },
                 loading: '加载工具列表...',
                 empty: '暂无可用工具',
                 categories: {
@@ -1348,6 +1374,7 @@ const zhCN: LanguageMessages = {
                     terminal: '终端',
                     lsp: '代码智能',
                     media: '媒体处理',
+                    mcp: 'MCP',
                     other: '其他'
                 },
                 dependency: {

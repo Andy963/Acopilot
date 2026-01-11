@@ -1330,6 +1330,8 @@ const en: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                mcpNote: 'MCP tools are provided by MCP servers and cannot be disabled here',
+                mcpDisableTooltip: 'Provided by MCP server, cannot be disabled here',
                 maxIterations: {
                     label: 'Max Tool Calls Per Turn',
                     hint: 'Prevents AI from infinite tool call loops, -1 for unlimited',
@@ -1340,6 +1342,30 @@ const en: LanguageMessages = {
                     enableAll: 'Enable All',
                     disableAll: 'Disable All'
                 },
+                badges: {
+                    enabled: 'Enabled',
+                    autoExec: 'Auto'
+                },
+                columns: {
+                    enabled: 'Enabled',
+                    auto: 'Auto',
+                    config: 'Config'
+                },
+                exec: {
+                    autoEnabled: 'Enabled'
+                },
+                dangerConfirm: {
+                    title: 'Enable Auto Execute?',
+                    message: 'You are enabling auto execution for a dangerous tool: {tool}. This may cause irreversible changes. Continue?',
+                    confirm: 'Enable',
+                    cancel: 'Cancel'
+                },
+                enableAllDangerous: {
+                    title: 'Enable Auto Execute',
+                    message: 'Dangerous tools detected (delete_file / execute_command). Also enable auto execution for them?',
+                    confirm: 'Include dangerous tools',
+                    cancel: 'Skip dangerous tools'
+                },
                 loading: 'Loading tools list...',
                 empty: 'No tools available',
                 categories: {
@@ -1348,6 +1374,7 @@ const en: LanguageMessages = {
                     terminal: 'Terminal',
                     lsp: 'Code Intelligence',
                     media: 'Media Processing',
+                    mcp: 'MCP',
                     other: 'Other'
                 },
                 dependency: {

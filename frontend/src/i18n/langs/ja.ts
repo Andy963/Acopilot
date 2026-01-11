@@ -1330,6 +1330,8 @@ const ja: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                mcpNote: 'MCP ツールは MCP サーバーから提供され、この画面では無効化できません',
+                mcpDisableTooltip: 'MCP サーバー提供のため無効化できません',
                 maxIterations: {
                     label: 'ターンあたりの最大ツール呼び出し回数',
                     hint: 'AI の無限ツール呼び出しループを防止、-1 で無制限',
@@ -1340,6 +1342,30 @@ const ja: LanguageMessages = {
                     enableAll: 'すべて有効化',
                     disableAll: 'すべて無効化'
                 },
+                badges: {
+                    enabled: '有効',
+                    autoExec: '自動'
+                },
+                columns: {
+                    enabled: '有効',
+                    auto: '自動',
+                    config: '設定'
+                },
+                exec: {
+                    autoEnabled: '有効'
+                },
+                dangerConfirm: {
+                    title: '自動実行を有効にしますか？',
+                    message: '危険なツール {tool} に対して自動実行を有効にしようとしています。取り消せない変更が発生する可能性があります。続行しますか？',
+                    confirm: '有効にする',
+                    cancel: 'キャンセル'
+                },
+                enableAllDangerous: {
+                    title: '自動実行を有効化',
+                    message: '危険なツール（delete_file / execute_command）が検出されました。これらも自動実行にしますか？',
+                    confirm: '危険なツールも含める',
+                    cancel: '危険なツールを除外'
+                },
                 loading: 'ツールリストを読み込み中...',
                 empty: '利用可能なツールがありません',
                 categories: {
@@ -1348,6 +1374,7 @@ const ja: LanguageMessages = {
                     terminal: 'ターミナル',
                     lsp: 'コードインテリジェンス',
                     media: 'メディア処理',
+                    mcp: 'MCP',
                     other: 'その他'
                 },
                 dependency: {
