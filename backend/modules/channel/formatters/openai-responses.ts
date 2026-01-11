@@ -17,6 +17,13 @@ import type {
     StreamChunk,
     HttpRequestOptions
 } from '../types';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    formatUnsupportedAttachment,
+    isImageMimeType,
+    isTextMimeType
+} from './inlineDataUtils';
 
 /**
  * OpenAI Responses 格式转换器
@@ -205,9 +212,38 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
                         const toolContentParts = part.functionResponse.parts
                             .map(p => {
                                 if (p.inlineData) {
+                                    const mimeType = p.inlineData.mimeType;
+
+                                    if (isImageMimeType(mimeType)) {
+                                        return {
+                                            type: 'input_image',
+                                            image_url: `data:${mimeType};base64,${p.inlineData.data}`
+                                        };
+                                    }
+
+                                    if (isTextMimeType(mimeType)) {
+                                        const decoded = decodeBase64ToUtf8(p.inlineData.data);
+                                        return {
+                                            type: 'input_text',
+                                            text: decoded !== null
+                                                ? formatTextAttachment({
+                                                    mimeType,
+                                                    text: decoded,
+                                                    displayName: p.inlineData.displayName
+                                                })
+                                                : formatUnsupportedAttachment({
+                                                    mimeType,
+                                                    displayName: p.inlineData.displayName
+                                                })
+                                        };
+                                    }
+
                                     return {
-                                        type: 'input_image',
-                                        image_url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`
+                                        type: 'input_text',
+                                        text: formatUnsupportedAttachment({
+                                            mimeType,
+                                            displayName: p.inlineData.displayName
+                                        })
                                     };
                                 }
                                 return null;
@@ -232,10 +268,37 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
                         text: part.text
                     });
                 } else if (part.inlineData) {
-                    messageParts.push({
-                        type: 'input_image',
-                        image_url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                    });
+                    const mimeType = part.inlineData.mimeType;
+
+                    if (isImageMimeType(mimeType)) {
+                        messageParts.push({
+                            type: 'input_image',
+                            image_url: `data:${mimeType};base64,${part.inlineData.data}`
+                        });
+                    } else if (isTextMimeType(mimeType)) {
+                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                        messageParts.push({
+                            type: role === 'assistant' ? 'output_text' : 'input_text',
+                            text: decoded !== null
+                                ? formatTextAttachment({
+                                    mimeType,
+                                    text: decoded,
+                                    displayName: part.inlineData.displayName
+                                })
+                                : formatUnsupportedAttachment({
+                                    mimeType,
+                                    displayName: part.inlineData.displayName
+                                })
+                        });
+                    } else {
+                        messageParts.push({
+                            type: role === 'assistant' ? 'output_text' : 'input_text',
+                            text: formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                        });
+                    }
                 } else if (part.fileData) {
                     messageParts.push({
                         type: 'input_file',

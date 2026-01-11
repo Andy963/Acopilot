@@ -10,6 +10,13 @@ import type { TokenCountChannelConfig, TokenCountConfig } from '../settings/type
 import type { Content } from '../conversation/types';
 import type { ChannelConfig, TokenCountMethod, TokenCountApiConfig } from '../config/types';
 import { cleanContentForAPI } from '../conversation/helpers';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    formatUnsupportedAttachment,
+    isImageMimeType,
+    isTextMimeType
+} from './formatters/inlineDataUtils';
 
 /**
  * Token 计数结果
@@ -316,11 +323,40 @@ export class TokenCountService {
                         return { type: 'text' as const, text: part.text };
                     }
                     if ('inlineData' in part && part.inlineData) {
+                        const mimeType = part.inlineData.mimeType;
+
+                        if (isImageMimeType(mimeType)) {
+                            return {
+                                type: 'image_url' as const,
+                                image_url: {
+                                    url: `data:${mimeType};base64,${part.inlineData.data}`
+                                }
+                            };
+                        }
+
+                        if (isTextMimeType(mimeType)) {
+                            const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                            return {
+                                type: 'text' as const,
+                                text: decoded !== null
+                                    ? formatTextAttachment({
+                                        mimeType,
+                                        text: decoded,
+                                        displayName: part.inlineData.displayName
+                                    })
+                                    : formatUnsupportedAttachment({
+                                        mimeType,
+                                        displayName: part.inlineData.displayName
+                                    })
+                            };
+                        }
+
                         return {
-                            type: 'image_url' as const,
-                            image_url: {
-                                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                            }
+                            type: 'text' as const,
+                            text: formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
                         };
                     }
                     return { type: 'text' as const, text: '' };
@@ -430,12 +466,39 @@ export class TokenCountService {
                 if ('text' in part && part.text) {
                     inputParts.push({ type: 'text', text: part.text });
                 } else if ('inlineData' in part && part.inlineData) {
-                    inputParts.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                        }
-                    });
+                    const mimeType = part.inlineData.mimeType;
+
+                    if (isImageMimeType(mimeType)) {
+                        inputParts.push({
+                            type: 'image_url',
+                            image_url: {
+                                url: `data:${mimeType};base64,${part.inlineData.data}`
+                            }
+                        });
+                    } else if (isTextMimeType(mimeType)) {
+                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                        inputParts.push({
+                            type: 'text',
+                            text: decoded !== null
+                                ? formatTextAttachment({
+                                    mimeType,
+                                    text: decoded,
+                                    displayName: part.inlineData.displayName
+                                })
+                                : formatUnsupportedAttachment({
+                                    mimeType,
+                                    displayName: part.inlineData.displayName
+                                })
+                        });
+                    } else {
+                        inputParts.push({
+                            type: 'text',
+                            text: formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                        });
+                    }
                 }
             }
         }
@@ -610,6 +673,18 @@ export class TokenCountService {
                     if ('text' in part && part.text !== undefined) {
                         return { text: part.text };
                     }
+                    if ('inlineData' in part && part.inlineData && isTextMimeType(part.inlineData.mimeType)) {
+                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                        if (decoded !== null) {
+                            return {
+                                text: formatTextAttachment({
+                                    mimeType: part.inlineData.mimeType,
+                                    text: decoded,
+                                    displayName: part.inlineData.displayName
+                                })
+                            };
+                        }
+                    }
                     // 处理其他类型的 part（如 inlineData, functionResponse 等）
                     return part;
                 })
@@ -684,11 +759,40 @@ export class TokenCountService {
                     }
                     // 处理图片等其他类型
                     if ('inlineData' in part && part.inlineData) {
+                        const mimeType = part.inlineData.mimeType;
+
+                        if (isImageMimeType(mimeType)) {
+                            return {
+                                type: 'image_url' as const,
+                                image_url: {
+                                    url: `data:${mimeType};base64,${part.inlineData.data}`
+                                }
+                            };
+                        }
+
+                        if (isTextMimeType(mimeType)) {
+                            const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                            return {
+                                type: 'text' as const,
+                                text: decoded !== null
+                                    ? formatTextAttachment({
+                                        mimeType,
+                                        text: decoded,
+                                        displayName: part.inlineData.displayName
+                                    })
+                                    : formatUnsupportedAttachment({
+                                        mimeType,
+                                        displayName: part.inlineData.displayName
+                                    })
+                            };
+                        }
+
                         return {
-                            type: 'image_url' as const,
-                            image_url: {
-                                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                            }
+                            type: 'text' as const,
+                            text: formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
                         };
                     }
                     return { type: 'text' as const, text: '' };
@@ -799,12 +903,39 @@ export class TokenCountService {
                 if ('text' in part && part.text) {
                     inputParts.push({ type: 'text', text: part.text });
                 } else if ('inlineData' in part && part.inlineData) {
-                    inputParts.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                        }
-                    });
+                    const mimeType = part.inlineData.mimeType;
+
+                    if (isImageMimeType(mimeType)) {
+                        inputParts.push({
+                            type: 'image_url',
+                            image_url: {
+                                url: `data:${mimeType};base64,${part.inlineData.data}`
+                            }
+                        });
+                    } else if (isTextMimeType(mimeType)) {
+                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                        inputParts.push({
+                            type: 'text',
+                            text: decoded !== null
+                                ? formatTextAttachment({
+                                    mimeType,
+                                    text: decoded,
+                                    displayName: part.inlineData.displayName
+                                })
+                                : formatUnsupportedAttachment({
+                                    mimeType,
+                                    displayName: part.inlineData.displayName
+                                })
+                        });
+                    } else {
+                        inputParts.push({
+                            type: 'text',
+                            text: formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                        });
+                    }
                 }
             }
         }
