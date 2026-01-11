@@ -50,14 +50,9 @@
           "group": "navigation@1"
         },
         {
-          "command": "limcode.showHistory",
-          "when": "view == limcode.chatView",
-          "group": "navigation@2"
-        },
-        {
           "command": "limcode.showSettings",
           "when": "view == limcode.chatView",
-          "group": "navigation@3"
+          "group": "navigation@2"
         }
       ]
     },

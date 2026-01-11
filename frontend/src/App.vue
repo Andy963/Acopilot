@@ -4,13 +4,13 @@
  * 使用Pinia store管理状态
  */
 
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { MessageList } from './components/message'
 import { InputArea } from './components/input'
 import { WelcomePanel } from './components/home'
 import { HistoryPage } from './components/history'
 import { SettingsPanel } from './components/settings'
-import { CustomScrollbar } from './components/common'
+import { CustomScrollbar, IconButton, Tooltip } from './components/common'
 import { useChatStore, useSettingsStore, useTerminalStore } from './stores'
 import { useAttachments } from './composables'
 import { useI18n, setLanguage } from './i18n'
@@ -28,6 +28,12 @@ const languageLoaded = ref(false)
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
 const terminalStore = useTerminalStore()
+
+const conversationTitle = computed(() => {
+  const title = chatStore.currentConversation.value?.title?.trim()
+  if (title) return title
+  return t('components.history.noTitle')
+})
 
 // 附件管理（仍使用composable）
 const {
@@ -238,6 +244,14 @@ onMounted(async () => {
     
     <!-- 聊天视图 - 使用 v-show 避免销毁组件，保持滚动位置 -->
     <div v-show="languageLoaded && settingsStore.currentView === 'chat'" class="chat-view">
+      <!-- 对话标题栏：返回对话列表按钮放到标题左侧 -->
+      <div v-if="chatStore.currentConversationId" class="conversation-header">
+        <Tooltip :content="t('components.header.history')" placement="bottom">
+          <IconButton icon="codicon-arrow-left" size="medium" @click="handleShowHistory" />
+        </Tooltip>
+        <div class="conversation-title" :title="conversationTitle">{{ conversationTitle }}</div>
+      </div>
+
       <!-- 主聊天区域 -->
       <div class="chat-area">
         <!-- 初始状态：显示欢迎面板+历史对话列表 -->
@@ -328,6 +342,28 @@ onMounted(async () => {
   min-height: 0;
   overflow: hidden;
   position: relative;
+}
+
+/* 对话标题栏 */
+.conversation-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
+  flex-shrink: 0;
+}
+
+.conversation-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 重试状态面板（黑白灰配色，只有图标用黄色） */
