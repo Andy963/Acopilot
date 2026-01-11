@@ -20,7 +20,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          # Note: do not enable dependency caching here.
+          # This repo uses pnpm (pnpm-lock.yaml). setup-node cache currently
+          # expects npm/yarn lockfiles and can also require pnpm to be present
+          # in PATH when cache=pnpm, which breaks the release job.
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
