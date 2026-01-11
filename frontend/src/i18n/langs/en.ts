@@ -1259,6 +1259,27 @@ const en: LanguageMessages = {
                         maxOutputLines: 'Max Output Lines',
                         maxOutputLinesHint: 'Last N lines of terminal output sent to AI, to avoid excessive output',
                         unlimitedLines: 'Unlimited',
+                        risk: {
+                            title: 'Command Safety',
+                            enabled: 'Enable command risk policy',
+                            autoExecuteUpTo: {
+                                label: 'Auto execute up to',
+                                hint: 'Commands above this risk level will require confirmation even if Execute Command is set to auto execute',
+                                low: 'Low risk only',
+                                medium: 'Up to medium risk'
+                            },
+                            confirmOn: 'Always require confirmation for',
+                            categories: {
+                                destructive: 'Destructive actions (rm/del/redirect)',
+                                gitHistory: 'Git destructive actions (reset/clean/push --force)',
+                                privilege: 'Privilege escalation (sudo)',
+                                network: 'Network download/install'
+                            },
+                            allowPatterns: 'Allowlist patterns (regex, one per line)',
+                            allowPatternsHint: 'Commands matching allowlist bypass confirmation (case-insensitive regex)',
+                            denyPatterns: 'Denylist patterns (regex, one per line)',
+                            denyPatternsHint: 'Commands matching denylist are blocked (case-insensitive regex)'
+                        },
                         tips: {
                             onlyEnabledUsed: '• Only enabled and available shells will be used by AI',
                             statusMeaning: '• ✓ means available, ✗ means unavailable',

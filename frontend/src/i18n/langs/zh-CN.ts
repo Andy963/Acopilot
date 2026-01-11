@@ -1259,6 +1259,27 @@ const zhCN: LanguageMessages = {
                         maxOutputLines: '最大输出行数',
                         maxOutputLinesHint: '发送给 AI 的终端输出的最后 N 行，避免输出过大',
                         unlimitedLines: '无限制',
+                        risk: {
+                            title: '命令安全策略',
+                            enabled: '启用命令风险策略',
+                            autoExecuteUpTo: {
+                                label: '自动执行阈值',
+                                hint: '超过此风险等级的命令将强制要求确认（即使 execute_command 设置为自动执行）',
+                                low: '仅低风险',
+                                medium: '允许到中风险'
+                            },
+                            confirmOn: '以下类型始终需要确认',
+                            categories: {
+                                destructive: '破坏性操作（rm/del/重定向）',
+                                gitHistory: 'Git 破坏性操作（reset/clean/push --force）',
+                                privilege: '提权命令（sudo）',
+                                network: '网络下载/安装'
+                            },
+                            allowPatterns: '允许列表（正则，每行一条）',
+                            allowPatternsHint: '命中允许列表的命令将跳过确认（不区分大小写正则）',
+                            denyPatterns: '拒绝列表（正则，每行一条）',
+                            denyPatternsHint: '命中拒绝列表的命令将被拦截（不区分大小写正则）'
+                        },
                         tips: {
                             onlyEnabledUsed: '• 只有启用且可用的 Shell 才会被 AI 使用',
                             statusMeaning: '• ✓ 表示可用，✗ 表示不可用',
