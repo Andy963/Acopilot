@@ -1140,13 +1140,6 @@ onMounted(async () => {
             <i class="codicon codicon-symbol-number item-icon"></i>
             <span class="item-title">{{ t('components.channels.tokenCountMethod.title') }}</span>
             <span class="item-summary">{{ tokenCountMethodSummary }}</span>
-            <button
-              class="inline-link summary-link"
-              @click.stop="showTokenCountMethod = !showTokenCountMethod"
-            >
-              {{ t('components.settings.channelSettings.form.viewCompatibility') }}
-              <i class="codicon codicon-chevron-right"></i>
-            </button>
           </button>
           <div v-if="showTokenCountMethod" class="accordion-content">
             <TokenCountMethodSettings
@@ -1848,6 +1841,9 @@ onMounted(async () => {
 
 .accordion-item.expanded {
   background: var(--vscode-settings-headerHoverBackground, var(--vscode-textBlockQuote-background));
+  overflow: visible;
+  position: relative;
+  z-index: 2;
 }
 
 .accordion-header {
@@ -1928,11 +1924,6 @@ onMounted(async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.summary-link {
-  margin-left: 8px;
-  flex-shrink: 0;
 }
 
 .accordion-content {
