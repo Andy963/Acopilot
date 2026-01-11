@@ -46,6 +46,13 @@ import type {
     StreamChunk,
     HttpRequestOptions
 } from '../types';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    formatUnsupportedAttachment,
+    isImageMimeType,
+    isTextMimeType
+} from './inlineDataUtils';
 
 /**
  * Anthropic 格式转换器
@@ -354,15 +361,44 @@ export class AnthropicFormatter extends BaseFormatter {
         // 添加多媒体部分（图片通常放在文本前面）
         for (const part of mediaParts) {
             if (part.inlineData) {
-                // Base64 内联数据
-                contentArray.push({
-                    type: 'image',
-                    source: {
-                        type: 'base64',
-                        media_type: part.inlineData.mimeType,
-                        data: part.inlineData.data
-                    }
-                });
+                const mimeType = part.inlineData.mimeType;
+
+                if (isImageMimeType(mimeType)) {
+                    // 图片：Base64 内联数据
+                    contentArray.push({
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: mimeType,
+                            data: part.inlineData.data
+                        }
+                    });
+                } else if (isTextMimeType(mimeType)) {
+                    // 文本类附件：解码后作为普通文本发送
+                    const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                    contentArray.push({
+                        type: 'text',
+                        text: decoded !== null
+                            ? formatTextAttachment({
+                                mimeType,
+                                text: decoded,
+                                displayName: part.inlineData.displayName
+                            })
+                            : formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                    });
+                } else {
+                    // 非图片且非文本的附件：避免错误，发送占位提示
+                    contentArray.push({
+                        type: 'text',
+                        text: formatUnsupportedAttachment({
+                            mimeType,
+                            displayName: part.inlineData.displayName
+                        })
+                    });
+                }
             } else if (part.fileData) {
                 // 文件引用 -> URL 格式
                 contentArray.push({

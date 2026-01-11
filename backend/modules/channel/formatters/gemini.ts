@@ -19,6 +19,11 @@ import type {
     HttpRequestOptions
 } from '../types';
 import { ChannelError, ErrorType } from '../types';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    isTextMimeType
+} from './inlineDataUtils';
 
 /**
  * Gemini 格式转换器
@@ -56,6 +61,9 @@ export class GeminiFormatter extends BaseFormatter {
         
         // 转换思考签名格式：将 thoughtSignatures.gemini 转换为 thoughtSignature
         processedHistory = this.convertThoughtSignatures(processedHistory);
+
+        // 文本类附件（如 text/markdown）不应作为 inlineData 发送；将其解码为 text part
+        processedHistory = this.convertTextInlineDataToTextParts(processedHistory);
         
         // 构建请求体
         const body: any = {
@@ -175,6 +183,35 @@ export class GeminiFormatter extends BaseFormatter {
             timeout: config.timeout,  // 使用配置的超时时间
             stream: useStream
         };
+    }
+
+    private convertTextInlineDataToTextParts(history: Content[]): Content[] {
+        return history.map(content => ({
+            ...content,
+            parts: content.parts.flatMap(part => {
+                if (!part.inlineData) {
+                    return [part];
+                }
+
+                const mimeType = part.inlineData.mimeType;
+                if (!isTextMimeType(mimeType)) {
+                    return [part];
+                }
+
+                const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                if (decoded === null) {
+                    return [part];
+                }
+
+                return [{
+                    text: formatTextAttachment({
+                        mimeType,
+                        text: decoded,
+                        displayName: part.inlineData.displayName
+                    })
+                }];
+            })
+        }));
     }
     
     /**
