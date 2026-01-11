@@ -750,7 +750,9 @@ function handleRestoreAndRetry(checkpointId: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1;
+  /* Avoid clipping descenders (g/p/y) in VS Code webview fonts */
+  line-height: 1.2;
+  padding-bottom: 1px;
 }
 
 .user-message .role-label {
