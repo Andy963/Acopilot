@@ -33,8 +33,7 @@ jobs:
       - name: Verify pnpm
         run: pnpm -v
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
+      # Note: build.sh installs both root (npm) and frontend (pnpm) dependencies.
 
       - name: Build and package VSIX
         run: bash ./build.sh
