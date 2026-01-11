@@ -8,6 +8,7 @@ import type { ChatStoreState, Conversation, CheckpointRecord } from './types'
 import { sendToExtension } from '../../utils/vscode'
 import { contentToMessageEnhanced } from './parsers'
 import type { Content } from '../../types'
+import { generateConversationTitleFromText } from '../../utils/conversationTitle'
 
 /**
  * 取消流式并拒绝工具的回调类型
@@ -49,8 +50,8 @@ export async function createAndPersistConversation(
 ): Promise<string | null> {
   const id = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   
-  // 使用第一句话的前30个字符作为标题
-  const title = firstMessage.slice(0, 30) + (firstMessage.length > 30 ? '...' : '')
+  // 使用首条用户消息生成默认标题（避免截断 emoji 等代理对）
+  const title = generateConversationTitleFromText(firstMessage)
   
   try {
     // 创建对话时传递工作区 URI
