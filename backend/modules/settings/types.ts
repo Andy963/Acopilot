@@ -4,6 +4,8 @@
  * 定义全局设置的类型和接口
  */
 
+import { DEFAULT_EXECUTE_COMMAND_RISK_POLICY, type ExecuteCommandRiskPolicy } from '../../core/commandRisk';
+
 /**
  * 工具启用状态配置
  *
@@ -160,6 +162,11 @@ export interface ExecuteCommandToolConfig {
      * 默认: 50
      */
     maxOutputLines: number;
+
+    /**
+     * 命令风险策略（用于对部分高风险命令强制要求确认/拦截）
+     */
+    riskPolicy?: ExecuteCommandRiskPolicy;
     
     [key: string]: unknown;
 }
@@ -1166,7 +1173,8 @@ export function getDefaultExecuteCommandConfig(): ExecuteCommandToolConfig {
         shells,
         defaultTimeout: 60000,
         autoExecute: false,
-        maxOutputLines: 50
+        maxOutputLines: 50,
+        riskPolicy: DEFAULT_EXECUTE_COMMAND_RISK_POLICY
     };
 }
 
