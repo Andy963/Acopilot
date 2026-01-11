@@ -570,6 +570,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  --lc-tools-col-enabled: 56px;
+  --lc-tools-col-auto: 120px;
+  --lc-tools-col-config: 36px;
+  --lc-tools-col-gap: 10px;
 }
 
 /* 全局配置 */
@@ -744,9 +748,9 @@ onMounted(() => {
 
 .group-columns {
   display: grid;
-  grid-template-columns: 64px 1px 180px 36px;
+  grid-template-columns: var(--lc-tools-col-enabled) 1px var(--lc-tools-col-auto) var(--lc-tools-col-config);
   align-items: center;
-  gap: 8px;
+  gap: var(--lc-tools-col-gap);
   padding-right: 6px;
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
@@ -781,10 +785,10 @@ onMounted(() => {
 
 .tool-grid {
   display: grid;
-  grid-template-columns: 1fr 64px 1px 180px 36px;
+  grid-template-columns: 1fr var(--lc-tools-col-enabled) 1px var(--lc-tools-col-auto) var(--lc-tools-col-config);
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: var(--lc-tools-col-gap);
+  padding: 8px 12px;
 }
 
 .tool-wrapper:not(:last-child) {
@@ -936,7 +940,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-self: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .exec-cell.disabled {
@@ -946,7 +950,7 @@ onMounted(() => {
 .exec-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .exec-icon {
@@ -958,8 +962,8 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  padding: 2px 8px;
+  min-width: 40px;
+  padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
   white-space: nowrap;
