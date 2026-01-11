@@ -2,3 +2,4 @@ node_modules
 dist
 .ads
 *.vsix
+docs/
