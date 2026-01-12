@@ -649,12 +649,42 @@ export class SettingsManager {
     }
     
     // ========== 存档点配置管理 ==========
+
+    /**
+     * 规范化存档点工具名称（向后兼容历史配置）
+     */
+    private normalizeCheckpointToolName(toolName: string): string {
+        // v1: write_to_file -> v2: write_file
+        if (toolName === 'write_to_file') {
+            return 'write_file';
+        }
+        return toolName;
+    }
+
+    /**
+     * 规范化存档点配置（去重 + 兼容旧工具名）
+     */
+    private normalizeCheckpointConfig(config: Readonly<CheckpointConfig>): CheckpointConfig {
+        const normalizeList = (tools: string[] | undefined): string[] => {
+            if (!tools || !Array.isArray(tools)) return [];
+            return Array.from(new Set(tools.map(t => this.normalizeCheckpointToolName(t)).filter(Boolean)));
+        };
+
+        return {
+            ...config,
+            beforeTools: normalizeList(config.beforeTools),
+            afterTools: normalizeList(config.afterTools),
+            messageCheckpoint: config.messageCheckpoint ? { ...config.messageCheckpoint } : undefined,
+            customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : []
+        };
+    }
     
     /**
      * 获取存档点配置
      */
     getCheckpointConfig(): Readonly<CheckpointConfig> {
-        return this.settings.toolsConfig?.checkpoint || DEFAULT_CHECKPOINT_CONFIG;
+        const config = this.settings.toolsConfig?.checkpoint || DEFAULT_CHECKPOINT_CONFIG;
+        return this.normalizeCheckpointConfig(config);
     }
     
     /**
@@ -662,10 +692,11 @@ export class SettingsManager {
      */
     async updateCheckpointConfig(config: Partial<CheckpointConfig>): Promise<void> {
         const oldConfig = this.getCheckpointConfig();
-        const newConfig = {
+        const mergedConfig = {
             ...oldConfig,
             ...config
         };
+        const newConfig = this.normalizeCheckpointConfig(mergedConfig);
         
         if (!this.settings.toolsConfig) {
             this.settings.toolsConfig = {};
