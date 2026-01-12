@@ -12,6 +12,7 @@ import type {
   ConfigInfo,
   ChatStoreState
 } from './types'
+import type { PinnedPromptState } from './types'
 
 /**
  * 创建 Chat Store 状态
@@ -81,6 +82,9 @@ export function createChatState(): ChatStoreState {
   /** 工作区筛选模式（默认当前工作区） */
   const workspaceFilter = ref<WorkspaceFilter>('current')
 
+  /** 当前对话的固定提示词/技能 */
+  const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
+
   return {
     conversations,
     currentConversationId,
@@ -101,6 +105,7 @@ export function createChatState(): ChatStoreState {
     deletingConversationIds,
     currentWorkspaceUri,
     inputValue,
-    workspaceFilter
+    workspaceFilter,
+    pinnedPrompt
   }
 }

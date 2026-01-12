@@ -213,7 +213,7 @@ const en: LanguageMessages = {
             send: 'Send message',
             stopGenerating: 'Stop generating',
             attachFile: 'Attach file',
-            pinnedFiles: 'Pinned files',
+            pinnedFiles: 'Pinned',
             summarizeContext: 'Summarize context',
             selectChannel: 'Select channel',
             selectModel: 'Select model',
@@ -234,13 +234,32 @@ const en: LanguageMessages = {
                 addInSettings: 'Please add models in settings'
             },
             pinnedFilesPanel: {
-                title: 'Pinned Files',
-                description: 'Pinned file contents will be sent to AI in every conversation',
+                title: 'Pinned',
+                description: 'Pinned files are sent in every chat; Skill/custom prompt only applies to the current conversation',
                 loading: 'Loading...',
                 empty: 'No pinned files',
                 notExists: 'Does not exist',
                 dragHint: 'Hold Shift and drag text files from workspace here to add',
-                dropHint: 'Release to add file'
+                dropHint: 'Release to add file',
+                tabs: {
+                    files: 'Files',
+                    skill: 'Skill',
+                    custom: 'Custom'
+                },
+                skill: {
+                    selectLabel: 'Select Skill',
+                    loading: 'Loading...',
+                    empty: 'No skills',
+                    pickOne: 'Pick a skill',
+                    manageHint: 'Manage skills in Settings > System Prompt'
+                },
+                custom: {
+                    label: 'Custom Prompt',
+                    placeholder: 'Enter a prompt that only applies to the current conversation...',
+                    save: 'Save',
+                    clear: 'Clear',
+                    hint: 'After saving, it will be injected into the system prompt for this conversation'
+                }
             },
             filePicker: {
                 title: 'Select File',
@@ -1088,7 +1107,36 @@ const en: LanguageMessages = {
                     }
                 },
                 exampleOutput: 'Example Output:',
-                requiresConfigLabel: 'Requires Config:'
+                requiresConfigLabel: 'Requires Config:',
+                skills: {
+                    title: 'Skills',
+                    add: 'Add Skill',
+                    description: 'Manage reusable prompts (skills). You can select them from the pinned panel next to the input box.',
+                    empty: 'No skills',
+                    saveSuccess: 'Saved successfully',
+                    saveFailed: 'Save failed',
+                    modal: {
+                        addTitle: 'Add Skill',
+                        editTitle: 'Edit Skill',
+                        id: 'ID',
+                        idPlaceholder: 'e.g. issue_killer',
+                        name: 'Name',
+                        namePlaceholder: 'e.g. Issue Killer',
+                        description: 'Description',
+                        descriptionPlaceholder: 'Optional, short description',
+                        prompt: 'Prompt',
+                        promptPlaceholder: 'Enter the prompt content for this skill...'
+                    },
+                    validation: {
+                        idRequired: 'ID is required',
+                        promptRequired: 'Prompt is required',
+                        idDuplicate: 'ID already exists'
+                    },
+                    delete: {
+                        title: 'Delete Skill',
+                        message: 'Are you sure you want to delete this skill? This action cannot be undone.'
+                    }
+                }
             },
             summarizeSettings: {
                 description: 'Context summarization can compress conversation history to reduce Token usage. When conversations get too long, you can manually or automatically trigger summarization to compress old conversation content into a summary.',
