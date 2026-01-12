@@ -492,6 +492,28 @@ export interface PromptModule {
 }
 
 /**
+ * Skill 定义
+ *
+ * 用于在 UI 中管理的“技能”条目，本质上是一段可复用的提示词（Prompt）。
+ * 这些技能可在对话中被选择并作为额外系统指令注入。
+ */
+export interface SkillDefinition {
+    /** 唯一标识 */
+    id: string;
+
+    /** 展示名称 */
+    name: string;
+
+    /** 简短描述（可选） */
+    description?: string;
+
+    /** 该技能对应的提示词内容 */
+    prompt: string;
+
+    [key: string]: unknown;
+}
+
+/**
  * 系统提示词配置
  *
  * 允许用户自定义系统提示词模板
@@ -525,6 +547,13 @@ export interface SystemPromptConfig {
      * 在模板中使用 {{CUSTOM_SUFFIX}} 引用
      */
     customSuffix: string;
+
+    /**
+     * Skill 列表
+     *
+     * 用于在 UI 中管理，并可在对话中选择使用。
+     */
+    skills?: SkillDefinition[];
     
     [key: string]: unknown;
 }
@@ -1476,7 +1505,8 @@ GUIDELINES
 export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
     template: DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     customPrefix: '',
-    customSuffix: ''
+    customSuffix: '',
+    skills: []
 };
 
 /**

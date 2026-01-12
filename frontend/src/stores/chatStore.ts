@@ -90,6 +90,9 @@ import {
   clearMessages as clearMessagesFn
 } from './chat/messageActions'
 
+import type { PinnedPromptState } from './chat/types'
+import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
+
 // 重新导出类型
 export type { Conversation, WorkspaceFilter } from './chat/types'
 
@@ -146,6 +149,7 @@ export const useChatStore = defineStore('chat', () => {
   const setWorkspaceFilter = (filter: 'current' | 'all') => setWorkspaceFilterAction(state, filter)
   const setInputValue = (value: string) => setInputValueAction(state, value)
   const clearInputValue = () => clearInputValueAction(state)
+  const setPinnedPrompt = (pinnedPrompt: PinnedPromptState) => setPinnedPromptFn(state, pinnedPrompt)
   
   // ============ 检查点操作 ============
   
@@ -286,6 +290,10 @@ export const useChatStore = defineStore('chat', () => {
     inputValue: state.inputValue,
     setInputValue,
     clearInputValue,
+
+    // 固定提示词/技能
+    pinnedPrompt: state.pinnedPrompt,
+    setPinnedPrompt,
     
     // 上下文总结
     summarizeContext,

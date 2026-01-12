@@ -37,6 +37,7 @@ import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
 import type { ContextTrimService } from './ContextTrimService';
 import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecutionService';
+import { getPinnedPromptBlock } from './pinnedPrompt';
 
 /**
  * 工具迭代循环配置
@@ -168,9 +169,14 @@ export class ToolIterationLoopService {
 
             // 4. 获取动态系统提示词
             // 首条消息时使用 refreshAndGetPrompt 强制刷新缓存
-            const dynamicSystemPrompt = (isFirstMessage && iteration === 1)
+            const baseSystemPrompt = (isFirstMessage && iteration === 1)
                 ? this.promptManager.refreshAndGetPrompt()
                 : this.promptManager.getSystemPrompt(true);  // 强制刷新以获取最新的 DIAGNOSTICS
+
+            const pinnedPromptBlock = await getPinnedPromptBlock(this.conversationManager, conversationId);
+            const dynamicSystemPrompt = pinnedPromptBlock
+                ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
+                : baseSystemPrompt;
 
             // 5. 记录请求开始时间
             const requestStartTime = Date.now();

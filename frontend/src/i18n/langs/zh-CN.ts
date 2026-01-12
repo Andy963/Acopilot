@@ -213,7 +213,7 @@ const zhCN: LanguageMessages = {
             send: '发送消息',
             stopGenerating: '停止生成',
             attachFile: '添加附件',
-            pinnedFiles: '固定文件',
+            pinnedFiles: '固定内容',
             summarizeContext: '总结上下文',
             selectChannel: '选择渠道',
             selectModel: '选择模型',
@@ -234,13 +234,32 @@ const zhCN: LanguageMessages = {
                 addInSettings: '请在设置中添加模型'
             },
             pinnedFilesPanel: {
-                title: '固定文件',
-                description: '固定的文件内容会在每次对话时发送给 AI',
+                title: '固定内容',
+                description: '固定文件会在每次对话发送；Skill/自定义提示词仅对当前对话生效',
                 loading: '加载中...',
                 empty: '暂无固定文件',
                 notExists: '不存在',
                 dragHint: '按住 Shift 拖拽工作区内的文本文件到此处添加',
-                dropHint: '释放鼠标添加文件'
+                dropHint: '释放鼠标添加文件',
+                tabs: {
+                    files: '文件',
+                    skill: 'Skill',
+                    custom: '自定义'
+                },
+                skill: {
+                    selectLabel: '选择 Skill',
+                    loading: '加载中...',
+                    empty: '暂无 Skill',
+                    pickOne: '请选择一个 Skill',
+                    manageHint: '在 设置 > 系统提示词 中管理 Skills'
+                },
+                custom: {
+                    label: '自定义提示词',
+                    placeholder: '输入仅对当前对话生效的提示词...',
+                    save: '保存',
+                    clear: '清空',
+                    hint: '保存后会作为系统提示词额外注入当前对话'
+                }
             },
             filePicker: {
                 title: '选择文件',
@@ -1088,7 +1107,36 @@ const zhCN: LanguageMessages = {
                     }
                 },
                 exampleOutput: '示例输出：',
-                requiresConfigLabel: '依赖配置：'
+                requiresConfigLabel: '依赖配置：',
+                skills: {
+                    title: 'Skills',
+                    add: '添加 Skill',
+                    description: '管理可复用的提示词（Skill）。可在对话输入框旁的固定内容面板中选择使用。',
+                    empty: '暂无 Skill',
+                    saveSuccess: '保存成功',
+                    saveFailed: '保存失败',
+                    modal: {
+                        addTitle: '添加 Skill',
+                        editTitle: '编辑 Skill',
+                        id: 'ID',
+                        idPlaceholder: '例如：issue_killer',
+                        name: '名称',
+                        namePlaceholder: '例如：Issue Killer',
+                        description: '描述',
+                        descriptionPlaceholder: '可选，简短说明用途',
+                        prompt: '提示词内容',
+                        promptPlaceholder: '输入该 Skill 的提示词内容...'
+                    },
+                    validation: {
+                        idRequired: '请输入 ID',
+                        promptRequired: '请输入提示词内容',
+                        idDuplicate: 'ID 已存在'
+                    },
+                    delete: {
+                        title: '删除 Skill',
+                        message: '确定要删除这个 Skill 吗？此操作不可恢复。'
+                    }
+                }
             },
             summarizeSettings: {
                 description: '上下文总结功能可以压缩对话历史，减少 Token 使用量。当对话过长时，可以手动或自动触发总结，将旧的对话内容压缩为摘要。',

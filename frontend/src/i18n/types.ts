@@ -335,6 +335,25 @@ export interface LanguageMessages {
                 notExists: string;
                 dragHint: string;
                 dropHint: string;
+                tabs: {
+                    files: string;
+                    skill: string;
+                    custom: string;
+                };
+                skill: {
+                    selectLabel: string;
+                    loading: string;
+                    empty: string;
+                    pickOne: string;
+                    manageHint: string;
+                };
+                custom: {
+                    label: string;
+                    placeholder: string;
+                    save: string;
+                    clear: string;
+                    hint: string;
+                };
             };
             filePicker: {
                 title: string;
@@ -1253,6 +1272,35 @@ export interface LanguageMessages {
                 };
                 exampleOutput: string;
                 requiresConfigLabel: string;
+                skills: {
+                    title: string;
+                    add: string;
+                    description: string;
+                    empty: string;
+                    saveSuccess: string;
+                    saveFailed: string;
+                    modal: {
+                        addTitle: string;
+                        editTitle: string;
+                        id: string;
+                        idPlaceholder: string;
+                        name: string;
+                        namePlaceholder: string;
+                        description: string;
+                        descriptionPlaceholder: string;
+                        prompt: string;
+                        promptPlaceholder: string;
+                    };
+                    validation: {
+                        idRequired: string;
+                        promptRequired: string;
+                        idDuplicate: string;
+                    };
+                    delete: {
+                        title: string;
+                        message: string;
+                    };
+                };
             };
             summarizeSettings: {
                 description: string;
