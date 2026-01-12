@@ -14,6 +14,7 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTerminalStore } from '../../../stores/terminalStore'
 import CustomScrollbar from '../../common/CustomScrollbar.vue'
 import { useI18n } from '../../../composables/useI18n'
+import { sendToExtension } from '../../../utils/vscode'
 
 const { t } = useI18n()
 
@@ -209,6 +210,116 @@ const defaultExpanded = computed(() => {
   return false
 })
 
+// ========== 错误定位（打开报错文件/跳转到行列）==========
+
+interface FileLocation {
+  path: string
+  line: number
+  column: number
+}
+
+function stripAnsi(input: string): string {
+  // eslint-disable-next-line no-control-regex
+  return input.replace(/\u001b\[[0-9;]*m/g, '')
+}
+
+function normalizePathToken(p: string): string {
+  return p.trim().replace(/^[`"'(]+/, '').replace(/[`"'),;]+$/, '')
+}
+
+function looksLikeFilePath(p: string): boolean {
+  if (!p) return false
+  if (p.includes('://')) return false
+  return p.includes('/') || p.includes('\\') || p.includes('.')
+}
+
+function parseFirstFileLocation(text: string): FileLocation | null {
+  if (!text) return null
+  const lines = stripAnsi(text).split(/\r?\n/)
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) continue
+
+    // tsc: path(line,col)
+    let m = line.match(/(.+?)\((\d+),(\d+)\)/)
+    if (m) {
+      const p = normalizePathToken(m[1])
+      if (looksLikeFilePath(p)) return { path: p, line: Number(m[2]), column: Number(m[3]) }
+    }
+
+    // Windows: C:\path\to\file:line:col
+    m = line.match(/([A-Za-z]:\\.+?):(\d+):(\d+)/)
+    if (m) {
+      const p = normalizePathToken(m[1])
+      if (looksLikeFilePath(p)) return { path: p, line: Number(m[2]), column: Number(m[3]) }
+    }
+
+    // Common: path:line:col
+    m = line.match(/([^\s:()]+):(\d+):(\d+)/)
+    if (m) {
+      const p = normalizePathToken(m[1])
+      if (looksLikeFilePath(p)) return { path: p, line: Number(m[2]), column: Number(m[3]) }
+    }
+  }
+
+  return null
+}
+
+const hasFailure = computed(() => {
+  const result = props.result as Record<string, any> | undefined
+  const resultError = result?.error as string | undefined
+
+  if (props.error || resultError) return true
+  if (exitCode.value !== undefined && exitCode.value !== 0) return true
+
+  return false
+})
+
+const diagnosticText = computed(() => {
+  if (output.value) return output.value
+  if (props.error) return props.error
+  const result = props.result as Record<string, any> | undefined
+  const resultError = result?.error as string | undefined
+  return resultError || ''
+})
+
+const firstErrorLocation = computed(() => parseFirstFileLocation(diagnosticText.value))
+
+const canOpenFirstError = computed(() =>
+  hasFailure.value && !isRunning.value && !!firstErrorLocation.value
+)
+
+const openFirstErrorTitle = computed(() => {
+  const loc = firstErrorLocation.value
+  if (!loc) return ''
+  return t('components.tools.terminal.executeCommandPanel.jumpToErrorTooltip', {
+    path: loc.path,
+    line: loc.line,
+    column: loc.column
+  })
+})
+
+const opening = ref(false)
+
+async function openFirstError() {
+  const loc = firstErrorLocation.value
+  if (!loc || opening.value) return
+
+  opening.value = true
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', {
+      path: loc.path,
+      line: loc.line,
+      column: loc.column
+    })
+  } catch (err) {
+    console.warn('Failed to open error location:', err)
+  } finally {
+    opening.value = false
+  }
+}
+
 const expanded = ref(false)
 const userToggled = ref(false)
 
@@ -365,6 +476,16 @@ watch(isRunning, (running) => {
           @click.stop="handleKillTerminal"
         >
           <span class="codicon codicon-debug-stop"></span>
+        </button>
+
+        <button
+          v-if="canOpenFirstError"
+          class="icon-btn"
+          :disabled="opening"
+          :title="openFirstErrorTitle"
+          @click.stop="openFirstError"
+        >
+          <span class="codicon codicon-go-to-file"></span>
         </button>
 
         <button

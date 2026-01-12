@@ -2132,6 +2132,7 @@ const zhCN: LanguageMessages = {
                     },
                     terminate: '终止',
                     terminateTooltip: '终止进程',
+                    jumpToErrorTooltip: '打开 {path} 并跳转到 {line}:{column}',
                     copyOutput: '复制输出',
                     copied: '已复制',
                     output: '输出',
