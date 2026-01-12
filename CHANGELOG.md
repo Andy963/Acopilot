@@ -3,6 +3,15 @@
 All notable changes to the "Lim Code" extension will be documented in this file.
 
 
+## [1.0.41] - 2026-01-12
+
+### Added
+  - 无标题对话自动从首条用户消息生成标题（兜底）
+
+### Improved
+  - 合并「工具」与「自动执行」设置为单页「工具与执行」，右侧列对齐并更紧凑
+  - 工具描述支持 hover 查看完整内容
+
 ## [1.0.38] - 2026-01-08
 
 ### Fixed
