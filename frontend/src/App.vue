@@ -11,6 +11,7 @@ import { WelcomePanel } from './components/home'
 import { HistoryPage } from './components/history'
 import { SettingsPanel } from './components/settings'
 import { CustomScrollbar, IconButton, Tooltip } from './components/common'
+import ContextInspectorModal from './components/common/ContextInspectorModal.vue'
 import { useChatStore, useSettingsStore, useTerminalStore } from './stores'
 import { useAttachments } from './composables'
 import { useI18n, setLanguage } from './i18n'
@@ -312,6 +313,16 @@ onMounted(async () => {
         @attach-file="handleAttachFile"
         @remove-attachment="handleRemoveAttachment"
         @paste-files="handlePasteFiles"
+      />
+
+      <ContextInspectorModal
+        :model-value="chatStore.contextInspectorVisible"
+        :loading="chatStore.contextInspectorLoading"
+        :error="chatStore.contextInspectorError"
+        :data="chatStore.contextInspectorData"
+        :source="chatStore.contextInspectorSource"
+        @update:model-value="(v) => { if (!v) chatStore.closeContextInspector() }"
+        @refresh="chatStore.openContextInspectorPreview"
       />
     </div>
 

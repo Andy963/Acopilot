@@ -48,6 +48,7 @@ export interface LanguageMessages {
         no: string;
         ok: string;
         copy: string;
+        copied: string;
         paste: string;
         reset: string;
         default: string;
@@ -98,6 +99,7 @@ export interface LanguageMessages {
         pending: string;
         completed: string;
         failed: string;
+        truncated: string;
         unknown: string;
     };
 
@@ -186,6 +188,28 @@ export interface LanguageMessages {
                 copied: string;
                 imageLoadFailed: string;
             };
+            contextInspectorModal: {
+                title: string;
+                titleUsed: string;
+                noData: string;
+                copyDebug: string;
+                trim: {
+                    title: string;
+                    fullHistory: string;
+                    trimmedHistory: string;
+                    trimStartIndex: string;
+                    lastSummaryIndex: string;
+                };
+                tools: {
+                    title: string;
+                };
+                modules: {
+                    title: string;
+                };
+                raw: {
+                    title: string;
+                };
+            };
         };
 
         /** header 目录 */
@@ -241,6 +265,7 @@ export interface LanguageMessages {
                 responseDuration: string;
                 tokenRate: string;
                 finishReason: string;
+                contextUsed: string;
             };
             thought: {
                 thinking: string;

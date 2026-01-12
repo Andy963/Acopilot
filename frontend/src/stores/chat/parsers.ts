@@ -125,6 +125,8 @@ export function contentToMessage(content: Content, id?: string): Message {
       finishReason: content.finishReason,
       // 存储完整的 usageMetadata（仅 model 消息有值）
       usageMetadata: content.usageMetadata,
+      // Context Inspector 快照（仅助手消息有值）
+      contextSnapshot: content.contextSnapshot,
       // 计时信息（从后端获取）
       thinkingDuration: content.thinkingDuration,
       responseDuration: content.responseDuration,
@@ -218,6 +220,7 @@ export function contentToMessageEnhanced(content: Content, id?: string): Message
       modelVersion: content.modelVersion,
       finishReason: content.finishReason,
       usageMetadata: content.usageMetadata,
+      contextSnapshot: content.contextSnapshot,
       // 从后端加载的思考持续时间
       thinkingDuration: content.thinkingDuration,
       // 从后端加载的计时信息

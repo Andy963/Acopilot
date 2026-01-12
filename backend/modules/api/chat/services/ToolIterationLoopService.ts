@@ -12,12 +12,14 @@
 import type { ChannelManager } from '../../../channel/ChannelManager';
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import type { CheckpointRecord } from '../../../checkpoint';
-import type { Content } from '../../../conversation/types';
+import type { Content, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim } from '../../../conversation/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { GenerateResponse } from '../../../channel/types';
 import { ChannelError, ErrorType } from '../../../channel/types';
 import { PromptManager } from '../../../prompt';
 import { t } from '../../../../i18n';
+import { convertToolsToJSON } from '../../../../tools/jsonFormatter';
+import { convertToolsToXML } from '../../../../tools/xmlFormatter';
 import type { CheckpointService } from './CheckpointService';
 
 import type {
@@ -91,6 +93,78 @@ export interface NonStreamToolLoopResult {
 export class ToolIterationLoopService {
     private promptManager: PromptManager;
 
+    private static truncatePreview(text: string, maxChars: number): { preview: string; truncated: boolean; charCount: number } {
+        const safeText = text || '';
+        const charCount = safeText.length;
+        if (charCount <= maxChars) {
+            return { preview: safeText, truncated: false, charCount };
+        }
+        return { preview: safeText.slice(0, maxChars), truncated: true, charCount };
+    }
+
+    private static parseSections(text: string): Array<{ title: string; content: string }> {
+        const marker = '====\n\n';
+        const sections: Array<{ title: string; content: string }> = [];
+        let index = 0;
+
+        while (index < text.length) {
+            const markerPos = text.indexOf(marker, index);
+            if (markerPos === -1) {
+                const tail = text.slice(index).trim();
+                if (tail) {
+                    sections.push({ title: 'TEXT', content: tail });
+                }
+                break;
+            }
+
+            if (markerPos > index) {
+                const prefix = text.slice(index, markerPos).trim();
+                if (prefix) {
+                    sections.push({ title: 'TEXT', content: prefix });
+                }
+            }
+
+            const titleStart = markerPos + marker.length;
+            const titleEnd = text.indexOf('\n\n', titleStart);
+            if (titleEnd === -1) {
+                const rest = text.slice(markerPos).trim();
+                if (rest) {
+                    sections.push({ title: 'TEXT', content: rest });
+                }
+                break;
+            }
+
+            const title = text.slice(titleStart, titleEnd).trim() || 'SECTION';
+            const contentStart = titleEnd + 2;
+            const nextMarkerPos = text.indexOf(marker, contentStart);
+            const rawContent = nextMarkerPos === -1
+                ? text.slice(contentStart)
+                : text.slice(contentStart, nextMarkerPos);
+
+            sections.push({ title, content: rawContent.trim() });
+            index = nextMarkerPos === -1 ? text.length : nextMarkerPos;
+        }
+
+        return sections;
+    }
+
+    private static buildModules(systemInstruction: string, maxCharsPerSection: number): ContextSnapshotModule[] {
+        const sections = ToolIterationLoopService.parseSections(systemInstruction);
+        return sections.map((s) => {
+            const { preview, truncated, charCount } = ToolIterationLoopService.truncatePreview(s.content, maxCharsPerSection);
+            return {
+                title: s.title,
+                contentPreview: preview,
+                charCount,
+                truncated,
+            };
+        });
+    }
+
+    private static countMcpTools(tools: Array<{ name: string }>): number {
+        return tools.filter((t) => typeof t.name === 'string' && t.name.startsWith('mcp__')).length;
+    }
+
     constructor(
         private channelManager: ChannelManager,
         private conversationManager: ConversationManager,
@@ -161,7 +235,7 @@ export class ToolIterationLoopService {
 
             // 3. 获取对话历史（应用上下文裁剪）
             const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
-            const { history } = await this.contextTrimService.getHistoryWithContextTrimInfo(
+            const { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
                 historyOptions
@@ -177,6 +251,77 @@ export class ToolIterationLoopService {
             const dynamicSystemPrompt = pinnedPromptBlock
                 ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
                 : baseSystemPrompt;
+
+            // 4.1 构建 Context Snapshot（用于 UI 解释/调试）
+            const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
+            const declarations = this.channelManager.getToolDeclarationsForPreview(config as any);
+            const mcpCount = ToolIterationLoopService.countMcpTools(declarations);
+
+            let toolsDefinition = '';
+            if (toolMode === 'xml') {
+                toolsDefinition = convertToolsToXML(declarations);
+            } else if (toolMode === 'json') {
+                toolsDefinition = convertToolsToJSON(declarations);
+            }
+
+            let systemInstruction = (config.systemInstruction as string | undefined) || '';
+            if (dynamicSystemPrompt) {
+                systemInstruction = systemInstruction
+                    ? `${systemInstruction}\n\n${dynamicSystemPrompt}`
+                    : dynamicSystemPrompt;
+            }
+
+            const mcpToolsDefinition = '';
+            if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
+                systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
+                systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
+            } else if (toolsDefinition) {
+                systemInstruction = systemInstruction
+                    ? `${systemInstruction}\n\n${toolsDefinition}`
+                    : toolsDefinition;
+            }
+
+            const sysPreview = ToolIterationLoopService.truncatePreview(systemInstruction, 25000);
+            const toolDefPreview = toolsDefinition
+                ? ToolIterationLoopService.truncatePreview(toolsDefinition, 12000)
+                : null;
+
+            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+            let lastSummaryIndex = -1;
+            for (let i = fullHistory.length - 1; i >= 0; i--) {
+                if ((fullHistory[i] as any).isSummary === true) {
+                    lastSummaryIndex = i;
+                    break;
+                }
+            }
+            const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
+
+            const contextSnapshot: ContextSnapshot = {
+                generatedAt: Date.now(),
+                conversationId,
+                configId,
+                providerType: config.type,
+                model: (config as any).model || '',
+                tools: {
+                    toolMode,
+                    total: declarations.length,
+                    mcp: mcpCount,
+                    definitionPreview: toolDefPreview?.preview,
+                    definitionCharCount: toolDefPreview?.charCount,
+                    definitionTruncated: toolDefPreview?.truncated,
+                } as ContextSnapshotTools,
+                systemInstructionPreview: sysPreview.preview,
+                systemInstructionCharCount: sysPreview.charCount,
+                systemInstructionTruncated: sysPreview.truncated,
+                modules: ToolIterationLoopService.buildModules(systemInstruction, 6000),
+                trim: {
+                    fullHistoryCount: fullHistory.length,
+                    trimmedHistoryCount: history.length,
+                    trimStartIndex,
+                    lastSummaryIndex,
+                    effectiveStartIndex,
+                } as ContextSnapshotTrim,
+            };
 
             // 5. 记录请求开始时间
             const requestStartTime = Date.now();
@@ -252,6 +397,9 @@ export class ToolIterationLoopService {
             // 8. 转换工具调用格式
             this.toolCallParserService.convertXMLToolCallsToFunctionCalls(finalContent);
             this.toolCallParserService.ensureFunctionCallIds(finalContent);
+
+            // 8.1 绑定 Context Snapshot 到消息上（用于前端展示）
+            (finalContent as any).contextSnapshot = contextSnapshot;
 
             // 9. 保存 AI 响应到历史
             if (finalContent.parts.length > 0) {

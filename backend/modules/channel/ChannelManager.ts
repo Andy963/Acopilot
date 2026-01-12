@@ -9,6 +9,7 @@ import type { ConfigManager } from '../config/ConfigManager';
 import type { ToolRegistry } from '../../tools/ToolRegistry';
 import type { SettingsManager } from '../settings/SettingsManager';
 import type { McpManager } from '../mcp/McpManager';
+import type { ToolDeclaration } from '../../tools/types';
 import { formatterRegistry } from './formatters';
 import { createReadFileTool } from '../../tools/file/read_file';
 import { createGenerateImageTool, createRemoveBackgroundTool, createCropImageTool, createResizeImageTool, createRotateImageTool } from '../../tools/media';
@@ -67,6 +68,25 @@ export class ChannelManager {
      */
     setMcpManager(mcpManager: McpManager): void {
         this.mcpManager = mcpManager;
+    }
+
+    /**
+     * 获取当前配置下可用的工具声明（用于 UI 预览/调试）
+     *
+     * 注意：该结果与实际请求时工具过滤逻辑保持一致（包含 Settings 过滤、动态参数、MCP 工具等）。
+     */
+    getToolDeclarationsForPreview(config: {
+        type: string;
+        toolMode?: 'function_call' | 'xml' | 'json';
+        multimodalToolsEnabled?: boolean;
+    }): ToolDeclaration[] {
+        const declarations = this.getFilteredTools(
+            (config as any).multimodalToolsEnabled,
+            config.type as any,
+            (config as any).toolMode,
+        ) as ToolDeclaration[] | undefined;
+
+        return declarations || [];
     }
     
     /**

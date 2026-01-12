@@ -3,7 +3,7 @@
  */
 
 import { ref } from 'vue'
-import type { Message, ErrorInfo } from '../../types'
+import type { Message, ErrorInfo, ContextInspectorData } from '../../types'
 import type { CheckpointRecord } from '../../types'
 import type {
   Conversation,
@@ -85,6 +85,13 @@ export function createChatState(): ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
 
+  /** Context Inspector */
+  const contextInspectorVisible = ref(false)
+  const contextInspectorLoading = ref(false)
+  const contextInspectorData = ref<ContextInspectorData | null>(null)
+  const contextInspectorError = ref<string | null>(null)
+  const contextInspectorSource = ref<'preview' | 'message'>('preview')
+
   return {
     conversations,
     currentConversationId,
@@ -106,6 +113,11 @@ export function createChatState(): ChatStoreState {
     currentWorkspaceUri,
     inputValue,
     workspaceFilter,
-    pinnedPrompt
+    pinnedPrompt,
+    contextInspectorVisible,
+    contextInspectorLoading,
+    contextInspectorData,
+    contextInspectorError,
+    contextInspectorSource
   }
 }

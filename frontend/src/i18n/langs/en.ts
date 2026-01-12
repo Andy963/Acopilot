@@ -31,6 +31,7 @@ const en: LanguageMessages = {
         no: 'No',
         ok: 'OK',
         copy: 'Copy',
+        copied: 'Copied',
         paste: 'Paste',
         reset: 'Reset',
         default: 'Default',
@@ -81,6 +82,7 @@ const en: LanguageMessages = {
         pending: 'Pending',
         completed: 'Completed',
         failed: 'Failed',
+        truncated: 'Truncated',
         unknown: 'Unknown'
     },
 
@@ -165,6 +167,28 @@ const en: LanguageMessages = {
                 copyCode: 'Copy code',
                 copied: 'Copied',
                 imageLoadFailed: 'Failed to load image'
+            },
+            contextInspectorModal: {
+                title: 'Context Inspector',
+                titleUsed: 'Context Used',
+                noData: 'No context data',
+                copyDebug: 'Copy debug info',
+                trim: {
+                    title: 'Context Trim',
+                    fullHistory: 'History messages',
+                    trimmedHistory: 'Sent messages',
+                    trimStartIndex: 'Trim start index',
+                    lastSummaryIndex: 'Last summary index'
+                },
+                tools: {
+                    title: 'Tool Definitions'
+                },
+                modules: {
+                    title: 'System Prompt Sections'
+                },
+                raw: {
+                    title: 'System Instruction (Raw)'
+                }
             }
         },
 
@@ -295,7 +319,8 @@ const en: LanguageMessages = {
             stats: {
                 responseDuration: 'Response Duration',
                 tokenRate: 'Token Rate',
-                finishReason: 'Finish Reason'
+                finishReason: 'Finish Reason',
+                contextUsed: 'Context Used'
             },
             thought: {
                 thinking: 'Thinking...',
