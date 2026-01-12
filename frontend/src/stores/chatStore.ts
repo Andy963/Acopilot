@@ -98,6 +98,8 @@ import {
   openContextInspectorWithData as openContextInspectorWithDataFn
 } from './chat/contextInspectorActions'
 
+import { runPostEditValidationCommand as runPostEditValidationCommandFn, type ValidationCommandPreset } from './chat/validationActions'
+
 // 重新导出类型
 export type { Conversation, WorkspaceFilter } from './chat/types'
 
@@ -176,6 +178,11 @@ export const useChatStore = defineStore('chat', () => {
   const openContextInspectorWithData = (data: ContextInspectorData) => openContextInspectorWithDataFn(state, data)
   const closeContextInspector = () => closeContextInspectorFn(state)
 
+  // ============ 改动后校验 ============
+
+  const runPostEditValidationCommand = (preset: ValidationCommandPreset) =>
+    runPostEditValidationCommandFn(state, preset)
+
   // ============ 流式处理 ============
   
   function handleStreamChunkWrapper(chunk: StreamChunk): void {
@@ -232,6 +239,7 @@ export const useChatStore = defineStore('chat', () => {
     isWaitingForResponse: state.isWaitingForResponse,
     retryStatus: state.retryStatus,
     error: state.error,
+    postEditValidationPending: state.postEditValidationPending,
 
     // Context Inspector
     contextInspectorVisible: state.contextInspectorVisible,
@@ -278,6 +286,9 @@ export const useChatStore = defineStore('chat', () => {
     openContextInspectorPreview,
     openContextInspectorWithData,
     closeContextInspector,
+
+    // 改动后校验
+    runPostEditValidationCommand,
     
     // 配置管理
     setConfigId,

@@ -17,6 +17,7 @@ import { registerFileHandlers } from './FileHandlers';
 import { registerDiffHandlers } from './DiffHandlers';
 import { registerChatHandlers } from './ChatHandlers';
 import { registerIssueHandlers } from './IssueHandlers';
+import { registerValidationHandlers } from './ValidationHandlers';
 
 // 重新导出各个模块
 export * from './ConversationHandlers';
@@ -32,6 +33,7 @@ export * from './FileHandlers';
 export * from './DiffHandlers';
 export * from './ChatHandlers';
 export * from './IssueHandlers';
+export * from './ValidationHandlers';
 
 /**
  * 创建并注册所有消息处理器
@@ -53,6 +55,7 @@ export function createMessageHandlerRegistry(): Map<string, MessageHandler> {
   registerDiffHandlers(registry);
   registerChatHandlers(registry);
   registerIssueHandlers(registry);
+  registerValidationHandlers(registry);
   
   return registry;
 }
