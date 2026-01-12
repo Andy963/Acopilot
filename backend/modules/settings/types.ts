@@ -1235,7 +1235,7 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     enabled: true,
     beforeTools: [
         'apply_diff',
-        'write_to_file',
+        'write_file',
         'delete_file',
         'create_directory',
         'execute_command',
@@ -1243,7 +1243,7 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     ],
     afterTools: [
         'apply_diff',
-        'write_to_file',
+        'write_file',
         'delete_file',
         'create_directory',
         'execute_command',
@@ -1494,7 +1494,7 @@ GUIDELINES
 - Use the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files.
 - **IMPORTANT: Avoid duplicate tool calls.** Each tool should only be called once with the same parameters. Never repeat the same tool call multiple times.
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
-- When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
+- When you need to make changes, use apply_diff for targeted modifications or write_file for creating new files.
 - If the task is simple and doesn't require tools, just respond directly without calling any tools.
 - Always maintain code readability and maintainability.
 - Do not omit any code.`;
