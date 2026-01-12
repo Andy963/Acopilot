@@ -85,6 +85,9 @@ export function createChatState(): ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
 
+  /** 本轮对话是否发生过文件改动（用于结束后提示运行校验预设） */
+  const postEditValidationPending = ref(false)
+
   /** Context Inspector */
   const contextInspectorVisible = ref(false)
   const contextInspectorLoading = ref(false)
@@ -114,6 +117,7 @@ export function createChatState(): ChatStoreState {
     inputValue,
     workspaceFilter,
     pinnedPrompt,
+    postEditValidationPending,
     contextInspectorVisible,
     contextInspectorLoading,
     contextInspectorData,

@@ -8,6 +8,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { CustomScrollbar, DeleteDialog, Tooltip, ConfirmDialog } from '../common'
 import MessageItem from './MessageItem.vue'
 import SummaryMessage from './SummaryMessage.vue'
+import ValidationCardMessage from './ValidationCardMessage.vue'
 import { useChatStore } from '../../stores'
 import { formatTime } from '../../utils/format'
 import { useI18n } from '../../i18n'
@@ -512,6 +513,14 @@ function formatCheckpointTime(timestamp: number): string {
             </template>
           </template>
         </template>
+
+        <!-- 改动后校验提示（不写入 allMessages，避免索引错位） -->
+        <div
+          v-if="chatStore.postEditValidationPending && !chatStore.isWaitingForResponse && !chatStore.isStreaming"
+          class="post-edit-validation"
+        >
+          <ValidationCardMessage />
+        </div>
         
         <!-- 继续对话提示 - 当最后一条是工具响应时显示 -->
         <div v-if="chatStore.needsContinueButton" class="continue-message">
@@ -588,6 +597,11 @@ function formatCheckpointTime(timestamp: number): string {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+}
+
+.post-edit-validation {
+  margin: 0 var(--spacing-md, 16px) var(--spacing-md, 16px);
+  flex-shrink: 0;
 }
 
 /* 加载更多指示器 */

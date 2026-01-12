@@ -35,6 +35,19 @@ interface ExecuteCommandConfig {
   shells: ShellConfig[]
   defaultTimeout: number
   maxOutputLines: number
+  postEditValidation?: {
+    enabled: boolean
+    presets: Array<{
+      id: string
+      label: string
+      command: string
+      cwd?: string
+      shell?: string
+      timeout?: number
+      kind?: 'build' | 'test' | 'lint' | 'custom'
+      enabled?: boolean
+    }>
+  }
   riskPolicy?: {
     enabled: boolean
     autoExecuteUpTo: 'low' | 'medium' | 'high' | 'critical'
@@ -98,6 +111,27 @@ function ensureRiskPolicy() {
   }
 }
 
+function ensurePostEditValidation() {
+  if (!config.value) return
+  if (!config.value.postEditValidation) {
+    config.value.postEditValidation = { enabled: true, presets: [] }
+    return
+  }
+  if (config.value.postEditValidation.enabled === undefined) {
+    config.value.postEditValidation.enabled = true
+  }
+  if (!Array.isArray(config.value.postEditValidation.presets)) {
+    config.value.postEditValidation.presets = []
+  }
+}
+
+const validationKindOptions = computed<SelectOption[]>(() => [
+  { value: 'build', label: 'build' },
+  { value: 'test', label: 'test' },
+  { value: 'lint', label: 'lint' },
+  { value: 'custom', label: 'custom' }
+])
+
 // 加载配置
 async function loadConfig() {
   isLoading.value = true
@@ -111,6 +145,7 @@ async function loadConfig() {
     if (response?.config) {
       config.value = response.config
       ensureRiskPolicy()
+      ensurePostEditValidation()
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('components.settings.toolSettings.common.error')
@@ -124,6 +159,7 @@ async function loadConfig() {
 async function saveConfig() {
   if (!config.value) return
   ensureRiskPolicy()
+  ensurePostEditValidation()
   
   isSaving.value = true
   error.value = null
@@ -243,6 +279,43 @@ function updateDenyPatterns(text: string) {
   if (config.value.riskPolicy) {
     config.value.riskPolicy.denyPatterns = parsePatterns(text)
   }
+  saveConfig()
+}
+
+function updatePostEditValidationEnabled(enabled: boolean) {
+  if (!config.value) return
+  ensurePostEditValidation()
+  if (config.value.postEditValidation) {
+    config.value.postEditValidation.enabled = enabled
+  }
+  saveConfig()
+}
+
+function addValidationPreset() {
+  if (!config.value) return
+  ensurePostEditValidation()
+  const id = `preset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  config.value.postEditValidation!.presets.push({
+    id,
+    label: '',
+    command: '',
+    kind: 'custom',
+    enabled: true
+  })
+  saveConfig()
+}
+
+function removeValidationPreset(id: string) {
+  if (!config.value?.postEditValidation) return
+  config.value.postEditValidation.presets = config.value.postEditValidation.presets.filter(p => p.id !== id)
+  saveConfig()
+}
+
+function updateValidationPresetEnabled(id: string, enabled: boolean) {
+  if (!config.value?.postEditValidation) return
+  const preset = config.value.postEditValidation.presets.find(p => p.id === id)
+  if (!preset) return
+  preset.enabled = enabled
   saveConfig()
 }
 
@@ -472,6 +545,83 @@ onMounted(() => {
               @input="(e: any) => updateDenyPatterns(e.target.value)"
             ></textarea>
             <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.denyPatternsHint') }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 改动后校验预设 -->
+      <div class="config-section">
+        <div class="section-header">
+          <i class="codicon codicon-checklist"></i>
+          <span>改动后校验</span>
+        </div>
+
+        <div class="validation-config">
+          <CustomCheckbox
+            :model-value="config.postEditValidation?.enabled ?? true"
+            label="启用改动后校验提示"
+            @update:model-value="updatePostEditValidationEnabled"
+          />
+
+          <div class="validation-presets" :class="{ disabled: !(config.postEditValidation?.enabled ?? true) }">
+            <div
+              v-for="p in (config.postEditValidation?.presets || [])"
+              :key="p.id"
+              class="validation-preset"
+            >
+              <CustomCheckbox
+                :model-value="p.enabled ?? true"
+                label="启用"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateValidationPresetEnabled(p.id, v)"
+              />
+
+              <CustomSelect
+                class="validation-kind"
+                :model-value="p.kind || 'custom'"
+                :options="validationKindOptions"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                @update:model-value="(val: string) => { p.kind = val as any; saveConfig() }"
+              />
+
+              <input
+                v-model="p.label"
+                class="validation-input"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                placeholder="名称（如 build/test/lint）"
+                @blur="saveConfig"
+              />
+
+              <input
+                v-model="p.command"
+                class="validation-input validation-command"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                placeholder="命令（如 pnpm test / npm run lint）"
+                @blur="saveConfig"
+              />
+
+              <button
+                class="validation-remove"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                title="删除预设"
+                @click="removeValidationPreset(p.id)"
+              >
+                <i class="codicon codicon-trash"></i>
+              </button>
+            </div>
+
+            <button
+              class="validation-add"
+              :disabled="!(config.postEditValidation?.enabled ?? true)"
+              @click="addValidationPreset"
+            >
+              <i class="codicon codicon-add"></i>
+              添加预设
+            </button>
+          </div>
+
+          <div class="validation-tip">
+            提示：当文件修改类工具执行完成后，聊天页会展示校验入口；点击后将以 <code>execute_command</code> 工具消息写回对话。
           </div>
         </div>
       </div>
@@ -844,5 +994,89 @@ onMounted(() => {
   font-family: var(--vscode-editor-font-family);
   font-size: 12px;
   resize: vertical;
+}
+
+/* 改动后校验 */
+.validation-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.validation-presets.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.validation-preset {
+  display: grid;
+  grid-template-columns: auto 110px 1fr 2fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.04);
+}
+
+.validation-kind {
+  min-width: 110px;
+}
+
+.validation-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+}
+
+.validation-command {
+  font-family: var(--vscode-editor-font-family);
+}
+
+.validation-remove {
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.validation-remove:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-errorForeground);
+}
+
+.validation-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.validation-add:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.validation-tip {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+.validation-tip code {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
 }
 </style>

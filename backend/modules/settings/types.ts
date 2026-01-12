@@ -131,6 +131,46 @@ export interface ShellConfig {
 }
 
 /**
+ * 改动后校验预设
+ *
+ * 用于在文件修改类工具执行完成后，引导用户运行 build/test/lint 等命令，
+ * 并将执行结果回写到对话中。
+ */
+export interface PostEditValidationPreset {
+    /** 唯一 ID */
+    id: string;
+
+    /** 显示名称 */
+    label: string;
+
+    /** 要执行的命令 */
+    command: string;
+
+    /** 可选：工作目录（相对工作区根目录，或 multi-root 格式） */
+    cwd?: string;
+
+    /** 可选：shell 类型（default/bash/zsh/powershell 等） */
+    shell?: string;
+
+    /** 可选：超时（毫秒） */
+    timeout?: number;
+
+    /** 可选：预设类型 */
+    kind?: 'build' | 'test' | 'lint' | 'custom';
+
+    /** 是否启用 */
+    enabled?: boolean;
+}
+
+/**
+ * 改动后校验配置
+ */
+export interface PostEditValidationConfig {
+    enabled: boolean;
+    presets: PostEditValidationPreset[];
+}
+
+/**
  * Execute Command 工具配置
  */
 export interface ExecuteCommandToolConfig {
@@ -167,6 +207,13 @@ export interface ExecuteCommandToolConfig {
      * 命令风险策略（用于对部分高风险命令强制要求确认/拦截）
      */
     riskPolicy?: ExecuteCommandRiskPolicy;
+
+    /**
+     * 改动后校验配置
+     *
+     * 前端可在检测到“文件修改类工具已执行完成”后，展示校验预设入口。
+     */
+    postEditValidation?: PostEditValidationConfig;
     
     [key: string]: unknown;
 }
@@ -1203,7 +1250,11 @@ export function getDefaultExecuteCommandConfig(): ExecuteCommandToolConfig {
         defaultTimeout: 60000,
         autoExecute: false,
         maxOutputLines: 50,
-        riskPolicy: DEFAULT_EXECUTE_COMMAND_RISK_POLICY
+        riskPolicy: DEFAULT_EXECUTE_COMMAND_RISK_POLICY,
+        postEditValidation: {
+            enabled: true,
+            presets: []
+        }
     };
 }
 

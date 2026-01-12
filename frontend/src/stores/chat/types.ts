@@ -123,6 +123,9 @@ export interface ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
 
+  /** 本轮对话是否发生过文件改动（用于在结束后提示运行校验预设） */
+  postEditValidationPending: Ref<boolean>
+
   /** Context Inspector 弹窗是否显示 */
   contextInspectorVisible: Ref<boolean>
   /** Context Inspector 弹窗是否加载中 */
