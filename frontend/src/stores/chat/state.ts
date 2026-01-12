@@ -10,7 +10,8 @@ import type {
   WorkspaceFilter,
   RetryStatus,
   ConfigInfo,
-  ChatStoreState
+  ChatStoreState,
+  PlanRunnerData
 } from './types'
 import type { PinnedPromptState } from './types'
 
@@ -85,6 +86,9 @@ export function createChatState(): ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
 
+  /** Plan Runner（多步任务执行器） */
+  const planRunner = ref<PlanRunnerData | null>(null)
+
   /** Context Inspector */
   const contextInspectorVisible = ref(false)
   const contextInspectorLoading = ref(false)
@@ -114,6 +118,7 @@ export function createChatState(): ChatStoreState {
     inputValue,
     workspaceFilter,
     pinnedPrompt,
+    planRunner,
     contextInspectorVisible,
     contextInspectorLoading,
     contextInspectorData,

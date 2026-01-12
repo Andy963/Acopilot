@@ -333,6 +333,7 @@ export interface LanguageMessages {
             stopGenerating: string;
             attachFile: string;
             pinnedFiles: string;
+            createPlan: string;
             summarizeContext: string;
             selectChannel: string;
             selectModel: string;
@@ -402,6 +403,40 @@ export interface LanguageMessages {
                 cannotGetFilePath: string;
                 fileNotMatchOrNotInWorkspace: string;
                 removeFailed: string;
+            };
+        };
+
+        /** planRunner 目录 */
+        planRunner: {
+            status: {
+                idle: string;
+                running: string;
+                paused: string;
+                completed: string;
+                cancelled: string;
+            };
+            actions: {
+                start: string;
+                resume: string;
+                pause: string;
+                cancel: string;
+                clear: string;
+            };
+            current: string;
+            modal: {
+                title: string;
+                planTitle: string;
+                planTitlePlaceholder: string;
+                goal: string;
+                goalPlaceholder: string;
+                steps: string;
+                addStep: string;
+                stepTitle: string;
+                stepInstruction: string;
+                removeStep: string;
+                hint: string;
+                save: string;
+                saveAndStart: string;
             };
         };
 
