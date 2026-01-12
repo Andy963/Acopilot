@@ -29,6 +29,13 @@ interface PinnedFileItem {
   exists?: boolean  // 文件是否存在
 }
 
+interface SkillDefinition {
+  id: string
+  name: string
+  description?: string
+  prompt: string
+}
+
 const props = defineProps<{
   uploading?: boolean
   placeholder?: string
@@ -268,6 +275,17 @@ const isLoadingPinnedFiles = ref(false)
 // 拖拽状态
 const isDraggingOver = ref(false)
 
+// 固定提示词/技能面板 Tab
+type PinPanelTab = 'files' | 'skill' | 'custom'
+const pinPanelTab = ref<PinPanelTab>('files')
+
+// Skills
+const skills = ref<SkillDefinition[]>([])
+const isLoadingSkills = ref(false)
+const selectedSkillId = ref('')
+const customPromptDraft = ref('')
+const isSavingPinnedPrompt = ref(false)
+
 // @ 文件选择器状态
 const showFilePicker = ref(false)
 const filePickerQuery = ref('')
@@ -410,6 +428,80 @@ async function loadPinnedFiles() {
   }
 }
 
+function normalizeSkills(raw: unknown): SkillDefinition[] {
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .filter((s): s is any => s && typeof s === 'object')
+    .map((s: any) => ({
+      id: String(s.id || '').trim(),
+      name: String(s.name || '').trim(),
+      description: typeof s.description === 'string' ? s.description : '',
+      prompt: String(s.prompt || '')
+    }))
+    .filter(s => s.id && s.prompt.trim())
+}
+
+async function loadSkills() {
+  isLoadingSkills.value = true
+  try {
+    const result = await sendToExtension<any>('getSystemPromptConfig', {})
+    skills.value = normalizeSkills(result?.skills)
+  } catch (error) {
+    console.error('Failed to load skills:', error)
+    skills.value = []
+  } finally {
+    isLoadingSkills.value = false
+  }
+}
+
+const selectedSkill = computed(() => {
+  return skills.value.find(s => s.id === selectedSkillId.value) || null
+})
+
+const hasPinnedPrompt = computed(() => {
+  return Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none')
+})
+
+function syncPinnedPromptDraftFromStore() {
+  selectedSkillId.value = String(chatStore.pinnedPrompt?.skillId || '').trim()
+  customPromptDraft.value = String(chatStore.pinnedPrompt?.customPrompt || '')
+}
+
+async function applySkillSelection() {
+  const skillId = selectedSkillId.value.trim()
+  await chatStore.setPinnedPrompt({
+    mode: skillId ? 'skill' : 'none',
+    skillId: skillId || undefined,
+    customPrompt: chatStore.pinnedPrompt?.customPrompt
+  })
+}
+
+async function saveCustomPrompt() {
+  const text = customPromptDraft.value
+  const enabled = Boolean(text && text.trim())
+
+  isSavingPinnedPrompt.value = true
+  try {
+    await chatStore.setPinnedPrompt({
+      mode: enabled ? 'custom' : 'none',
+      skillId: chatStore.pinnedPrompt?.skillId,
+      customPrompt: text
+    })
+  } finally {
+    isSavingPinnedPrompt.value = false
+  }
+}
+
+async function clearCustomPrompt() {
+  customPromptDraft.value = ''
+  await chatStore.setPinnedPrompt({
+    mode: 'none',
+    skillId: chatStore.pinnedPrompt?.skillId,
+    customPrompt: ''
+  })
+}
+
 // 检查固定文件是否存在
 async function checkPinnedFilesExistence() {
   if (pinnedFiles.value.length === 0) return
@@ -436,6 +528,7 @@ async function checkPinnedFilesExistence() {
 
 // 处理拖拽进入
 function handleDragEnter(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   // 检查是否按住 Shift 键
   if (!e.shiftKey) return
   
@@ -446,6 +539,7 @@ function handleDragEnter(e: DragEvent) {
 
 // 处理拖拽悬停
 function handleDragOver(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   // 检查是否按住 Shift 键
   if (!e.shiftKey) {
     isDraggingOver.value = false
@@ -459,6 +553,7 @@ function handleDragOver(e: DragEvent) {
 
 // 处理拖拽离开
 function handleDragLeave(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   e.preventDefault()
   e.stopPropagation()
   
@@ -492,6 +587,7 @@ function getErrorMessageByCode(errorCode?: string, defaultError?: string): strin
 
 // 处理拖拽放置
 async function handleDrop(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   e.preventDefault()
   e.stopPropagation()
   isDraggingOver.value = false
@@ -694,9 +790,17 @@ async function handleTogglePinnedFile(id: string, enabled: boolean) {
 async function togglePinnedFilesPanel() {
   showPinnedFilesPanel.value = !showPinnedFilesPanel.value
   if (showPinnedFilesPanel.value) {
+    syncPinnedPromptDraftFromStore()
+    pinPanelTab.value = chatStore.pinnedPrompt?.mode === 'skill'
+      ? 'skill'
+      : chatStore.pinnedPrompt?.mode === 'custom'
+        ? 'custom'
+        : 'files'
+
     // 打开时重新加载并检查文件存在性
     await loadPinnedFiles()
     await checkPinnedFilesExistence()
+    await loadSkills()
   }
 }
 
@@ -724,6 +828,12 @@ watch(() => chatStore.configId, () => {
 watch(() => chatStore.currentConfig, () => {
   loadConfigs()
 }, { deep: true })
+
+watch(pinPanelTab, (tab) => {
+  if (tab !== 'files') {
+    isDraggingOver.value = false
+  }
+})
 </script>
 
 <template>
@@ -752,7 +862,34 @@ watch(() => chatStore.currentConfig, () => {
       <div class="pinned-files-description">
         {{ t('components.input.pinnedFilesPanel.description') }}
       </div>
-      <div class="pinned-files-content">
+
+      <!-- Tabs -->
+      <div class="pinned-panel-tabs">
+        <button
+          class="pinned-tab"
+          :class="{ active: pinPanelTab === 'files' }"
+          @click="pinPanelTab = 'files'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.files') }}
+        </button>
+        <button
+          class="pinned-tab"
+          :class="{ active: pinPanelTab === 'skill' }"
+          @click="pinPanelTab = 'skill'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.skill') }}
+        </button>
+        <button
+          class="pinned-tab"
+          :class="{ active: pinPanelTab === 'custom' }"
+          @click="pinPanelTab = 'custom'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.custom') }}
+        </button>
+      </div>
+
+      <!-- 内容区域 -->
+      <div v-if="pinPanelTab === 'files'" class="pinned-files-content">
         <div v-if="isLoadingPinnedFiles" class="pinned-files-loading">
           <i class="codicon codicon-loading codicon-modifier-spin"></i>
           <span>{{ t('components.input.pinnedFilesPanel.loading') }}</span>
@@ -789,15 +926,91 @@ watch(() => chatStore.currentConfig, () => {
           </div>
         </div>
       </div>
+
+      <!-- Skill -->
+      <div v-else-if="pinPanelTab === 'skill'" class="pinned-skill-content">
+        <div class="pinned-skill-row">
+          <label class="pinned-skill-label">{{ t('components.input.pinnedFilesPanel.skill.selectLabel') }}</label>
+          <select
+            v-model="selectedSkillId"
+            class="pinned-skill-select"
+            :disabled="isLoadingSkills"
+            @change="applySkillSelection"
+          >
+            <option value="">{{ t('common.none') }}</option>
+            <option v-for="skill in skills" :key="skill.id" :value="skill.id">
+              {{ skill.name || skill.id }}
+            </option>
+          </select>
+          <button class="pinned-skill-refresh" :disabled="isLoadingSkills" @click="loadSkills" :title="t('common.refresh')">
+            <i class="codicon" :class="isLoadingSkills ? 'codicon-loading codicon-modifier-spin' : 'codicon-refresh'"></i>
+          </button>
+        </div>
+
+        <div v-if="isLoadingSkills" class="pinned-files-loading">
+          <i class="codicon codicon-loading codicon-modifier-spin"></i>
+          <span>{{ t('components.input.pinnedFilesPanel.skill.loading') }}</span>
+        </div>
+        <div v-else-if="skills.length === 0" class="pinned-files-empty">
+          <i class="codicon codicon-info"></i>
+          <span>{{ t('components.input.pinnedFilesPanel.skill.empty') }}</span>
+        </div>
+
+        <div v-else class="pinned-skill-preview">
+          <div v-if="selectedSkill" class="pinned-skill-preview-inner">
+            <div class="pinned-skill-preview-title">
+              <i v-if="chatStore.pinnedPrompt?.mode === 'skill' && chatStore.pinnedPrompt?.skillId === selectedSkill.id" class="codicon codicon-check"></i>
+              <span>{{ selectedSkill.name || selectedSkill.id }}</span>
+            </div>
+            <div v-if="selectedSkill.description" class="pinned-skill-preview-desc" :title="selectedSkill.description">
+              {{ selectedSkill.description }}
+            </div>
+            <textarea class="pinned-skill-preview-text" readonly :value="selectedSkill.prompt"></textarea>
+          </div>
+          <div v-else class="pinned-skill-hint">
+            <i class="codicon codicon-info"></i>
+            <span>{{ t('components.input.pinnedFilesPanel.skill.pickOne') }}</span>
+          </div>
+        </div>
+
+        <div class="pinned-skill-footer-hint">
+          {{ t('components.input.pinnedFilesPanel.skill.manageHint') }}
+        </div>
+      </div>
+
+      <!-- Custom Prompt -->
+      <div v-else class="pinned-custom-content">
+        <div class="pinned-custom-row">
+          <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.label') }}</label>
+        </div>
+        <textarea
+          v-model="customPromptDraft"
+          class="pinned-custom-textarea"
+          rows="7"
+          :placeholder="t('components.input.pinnedFilesPanel.custom.placeholder')"
+        ></textarea>
+        <div class="pinned-custom-actions">
+          <button class="pinned-custom-save" @click="saveCustomPrompt" :disabled="isSavingPinnedPrompt">
+            <i v-if="isSavingPinnedPrompt" class="codicon codicon-loading codicon-modifier-spin"></i>
+            <span v-else>{{ t('components.input.pinnedFilesPanel.custom.save') }}</span>
+          </button>
+          <button class="pinned-custom-clear" @click="clearCustomPrompt" :disabled="isSavingPinnedPrompt">
+            {{ t('components.input.pinnedFilesPanel.custom.clear') }}
+          </button>
+        </div>
+        <div class="pinned-custom-hint">
+          {{ t('components.input.pinnedFilesPanel.custom.hint') }}
+        </div>
+      </div>
       <!-- 拖拽提示 -->
-      <div class="pinned-files-footer">
+      <div v-if="pinPanelTab === 'files'" class="pinned-files-footer">
         <div class="drag-hint">
           <i class="codicon codicon-info"></i>
           <span>{{ t('components.input.pinnedFilesPanel.dragHint') }}</span>
         </div>
       </div>
       <!-- 拖拽遮罩 -->
-      <div v-if="isDraggingOver" class="drag-overlay">
+      <div v-if="pinPanelTab === 'files' && isDraggingOver" class="drag-overlay">
         <i class="codicon codicon-cloud-upload"></i>
         <span>{{ t('components.input.pinnedFilesPanel.dropHint') }}</span>
       </div>
@@ -821,7 +1034,7 @@ watch(() => chatStore.currentConfig, () => {
             <IconButton
               icon="codicon-pin"
               size="small"
-              :class="{ 'has-files': enabledPinnedFilesCount > 0 }"
+              :class="{ 'has-files': enabledPinnedFilesCount > 0, 'has-prompt': hasPinnedPrompt }"
               class="pinned-files-button"
               @click="togglePinnedFilesPanel"
             />
@@ -1309,6 +1522,10 @@ watch(() => chatStore.currentConfig, () => {
   color: var(--vscode-textLink-foreground);
 }
 
+.pinned-files-button.has-prompt :deep(i.codicon) {
+  color: var(--vscode-textLink-foreground);
+}
+
 .pinned-files-badge {
   position: absolute;
   top: -4px;
@@ -1337,7 +1554,7 @@ watch(() => chatStore.currentConfig, () => {
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  max-height: 300px;
+  max-height: 360px;
   display: flex;
   flex-direction: column;
 }
@@ -1370,11 +1587,227 @@ watch(() => chatStore.currentConfig, () => {
   border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+.pinned-panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-tab {
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pinned-tab:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-tab.active {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
 .pinned-files-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 8px;
+}
+
+.pinned-skill-content,
+.pinned-custom-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.pinned-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pinned-skill-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  flex-shrink: 0;
+}
+
+.pinned-skill-select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+  outline: none;
+}
+
+.pinned-skill-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-skill-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.pinned-skill-refresh:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-skill-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pinned-skill-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pinned-skill-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pinned-skill-preview-desc {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-skill-preview-text {
+  width: 100%;
+  min-height: 120px;
+  max-height: 160px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family), monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.pinned-skill-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.pinned-skill-footer-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.pinned-custom-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.pinned-custom-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family), monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+}
+
+.pinned-custom-textarea:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-custom-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pinned-custom-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+}
+
+.pinned-custom-save:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.pinned-custom-clear {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.pinned-custom-clear:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-custom-save:disabled,
+.pinned-custom-clear:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pinned-custom-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .pinned-files-loading,

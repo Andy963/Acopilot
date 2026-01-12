@@ -9,6 +9,7 @@ import { sendToExtension } from '../../utils/vscode'
 import { contentToMessageEnhanced } from './parsers'
 import type { Content } from '../../types'
 import { generateConversationTitleFromText } from '../../utils/conversationTitle'
+import { createDefaultPinnedPrompt, loadPinnedPrompt } from './pinnedPromptActions'
 
 /**
  * 取消流式并拒绝工具的回调类型
@@ -33,6 +34,7 @@ export async function createNewConversation(
   state.allMessages.value = []  // 清空消息
   state.checkpoints.value = []  // 清空检查点
   state.error.value = null
+  state.pinnedPrompt.value = createDefaultPinnedPrompt()
   
   // 清除所有加载和流式状态
   state.isLoading.value = false
@@ -216,6 +218,9 @@ export async function switchConversation(
   state.isStreaming.value = false
   state.streamingMessageId.value = null
   state.isWaitingForResponse.value = false
+
+  // 切换对话时加载固定提示词/技能
+  await loadPinnedPrompt(state, id)
   
   // 如果是已持久化的对话，从后端加载历史和检查点
   if (conv.isPersisted) {

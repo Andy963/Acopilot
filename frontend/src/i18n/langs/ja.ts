@@ -213,7 +213,7 @@ const ja: LanguageMessages = {
             send: 'メッセージを送信',
             stopGenerating: '生成を停止',
             attachFile: 'ファイルを添付',
-            pinnedFiles: 'ピン留めファイル',
+            pinnedFiles: 'ピン留め',
             summarizeContext: 'コンテキストを要約',
             selectChannel: 'チャンネルを選択',
             selectModel: 'モデルを選択',
@@ -234,13 +234,32 @@ const ja: LanguageMessages = {
                 addInSettings: '設定でモデルを追加してください'
             },
             pinnedFilesPanel: {
-                title: 'ピン留めファイル',
-                description: 'ピン留めされたファイルの内容は毎回の会話で AI に送信されます',
+                title: 'ピン留め',
+                description: 'ピン留めファイルは毎回の会話で送信；Skill/カスタムプロンプトは現在の会話にのみ適用',
                 loading: '読み込み中...',
                 empty: 'ピン留めファイルがありません',
                 notExists: '存在しません',
                 dragHint: 'Shift を押しながらワークスペース内のテキストファイルをここにドラッグして追加',
-                dropHint: 'ファイルを追加するにはマウスを離してください'
+                dropHint: 'ファイルを追加するにはマウスを離してください',
+                tabs: {
+                    files: 'ファイル',
+                    skill: 'Skill',
+                    custom: 'カスタム'
+                },
+                skill: {
+                    selectLabel: 'Skill を選択',
+                    loading: '読み込み中...',
+                    empty: 'Skill がありません',
+                    pickOne: 'Skill を選択してください',
+                    manageHint: '設定 > システムプロンプト で Skills を管理'
+                },
+                custom: {
+                    label: 'カスタムプロンプト',
+                    placeholder: '現在の会話にのみ適用されるプロンプトを入力...',
+                    save: '保存',
+                    clear: 'クリア',
+                    hint: '保存後、この会話のシステムプロンプトに追加されます'
+                }
             },
             filePicker: {
                 title: 'ファイルを選択',
@@ -1088,7 +1107,36 @@ const ja: LanguageMessages = {
                     }
                 },
                 exampleOutput: '出力例：',
-                requiresConfigLabel: '必要な設定：'
+                requiresConfigLabel: '必要な設定：',
+                skills: {
+                    title: 'Skills',
+                    add: 'Skill を追加',
+                    description: '再利用可能なプロンプト（Skill）を管理します。入力ボックス横のピン留めパネルから選択して使用できます。',
+                    empty: 'Skill がありません',
+                    saveSuccess: '保存しました',
+                    saveFailed: '保存に失敗しました',
+                    modal: {
+                        addTitle: 'Skill を追加',
+                        editTitle: 'Skill を編集',
+                        id: 'ID',
+                        idPlaceholder: '例：issue_killer',
+                        name: '名前',
+                        namePlaceholder: '例：Issue Killer',
+                        description: '説明',
+                        descriptionPlaceholder: '任意、短い説明',
+                        prompt: 'プロンプト',
+                        promptPlaceholder: 'この Skill のプロンプト内容を入力...'
+                    },
+                    validation: {
+                        idRequired: 'ID を入力してください',
+                        promptRequired: 'プロンプトを入力してください',
+                        idDuplicate: 'ID は既に存在します'
+                    },
+                    delete: {
+                        title: 'Skill を削除',
+                        message: 'この Skill を削除しますか？この操作は元に戻せません。'
+                    }
+                }
             },
             summarizeSettings: {
                 description: 'コンテキスト要約機能は会話履歴を圧縮してトークン使用量を削減できます。会話が長くなりすぎた場合、手動または自動で要約をトリガーして、古い会話内容を要約に圧縮できます。',
