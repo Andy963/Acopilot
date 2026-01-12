@@ -1115,6 +1115,20 @@ const ja: LanguageMessages = {
                     empty: 'Skill がありません',
                     saveSuccess: '保存しました',
                     saveFailed: '保存に失敗しました',
+                    installFromUrl: {
+                        button: 'URL からインストール',
+                        modal: {
+                            title: 'URL から Skill をインストール',
+                            url: 'GitHub URL',
+                            urlPlaceholder: 'https://github.com/owner/repo または https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            hint: 'このプロジェクトの .codex/skills/ にインストールし、Skills リストに自動的にインポートします'
+                        },
+                        validation: {
+                            urlRequired: 'GitHub URL を入力してください',
+                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills が必要です）'
+                        },
+                        installFailed: 'インストールに失敗しました'
+                    },
                     modal: {
                         addTitle: 'Skill を追加',
                         editTitle: 'Skill を編集',
