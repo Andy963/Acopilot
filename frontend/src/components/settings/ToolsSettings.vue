@@ -477,7 +477,7 @@ onMounted(() => {
                     {{ t('components.settings.toolsSettings.dependency.required') }}
                   </span> -->
                 </div>
-                <div class="tool-description">{{ tool.description }}</div>
+                <div class="tool-description" :title="tool.description">{{ tool.description }}</div>
               </div>
 
               <!-- 启用列 -->
@@ -570,10 +570,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  --lc-tools-col-enabled: 48px;
-  --lc-tools-col-auto: 96px;
-  --lc-tools-col-config: 32px;
-  --lc-tools-col-gap: 8px;
+  --lc-tools-col-enabled: 44px;
+  --lc-tools-col-auto: 88px;
+  --lc-tools-col-config: 28px;
+  --lc-tools-col-gap: 6px;
 }
 
 /* 全局配置 */
@@ -877,8 +877,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   background: transparent;
   border: none;
   border-radius: var(--lc-settings-radius-sm, 4px);
@@ -909,7 +909,7 @@ onMounted(() => {
 }
 
 .config-btn .codicon {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* 开关样式 */
@@ -1002,8 +1002,8 @@ onMounted(() => {
 }
 
 .config-placeholder {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   justify-self: center;
 }
 
