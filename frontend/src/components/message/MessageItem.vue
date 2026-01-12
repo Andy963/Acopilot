@@ -9,6 +9,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import MessageActions from './MessageActions.vue'
 import ToolMessage from './ToolMessage.vue'
 import MessageAttachments from './MessageAttachments.vue'
+import TaskCardMessage from './TaskCardMessage.vue'
 import { MarkdownRenderer, RetryDialog, EditDialog, IconButton } from '../common'
 import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
 import { formatModelName, formatTime } from '../../utils/format'
@@ -43,6 +44,9 @@ const isTool = computed(() => props.message.role === 'tool')
 
 // 是否为总结消息
 const isSummary = computed(() => props.message.isSummary === true)
+
+// 是否为 Task 卡片消息
+const taskCard = computed(() => props.message.metadata?.taskCard)
 
 // 是否为流式消息
 const isStreaming = computed(() => props.message.streaming === true)
@@ -538,8 +542,12 @@ function handleOpenContextUsed() {
     />
 
     <div class="message-body">
+      <!-- Task 卡片消息 -->
+      <div v-if="taskCard" class="task-card-block">
+        <TaskCardMessage :task="taskCard" />
+      </div>
       <!-- 总结消息特殊显示 -->
-      <div v-if="isSummary" class="summary-block">
+      <div v-else-if="isSummary" class="summary-block">
         <div
           class="summary-header"
           @click="isSummaryExpanded = !isSummaryExpanded"

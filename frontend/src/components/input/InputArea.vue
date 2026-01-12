@@ -9,6 +9,7 @@ import InputBox from './InputBox.vue'
 import FilePickerPanel from './FilePickerPanel.vue'
 import SendButton from './SendButton.vue'
 import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
+import CreateTaskModal from '../task/CreateTaskModal.vue'
 import { IconButton, Tooltip } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
@@ -274,6 +275,9 @@ const showPinnedFilesPanel = ref(false)
 const isLoadingPinnedFiles = ref(false)
 // 拖拽状态
 const isDraggingOver = ref(false)
+
+// Create Task Modal
+const showCreateTaskModal = ref(false)
 
 // 固定提示词/技能面板 Tab
 type PinPanelTab = 'files' | 'skill' | 'custom'
@@ -838,6 +842,7 @@ watch(pinPanelTab, (tab) => {
 
 <template>
   <div class="input-area">
+    <CreateTaskModal v-model="showCreateTaskModal" />
     <!-- 固定文件面板（弹出） -->
     <div
       v-if="showPinnedFilesPanel"
@@ -1042,6 +1047,15 @@ watch(pinPanelTab, (tab) => {
               {{ enabledPinnedFilesCount }}
             </span>
           </div>
+        </Tooltip>
+
+        <Tooltip content="Create Task" placement="top">
+          <IconButton
+            icon="codicon-add"
+            size="small"
+            class="create-task-button"
+            @click="showCreateTaskModal = true"
+          />
         </Tooltip>
 
         <!-- 附件列表：放在顶部工具栏右侧（同一行） -->
@@ -1540,6 +1554,16 @@ watch(pinPanelTab, (tab) => {
   color: var(--vscode-badge-foreground);
   background: var(--vscode-badge-background);
   border-radius: 7px;
+}
+
+/* Create Task 按钮 */
+.create-task-button {
+  color: var(--vscode-textLink-foreground);
+  opacity: 1;
+}
+
+.create-task-button:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
 }
 
 /* 固定文件面板 */
