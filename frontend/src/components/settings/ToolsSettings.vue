@@ -570,9 +570,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  --lc-tools-col-enabled: 52px;
-  --lc-tools-col-auto: 104px;
-  --lc-tools-col-config: 36px;
+  --lc-tools-col-enabled: 48px;
+  --lc-tools-col-auto: 96px;
+  --lc-tools-col-config: 32px;
   --lc-tools-col-gap: 8px;
 }
 
@@ -926,6 +926,26 @@ onMounted(() => {
 .tool-toggle.disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 未带 label 的勾选框：更紧凑且视觉居中 */
+.tool-toggle :deep(.checkbox-wrapper),
+.exec-toggle :deep(.checkbox-wrapper) {
+  align-items: center;
+}
+
+.tool-toggle :deep(.custom-checkbox),
+.exec-toggle :deep(.custom-checkbox) {
+  padding-left: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.tool-toggle :deep(.custom-checkbox .checkmark),
+.exec-toggle :deep(.custom-checkbox .checkmark) {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .col-divider {
