@@ -10,6 +10,7 @@ import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
 import { createAndPersistConversation } from './conversationActions'
 import { clearCheckpointsFromIndex } from './checkpointActions'
+import { persistPinnedPromptForConversation } from './pinnedPromptActions'
 
 /**
  * 取消流式的回调类型
@@ -40,6 +41,9 @@ export async function sendMessage(
       if (!newId) {
         throw new Error('Failed to create conversation')
       }
+
+      // 对话创建后，将当前选择的固定提示词/技能持久化（用于首条消息生效）
+      await persistPinnedPromptForConversation(state, newId)
     }
     
     const userMessage: Message = {

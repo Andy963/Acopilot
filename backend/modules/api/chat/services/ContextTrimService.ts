@@ -20,6 +20,7 @@ import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { ConversationRound, ContextTrimInfo } from '../utils';
 import type { TokenEstimationService } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
+import { getPinnedPromptBlock } from './pinnedPrompt';
 
 /**
  * 回合 Token 信息（内部使用）
@@ -234,7 +235,11 @@ export class ContextTrimService {
         const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
         
         // 计算系统提示词的 token 数
-        const systemPrompt = this.promptManager.getSystemPrompt();
+        const baseSystemPrompt = this.promptManager.getSystemPrompt();
+        const pinnedPromptBlock = await getPinnedPromptBlock(this.conversationManager, conversationId);
+        const systemPrompt = pinnedPromptBlock
+            ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
+            : baseSystemPrompt;
         let systemPromptTokens = 0;
         if (systemPrompt) {
             systemPromptTokens = await this.tokenEstimationService.countSystemPromptTokens(systemPrompt, channelType);

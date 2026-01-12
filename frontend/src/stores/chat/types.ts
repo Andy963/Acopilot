@@ -43,6 +43,17 @@ export interface AttachmentData {
 }
 
 /**
+ * 对话固定提示词/技能（每个对话独立）
+ */
+export type PinnedPromptMode = 'none' | 'skill' | 'custom'
+
+export interface PinnedPromptState {
+  mode: PinnedPromptMode
+  skillId?: string
+  customPrompt?: string
+}
+
+/**
  * 重试状态
  */
 export interface RetryStatus {
@@ -109,6 +120,8 @@ export interface ChatStoreState {
   inputValue: Ref<string>
   /** 工作区筛选模式 */
   workspaceFilter: Ref<WorkspaceFilter>
+  /** 当前对话的固定提示词/技能 */
+  pinnedPrompt: Ref<PinnedPromptState>
 }
 
 /**
