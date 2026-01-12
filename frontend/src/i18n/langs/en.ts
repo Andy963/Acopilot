@@ -1115,6 +1115,20 @@ const en: LanguageMessages = {
                     empty: 'No skills',
                     saveSuccess: 'Saved successfully',
                     saveFailed: 'Save failed',
+                    installFromUrl: {
+                        button: 'Install from URL',
+                        modal: {
+                            title: 'Install Skill from URL',
+                            url: 'GitHub URL',
+                            urlPlaceholder: 'https://github.com/owner/repo or https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            hint: 'Will be installed to .codex/skills/ in this project and automatically imported into the Skills list'
+                        },
+                        validation: {
+                            urlRequired: 'Please enter a GitHub URL',
+                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills)'
+                        },
+                        installFailed: 'Install failed'
+                    },
                     modal: {
                         addTitle: 'Add Skill',
                         editTitle: 'Edit Skill',

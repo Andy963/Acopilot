@@ -239,6 +239,12 @@ const skillForm = reactive<SkillDefinition>({
 const showDeleteSkillConfirm = ref(false)
 const pendingDeleteSkillId = ref<string | null>(null)
 
+// Install from URL
+const showInstallSkillModal = ref(false)
+const installUrl = ref('')
+const isInstallingSkill = ref(false)
+const installSkillError = ref('')
+
 function normalizeSkills(raw: unknown): SkillDefinition[] {
   if (!Array.isArray(raw)) return []
 
@@ -358,6 +364,57 @@ async function confirmDeleteSkill() {
 
   const nextSkills = skills.value.filter(s => s.id !== id)
   await persistSkills(nextSkills)
+}
+
+function openInstallSkill() {
+  installUrl.value = ''
+  installSkillError.value = ''
+  showInstallSkillModal.value = true
+}
+
+async function confirmInstallSkill() {
+  const url = installUrl.value.trim()
+  if (!url) {
+    installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.urlRequired')
+    return
+  }
+
+  isInstallingSkill.value = true
+  installSkillError.value = ''
+
+  try {
+    const result = await sendToExtension<{ skills?: SkillDefinition[] }>('installSkillFromUrl', { url })
+    const installed = Array.isArray(result?.skills) ? result.skills : []
+
+    if (installed.length === 0) {
+      installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.noSkillsFound')
+      return
+    }
+
+    const nextSkills = [...skills.value]
+    for (const skill of installed) {
+      if (!skill?.id) continue
+      const idx = nextSkills.findIndex(s => s.id === skill.id)
+      if (idx !== -1) {
+        nextSkills[idx] = skill
+      } else {
+        nextSkills.push(skill)
+      }
+    }
+
+    nextSkills.sort((a, b) => {
+      const nameCmp = (a.name || a.id).localeCompare(b.name || b.id)
+      if (nameCmp !== 0) return nameCmp
+      return a.id.localeCompare(b.id)
+    })
+
+    showInstallSkillModal.value = false
+    await persistSkills(nextSkills)
+  } catch (error: any) {
+    installSkillError.value = error.message || t('components.settings.promptSettings.skills.installFromUrl.installFailed')
+  } finally {
+    isInstallingSkill.value = false
+  }
 }
 
 // 加载配置
@@ -637,10 +694,16 @@ watch(selectedChannel, () => {
             <i class="codicon codicon-wand"></i>
             {{ t('components.settings.promptSettings.skills.title') }}
           </h5>
-          <button class="reset-btn" @click="openAddSkill" :disabled="isSavingSkills">
-            <i class="codicon codicon-add"></i>
-            {{ t('components.settings.promptSettings.skills.add') }}
-          </button>
+          <div class="skills-header-actions">
+            <button class="reset-btn" @click="openInstallSkill" :disabled="isSavingSkills || isInstallingSkill">
+              <i class="codicon codicon-cloud-download"></i>
+              {{ t('components.settings.promptSettings.skills.installFromUrl.button') }}
+            </button>
+            <button class="reset-btn" @click="openAddSkill" :disabled="isSavingSkills">
+              <i class="codicon codicon-add"></i>
+              {{ t('components.settings.promptSettings.skills.add') }}
+            </button>
+          </div>
         </div>
 
         <p class="section-description">
@@ -736,6 +799,42 @@ watch(selectedChannel, () => {
     @confirm="confirmDeleteSkill"
     @cancel="pendingDeleteSkillId = null"
   />
+
+  <!-- 从 URL 安装 Skill -->
+  <Modal
+    v-model="showInstallSkillModal"
+    :title="t('components.settings.promptSettings.skills.installFromUrl.modal.title')"
+    width="680px"
+  >
+    <div class="skill-form">
+      <div class="skill-form-row">
+        <label class="skill-form-label">{{ t('components.settings.promptSettings.skills.installFromUrl.modal.url') }}</label>
+        <input
+          v-model="installUrl"
+          class="skill-form-input"
+          :placeholder="t('components.settings.promptSettings.skills.installFromUrl.modal.urlPlaceholder')"
+        />
+        <div class="skill-install-hint">
+          {{ t('components.settings.promptSettings.skills.installFromUrl.modal.hint') }}
+        </div>
+      </div>
+
+      <div v-if="installSkillError" class="skill-form-error">
+        <i class="codicon codicon-warning"></i>
+        <span>{{ installSkillError }}</span>
+      </div>
+    </div>
+
+    <template #footer>
+      <button class="dialog-btn cancel" @click="showInstallSkillModal = false" :disabled="isInstallingSkill">
+        {{ t('common.cancel') }}
+      </button>
+      <button class="dialog-btn confirm" @click="confirmInstallSkill" :disabled="isInstallingSkill">
+        <i v-if="isInstallingSkill" class="codicon codicon-loading codicon-modifier-spin"></i>
+        <span v-else>{{ t('common.install') }}</span>
+      </button>
+    </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -784,6 +883,17 @@ watch(selectedChannel, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.skills-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-install-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .skills-empty {
