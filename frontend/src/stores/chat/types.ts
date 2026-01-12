@@ -8,6 +8,34 @@ import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData } from 
 // 重新导出类型以供其他模块使用
 export type { CheckpointRecord } from '../../types'
 
+// ============ Plan Runner ============
+
+export type PlanRunnerStatus = 'idle' | 'running' | 'paused' | 'completed' | 'cancelled'
+
+export type PlanRunnerStepStatus = 'pending' | 'running' | 'success' | 'error' | 'cancelled'
+
+export interface PlanRunnerStep {
+  id: string
+  title: string
+  instruction: string
+  status: PlanRunnerStepStatus
+  startedAt?: number
+  endedAt?: number
+  error?: string
+}
+
+export interface PlanRunnerData {
+  id: string
+  title: string
+  goal?: string
+  createdAt: number
+  status: PlanRunnerStatus
+  currentStepIndex: number
+  steps: PlanRunnerStep[]
+  pauseRequested?: boolean
+  lastUpdatedAt?: number
+}
+
 /**
  * 对话摘要
  */
@@ -122,6 +150,9 @@ export interface ChatStoreState {
   workspaceFilter: Ref<WorkspaceFilter>
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
+
+  /** Plan Runner（多步任务执行器） */
+  planRunner: Ref<PlanRunnerData | null>
 
   /** Context Inspector 弹窗是否显示 */
   contextInspectorVisible: Ref<boolean>

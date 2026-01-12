@@ -10,6 +10,7 @@ import FilePickerPanel from './FilePickerPanel.vue'
 import SendButton from './SendButton.vue'
 import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
 import CreateTaskModal from '../task/CreateTaskModal.vue'
+import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { IconButton, Tooltip } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
@@ -278,6 +279,9 @@ const isDraggingOver = ref(false)
 
 // Create Task Modal
 const showCreateTaskModal = ref(false)
+
+// Create Plan Modal
+const showCreatePlanModal = ref(false)
 
 // 固定提示词/技能面板 Tab
 type PinPanelTab = 'files' | 'skill' | 'custom'
@@ -843,6 +847,7 @@ watch(pinPanelTab, (tab) => {
 <template>
   <div class="input-area">
     <CreateTaskModal v-model="showCreateTaskModal" />
+    <CreatePlanModal v-model="showCreatePlanModal" />
     <!-- 固定文件面板（弹出） -->
     <div
       v-if="showPinnedFilesPanel"
@@ -1055,6 +1060,15 @@ watch(pinPanelTab, (tab) => {
             size="small"
             class="create-task-button"
             @click="showCreateTaskModal = true"
+          />
+        </Tooltip>
+
+        <Tooltip :content="t('components.input.createPlan')" placement="top">
+          <IconButton
+            icon="codicon-list-ordered"
+            size="small"
+            class="create-task-button"
+            @click="showCreatePlanModal = true"
           />
         </Tooltip>
 

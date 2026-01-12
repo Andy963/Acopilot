@@ -238,6 +238,7 @@ const zhCN: LanguageMessages = {
             stopGenerating: '停止生成',
             attachFile: '添加附件',
             pinnedFiles: '固定内容',
+            createPlan: 'Plan & Run',
             summarizeContext: '总结上下文',
             selectChannel: '选择渠道',
             selectModel: '选择模型',
@@ -307,6 +308,39 @@ const zhCN: LanguageMessages = {
                 cannotGetFilePath: '无法获取文件路径，请从 VSCode 资源管理器或标签页拖拽',
                 fileNotMatchOrNotInWorkspace: '文件不在工作区内或文件名不匹配',
                 removeFailed: '移除失败: {error}'
+            }
+        },
+
+        planRunner: {
+            status: {
+                idle: '未开始',
+                running: '运行中',
+                paused: '已暂停',
+                completed: '已完成',
+                cancelled: '已取消'
+            },
+            actions: {
+                start: '开始',
+                resume: '继续',
+                pause: '暂停',
+                cancel: '取消',
+                clear: '清空'
+            },
+            current: '当前',
+            modal: {
+                title: 'Plan & Run',
+                planTitle: '计划标题',
+                planTitlePlaceholder: '例如：修复 xxx 并补充测试',
+                goal: '目标/背景（可选）',
+                goalPlaceholder: '可选：补充上下文、约束、验收标准…',
+                steps: '步骤',
+                addStep: '添加步骤',
+                stepTitle: '步骤标题',
+                stepInstruction: '该步骤要发送给模型的指令/提示词…',
+                removeStep: '删除步骤',
+                hint: '至少需要：计划标题 + 1 个完整步骤（标题+指令）。',
+                save: '保存计划',
+                saveAndStart: '保存并开始'
             }
         },
 

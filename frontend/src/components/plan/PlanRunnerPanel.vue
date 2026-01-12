@@ -1,0 +1,286 @@
+<script setup lang="ts">
+/**
+ * PlanRunnerPanel - 多步任务执行面板（Plan & Run）
+ */
+
+import { computed, ref } from 'vue'
+import { useChatStore } from '../../stores'
+import type { PlanRunnerStep } from '../../stores/chat/types'
+import { useI18n } from '../../i18n'
+
+const { t } = useI18n()
+
+const chatStore = useChatStore()
+
+const plan = computed(() => chatStore.planRunner)
+const expanded = ref(true)
+
+const statusLabel = computed(() => {
+  if (!plan.value) return ''
+  switch (plan.value.status) {
+    case 'running':
+      return t('components.planRunner.status.running')
+    case 'paused':
+      return t('components.planRunner.status.paused')
+    case 'completed':
+      return t('components.planRunner.status.completed')
+    case 'cancelled':
+      return t('components.planRunner.status.cancelled')
+    default:
+      return t('components.planRunner.status.idle')
+  }
+})
+
+function stepIcon(step: PlanRunnerStep): string {
+  switch (step.status) {
+    case 'success':
+      return 'codicon-pass'
+    case 'running':
+      return 'codicon-loading'
+    case 'error':
+      return 'codicon-error'
+    case 'cancelled':
+      return 'codicon-circle-slash'
+    default:
+      return 'codicon-circle-outline'
+  }
+}
+
+function stepClass(step: PlanRunnerStep): string {
+  return step.status
+}
+
+const canStart = computed(() => plan.value && (plan.value.status === 'idle' || plan.value.status === 'paused'))
+const canPause = computed(() => plan.value && plan.value.status === 'running')
+const canCancel = computed(() => plan.value && (plan.value.status === 'running' || plan.value.status === 'paused'))
+
+async function handleStartOrResume() {
+  if (!plan.value) return
+  if (plan.value.status === 'paused') {
+    await chatStore.resumePlanRunner()
+    return
+  }
+  await chatStore.startPlanRunner()
+}
+
+async function handlePause() {
+  await chatStore.pausePlanRunner()
+}
+
+async function handleCancel() {
+  await chatStore.cancelPlanRunner()
+}
+
+async function handleClear() {
+  await chatStore.clearPlanRunner()
+}
+</script>
+
+<template>
+  <div v-if="plan" class="plan-runner">
+    <div class="plan-header" @click="expanded = !expanded">
+      <i class="codicon codicon-list-ordered"></i>
+      <span class="plan-title">{{ plan.title }}</span>
+      <span class="plan-status">{{ statusLabel }}</span>
+
+      <div class="plan-actions" @click.stop>
+        <button
+          v-if="canStart"
+          class="plan-btn primary"
+          @click="handleStartOrResume"
+        >
+          <i class="codicon codicon-play"></i>
+          {{ plan.status === 'paused' ? t('components.planRunner.actions.resume') : t('components.planRunner.actions.start') }}
+        </button>
+
+        <button
+          v-if="canPause"
+          class="plan-btn"
+          @click="handlePause"
+        >
+          <i class="codicon codicon-debug-pause"></i>
+          {{ t('components.planRunner.actions.pause') }}
+        </button>
+
+        <button
+          v-if="canCancel"
+          class="plan-btn danger"
+          @click="handleCancel"
+        >
+          <i class="codicon codicon-circle-slash"></i>
+          {{ t('components.planRunner.actions.cancel') }}
+        </button>
+
+        <button class="plan-btn" @click="handleClear">
+          <i class="codicon codicon-trash"></i>
+          {{ t('components.planRunner.actions.clear') }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="expanded" class="plan-body">
+      <div v-if="plan.goal" class="plan-goal">{{ plan.goal }}</div>
+
+      <div class="plan-steps">
+        <div
+          v-for="(step, idx) in plan.steps"
+          :key="step.id"
+          class="plan-step"
+          :class="stepClass(step)"
+        >
+          <span class="step-index">{{ idx + 1 }}.</span>
+          <i
+            class="codicon step-icon"
+            :class="[stepIcon(step), { 'codicon-modifier-spin': step.status === 'running' }]"
+          ></i>
+          <span class="step-title">{{ step.title }}</span>
+          <span v-if="idx === plan.currentStepIndex" class="step-current">
+            {{ t('components.planRunner.current') }}
+          </span>
+          <span v-if="step.error" class="step-error">{{ step.error }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.plan-runner {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(127, 127, 127, 0.04);
+  margin: 0 var(--spacing-md, 16px) var(--spacing-md, 16px);
+}
+
+.plan-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.plan-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.plan-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-status {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.plan-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-btn:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.plan-btn.primary {
+  border: none;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.plan-btn.danger {
+  border-color: rgba(255, 0, 0, 0.3);
+}
+
+.plan-body {
+  border-top: 1px solid var(--vscode-panel-border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-goal {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  white-space: pre-wrap;
+}
+
+.plan-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.plan-step.running {
+  background: rgba(0, 120, 212, 0.08);
+}
+
+.plan-step.success {
+  opacity: 0.85;
+}
+
+.plan-step.error {
+  background: rgba(255, 0, 0, 0.06);
+}
+
+.step-index {
+  width: 22px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.step-icon {
+  font-size: 14px;
+}
+
+.step-title {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.step-current {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--vscode-textLink-foreground);
+}
+
+.step-error {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--vscode-editorError-foreground);
+  white-space: pre-wrap;
+}
+</style>
