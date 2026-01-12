@@ -1115,6 +1115,20 @@ const zhCN: LanguageMessages = {
                     empty: '暂无 Skill',
                     saveSuccess: '保存成功',
                     saveFailed: '保存失败',
+                    installFromUrl: {
+                        button: '从 URL 安装',
+                        modal: {
+                            title: '从 URL 安装 Skill',
+                            url: 'GitHub URL',
+                            urlPlaceholder: 'https://github.com/owner/repo 或 https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            hint: '会下载安装到当前项目的 .codex/skills/ 目录，并自动导入到 Skills 列表'
+                        },
+                        validation: {
+                            urlRequired: '请输入 GitHub URL',
+                            noSkillsFound: '未找到可安装的 Codex skill（需要包含 .codex/skills）'
+                        },
+                        installFailed: '安装失败'
+                    },
                     modal: {
                         addTitle: '添加 Skill',
                         editTitle: '编辑 Skill',

@@ -1279,6 +1279,20 @@ export interface LanguageMessages {
                     empty: string;
                     saveSuccess: string;
                     saveFailed: string;
+                    installFromUrl: {
+                        button: string;
+                        modal: {
+                            title: string;
+                            url: string;
+                            urlPlaceholder: string;
+                            hint: string;
+                        };
+                        validation: {
+                            urlRequired: string;
+                            noSkillsFound: string;
+                        };
+                        installFailed: string;
+                    };
                     modal: {
                         addTitle: string;
                         editTitle: string;
