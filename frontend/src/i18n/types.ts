@@ -1367,6 +1367,8 @@ export interface LanguageMessages {
                 };
             };
             toolsSettings: {
+                mcpNote: string;
+                mcpDisableTooltip: string;
                 maxIterations: {
                     label: string;
                     hint: string;
@@ -1377,6 +1379,30 @@ export interface LanguageMessages {
                     enableAll: string;
                     disableAll: string;
                 };
+                badges: {
+                    enabled: string;
+                    autoExec: string;
+                };
+                columns: {
+                    enabled: string;
+                    auto: string;
+                    config: string;
+                };
+                exec: {
+                    autoEnabled: string;
+                };
+                dangerConfirm: {
+                    title: string;
+                    message: string;
+                    confirm: string;
+                    cancel: string;
+                };
+                enableAllDangerous: {
+                    title: string;
+                    message: string;
+                    confirm: string;
+                    cancel: string;
+                };
                 loading: string;
                 empty: string;
                 categories: {
@@ -1385,6 +1411,7 @@ export interface LanguageMessages {
                     terminal: string;
                     lsp: string;
                     media: string;
+                    mcp: string;
                     other: string;
                 };
                 dependency: {

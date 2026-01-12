@@ -11,7 +11,7 @@
  */
 
 import { ref, computed, onMounted } from 'vue'
-import { CustomCheckbox, DependencyWarning } from '../common'
+import { ConfirmDialog, CustomCheckbox, DependencyWarning } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { useDependency, TOOL_DEPENDENCIES, hasToolDependencies, getToolDependencies } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
@@ -33,6 +33,12 @@ interface ToolInfo {
   description: string
   enabled: boolean
   category?: string
+  serverId?: string
+  serverName?: string
+}
+
+interface ToolAutoExecConfig {
+  [toolName: string]: boolean
 }
 
 // 国际化
@@ -104,12 +110,14 @@ function isConfigExpanded(toolName: string): boolean {
 
 // 工具列表
 const tools = ref<ToolInfo[]>([])
+const autoExecConfig = ref<ToolAutoExecConfig>({})
 
 // 加载状态
 const isLoading = ref(false)
 
 // 是否正在保存
 const savingTools = ref<Set<string>>(new Set())
+const savingAutoExecTools = ref<Set<string>>(new Set())
 
 // 按分类分组的工具
 const toolsByCategory = computed(() => {
@@ -126,6 +134,20 @@ const toolsByCategory = computed(() => {
   return grouped
 })
 
+function isMcpTool(tool: ToolInfo): boolean {
+  return tool.category === 'mcp'
+}
+
+function isDangerousTool(toolName: string): boolean {
+  return ['delete_file', 'execute_command'].includes(toolName)
+}
+
+function isAutoExec(toolName: string): boolean {
+  // If not configured, default to auto exec (existing behavior).
+  if (autoExecConfig.value[toolName] === undefined) return true
+  return autoExecConfig.value[toolName]
+}
+
 // 分类显示名称获取函数
 function getCategoryName(category: string): string {
   const mapping: Record<string, string> = {
@@ -134,6 +156,7 @@ function getCategoryName(category: string): string {
     'terminal': 'components.settings.toolsSettings.categories.terminal',
     'lsp': 'components.settings.toolsSettings.categories.lsp',
     'media': 'components.settings.toolsSettings.categories.media',
+    'mcp': 'components.settings.toolsSettings.categories.mcp',
     '其他': 'components.settings.toolsSettings.categories.other'
   }
   return t(mapping[category] || mapping['其他'])
@@ -146,6 +169,7 @@ const categoryIcons: Record<string, string> = {
   'terminal': 'codicon-terminal',
   'lsp': 'codicon-symbol-class',
   'media': 'codicon-file-media',
+  'mcp': 'codicon-plug',
   '其他': 'codicon-extensions'
 }
 
@@ -155,9 +179,22 @@ async function loadTools() {
 
   try {
     const response = await sendToExtension<{ tools: ToolInfo[] }>('tools.getTools', {})
-    if (response?.tools) {
-      tools.value = response.tools
+    let allTools: ToolInfo[] = response?.tools || []
+
+    // Optional MCP tools
+    try {
+      const mcpResponse = await sendToExtension<{ tools: ToolInfo[] }>('tools.getMcpTools', {})
+      if (mcpResponse?.tools) {
+        allTools = [...allTools, ...mcpResponse.tools]
+      }
+    } catch (mcpError) {
+      console.warn('Failed to load MCP tools:', mcpError)
     }
+
+    tools.value = allTools
+
+    const configResponse = await sendToExtension<{ config: ToolAutoExecConfig }>('tools.getAutoExecConfig', {})
+    autoExecConfig.value = configResponse?.config || {}
   } catch (error) {
     console.error('Failed to load tools:', error)
   } finally {
@@ -192,9 +229,36 @@ async function toggleTool(toolName: string, enabled: boolean) {
   }
 }
 
+const confirmDangerDialogVisible = ref(false)
+const confirmDangerDialogToolName = ref('')
+const confirmDangerDialogNextValue = ref(false)
+
+function requestToggleAutoExec(toolName: string, autoExec: boolean) {
+  if (autoExec && isDangerousTool(toolName)) {
+    confirmDangerDialogToolName.value = toolName
+    confirmDangerDialogNextValue.value = autoExec
+    confirmDangerDialogVisible.value = true
+    return
+  }
+  toggleAutoExec(toolName, autoExec)
+}
+
+async function toggleAutoExec(toolName: string, autoExec: boolean) {
+  savingAutoExecTools.value.add(toolName)
+
+  try {
+    await sendToExtension('tools.setToolAutoExec', { toolName, autoExec })
+    autoExecConfig.value[toolName] = autoExec
+  } catch (error) {
+    console.error(`Failed to toggle auto exec for ${toolName}:`, error)
+  } finally {
+    savingAutoExecTools.value.delete(toolName)
+  }
+}
+
 // 全部启用
 async function enableAll() {
-  const disabledTools = tools.value.filter(t => !t.enabled)
+  const disabledTools = tools.value.filter(t => !isMcpTool(t) && !t.enabled)
   for (const tool of disabledTools) {
     await toggleTool(tool.name, true)
   }
@@ -202,9 +266,43 @@ async function enableAll() {
 
 // 全部禁用
 async function disableAll() {
-  const enabledTools = tools.value.filter(t => t.enabled)
+  const enabledTools = tools.value.filter(t => !isMcpTool(t) && t.enabled)
   for (const tool of enabledTools) {
     await toggleTool(tool.name, false)
+  }
+}
+
+const confirmEnableDangerousAutoExecDialogVisible = ref(false)
+
+async function enableAllAutoExec() {
+  if (tools.value.some(tool => isDangerousTool(tool.name))) {
+    confirmEnableDangerousAutoExecDialogVisible.value = true
+    return
+  }
+
+  for (const tool of tools.value) {
+    if (!isAutoExec(tool.name)) {
+      await toggleAutoExec(tool.name, true)
+    }
+  }
+}
+
+async function confirmEnableAllAutoExec(includeDangerous: boolean) {
+  confirmEnableDangerousAutoExecDialogVisible.value = false
+
+  for (const tool of tools.value) {
+    if (isDangerousTool(tool.name) && !includeDangerous) continue
+    if (!isAutoExec(tool.name)) {
+      await toggleAutoExec(tool.name, true)
+    }
+  }
+}
+
+async function disableAllAutoExec() {
+  for (const tool of tools.value) {
+    if (isAutoExec(tool.name)) {
+      await toggleAutoExec(tool.name, false)
+    }
   }
 }
 
@@ -225,7 +323,15 @@ function getCategoryIcon(category: string): string {
 }
 
 function getCategoryEnabledCount(categoryTools: ToolInfo[]): number {
-  return categoryTools.filter(t => t.enabled).length
+  return categoryTools.filter(t => !isMcpTool(t) && t.enabled).length
+}
+
+function getCategoryEnabledTotal(categoryTools: ToolInfo[]): number {
+  return categoryTools.filter(t => !isMcpTool(t)).length
+}
+
+function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
+  return categoryTools.filter(tool => isAutoExec(tool.name)).length
 }
 
 // 加载最大工具调用次数配置
@@ -306,6 +412,21 @@ onMounted(() => {
         <i class="codicon codicon-close-all"></i>
         {{ t('components.settings.toolsSettings.actions.disableAll') }}
       </button>
+      <div class="action-divider"></div>
+      <button class="action-btn" @click="enableAllAutoExec" :disabled="isLoading">
+        <i class="codicon codicon-check-all"></i>
+        {{ t('components.settings.autoExec.actions.enableAll') }}
+      </button>
+      <button class="action-btn" @click="disableAllAutoExec" :disabled="isLoading">
+        <i class="codicon codicon-shield"></i>
+        {{ t('components.settings.autoExec.actions.disableAll') }}
+      </button>
+    </div>
+
+    <!-- MCP 提示 -->
+    <div class="mcp-note">
+      <i class="codicon codicon-plug"></i>
+      <span>{{ t('components.settings.toolsSettings.mcpNote') }}</span>
     </div>
 
     <!-- 加载状态 -->
@@ -324,15 +445,31 @@ onMounted(() => {
     <div v-else class="tools-list">
       <SettingsGroup v-for="(categoryTools, category) in toolsByCategory" :key="category"
         :title="getCategoryDisplayName(category)" :icon="getCategoryIcon(category)"
-        :badge="`${getCategoryEnabledCount(categoryTools)}/${categoryTools.length}`"
+        :badge="`${t('components.settings.toolsSettings.badges.enabled')} ${getCategoryEnabledCount(categoryTools)}/${getCategoryEnabledTotal(categoryTools)} · ${t('components.settings.toolsSettings.badges.autoExec')} ${getCategoryAutoExecCount(categoryTools)}/${categoryTools.length}`"
         :storage-key="`limcode.settings.tools.category.${category}`" :default-expanded="true">
+        <template #actions>
+          <div class="group-columns" @click.stop>
+            <span class="col-header">{{ t('components.settings.toolsSettings.columns.enabled') }}</span>
+            <span class="col-divider"></span>
+            <span class="col-header"><i class="codicon codicon-shield"></i> {{ t('components.settings.toolsSettings.columns.auto') }}</span>
+            <span class="col-header">{{ t('components.settings.toolsSettings.columns.config') }}</span>
+          </div>
+        </template>
         <div class="category-rows">
           <div v-for="tool in categoryTools" :key="tool.name" class="tool-wrapper">
-            <div class="tool-item"
+            <div class="tool-item tool-grid"
               :class="{ 'tool-disabled': hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) }">
               <div class="tool-info">
                 <div class="tool-name-row">
                   <span class="tool-name">{{ getToolDisplayName(tool.name) }}</span>
+                  <span v-if="isDangerousTool(tool.name)" class="danger-badge">
+                    <i class="codicon codicon-warning"></i>
+                    {{ t('components.settings.autoExec.badges.dangerous') }}
+                  </span>
+                  <span v-if="isMcpTool(tool)" class="mcp-badge">
+                    <i class="codicon codicon-plug"></i>
+                    {{ tool.serverName }}
+                  </span>
                   <!-- 依赖缺失标记 -->
                   <!-- <span v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
                     class="dependency-badge" :title="t('components.settings.toolsSettings.dependency.requiredTooltip')">
@@ -340,29 +477,46 @@ onMounted(() => {
                     {{ t('components.settings.toolsSettings.dependency.required') }}
                   </span> -->
                 </div>
-                <div class="tool-description">{{ tool.description }}</div>
+                <div class="tool-description" :title="tool.description">{{ tool.description }}</div>
               </div>
 
-              <div class="tool-actions">
-                <!-- 配置按钮 -->
-                <button v-if="hasConfigPanel(tool.name)" class="config-btn"
-                  :class="{ active: isConfigExpanded(tool.name) }" @click.stop="toggleConfigPanel(tool.name)"
-                  :title="t('components.settings.toolsSettings.config.tooltip')">
-                  <i class="codicon"
-                    :class="isConfigExpanded(tool.name) ? 'codicon-chevron-up' : 'codicon-settings-gear'"></i>
-                </button>
+              <!-- 启用列 -->
+              <div class="tool-toggle" :class="{
+                saving: savingTools.has(tool.name),
+                disabled: isMcpTool(tool) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))
+              }"
+                :title="isMcpTool(tool) ? t('components.settings.toolsSettings.mcpDisableTooltip') : (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) ? t('components.settings.toolsSettings.dependency.disabledTooltip') : '')">
+                <CustomCheckbox :modelValue="tool.enabled"
+                  :disabled="isMcpTool(tool) || savingTools.has(tool.name) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+                  @update:modelValue="(val: boolean) => toggleTool(tool.name, val)" />
+              </div>
 
-                <!-- 开关 -->
-                <div class="tool-toggle" :class="{
-                  saving: savingTools.has(tool.name),
-                  disabled: hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)
-                }"
-                  :title="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) ? t('components.settings.toolsSettings.dependency.disabledTooltip') : ''">
-                  <CustomCheckbox :modelValue="tool.enabled"
-                    :disabled="savingTools.has(tool.name) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
-                    @update:modelValue="(val: boolean) => toggleTool(tool.name, val)" />
+              <span class="col-divider"></span>
+
+              <!-- 执行列 -->
+              <div class="exec-cell" :class="{
+                disabled: (!isMcpTool(tool) && !tool.enabled) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))
+              }">
+                <div class="exec-toggle">
+                  <i class="codicon exec-icon" :class="isAutoExec(tool.name) ? 'codicon-arrow-up' : 'codicon-comment-discussion'"></i>
+                  <CustomCheckbox :modelValue="isAutoExec(tool.name)"
+                    :disabled="savingAutoExecTools.has(tool.name) || ((!isMcpTool(tool) && !tool.enabled) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)))"
+                    @update:modelValue="(val: boolean) => requestToggleAutoExec(tool.name, val)" />
                 </div>
+                <span class="exec-badge" :class="{ auto: isAutoExec(tool.name), confirm: !isAutoExec(tool.name) }">
+                  {{ isAutoExec(tool.name) ? t('components.settings.toolsSettings.exec.autoEnabled') : t('components.settings.autoExec.status.needConfirm') }}
+                </span>
               </div>
+
+              <!-- 配置列 -->
+              <button v-if="hasConfigPanel(tool.name)" class="config-btn"
+                :class="{ active: isConfigExpanded(tool.name) }" @click.stop="toggleConfigPanel(tool.name)"
+                :disabled="(!isMcpTool(tool) && !tool.enabled) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+                :title="t('components.settings.toolsSettings.config.tooltip')">
+                <i class="codicon"
+                  :class="isConfigExpanded(tool.name) ? 'codicon-chevron-up' : 'codicon-settings-gear'"></i>
+              </button>
+              <span v-else class="config-placeholder"></span>
             </div>
 
             <!-- 依赖缺失提示 -->
@@ -385,6 +539,29 @@ onMounted(() => {
         </div>
       </SettingsGroup>
     </div>
+
+    <!-- 危险工具开启自动执行二次确认 -->
+    <ConfirmDialog
+      v-model="confirmDangerDialogVisible"
+      :title="t('components.settings.toolsSettings.dangerConfirm.title')"
+      :message="t('components.settings.toolsSettings.dangerConfirm.message', { tool: confirmDangerDialogToolName })"
+      :confirm-text="t('components.settings.toolsSettings.dangerConfirm.confirm')"
+      :cancel-text="t('components.settings.toolsSettings.dangerConfirm.cancel')"
+      :is-danger="true"
+      @confirm="toggleAutoExec(confirmDangerDialogToolName, confirmDangerDialogNextValue)"
+    />
+
+    <!-- 批量开启自动执行（危险工具）确认 -->
+    <ConfirmDialog
+      v-model="confirmEnableDangerousAutoExecDialogVisible"
+      :title="t('components.settings.toolsSettings.enableAllDangerous.title')"
+      :message="t('components.settings.toolsSettings.enableAllDangerous.message')"
+      :confirm-text="t('components.settings.toolsSettings.enableAllDangerous.confirm')"
+      :cancel-text="t('components.settings.toolsSettings.enableAllDangerous.cancel')"
+      :is-danger="true"
+      @confirm="confirmEnableAllAutoExec(true)"
+      @cancel="confirmEnableAllAutoExec(false)"
+    />
   </div>
 </template>
 
@@ -393,6 +570,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  --lc-tools-col-enabled: 44px;
+  --lc-tools-col-auto: 88px;
+  --lc-tools-col-config: 28px;
+  --lc-tools-col-gap: 6px;
 }
 
 /* 全局配置 */
@@ -486,6 +667,12 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.action-divider {
+  width: 1px;
+  background: var(--vscode-panel-border);
+  margin: 0 2px;
+}
+
 .action-btn {
   display: flex;
   align-items: center;
@@ -537,10 +724,51 @@ onMounted(() => {
   gap: 12px;
 }
 
+.mcp-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--vscode-textBlockQuote-background);
+  border-left: 3px solid var(--vscode-textLink-foreground);
+  border-radius: 0 4px 4px 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.mcp-note .codicon {
+  color: var(--vscode-textLink-foreground);
+}
+
 .category-rows {
   border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
   border-radius: var(--lc-settings-radius-md, 6px);
   overflow: hidden;
+}
+
+.group-columns {
+  display: grid;
+  grid-template-columns: var(--lc-tools-col-enabled) 1px var(--lc-tools-col-auto) var(--lc-tools-col-config);
+  align-items: center;
+  gap: var(--lc-tools-col-gap);
+  padding-right: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.group-columns .col-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.group-columns .col-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--vscode-panel-border);
+  justify-self: stretch;
 }
 
 .tool-wrapper {
@@ -549,15 +777,18 @@ onMounted(() => {
 }
 
 .tool-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
   background: transparent;
   border: none;
   border-radius: 0;
   transition: background-color 0.15s;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr var(--lc-tools-col-enabled) 1px var(--lc-tools-col-auto) var(--lc-tools-col-config);
+  align-items: center;
+  gap: var(--lc-tools-col-gap);
+  padding: 8px 12px;
 }
 
 .tool-wrapper:not(:last-child) {
@@ -583,6 +814,39 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.danger-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--vscode-inputValidation-warningBackground);
+  color: var(--vscode-inputValidation-warningForeground);
+  border: 1px solid var(--vscode-inputValidation-warningBorder);
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.danger-badge .codicon {
+  font-size: 10px;
+}
+
+.mcp-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: rgba(var(--vscode-textLink-foreground), 0.1);
+  color: var(--vscode-textLink-foreground);
+  border: 1px solid var(--vscode-textLink-foreground);
+  border-radius: 4px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.mcp-badge .codicon {
+  font-size: 10px;
 }
 
 .tool-name {
@@ -613,8 +877,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   background: transparent;
   border: none;
   border-radius: var(--lc-settings-radius-sm, 4px);
@@ -628,6 +892,16 @@ onMounted(() => {
   color: var(--vscode-foreground);
 }
 
+.config-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.config-btn:disabled:hover {
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+}
+
 .config-btn.active {
   background: var(--vscode-button-secondaryBackground);
   border-color: var(--vscode-focusBorder);
@@ -635,12 +909,13 @@ onMounted(() => {
 }
 
 .config-btn .codicon {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* 开关样式 */
 .tool-toggle {
   flex-shrink: 0;
+  justify-self: center;
 }
 
 .tool-toggle.saving {
@@ -651,6 +926,85 @@ onMounted(() => {
 .tool-toggle.disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 未带 label 的勾选框：更紧凑且视觉居中 */
+.tool-toggle :deep(.checkbox-wrapper),
+.exec-toggle :deep(.checkbox-wrapper) {
+  align-items: center;
+}
+
+.tool-toggle :deep(.custom-checkbox),
+.exec-toggle :deep(.custom-checkbox) {
+  padding-left: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.tool-toggle :deep(.custom-checkbox .checkmark),
+.exec-toggle :deep(.custom-checkbox .checkmark) {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.col-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--vscode-panel-border);
+  justify-self: stretch;
+}
+
+.exec-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  gap: 4px;
+}
+
+.exec-cell.disabled {
+  opacity: 0.55;
+}
+
+.exec-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.exec-icon {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.exec-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.exec-badge.auto {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.exec-badge.confirm {
+  background: transparent;
+  border: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+}
+
+.config-placeholder {
+  width: 24px;
+  height: 24px;
+  justify-self: center;
 }
 
 /* 依赖相关样式 */

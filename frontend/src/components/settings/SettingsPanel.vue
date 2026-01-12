@@ -3,7 +3,6 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useSettingsStore, type SettingsTab } from '@/stores/settingsStore'
 import ChannelSettings from './ChannelSettings.vue'
 import ToolsSettings from './ToolsSettings.vue'
-import AutoExecSettings from './AutoExecSettings.vue'
 import McpSettings from './McpSettings.vue'
 import CheckpointSettings from './CheckpointSettings.vue'
 import SummarizeSettings from './SummarizeSettings.vue'
@@ -55,7 +54,6 @@ const languageOptions = computed<SelectOption[]>(() => SUPPORTED_LANGUAGES.map(l
 const tabs = computed<TabItem[]>(() => [
   { id: 'channel', label: t('components.settings.tabs.channel'), icon: 'codicon-server' },
   { id: 'tools', label: t('components.settings.tabs.tools'), icon: 'codicon-tools' },
-  { id: 'autoExec', label: t('components.settings.tabs.autoExec'), icon: 'codicon-shield' },
   { id: 'mcp', label: t('components.settings.tabs.mcp'), icon: 'codicon-plug' },
   { id: 'checkpoint', label: t('components.settings.tabs.checkpoint'), icon: 'codicon-history' },
   { id: 'summarize', label: t('components.settings.tabs.summarize'), icon: 'codicon-fold' },
@@ -370,14 +368,6 @@ onMounted(() => {
             <p class="settings-description">{{ t('components.settings.settingsPanel.sections.tools.description') }}</p>
             
             <ToolsSettings />
-          </div>
-          
-          <!-- 自动执行设置 -->
-          <div v-if="settingsStore.activeTab === 'autoExec'" class="settings-section">
-            <h4>{{ t('components.settings.settingsPanel.sections.autoExec.title') }}</h4>
-            <p class="settings-description">{{ t('components.settings.settingsPanel.sections.autoExec.description') }}</p>
-            
-            <AutoExecSettings />
           </div>
           
           <!-- MCP 设置 -->
