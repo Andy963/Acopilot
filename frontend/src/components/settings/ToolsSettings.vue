@@ -570,10 +570,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  --lc-tools-col-enabled: 56px;
-  --lc-tools-col-auto: 120px;
+  --lc-tools-col-enabled: 52px;
+  --lc-tools-col-auto: 104px;
   --lc-tools-col-config: 36px;
-  --lc-tools-col-gap: 10px;
+  --lc-tools-col-gap: 8px;
 }
 
 /* 全局配置 */
