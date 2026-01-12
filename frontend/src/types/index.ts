@@ -158,6 +158,12 @@ export interface Content {
   thoughtsTokenCount?: number
   /** @deprecated 使用 usageMetadata.candidatesTokenCount */
   candidatesTokenCount?: number
+  /**
+   * Context Inspector 上下文快照（仅助手消息有值）
+   *
+   * 用于解释本次请求注入了哪些上下文/发生了哪些裁剪。
+   */
+  contextSnapshot?: ContextInspectorData
 }
 
 /**
@@ -253,6 +259,12 @@ export interface MessageMetadata {
   thoughtsTokenCount?: number
   /** @deprecated 使用 usageMetadata.candidatesTokenCount */
   candidatesTokenCount?: number
+  /**
+   * Context Inspector 上下文快照（仅助手消息有值）
+   *
+   * 用于解释本次请求注入了哪些上下文/发生了哪些裁剪。
+   */
+  contextSnapshot?: ContextInspectorData
   [key: string]: any
 }
 
@@ -468,6 +480,46 @@ export interface StreamChunk {
   pendingToolCalls?: PendingToolCall[]
   /** 标记工具即将开始执行（用于在工具执行前先发送计时信息） */
   toolsExecuting?: boolean
+}
+
+// ============ Context Inspector ============
+
+export interface ContextInspectorModule {
+  title: string
+  contentPreview: string
+  charCount: number
+  truncated: boolean
+}
+
+export interface ContextInspectorTools {
+  toolMode: 'function_call' | 'xml' | 'json'
+  total: number
+  mcp: number
+  definitionPreview?: string
+  definitionCharCount?: number
+  definitionTruncated?: boolean
+}
+
+export interface ContextInspectorTrim {
+  fullHistoryCount: number
+  trimmedHistoryCount: number
+  trimStartIndex: number
+  lastSummaryIndex: number
+  effectiveStartIndex: number
+}
+
+export interface ContextInspectorData {
+  generatedAt: number
+  conversationId?: string
+  configId: string
+  providerType: string
+  model: string
+  tools: ContextInspectorTools
+  systemInstructionPreview: string
+  systemInstructionCharCount: number
+  systemInstructionTruncated: boolean
+  modules: ContextInspectorModule[]
+  trim?: ContextInspectorTrim
 }
 
 // ============ 错误类型 ============

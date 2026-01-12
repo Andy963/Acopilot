@@ -31,6 +31,7 @@ const ja: LanguageMessages = {
         no: 'いいえ',
         ok: 'OK',
         copy: 'コピー',
+        copied: 'コピーしました',
         paste: '貼り付け',
         reset: 'リセット',
         default: 'デフォルト',
@@ -81,6 +82,7 @@ const ja: LanguageMessages = {
         pending: '保留中',
         completed: '完了',
         failed: '失敗',
+        truncated: '切り詰め',
         unknown: '不明'
     },
 
@@ -165,6 +167,28 @@ const ja: LanguageMessages = {
                 copyCode: 'コードをコピー',
                 copied: 'コピーしました',
                 imageLoadFailed: '画像の読み込みに失敗しました'
+            },
+            contextInspectorModal: {
+                title: 'コンテキストインスペクター',
+                titleUsed: '使用されたコンテキスト',
+                noData: 'コンテキストデータがありません',
+                copyDebug: 'デバッグ情報をコピー',
+                trim: {
+                    title: 'コンテキストのトリム',
+                    fullHistory: '履歴メッセージ数',
+                    trimmedHistory: '送信メッセージ数',
+                    trimStartIndex: 'トリム開始インデックス',
+                    lastSummaryIndex: '最後の要約インデックス'
+                },
+                tools: {
+                    title: 'ツール定義'
+                },
+                modules: {
+                    title: 'システムプロンプトのセクション'
+                },
+                raw: {
+                    title: 'システム指示 (Raw)'
+                }
             }
         },
 
@@ -295,7 +319,8 @@ const ja: LanguageMessages = {
             stats: {
                 responseDuration: '応答時間',
                 tokenRate: 'トークン速度',
-                finishReason: '終了理由'
+                finishReason: '終了理由',
+                contextUsed: '使用したコンテキスト'
             },
             thought: {
                 thinking: '考え中...',

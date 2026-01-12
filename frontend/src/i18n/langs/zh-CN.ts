@@ -31,6 +31,7 @@ const zhCN: LanguageMessages = {
         no: '否',
         ok: '确定',
         copy: '复制',
+        copied: '已复制',
         paste: '粘贴',
         reset: '重置',
         default: '默认',
@@ -81,6 +82,7 @@ const zhCN: LanguageMessages = {
         pending: '等待中',
         completed: '已完成',
         failed: '失败',
+        truncated: '已截断',
         unknown: '未知'
     },
 
@@ -165,6 +167,28 @@ const zhCN: LanguageMessages = {
                 copyCode: '复制代码',
                 copied: '已复制',
                 imageLoadFailed: '图片加载失败'
+            },
+            contextInspectorModal: {
+                title: '上下文检查器',
+                titleUsed: '本条回复使用的上下文',
+                noData: '暂无上下文数据',
+                copyDebug: '复制调试信息',
+                trim: {
+                    title: '上下文裁剪',
+                    fullHistory: '历史消息数',
+                    trimmedHistory: '发送消息数',
+                    trimStartIndex: '裁剪起点索引',
+                    lastSummaryIndex: '最后总结索引'
+                },
+                tools: {
+                    title: '工具定义预览'
+                },
+                modules: {
+                    title: '系统提示词分段'
+                },
+                raw: {
+                    title: '系统指令（Raw）'
+                }
             }
         },
 
@@ -295,7 +319,8 @@ const zhCN: LanguageMessages = {
             stats: {
                 responseDuration: '响应时间',
                 tokenRate: 'Token 速率',
-                finishReason: '结束原因'
+                finishReason: '结束原因',
+                contextUsed: '使用的上下文'
             },
             thought: {
                 thinking: '正在思考...',

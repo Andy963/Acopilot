@@ -281,6 +281,49 @@ export interface UsageMetadata {
 }
 
 /**
+ * Context Inspector - 上下文快照（用于 UI 解释/调试）
+ *
+ * 注意：这是持久化数据，会随对话历史一起写入磁盘，建议仅保存“预览/截断”内容，避免过度膨胀。
+ */
+export interface ContextSnapshotModule {
+    title: string;
+    contentPreview: string;
+    charCount: number;
+    truncated: boolean;
+}
+
+export interface ContextSnapshotTools {
+    toolMode: 'function_call' | 'xml' | 'json';
+    total: number;
+    mcp: number;
+    definitionPreview?: string;
+    definitionCharCount?: number;
+    definitionTruncated?: boolean;
+}
+
+export interface ContextSnapshotTrim {
+    fullHistoryCount: number;
+    trimmedHistoryCount: number;
+    trimStartIndex: number;
+    lastSummaryIndex: number;
+    effectiveStartIndex: number;
+}
+
+export interface ContextSnapshot {
+    generatedAt: number;
+    conversationId?: string;
+    configId: string;
+    providerType: string;
+    model: string;
+    tools: ContextSnapshotTools;
+    systemInstructionPreview: string;
+    systemInstructionCharCount: number;
+    systemInstructionTruncated: boolean;
+    modules: ContextSnapshotModule[];
+    trim?: ContextSnapshotTrim;
+}
+
+/**
  * Gemini Content（消息内容）
  *
  * Gemini API 的标准消息格式
@@ -460,6 +503,13 @@ export interface Content {
      * @deprecated 使用 usageMetadata.candidatesTokenCount 代替
      */
     candidatesTokenCount?: number;
+
+    /**
+     * 上下文快照（仅 model 消息有值）
+     *
+     * 用于在 UI 中解释“本次请求注入了哪些上下文/发生了哪些裁剪”。
+     */
+    contextSnapshot?: ContextSnapshot;
 }
 
 /**

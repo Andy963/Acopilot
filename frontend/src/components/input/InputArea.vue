@@ -1151,7 +1151,7 @@ watch(pinPanelTab, (tab) => {
 
         <div class="composer-footer-actions">
           <!-- Token 使用量圆环 -->
-          <div class="token-ring-wrapper">
+          <div class="token-ring-wrapper" @click="chatStore.openContextInspectorPreview()">
             <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
               <!-- 背景圆环 -->
               <circle
@@ -1440,7 +1440,7 @@ watch(pinPanelTab, (tab) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: default;
+  cursor: pointer;
 }
 
 .token-ring {

@@ -3,7 +3,7 @@
  */
 
 import type { Ref, ComputedRef } from 'vue'
-import type { Message, ErrorInfo, CheckpointRecord } from '../../types'
+import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData } from '../../types'
 
 // 重新导出类型以供其他模块使用
 export type { CheckpointRecord } from '../../types'
@@ -122,6 +122,17 @@ export interface ChatStoreState {
   workspaceFilter: Ref<WorkspaceFilter>
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
+
+  /** Context Inspector 弹窗是否显示 */
+  contextInspectorVisible: Ref<boolean>
+  /** Context Inspector 弹窗是否加载中 */
+  contextInspectorLoading: Ref<boolean>
+  /** Context Inspector 当前数据 */
+  contextInspectorData: Ref<ContextInspectorData | null>
+  /** Context Inspector 错误信息 */
+  contextInspectorError: Ref<string | null>
+  /** Context Inspector 数据来源 */
+  contextInspectorSource: Ref<'preview' | 'message'>
 }
 
 /**

@@ -26,7 +26,7 @@
  */
 
 import { defineStore } from 'pinia'
-import type { Attachment, StreamChunk } from '../types'
+import type { Attachment, StreamChunk, ContextInspectorData } from '../types'
 import { sendToExtension, onMessageFromExtension } from '../utils/vscode'
 
 // 导入模块
@@ -92,6 +92,11 @@ import {
 
 import type { PinnedPromptState } from './chat/types'
 import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
+import {
+  closeContextInspector as closeContextInspectorFn,
+  openContextInspectorPreview as openContextInspectorPreviewFn,
+  openContextInspectorWithData as openContextInspectorWithDataFn
+} from './chat/contextInspectorActions'
 
 // 重新导出类型
 export type { Conversation, WorkspaceFilter } from './chat/types'
@@ -165,6 +170,12 @@ export const useChatStore = defineStore('chat', () => {
     restoreAndEditFn(state, messageIndex, newContent, attachments, checkpointId, computed.currentModelName.value, cancelStream)
   const summarizeContext = () => summarizeContextFn(state, () => loadHistory(state))
 
+  // ============ Context Inspector ============
+
+  const openContextInspectorPreview = () => openContextInspectorPreviewFn(state)
+  const openContextInspectorWithData = (data: ContextInspectorData) => openContextInspectorWithDataFn(state, data)
+  const closeContextInspector = () => closeContextInspectorFn(state)
+
   // ============ 流式处理 ============
   
   function handleStreamChunkWrapper(chunk: StreamChunk): void {
@@ -221,6 +232,13 @@ export const useChatStore = defineStore('chat', () => {
     isWaitingForResponse: state.isWaitingForResponse,
     retryStatus: state.retryStatus,
     error: state.error,
+
+    // Context Inspector
+    contextInspectorVisible: state.contextInspectorVisible,
+    contextInspectorLoading: state.contextInspectorLoading,
+    contextInspectorData: state.contextInspectorData,
+    contextInspectorError: state.contextInspectorError,
+    contextInspectorSource: state.contextInspectorSource,
     
     // 计算属性
     currentConversation: computed.currentConversation,
@@ -255,6 +273,11 @@ export const useChatStore = defineStore('chat', () => {
     deleteMessage,
     deleteSingleMessage,
     clearMessages,
+
+    // Context Inspector
+    openContextInspectorPreview,
+    openContextInspectorWithData,
+    closeContextInspector,
     
     // 配置管理
     setConfigId,

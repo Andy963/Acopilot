@@ -9,7 +9,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import MessageActions from './MessageActions.vue'
 import ToolMessage from './ToolMessage.vue'
 import MessageAttachments from './MessageAttachments.vue'
-import { MarkdownRenderer, RetryDialog, EditDialog } from '../common'
+import { MarkdownRenderer, RetryDialog, EditDialog, IconButton } from '../common'
 import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
 import { formatModelName, formatTime } from '../../utils/format'
 import { useChatStore } from '../../stores/chatStore'
@@ -397,6 +397,8 @@ const hasUsage = computed(() =>
   (usageMetadata.value.totalTokenCount || usageMetadata.value.promptTokenCount || usageMetadata.value.candidatesTokenCount)
 )
 
+const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
+
 function formatTokenCount(count: number | undefined): string {
   if (count === undefined) return ''
   if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
@@ -500,6 +502,13 @@ function handleRetry() {
 
 function handleRestoreAndRetry(checkpointId: string) {
   emit('restoreAndRetry', props.message.id, checkpointId)
+}
+
+function handleOpenContextUsed() {
+  const snapshot = props.message.metadata?.contextSnapshot
+  if (snapshot) {
+    chatStore.openContextInspectorWithData(snapshot)
+  }
 }
 
 </script>
@@ -692,6 +701,13 @@ function handleRestoreAndRetry(checkpointId: string) {
           </div>
 
           <div class="message-footer-right">
+            <IconButton
+              v-if="!isUser && !isTool && hasContextSnapshot"
+              icon="codicon-eye"
+              size="small"
+              :tooltip="t('components.message.stats.contextUsed')"
+              @click="handleOpenContextUsed"
+            />
             <MessageActions
               v-if="showActions"
               :message="message"

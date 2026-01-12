@@ -33,6 +33,26 @@ export const updateContextAwarenessConfig: MessageHandler = async (data, request
 };
 
 /**
+ * 获取 Context Inspector 预览数据
+ */
+export const getContextInspectorData: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const { conversationId, configId } = data || {};
+    const result = await ctx.chatHandler.handleGetContextInspectorData({
+      conversationId,
+      configId
+    });
+    ctx.sendResponse(requestId, result);
+  } catch (error: any) {
+    ctx.sendError(
+      requestId,
+      'GET_CONTEXT_INSPECTOR_DATA_ERROR',
+      error.message || t('webview.errors.getContextAwarenessConfigFailed')
+    );
+  }
+};
+
+/**
  * 获取打开的标签页
  */
 export const getOpenTabs: MessageHandler = async (data, requestId, ctx) => {
@@ -230,6 +250,7 @@ export const getWorkspaceDiagnostics: MessageHandler = async (data, requestId, c
 export function registerContextHandlers(registry: Map<string, MessageHandler>): void {
   registry.set('getContextAwarenessConfig', getContextAwarenessConfig);
   registry.set('updateContextAwarenessConfig', updateContextAwarenessConfig);
+  registry.set('getContextInspectorData', getContextInspectorData);
   registry.set('getOpenTabs', getOpenTabs);
   registry.set('getActiveEditor', getActiveEditor);
   registry.set('getDiagnosticsConfig', getDiagnosticsConfig);
