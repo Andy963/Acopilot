@@ -261,6 +261,92 @@ export const openWorkspaceFile: MessageHandler = async (data, requestId, ctx) =>
   }
 };
 
+async function resolveWorkspaceFileUri(filePath: string): Promise<vscode.Uri> {
+  if (!filePath) {
+    throw new Error('path is required');
+  }
+
+  if (filePath.startsWith('file://')) {
+    return vscode.Uri.parse(filePath);
+  }
+
+  if (path.isAbsolute(filePath)) {
+    return vscode.Uri.file(filePath);
+  }
+
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    throw new Error(t('webview.errors.noWorkspaceOpen'));
+  }
+
+  const normalized = filePath.replace(/\\/g, '/');
+
+  // 支持 multi-root：workspace_name/path 前缀
+  for (const folder of workspaceFolders) {
+    const prefix = `${folder.name}/`;
+    if (normalized.startsWith(prefix)) {
+      return vscode.Uri.joinPath(folder.uri, normalized.slice(prefix.length));
+    }
+  }
+
+  // 尝试在所有工作区下查找该相对路径
+  for (const folder of workspaceFolders) {
+    const candidate = vscode.Uri.joinPath(folder.uri, normalized);
+    try {
+      const stat = await vscode.workspace.fs.stat(candidate);
+      if (stat.type === vscode.FileType.File) {
+        return candidate;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 回退到第一个工作区（保持与 openWorkspaceFile 行为一致）
+  return vscode.Uri.joinPath(workspaceFolders[0].uri, normalized);
+}
+
+export const openWorkspaceFileAtLocation: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const filePath = String(data?.path || '').trim();
+    const line = Number(data?.line);
+    const column = data?.column === undefined ? 1 : Number(data?.column);
+
+    if (!filePath) {
+      throw new Error('path is required');
+    }
+    if (!Number.isFinite(line) || line <= 0) {
+      throw new Error('line must be a positive number');
+    }
+    if (!Number.isFinite(column) || column <= 0) {
+      throw new Error('column must be a positive number');
+    }
+
+    const fileUri = await resolveWorkspaceFileUri(filePath);
+
+    try {
+      await vscode.workspace.fs.stat(fileUri);
+    } catch {
+      throw new Error(t('webview.errors.fileNotExists'));
+    }
+
+    const doc = await vscode.workspace.openTextDocument(fileUri);
+    const editor = await vscode.window.showTextDocument(doc, { preview: false });
+
+    const lineIndex = Math.min(Math.max(line - 1, 0), Math.max(0, doc.lineCount - 1));
+    const lineText = doc.lineAt(lineIndex).text;
+    const colIndex = Math.min(Math.max(column - 1, 0), lineText.length);
+
+    const pos = new vscode.Position(lineIndex, colIndex);
+    editor.selection = new vscode.Selection(pos, pos);
+    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+
+    ctx.sendResponse(requestId, { success: true });
+  } catch (error: any) {
+    ctx.sendError(requestId, 'OPEN_WORKSPACE_FILE_AT_LOCATION_ERROR', error.message || t('webview.errors.openFileFailed'));
+  }
+};
+
 export const saveImageToPath: MessageHandler = async (data, requestId, ctx) => {
   try {
     const { data: base64Data, path: imgPath } = data;
@@ -471,6 +557,7 @@ export function registerFileHandlers(registry: Map<string, MessageHandler>): voi
   registry.set('previewAttachment', previewAttachment);
   registry.set('readWorkspaceImage', readWorkspaceImage);
   registry.set('openWorkspaceFile', openWorkspaceFile);
+  registry.set('openWorkspaceFileAtLocation', openWorkspaceFileAtLocation);
   registry.set('saveImageToPath', saveImageToPath);
   
   // 对话文件
