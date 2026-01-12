@@ -2,6 +2,14 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.42] - 2026-01-12
+
+### Added
+  - Skills 支持从 GitHub URL 一键安装（安装到当前项目 `.codex/skills/`，并自动导入到 Skills 列表）
+
+### Improved
+  - 兼容部分第三方 skill 仓库脚本引用路径（自动修正 SKILL.md 中 `.codex/scripts` 到 `.codex/skills/<skill>/scripts`）
+  - 支持通过 `GITHUB_TOKEN`/`GH_TOKEN` 访问私有仓库（如需要）
 
 ## [1.0.41] - 2026-01-12
 
