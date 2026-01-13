@@ -15,10 +15,8 @@
 - `feature/fix-gemini-duplicate-responses` → Bugfix：Gemini 重复回答（history role 归一化）
 - （历史）`feature/skills-install-url` → P2：支持通过 URL 安装 skill（GitHub 仓库）
 - （历史）`feature/skills-in-prompt` → P2：Prompt 页支持选择 skill / 自定义 prompt（仅对当前对话生效）
-
-## Branch ↔ TODO 映射（开发中/待合并）
-
 - `feature/context-inspector-injection-details` → P0/上下文：Pinned Files / Skills / 附件 的实际注入明细（Context Inspector）
+- `feature/context-token-breakdown` → P0/上下文：按模块粗略 token 占用拆分（Context Inspector）
 
 ## P0（最影响体验，优先做）
 
@@ -28,7 +26,7 @@
     - [x] 工具声明/工具定义预览（含 MCP 数量统计；xml/json 模式展示 definition）
     - [x] 历史裁剪信息展示（full/trimmed/trimStartIndex/lastSummaryIndex）
     - [x] Pinned Files / Skills / 附件 的实际注入明细
-    - [ ] 按模块粗略 token 占用拆分（而非仅总占用百分比）
+    - [x] 按模块粗略 token 占用拆分（而非仅总占用百分比）
   - [ ] 对话内落一条可折叠的 `Context Used / Context Trimmed` 摘要，支持复制调试信息用于复现问题。
     - [x] 每条助手消息保存 `Context Used` 快照（按钮打开弹窗查看）
     - [x] 支持复制调试信息（Copy debug info）
