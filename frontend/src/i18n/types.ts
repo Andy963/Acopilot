@@ -88,6 +88,9 @@ export interface LanguageMessages {
         create: string;
         update: string;
         apply: string;
+        undo: string;
+        stage: string;
+        unstage: string;
         install: string;
         uninstall: string;
         start: string;

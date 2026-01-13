@@ -8,6 +8,7 @@
 - `feature/checkpoint-write-file` → P0/可靠性：工具执行前 checkpoint + Restore checkpoint
 - `feature/validation-presets` → P0/可靠性：改动后校验提示卡片（build/test/lint presets）+ 结果回写对话
 - `feature/auto-locate-next-step` → P0/可靠性：`execute_command` 失败一键跳到首个报错位置
+- `feature/diff-patch-workflow` → P0/差异：diff hunk 级 apply/undo、冲突提示、git status + stage/unstage（apply_diff/write_file）
 - `feature/plan-runner` → P1/Plan：Plan & Run（逐步执行、暂停/继续/取消、状态持久化恢复）
 - `feature/plan-runner-plan-attachments` → P1/Plan：步骤级图片附件注入
 - `feature/plan-runner-step-rerun-icon` → P1/Plan：步骤级重执行（refresh icon）
@@ -39,9 +40,9 @@
     - [x] `execute_command` 输出识别 `path:line:col` 并支持一键跳转
     - [ ] 基于错误类型给出建议的下一条命令
 
-- [ ] **差异/补丁工作流不够顺滑**
-  - [ ] 更强的 diff 审阅体验（分块/hunk 级 apply/undo、冲突提示）。
-  - [ ] 与 git 联动的最小化操作（仅展示本次改动文件、可选 stage/unstage）。
+- [x] **差异/补丁工作流不够顺滑**
+  - [x] 更强的 diff 审阅体验（分块/hunk 级 apply/undo、冲突提示）。
+  - [x] 与 git 联动的最小化操作（仅展示本次改动文件、可选 stage/unstage）。
 
 ## P1（明显增益，但需要一定设计/工程投入）
 
