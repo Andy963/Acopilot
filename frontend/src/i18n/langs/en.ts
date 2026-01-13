@@ -180,7 +180,9 @@ const en: LanguageMessages = {
                     title: 'Injected Context',
                     pinnedFiles: 'Pinned Files',
                     pinnedPrompt: 'Pinned Prompt',
-                    attachments: 'Attachments'
+                    attachments: 'Attachments',
+                    missing: 'missing',
+                    pinnedPromptCustom: 'Custom ({count} chars)'
                 },
                 trim: {
                     title: 'Context Trim',

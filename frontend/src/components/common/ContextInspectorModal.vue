@@ -89,7 +89,7 @@ const pinnedPromptSummary = computed(() => {
 
   if (p.mode === 'custom') {
     const count = typeof p.customPromptCharCount === 'number' ? p.customPromptCharCount : 0
-    return `custom (${count} chars)`
+    return t('components.common.contextInspectorModal.injected.pinnedPromptCustom', { count })
   }
 
   return ''
@@ -99,7 +99,7 @@ const pinnedFilesListText = computed(() => {
   const pf = props.data?.injected?.pinnedFiles
   if (!pf || !Array.isArray(pf.files) || pf.files.length === 0) return ''
   return pf.files
-    .map(f => `${f.path}${f.included === false ? ' (missing)' : ''}`)
+    .map(f => `${f.path}${f.included === false ? ` (${t('components.common.contextInspectorModal.injected.missing')})` : ''}`)
     .join('\n')
 })
 

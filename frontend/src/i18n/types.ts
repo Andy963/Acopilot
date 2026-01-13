@@ -201,6 +201,8 @@ export interface LanguageMessages {
                     pinnedFiles: string;
                     pinnedPrompt: string;
                     attachments: string;
+                    missing: string;
+                    pinnedPromptCustom: string;
                 };
                 trim: {
                     title: string;

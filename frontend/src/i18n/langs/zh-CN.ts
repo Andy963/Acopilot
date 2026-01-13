@@ -180,7 +180,9 @@ const zhCN: LanguageMessages = {
                     title: '注入明细',
                     pinnedFiles: '固定文件',
                     pinnedPrompt: '固定提示词',
-                    attachments: '附件'
+                    attachments: '附件',
+                    missing: '缺失',
+                    pinnedPromptCustom: '自定义（{count} 字符）'
                 },
                 trim: {
                     title: '上下文裁剪',
