@@ -50,6 +50,10 @@ function stepClass(step: PlanRunnerStep): string {
   return step.status
 }
 
+function attachmentAlias(stepIndex: number, attachmentIndex: number): string {
+  return `S${stepIndex + 1}A${attachmentIndex + 1}`
+}
+
 const canStart = computed(() => plan.value && (plan.value.status === 'idle' || plan.value.status === 'paused'))
 const canPause = computed(() => plan.value && plan.value.status === 'running')
 const canCancel = computed(() => plan.value && (plan.value.status === 'running' || plan.value.status === 'paused'))
@@ -133,7 +137,14 @@ async function handleRerunStep(idx: number) {
     </div>
 
     <div v-if="expanded" class="plan-body">
-      <div v-if="plan.goal" class="plan-goal">{{ plan.goal }}</div>
+      <div v-if="plan.goal" class="plan-meta">
+        <span class="plan-meta-label">{{ t('components.planRunner.goalLabel') }}:</span>
+        <span class="plan-meta-text">{{ plan.goal }}</span>
+      </div>
+      <div v-if="plan.acceptanceCriteria" class="plan-meta">
+        <span class="plan-meta-label">{{ t('components.planRunner.acceptanceCriteriaLabel') }}:</span>
+        <span class="plan-meta-text">{{ plan.acceptanceCriteria }}</span>
+      </div>
 
       <div class="plan-steps">
         <div
@@ -142,26 +153,43 @@ async function handleRerunStep(idx: number) {
           class="plan-step"
           :class="stepClass(step)"
         >
-          <span class="step-index">{{ idx + 1 }}.</span>
-          <i
-            class="codicon step-icon"
-            :class="[stepIcon(step), { 'codicon-modifier-spin': step.status === 'running' }]"
-          ></i>
-          <span class="step-title">{{ step.title }}</span>
+          <div class="step-row">
+            <span class="step-index">{{ idx + 1 }}.</span>
+            <i
+              class="codicon step-icon"
+              :class="[stepIcon(step), { 'codicon-modifier-spin': step.status === 'running' }]"
+            ></i>
+            <span class="step-title">{{ step.title }}</span>
 
-          <div class="step-right">
-            <span v-if="idx === plan.currentStepIndex" class="step-current">
-              {{ t('components.planRunner.current') }}
-            </span>
-            <span v-if="step.error" class="step-error" :title="step.error">{{ step.error }}</span>
-            <button
-              class="step-icon-btn"
-              :disabled="!canRerunStep(idx)"
-              :title="t('components.planRunner.actions.rerunStep')"
-              @click.stop="handleRerunStep(idx)"
-            >
-              <i class="codicon codicon-refresh"></i>
-            </button>
+            <div class="step-right">
+              <span v-if="idx === plan.currentStepIndex" class="step-current">
+                {{ t('components.planRunner.current') }}
+              </span>
+              <span v-if="step.error" class="step-error" :title="step.error">{{ step.error }}</span>
+              <button
+                class="step-icon-btn"
+                :disabled="!canRerunStep(idx)"
+                :title="t('components.planRunner.actions.rerunStep')"
+                @click.stop="handleRerunStep(idx)"
+              >
+                <i class="codicon codicon-refresh"></i>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="step.attachments && step.attachments.length > 0" class="step-attachments-row">
+            <span class="attachments-label">{{ t('components.planRunner.attachmentsLabel') }}:</span>
+            <div class="attachments-chips">
+              <span
+                v-for="(att, aIdx) in step.attachments"
+                :key="att.id"
+                class="attachment-chip"
+                :title="att.name"
+              >
+                <code class="attachment-alias">{{ attachmentAlias(idx, aIdx) }}</code>
+                <span class="attachment-name">{{ att.name }}</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -248,10 +276,18 @@ async function handleRerunStep(idx: number) {
   gap: 10px;
 }
 
-.plan-goal {
+.plan-meta {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
   white-space: pre-wrap;
+}
+
+.plan-meta-label {
+  color: var(--vscode-descriptionForeground);
+}
+
+.plan-meta-text {
+  color: var(--vscode-foreground);
 }
 
 .plan-steps {
@@ -262,8 +298,9 @@ async function handleRerunStep(idx: number) {
 
 .plan-step {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 6px 8px;
   border-radius: 6px;
 }
@@ -278,6 +315,12 @@ async function handleRerunStep(idx: number) {
 
 .plan-step.error {
   background: rgba(255, 0, 0, 0.06);
+}
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .step-index {
@@ -307,6 +350,51 @@ async function handleRerunStep(idx: number) {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.step-attachments-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 44px;
+  flex-wrap: wrap;
+}
+
+.attachments-label {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.attachments-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--vscode-panel-border);
+  background: rgba(127, 127, 127, 0.04);
+  max-width: 100%;
+}
+
+.attachment-alias {
+  font-size: 10px;
+  color: var(--vscode-textLink-foreground);
+}
+
+.attachment-name {
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
 }
 
 .step-current {

@@ -16,6 +16,10 @@
 - （历史）`feature/skills-install-url` → P2：支持通过 URL 安装 skill（GitHub 仓库）
 - （历史）`feature/skills-in-prompt` → P2：Prompt 页支持选择 skill / 自定义 prompt（仅对当前对话生效）
 
+## Branch ↔ TODO 映射（待合并）
+
+- `feature/plan-only-acceptance-alias` → P1/Plan：Plan Only（验收标准字段 + 附件 alias 映射展示）
+
 ## P0（最影响体验，优先做）
 
 - [ ] **上下文可控性与可解释性不足**
@@ -47,10 +51,10 @@
 ## P1（明显增益，但需要一定设计/工程投入）
 
 - [ ] **多步任务控制面薄弱（Plan/执行/恢复）**
-  - [ ] 先做 `Plan Only`：生成可审阅计划卡片（步骤、验收标准、附件 alias 映射）。
+  - [x] 先做 `Plan Only`：生成可审阅计划卡片（步骤、验收标准、附件 alias 映射）。
     - [x] 支持创建/编辑 plan（title/goal/steps/instruction）
-    - [ ] 验收标准字段
-    - [ ] 附件 alias 映射展示
+    - [x] 验收标准字段
+    - [x] 附件 alias 映射展示
   - [x] 再做 `Plan & Run`：PlanRunner 逐步执行、暂停/继续/取消、游标恢复（重启 VS Code 也能继续）。
     - [x] 面板：Start/Resume、Pause、Cancel、Clear
     - [x] 状态持久化到对话 metadata（重启后可继续）

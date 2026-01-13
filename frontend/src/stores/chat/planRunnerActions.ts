@@ -22,6 +22,7 @@ let loopInProgress = false
 export interface PlanRunnerCreateInput {
   title: string
   goal?: string
+  acceptanceCriteria?: string
   steps: Array<{
     title: string
     instruction: string
@@ -122,6 +123,7 @@ function normalizeLoadedPlanRunner(raw: unknown): PlanRunnerData | null {
     id: asString((raw as any).id || `plan_${generateId()}`),
     title: asString((raw as any).title || 'Plan').trim() || 'Plan',
     goal: typeof (raw as any).goal === 'string' ? (raw as any).goal : undefined,
+    acceptanceCriteria: typeof (raw as any).acceptanceCriteria === 'string' ? (raw as any).acceptanceCriteria : undefined,
     createdAt: typeof (raw as any).createdAt === 'number' ? (raw as any).createdAt : Date.now(),
     status: status === 'running' ? 'paused' : status,
     currentStepIndex: Math.max(0, Math.min(currentStepIndex, steps.length)),
@@ -179,6 +181,7 @@ export async function loadPlanRunnerState(state: ChatStoreState): Promise<void> 
 export async function createPlanRunner(state: ChatStoreState, input: PlanRunnerCreateInput): Promise<void> {
   const title = asString(input.title).trim()
   const goal = typeof input.goal === 'string' ? input.goal.trim() : undefined
+  const acceptanceCriteria = typeof input.acceptanceCriteria === 'string' ? input.acceptanceCriteria.trim() : undefined
 
   const steps: PlanRunnerStep[] = (Array.isArray(input.steps) ? input.steps : [])
     .map(s => ({
@@ -196,6 +199,7 @@ export async function createPlanRunner(state: ChatStoreState, input: PlanRunnerC
     id: `plan_${generateId()}`,
     title,
     goal: goal || undefined,
+    acceptanceCriteria: acceptanceCriteria || undefined,
     createdAt: Date.now(),
     status: 'idle',
     currentStepIndex: 0,
@@ -238,7 +242,34 @@ export async function cancelPlanRunner(state: ChatStoreState, computed: ChatStor
 
 function buildStepPrompt(plan: PlanRunnerData, stepIndex: number, step: PlanRunnerStep): string {
   const header = `PlanRunner Step ${stepIndex + 1}/${plan.steps.length}: ${step.title}`
-  return `${header}\n\n${step.instruction}`
+
+  const contextLines: string[] = []
+  if (plan.title) contextLines.push(`Plan: ${plan.title}`)
+  if (plan.goal) contextLines.push(`Goal: ${plan.goal}`)
+  if (plan.acceptanceCriteria) contextLines.push(`Acceptance: ${plan.acceptanceCriteria}`)
+
+  const attachments = Array.isArray(step.attachments) ? step.attachments : []
+  const attachmentLines: string[] = []
+  if (attachments.length > 0) {
+    attachmentLines.push('Attachments:')
+    for (let i = 0; i < attachments.length; i++) {
+      const att = attachments[i]
+      const alias = `S${stepIndex + 1}A${i + 1}`
+      const mime = att?.mimeType ? ` (${att.mimeType})` : ''
+      attachmentLines.push(`- [${alias}] ${att?.name || 'attachment'}${mime}`)
+    }
+  }
+
+  const blocks: string[] = [header]
+  if (contextLines.length > 0) {
+    blocks.push('', ...contextLines)
+  }
+  if (attachmentLines.length > 0) {
+    blocks.push('', ...attachmentLines)
+  }
+  blocks.push('', step.instruction)
+
+  return blocks.join('\n')
 }
 
 async function waitForResponseDone(state: ChatStoreState): Promise<void> {
