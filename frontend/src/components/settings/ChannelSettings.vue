@@ -961,7 +961,7 @@ onMounted(async () => {
         <!-- 多模态工具配置 -->
         <div class="capability-row multimodal-row">
           <div class="capability-icon">
-            <i class="codicon codicon-file-media"></i>
+            <i class="codicon codicon-file"></i>
           </div>
           <div class="capability-content">
             <div class="capability-header">
@@ -2073,9 +2073,10 @@ onMounted(async () => {
   transform: translateY(-50%);
   height: 16px;
   width: 16px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-checkbox-background, var(--vscode-input-background, rgba(127, 127, 127, 0.08)));
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-panel-border));
   border-radius: 4px;
+  box-sizing: border-box;
   transition: all 0.15s;
 }
 
@@ -2096,7 +2097,7 @@ onMounted(async () => {
   top: 2px;
   width: 4px;
   height: 8px;
-  border: solid var(--vscode-button-foreground);
+  border: solid var(--vscode-checkbox-foreground, var(--vscode-button-foreground));
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
