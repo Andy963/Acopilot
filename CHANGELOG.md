@@ -2,6 +2,12 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.46] - 2026-01-14
+
+### Improved
+  - Skills 列表：长 ID 显示优化（不再竖排换行，超长省略，hover 可看全称）。
+  - 多模态：文档图片开关在未选中时也可见，并修复该行图标显示。
+
 ## [1.0.45] - 2026-01-13
 
 ### Improved
