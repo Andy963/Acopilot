@@ -3,7 +3,7 @@
  */
 
 import type { Ref, ComputedRef } from 'vue'
-import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData } from '../../types'
+import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData, Attachment } from '../../types'
 
 // 重新导出类型以供其他模块使用
 export type { CheckpointRecord } from '../../types'
@@ -18,6 +18,7 @@ export interface PlanRunnerStep {
   id: string
   title: string
   instruction: string
+  attachments?: Attachment[]
   status: PlanRunnerStepStatus
   startedAt?: number
   endedAt?: number

@@ -8,6 +8,7 @@
 
 import { watch } from 'vue'
 import type { ChatStoreComputed, ChatStoreState, PlanRunnerData, PlanRunnerStep } from './types'
+import type { Attachment } from '../../types'
 import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
 import { sendMessage, retryAfterError } from './messageActions'
@@ -24,6 +25,7 @@ export interface PlanRunnerCreateInput {
   steps: Array<{
     title: string
     instruction: string
+    attachments?: Attachment[]
   }>
 }
 
@@ -47,6 +49,42 @@ function normalizeRunnerStatus(value: unknown): PlanRunnerData['status'] {
   return 'idle'
 }
 
+function normalizeAttachmentType(value: unknown): Attachment['type'] | null {
+  const v = asString(value).trim()
+  if (v === 'image' || v === 'video' || v === 'audio' || v === 'document' || v === 'code') return v
+  return null
+}
+
+function normalizeAttachment(raw: unknown): Attachment | null {
+  if (!isRecord(raw)) return null
+
+  const id = asString((raw as any).id).trim()
+  const name = asString((raw as any).name).trim()
+  const type = normalizeAttachmentType((raw as any).type)
+  const size = typeof (raw as any).size === 'number' ? (raw as any).size : Number((raw as any).size)
+  const mimeType = asString((raw as any).mimeType).trim()
+
+  if (!id || !name || !type || !Number.isFinite(size) || !mimeType) return null
+
+  return {
+    id,
+    name,
+    type,
+    size,
+    url: typeof (raw as any).url === 'string' ? (raw as any).url : undefined,
+    data: typeof (raw as any).data === 'string' ? (raw as any).data : undefined,
+    mimeType,
+    thumbnail: typeof (raw as any).thumbnail === 'string' ? (raw as any).thumbnail : undefined,
+    metadata: isRecord((raw as any).metadata) ? (raw as any).metadata : undefined
+  }
+}
+
+function normalizeAttachments(value: unknown): Attachment[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const normalized = value.map(normalizeAttachment).filter(Boolean) as Attachment[]
+  return normalized.length > 0 ? normalized : undefined
+}
+
 function normalizeLoadedPlanRunner(raw: unknown): PlanRunnerData | null {
   if (!isRecord(raw)) return null
 
@@ -64,6 +102,7 @@ function normalizeLoadedPlanRunner(raw: unknown): PlanRunnerData | null {
       id: asString((s as any).id || `plan_step_${generateId()}`),
       title,
       instruction,
+      attachments: normalizeAttachments((s as any).attachments),
       status: normalizeStepStatus((s as any).status),
       startedAt: typeof (s as any).startedAt === 'number' ? (s as any).startedAt : undefined,
       endedAt: typeof (s as any).endedAt === 'number' ? (s as any).endedAt : undefined,
@@ -146,6 +185,7 @@ export async function createPlanRunner(state: ChatStoreState, input: PlanRunnerC
       id: `plan_step_${generateId()}`,
       title: asString(s?.title).trim(),
       instruction: asString(s?.instruction).trim(),
+      attachments: normalizeAttachments((s as any)?.attachments),
       status: 'pending' as const
     }))
     .filter(s => s.title && s.instruction)
@@ -248,7 +288,7 @@ async function runPlanLoop(state: ChatStoreState, computed: ChatStoreComputed): 
     await waitForResponseDone(state)
     if (!state.planRunner.value || state.planRunner.value.status !== 'running') return
 
-    await sendMessage(state, computed, buildStepPrompt(runner, stepIndex, step))
+    await sendMessage(state, computed, buildStepPrompt(runner, stepIndex, step), step.attachments)
     await waitForResponseDone(state)
 
     // 工具执行后中断：自动触发 continue（最多尝试 MAX_AUTO_CONTINUE 次）

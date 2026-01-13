@@ -3,8 +3,10 @@ import { computed, ref, watch } from 'vue'
 import { Modal } from '../common'
 import { useChatStore } from '../../stores'
 import { generateId } from '../../utils/format'
+import { createThumbnail, formatFileSize, getFileType, inferMimeType, readFileAsBase64, validateFile } from '../../utils/file'
 import type { PlanRunnerCreateInput } from '../../stores/chat/planRunnerActions'
 import { useI18n } from '../../i18n'
+import type { Attachment } from '../../types'
 
 const { t } = useI18n()
 
@@ -23,16 +25,20 @@ const visible = computed({
 
 const chatStore = useChatStore()
 
-type StepDraft = { id: string; title: string; instruction: string }
+type StepDraft = { id: string; title: string; instruction: string; attachments: Attachment[] }
 
 const title = ref('')
 const goal = ref('')
 const steps = ref<StepDraft[]>([])
 
+function createEmptyStep(): StepDraft {
+  return { id: `step_${generateId()}`, title: '', instruction: '', attachments: [] }
+}
+
 function resetForm() {
   title.value = ''
   goal.value = ''
-  steps.value = [{ id: `step_${generateId()}`, title: '', instruction: '' }]
+  steps.value = [createEmptyStep()]
 }
 
 function loadFromExistingPlan() {
@@ -47,11 +53,12 @@ function loadFromExistingPlan() {
   steps.value = (plan.steps || []).map(s => ({
     id: s.id || `step_${generateId()}`,
     title: s.title || '',
-    instruction: s.instruction || ''
+    instruction: s.instruction || '',
+    attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
   }))
 
   if (steps.value.length === 0) {
-    steps.value = [{ id: `step_${generateId()}`, title: '', instruction: '' }]
+    steps.value = [createEmptyStep()]
   }
 }
 
@@ -62,21 +69,87 @@ watch(visible, (v) => {
 })
 
 function addStep() {
-  steps.value.push({ id: `step_${generateId()}`, title: '', instruction: '' })
+  steps.value.push(createEmptyStep())
 }
 
 function removeStep(id: string) {
   steps.value = steps.value.filter(s => s.id !== id)
   if (steps.value.length === 0) {
-    steps.value = [{ id: `step_${generateId()}`, title: '', instruction: '' }]
+    steps.value = [createEmptyStep()]
   }
+}
+
+async function createImageAttachment(file: File): Promise<Attachment | null> {
+  const validation = validateFile(file)
+  if (!validation.valid) return null
+
+  const mimeType = inferMimeType(file.name, file.type)
+  const type = getFileType(mimeType)
+  if (type !== 'image') return null
+
+  try {
+    const data = await readFileAsBase64(file)
+    const attachment: Attachment = {
+      id: generateId(),
+      name: file.name,
+      type,
+      size: file.size,
+      mimeType,
+      data
+    }
+
+    try {
+      attachment.thumbnail = await createThumbnail(file)
+    } catch {
+      // ignore thumbnail failure
+    }
+
+    return attachment
+  } catch (err) {
+    console.error('Failed to read attachment file:', err)
+    return null
+  }
+}
+
+async function handleAttachStep(stepId: string) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.multiple = true
+  input.accept = 'image/*'
+
+  input.onchange = async (e) => {
+    const files = Array.from((e.target as HTMLInputElement).files || [])
+    if (files.length === 0) return
+
+    const step = steps.value.find(s => s.id === stepId)
+    if (!step) return
+
+    for (const file of files) {
+      const attachment = await createImageAttachment(file)
+      if (attachment) {
+        step.attachments.push(attachment)
+      }
+    }
+  }
+
+  input.click()
+}
+
+function removeStepAttachment(stepId: string, attachmentId: string) {
+  const step = steps.value.find(s => s.id === stepId)
+  if (!step) return
+  step.attachments = step.attachments.filter(att => att.id !== attachmentId)
 }
 
 const normalizedInput = computed<PlanRunnerCreateInput>(() => ({
   title: title.value.trim(),
   goal: goal.value.trim() || undefined,
   steps: steps.value
-    .map(s => ({ title: s.title.trim(), instruction: s.instruction.trim() }))
+    .map(s => ({
+      title: s.title.trim(),
+      instruction: s.instruction.trim(),
+      attachments: s.attachments.length > 0 ? s.attachments : undefined
+    }))
     .filter(s => s.title && s.instruction)
 }))
 
@@ -136,6 +209,9 @@ async function handleSaveAndStart() {
                 class="form-input step-title"
                 :placeholder="t('components.planRunner.modal.stepTitle')"
               />
+              <button class="icon-btn" :title="t('components.planRunner.modal.attachImage')" @click="handleAttachStep(s.id)">
+                <i class="codicon codicon-attach"></i>
+              </button>
               <button class="icon-btn" :title="t('components.planRunner.modal.removeStep')" @click="removeStep(s.id)">
                 <i class="codicon codicon-trash"></i>
               </button>
@@ -146,6 +222,29 @@ async function handleSaveAndStart() {
               rows="3"
               :placeholder="t('components.planRunner.modal.stepInstruction')"
             />
+
+            <div v-if="s.attachments.length > 0" class="step-attachments">
+              <div v-for="attachment in s.attachments" :key="attachment.id" class="step-attachment" :title="attachment.name">
+                <img
+                  v-if="attachment.thumbnail"
+                  :src="attachment.thumbnail"
+                  :alt="attachment.name"
+                  class="step-attachment-thumb"
+                />
+                <i v-else class="codicon codicon-file step-attachment-icon"></i>
+                <div class="step-attachment-meta">
+                  <div class="step-attachment-name">{{ attachment.name }}</div>
+                  <div class="step-attachment-size">{{ formatFileSize(attachment.size) }}</div>
+                </div>
+                <button
+                  class="icon-btn"
+                  :title="t('components.planRunner.modal.removeAttachment')"
+                  @click="removeStepAttachment(s.id, attachment.id)"
+                >
+                  <i class="codicon codicon-close"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -246,6 +345,60 @@ async function handleSaveAndStart() {
   min-height: 72px;
 }
 
+.step-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.step-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  max-width: 100%;
+}
+
+.step-attachment-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.step-attachment-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.step-attachment-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.step-attachment-name {
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.step-attachment-size {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+}
+
 .btn {
   padding: 6px 12px;
   border-radius: 6px;
@@ -292,4 +445,3 @@ async function handleSaveAndStart() {
   color: var(--vscode-descriptionForeground);
 }
 </style>
-

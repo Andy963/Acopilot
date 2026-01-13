@@ -337,7 +337,9 @@ const zhCN: LanguageMessages = {
                 addStep: '添加步骤',
                 stepTitle: '步骤标题',
                 stepInstruction: '该步骤要发送给模型的指令/提示词…',
+                attachImage: '添加图片',
                 removeStep: '删除步骤',
+                removeAttachment: '移除附件',
                 hint: '至少需要：计划标题 + 1 个完整步骤（标题+指令）。',
                 save: '保存计划',
                 saveAndStart: '保存并开始'
