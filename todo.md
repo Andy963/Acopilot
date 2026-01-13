@@ -2,6 +2,19 @@
 
 > 目标：记录 Lim Code 在“可用性、可控性、工程闭环、扩展生态”上的关键欠缺点与改进方向，便于后续按优先级拆分任务实施。
 
+## Branch ↔ TODO 映射（已落地/已合并到 dev）
+
+- `feature/context-inspector` → P0/上下文：系统提示词模块预览、工具声明/定义预览、历史裁剪信息展示、`Context Used` 快照、Copy debug info
+- `feature/checkpoint-write-file` → P0/可靠性：工具执行前 checkpoint + Restore checkpoint
+- `feature/validation-presets` → P0/可靠性：改动后校验提示卡片（build/test/lint presets）+ 结果回写对话
+- `feature/auto-locate-next-step` → P0/可靠性：`execute_command` 失败一键跳到首个报错位置
+- `feature/plan-runner` → P1/Plan：Plan & Run（逐步执行、暂停/继续/取消、状态持久化恢复）
+- `feature/plan-runner-plan-attachments` → P1/Plan：步骤级图片附件注入
+- `feature/plan-runner-step-rerun-icon` → P1/Plan：步骤级重执行（refresh icon）
+- `feature/fix-gemini-duplicate-responses` → Bugfix：Gemini 重复回答（history role 归一化）
+- （历史）`feature/skills-install-url` → P2：支持通过 URL 安装 skill（GitHub 仓库）
+- （历史）`feature/skills-in-prompt` → P2：Prompt 页支持选择 skill / 自定义 prompt（仅对当前对话生效）
+
 ## P0（最影响体验，优先做）
 
 - [ ] **上下文可控性与可解释性不足**
@@ -21,8 +34,10 @@
 
 - [ ] **代码改动的可靠性链路不完整（改动→校验→回滚）**
   - [x] 工具执行前自动创建 checkpoint；失败可一键回滚（Restore checkpoint）
-  - [ ] 改完引导用户运行最相关的 build/test/lint（可配置预设），并把结果回写到对话（可折叠）。
+  - [x] 改完引导用户运行最相关的 build/test/lint（可配置预设），并把结果回写到对话（可折叠）。
   - [ ] 失败时提供“自动定位下一步”（比如打开错误文件、跳转到报错行、提供建议的下一条命令）。
+    - [x] `execute_command` 输出识别 `path:line:col` 并支持一键跳转
+    - [ ] 基于错误类型给出建议的下一条命令
 
 - [ ] **差异/补丁工作流不够顺滑**
   - [ ] 更强的 diff 审阅体验（分块/hunk 级 apply/undo、冲突提示）。
@@ -32,8 +47,16 @@
 
 - [ ] **多步任务控制面薄弱（Plan/执行/恢复）**
   - [ ] 先做 `Plan Only`：生成可审阅计划卡片（步骤、验收标准、附件 alias 映射）。
-  - [ ] 再做 `Plan & Run`：PlanRunner 逐步执行、暂停/继续/取消、游标恢复（重启 VS Code 也能继续）。
+    - [x] 支持创建/编辑 plan（title/goal/steps/instruction）
+    - [ ] 验收标准字段
+    - [ ] 附件 alias 映射展示
+  - [x] 再做 `Plan & Run`：PlanRunner 逐步执行、暂停/继续/取消、游标恢复（重启 VS Code 也能继续）。
+    - [x] 面板：Start/Resume、Pause、Cancel、Clear
+    - [x] 状态持久化到对话 metadata（重启后可继续）
+    - [x] 步骤级重执行（refresh icon）
   - [ ] 步骤级附件重注入：每步只携带必要附件，避免上下文裁剪导致“忘图/忘文件”。
+    - [x] 每步支持图片附件（Plan 创建/执行时注入）
+    - [ ] 支持非图片附件 + alias 映射
 
 - [ ] **模型与工具的能力路由较弱**
   - [ ] 提供轻量“意图/模式”或策略（Ask/Explain vs Edit/Fix vs Agent），影响工具调用倾向与自动执行策略。
