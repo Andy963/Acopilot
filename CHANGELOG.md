@@ -2,6 +2,12 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.45] - 2026-01-13
+
+### Improved
+  - Token 统计：支持 k/m 缩写显示（如 2409 -> 2k）。
+  - Finish reason：状态改为图标显示，Completed 显示绿色通过 icon。
+
 ## [1.0.44] - 2026-01-13
 
 ### Added
