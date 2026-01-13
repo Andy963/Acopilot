@@ -433,7 +433,9 @@ export interface LanguageMessages {
                 addStep: string;
                 stepTitle: string;
                 stepInstruction: string;
+                attachImage: string;
                 removeStep: string;
+                removeAttachment: string;
                 hint: string;
                 save: string;
                 saveAndStart: string;
