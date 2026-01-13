@@ -196,6 +196,14 @@ export interface LanguageMessages {
                 titleUsed: string;
                 noData: string;
                 copyDebug: string;
+                injected: {
+                    title: string;
+                    pinnedFiles: string;
+                    pinnedPrompt: string;
+                    attachments: string;
+                    missing: string;
+                    pinnedPromptCustom: string;
+                };
                 trim: {
                     title: string;
                     fullHistory: string;

@@ -309,6 +309,52 @@ export interface ContextSnapshotTrim {
     effectiveStartIndex: number;
 }
 
+/**
+ * Context Inspector - 注入明细（用于 UI 解释/调试）
+ *
+ * 注意：这是持久化数据，会随对话历史一起写入磁盘，建议仅保存元数据，避免过度膨胀。
+ */
+export interface ContextInjectedPinnedFile {
+    id?: string;
+    path: string;
+    workspace?: string;
+    exists?: boolean;
+    included?: boolean;
+}
+
+export interface ContextInjectedPinnedFiles {
+    totalEnabled: number;
+    included: number;
+    files: ContextInjectedPinnedFile[];
+}
+
+export interface ContextInjectedPinnedPrompt {
+    mode: 'none' | 'skill' | 'custom';
+    skillId?: string;
+    skillName?: string;
+    customPromptCharCount?: number;
+}
+
+export interface ContextInjectedAttachment {
+    id?: string;
+    name: string;
+    type?: string;
+    mimeType?: string;
+    size?: number;
+    url?: string;
+}
+
+export interface ContextInjectedAttachments {
+    count: number;
+    items: ContextInjectedAttachment[];
+}
+
+export interface ContextInjectedInfo {
+    pinnedFiles?: ContextInjectedPinnedFiles;
+    pinnedPrompt?: ContextInjectedPinnedPrompt;
+    attachments?: ContextInjectedAttachments;
+}
+
 export interface ContextSnapshot {
     generatedAt: number;
     conversationId?: string;
@@ -320,6 +366,7 @@ export interface ContextSnapshot {
     systemInstructionCharCount: number;
     systemInstructionTruncated: boolean;
     modules: ContextSnapshotModule[];
+    injected?: ContextInjectedInfo;
     trim?: ContextSnapshotTrim;
 }
 

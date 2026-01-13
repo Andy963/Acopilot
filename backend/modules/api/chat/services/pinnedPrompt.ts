@@ -10,6 +10,13 @@ export interface ConversationPinnedPrompt {
     customPrompt?: string;
 }
 
+export interface PinnedPromptInjectedInfo {
+    mode: ConversationPinnedPromptMode;
+    skillId?: string;
+    skillName?: string;
+    customPromptCharCount?: number;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -26,6 +33,52 @@ function normalizeSkills(raw: unknown): SkillDefinition[] {
             prompt: String((s as any).prompt || '')
         }))
         .filter((s) => s.id && s.prompt.trim());
+}
+
+export async function getPinnedPromptInjectedInfo(
+    conversationManager: ConversationManager,
+    conversationId: string
+): Promise<PinnedPromptInjectedInfo> {
+    const rawPinnedPrompt = await conversationManager.getCustomMetadata(conversationId, 'pinnedPrompt');
+
+    if (!isRecord(rawPinnedPrompt)) {
+        return { mode: 'none' };
+    }
+
+    const mode = typeof rawPinnedPrompt.mode === 'string'
+        ? (rawPinnedPrompt.mode as ConversationPinnedPromptMode)
+        : 'none';
+
+    if (mode === 'skill') {
+        const skillId = typeof rawPinnedPrompt.skillId === 'string'
+            ? rawPinnedPrompt.skillId.trim()
+            : '';
+        if (!skillId) return { mode: 'none' };
+
+        const settingsManager = getGlobalSettingsManager();
+        const skills = normalizeSkills(settingsManager?.getSystemPromptConfig()?.skills);
+        const skill = skills.find((s) => s.id === skillId);
+
+        return {
+            mode: 'skill',
+            skillId,
+            skillName: skill?.name
+        };
+    }
+
+    if (mode === 'custom') {
+        const prompt = typeof rawPinnedPrompt.customPrompt === 'string'
+            ? rawPinnedPrompt.customPrompt.trim()
+            : '';
+        if (!prompt) return { mode: 'none' };
+
+        return {
+            mode: 'custom',
+            customPromptCharCount: prompt.length
+        };
+    }
+
+    return { mode: 'none' };
 }
 
 export async function getPinnedPromptBlock(
@@ -71,4 +124,3 @@ export async function getPinnedPromptBlock(
 
     return '';
 }
-
