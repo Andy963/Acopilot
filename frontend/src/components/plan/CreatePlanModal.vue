@@ -29,6 +29,7 @@ type StepDraft = { id: string; title: string; instruction: string; attachments: 
 
 const title = ref('')
 const goal = ref('')
+const acceptanceCriteria = ref('')
 const steps = ref<StepDraft[]>([])
 
 function createEmptyStep(): StepDraft {
@@ -38,6 +39,7 @@ function createEmptyStep(): StepDraft {
 function resetForm() {
   title.value = ''
   goal.value = ''
+  acceptanceCriteria.value = ''
   steps.value = [createEmptyStep()]
 }
 
@@ -50,6 +52,7 @@ function loadFromExistingPlan() {
 
   title.value = plan.title || ''
   goal.value = plan.goal || ''
+  acceptanceCriteria.value = plan.acceptanceCriteria || ''
   steps.value = (plan.steps || []).map(s => ({
     id: s.id || `step_${generateId()}`,
     title: s.title || '',
@@ -144,6 +147,7 @@ function removeStepAttachment(stepId: string, attachmentId: string) {
 const normalizedInput = computed<PlanRunnerCreateInput>(() => ({
   title: title.value.trim(),
   goal: goal.value.trim() || undefined,
+  acceptanceCriteria: acceptanceCriteria.value.trim() || undefined,
   steps: steps.value
     .map(s => ({
       title: s.title.trim(),
@@ -188,6 +192,16 @@ async function handleSaveAndStart() {
           class="form-textarea"
           rows="3"
           :placeholder="t('components.planRunner.modal.goalPlaceholder')"
+        />
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">{{ t('components.planRunner.modal.acceptanceCriteria') }}</label>
+        <textarea
+          v-model="acceptanceCriteria"
+          class="form-textarea"
+          rows="3"
+          :placeholder="t('components.planRunner.modal.acceptanceCriteriaPlaceholder')"
         />
       </div>
 

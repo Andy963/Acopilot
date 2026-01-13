@@ -435,12 +435,17 @@ export interface LanguageMessages {
                 rerunStep: string;
             };
             current: string;
+            goalLabel: string;
+            acceptanceCriteriaLabel: string;
+            attachmentsLabel: string;
             modal: {
                 title: string;
                 planTitle: string;
                 planTitlePlaceholder: string;
                 goal: string;
                 goalPlaceholder: string;
+                acceptanceCriteria: string;
+                acceptanceCriteriaPlaceholder: string;
                 steps: string;
                 addStep: string;
                 stepTitle: string;
