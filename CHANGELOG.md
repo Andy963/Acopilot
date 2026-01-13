@@ -2,6 +2,20 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.43] - 2026-01-13
+
+### Added
+  - Plan Runner（Plan & Run）：创建计划并逐步执行，支持暂停/继续/取消，状态对话级持久化（重启 VS Code 也可恢复）。
+  - 改动后校验预设：当工具导致文件发生改动后，提示一键运行 build/test/lint 等命令，并将 execute_command 结果写回对话流。
+  - execute_command 失败定位：从终端输出解析 `path:line:col` 并一键打开文件跳转到报错位置。
+
+### Improved
+  - 新增“任务卡片”创建入口与展示（Create Task modal / TaskCardMessage）。
+  - 新增 Context Inspector：可视化注入上下文与裁剪信息，并支持复制调试信息。
+
+### Fixed
+  - 修复 checkpoint 对 `write_file` 工具名的兼容问题（兼容 `write_to_file`）。
+
 ## [1.0.42] - 2026-01-12
 
 ### Added
