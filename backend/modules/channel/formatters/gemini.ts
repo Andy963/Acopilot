@@ -36,6 +36,32 @@ import {
  */
 export class GeminiFormatter extends BaseFormatter {
     /**
+     * 归一化历史消息角色
+     *
+     * 目的：兼容某些网关/旧数据中出现的 role 值（如 "assistant"），避免 Gemini 端忽略模型消息，
+     * 从而导致“每次新问题都会把之前问题再回答一遍”的现象。
+     *
+     * Gemini contents 仅接受 'user' | 'model'（systemInstruction 单独字段）。
+     */
+    private normalizeHistoryRoles(history: Content[]): Content[] {
+        return history
+            .map((content) => {
+                const rawRole = (content as any).role;
+                const role = rawRole === 'assistant' ? 'model' : rawRole;
+
+                if (role !== 'user' && role !== 'model') {
+                    return null;
+                }
+
+                return {
+                    ...content,
+                    role
+                } as Content;
+            })
+            .filter((c): c is Content => c !== null);
+    }
+
+    /**
      * 构建 Gemini API 请求
      */
     buildRequest(
@@ -58,6 +84,9 @@ export class GeminiFormatter extends BaseFormatter {
             // Function Call 模式：直接使用原始历史
             processedHistory = history;
         }
+
+        // 归一化 role，避免非法 role 进入 Gemini contents
+        processedHistory = this.normalizeHistoryRoles(processedHistory);
         
         // 转换思考签名格式：将 thoughtSignatures.gemini 转换为 thoughtSignature
         processedHistory = this.convertThoughtSignatures(processedHistory);
@@ -287,8 +316,13 @@ export class GeminiFormatter extends BaseFormatter {
         
         const candidate = response.candidates[0];
         
-        // 提取完整的 Content（Gemini 已经是标准格式）
-        const content = candidate.content;
+        // 提取完整的 Content，并统一 role 为 'model'（内部统一格式）
+        const rawContent = candidate.content || {};
+        const content: Content = {
+            ...rawContent,
+            role: 'model',
+            parts: Array.isArray(rawContent.parts) ? rawContent.parts : []
+        };
         
         // 提取思考签名并转换为内部格式，同时删除原始单数格式
         if (content.parts) {
