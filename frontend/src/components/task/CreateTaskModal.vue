@@ -139,17 +139,45 @@ function runAnalyze(val: IssueInfo) {
     const title = (val.title || '').trim()
     const repo = (val.repo || '').trim()
     const num = val.number
+    const labels = Array.isArray(val.labels) ? val.labels.map(l => String(l || '').trim()).filter(Boolean) : []
+
+    const MAX_ISSUE_BODY_CHARS = 12000
+    const rawBody = String(val.body || '').replace(/\r\n/g, '\n').trim()
+    const body = rawBody.length > MAX_ISSUE_BODY_CHARS ? rawBody.slice(0, MAX_ISSUE_BODY_CHARS) : rawBody
+    const bodyTruncated = rawBody.length > MAX_ISSUE_BODY_CHARS
 
     intentSummary.value = title
       ? `${repo ? `${repo} ` : ''}${num ? `#${num} ` : ''}${title}`.trim()
       : `Analyze issue: ${val.url}`
 
-    const bullets: string[] = []
-    if (repo && num) bullets.push(`Fix issue #${num} in the repo ${repo}.`)
-    if (title) bullets.push(title)
-    bullets.push('Debug and fix the problem. Only modify relevant code and add tests to verify the fix.')
+    const lines: string[] = []
+    if (repo && num) {
+      lines.push(`Fix GitHub issue ${repo}#${num}${title ? `: ${title}` : ''}`)
+    } else if (title) {
+      lines.push(`Fix issue: ${title}`)
+    } else {
+      lines.push('Fix the issue described below')
+    }
 
-    suggestedPrompt.value = bullets.map(b => `- ${b}`).join('\n')
+    if (val.url) lines.push(`Issue URL: ${val.url}`)
+    if (labels.length > 0) lines.push(`Labels: ${labels.join(', ')}`)
+
+    if (body) {
+      lines.push('')
+      lines.push('Issue description (verbatim):')
+      lines.push('<issue_body>')
+      lines.push(body)
+      if (bodyTruncated) lines.push('\n[...truncated...]')
+      lines.push('</issue_body>')
+    }
+
+    lines.push('')
+    lines.push('Task:')
+    lines.push('- Reproduce the problem (if possible) and identify the root cause.')
+    lines.push('- Implement a minimal fix; avoid unrelated refactors.')
+    lines.push('- Add tests (or clear validation steps) to verify the fix.')
+
+    suggestedPrompt.value = lines.join('\n')
   }, 900)
 }
 
@@ -610,4 +638,3 @@ onBeforeUnmount(() => {
   background: var(--vscode-button-hoverBackground);
 }
 </style>
-
