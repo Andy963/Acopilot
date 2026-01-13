@@ -499,10 +499,9 @@ async function countTokens() {
 
 // 格式化 token 数量显示
 function formatTokenCount(count: number): string {
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}k`
-  }
-  return count.toString()
+  if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
+  if (count >= 1_000) return `${Math.round(count / 1_000)}k`
+  return String(count)
 }
 
 // 重置为默认模板
