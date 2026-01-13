@@ -74,6 +74,20 @@ async function handleCancel() {
 async function handleClear() {
   await chatStore.clearPlanRunner()
 }
+
+function canRerunStep(idx: number): boolean {
+  if (!plan.value) return false
+  if (plan.value.status === 'running') return false
+  if (chatStore.isWaitingForResponse || chatStore.isStreaming) return false
+  if (!Number.isFinite(idx)) return false
+  if (idx < 0 || idx >= plan.value.steps.length) return false
+  return true
+}
+
+async function handleRerunStep(idx: number) {
+  if (!canRerunStep(idx)) return
+  await chatStore.rerunPlanRunnerFromStep(idx)
+}
 </script>
 
 <template>
@@ -134,10 +148,21 @@ async function handleClear() {
             :class="[stepIcon(step), { 'codicon-modifier-spin': step.status === 'running' }]"
           ></i>
           <span class="step-title">{{ step.title }}</span>
-          <span v-if="idx === plan.currentStepIndex" class="step-current">
-            {{ t('components.planRunner.current') }}
-          </span>
-          <span v-if="step.error" class="step-error">{{ step.error }}</span>
+
+          <div class="step-right">
+            <span v-if="idx === plan.currentStepIndex" class="step-current">
+              {{ t('components.planRunner.current') }}
+            </span>
+            <span v-if="step.error" class="step-error" :title="step.error">{{ step.error }}</span>
+            <button
+              class="step-icon-btn"
+              :disabled="!canRerunStep(idx)"
+              :title="t('components.planRunner.actions.rerunStep')"
+              @click.stop="handleRerunStep(idx)"
+            >
+              <i class="codicon codicon-refresh"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -267,20 +292,56 @@ async function handleClear() {
 }
 
 .step-title {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .step-current {
-  margin-left: auto;
   font-size: 11px;
   color: var(--vscode-textLink-foreground);
 }
 
 .step-error {
-  margin-left: auto;
   font-size: 11px;
   color: var(--vscode-editorError-foreground);
-  white-space: pre-wrap;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.step-icon-btn:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.step-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

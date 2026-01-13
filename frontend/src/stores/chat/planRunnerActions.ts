@@ -386,3 +386,33 @@ export async function resumePlanRunner(state: ChatStoreState, computed: ChatStor
     loopInProgress = false
   }
 }
+
+export async function rerunPlanRunnerFromStep(
+  state: ChatStoreState,
+  computed: ChatStoreComputed,
+  stepIndex: number
+): Promise<void> {
+  const runner = state.planRunner.value
+  if (!runner) return
+  if (loopInProgress) return
+  if (state.isWaitingForResponse.value) return
+  if (!Number.isFinite(stepIndex)) return
+
+  const targetIndex = Math.max(0, Math.min(Math.floor(stepIndex), runner.steps.length - 1))
+  if (runner.steps.length === 0) return
+
+  for (let i = targetIndex; i < runner.steps.length; i++) {
+    const step = runner.steps[i]
+    step.status = 'pending'
+    step.startedAt = undefined
+    step.endedAt = undefined
+    step.error = undefined
+  }
+
+  runner.currentStepIndex = targetIndex
+  runner.pauseRequested = false
+  runner.status = 'idle'
+
+  await persistPlanRunnerState(state)
+  await startPlanRunner(state, computed)
+}

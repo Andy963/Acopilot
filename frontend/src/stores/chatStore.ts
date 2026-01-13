@@ -105,6 +105,7 @@ import {
   resumePlanRunner as resumePlanRunnerFn,
   pausePlanRunner as pausePlanRunnerFn,
   cancelPlanRunner as cancelPlanRunnerFn,
+  rerunPlanRunnerFromStep as rerunPlanRunnerFromStepFn,
   type PlanRunnerCreateInput
 } from './chat/planRunnerActions'
 
@@ -200,6 +201,7 @@ export const useChatStore = defineStore('chat', () => {
   const resumePlanRunner = () => resumePlanRunnerFn(state, computed)
   const pausePlanRunner = () => pausePlanRunnerFn(state)
   const cancelPlanRunner = () => cancelPlanRunnerFn(state, computed)
+  const rerunPlanRunnerFromStep = (stepIndex: number) => rerunPlanRunnerFromStepFn(state, computed, stepIndex)
 
   // ============ 改动后校验 ============
 
@@ -319,6 +321,7 @@ export const useChatStore = defineStore('chat', () => {
     resumePlanRunner,
     pausePlanRunner,
     cancelPlanRunner,
+    rerunPlanRunnerFromStep,
 
     // 改动后校验
     runPostEditValidationCommand,
