@@ -108,6 +108,8 @@ import {
   type PlanRunnerCreateInput
 } from './chat/planRunnerActions'
 
+import { runPostEditValidationCommand as runPostEditValidationCommandFn, type ValidationCommandPreset } from './chat/validationActions'
+
 // 重新导出类型
 export type { Conversation, WorkspaceFilter } from './chat/types'
 
@@ -199,6 +201,11 @@ export const useChatStore = defineStore('chat', () => {
   const pausePlanRunner = () => pausePlanRunnerFn(state)
   const cancelPlanRunner = () => cancelPlanRunnerFn(state, computed)
 
+  // ============ 改动后校验 ============
+
+  const runPostEditValidationCommand = (preset: ValidationCommandPreset) =>
+    runPostEditValidationCommandFn(state, preset)
+
   // ============ 流式处理 ============
   
   function handleStreamChunkWrapper(chunk: StreamChunk): void {
@@ -256,6 +263,7 @@ export const useChatStore = defineStore('chat', () => {
     retryStatus: state.retryStatus,
     error: state.error,
     planRunner: state.planRunner,
+    postEditValidationPending: state.postEditValidationPending,
 
     // Context Inspector
     contextInspectorVisible: state.contextInspectorVisible,
@@ -311,6 +319,9 @@ export const useChatStore = defineStore('chat', () => {
     resumePlanRunner,
     pausePlanRunner,
     cancelPlanRunner,
+
+    // 改动后校验
+    runPostEditValidationCommand,
     
     // 配置管理
     setConfigId,

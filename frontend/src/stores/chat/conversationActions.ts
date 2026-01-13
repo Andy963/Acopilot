@@ -35,6 +35,7 @@ export async function createNewConversation(
   state.checkpoints.value = []  // 清空检查点
   state.error.value = null
   state.planRunner.value = null
+  state.postEditValidationPending.value = false
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
   
   // 清除所有加载和流式状态
@@ -157,6 +158,7 @@ export async function loadHistory(state: ChatStoreState): Promise<void> {
     state.allMessages.value = history.map(content =>
       contentToMessageEnhanced(content)
     )
+    state.postEditValidationPending.value = false
   } catch (err: any) {
     state.error.value = {
       code: err.code || 'LOAD_ERROR',
@@ -216,6 +218,7 @@ export async function switchConversation(
   state.checkpoints.value = []
   state.error.value = null
   state.planRunner.value = null
+  state.postEditValidationPending.value = false
   state.isLoading.value = false
   state.isStreaming.value = false
   state.streamingMessageId.value = null

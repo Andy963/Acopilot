@@ -30,6 +30,9 @@ export async function sendMessage(
   
   state.error.value = null
   if (state.isWaitingForResponse.value) return
+
+  // 新一轮对话开始前，隐藏“改动后校验”提示（上一轮的提示不应阻塞后续对话）
+  state.postEditValidationPending.value = false
   
   state.isLoading.value = true
   state.isStreaming.value = true

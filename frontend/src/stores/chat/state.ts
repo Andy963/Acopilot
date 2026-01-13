@@ -89,6 +89,9 @@ export function createChatState(): ChatStoreState {
   /** Plan Runner（多步任务执行器） */
   const planRunner = ref<PlanRunnerData | null>(null)
 
+  /** 本轮对话是否发生过文件改动（用于结束后提示运行校验预设） */
+  const postEditValidationPending = ref(false)
+
   /** Context Inspector */
   const contextInspectorVisible = ref(false)
   const contextInspectorLoading = ref(false)
@@ -119,6 +122,7 @@ export function createChatState(): ChatStoreState {
     workspaceFilter,
     pinnedPrompt,
     planRunner,
+    postEditValidationPending,
     contextInspectorVisible,
     contextInspectorLoading,
     contextInspectorData,

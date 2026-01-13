@@ -9,6 +9,7 @@ import { CustomScrollbar, DeleteDialog, Tooltip, ConfirmDialog } from '../common
 import MessageItem from './MessageItem.vue'
 import SummaryMessage from './SummaryMessage.vue'
 import PlanRunnerPanel from '../plan/PlanRunnerPanel.vue'
+import ValidationCardMessage from './ValidationCardMessage.vue'
 import { useChatStore } from '../../stores'
 import { formatTime } from '../../utils/format'
 import { useI18n } from '../../i18n'
@@ -513,6 +514,14 @@ function formatCheckpointTime(timestamp: number): string {
             </template>
           </template>
         </template>
+
+        <!-- 改动后校验提示（不写入 allMessages，避免索引错位） -->
+        <div
+          v-if="chatStore.postEditValidationPending && !chatStore.isWaitingForResponse && !chatStore.isStreaming"
+          class="post-edit-validation"
+        >
+          <ValidationCardMessage />
+        </div>
         
         <PlanRunnerPanel />
 
@@ -591,6 +600,11 @@ function formatCheckpointTime(timestamp: number): string {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+}
+
+.post-edit-validation {
+  margin: 0 var(--spacing-md, 16px) var(--spacing-md, 16px);
+  flex-shrink: 0;
 }
 
 /* 加载更多指示器 */
