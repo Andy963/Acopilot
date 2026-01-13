@@ -1911,6 +1911,8 @@ const ja: LanguageMessages = {
                     },
                     terminate: '終了',
                     terminateTooltip: 'プロセスを終了',
+                    jumpToErrorTooltip: '{path} を開いて {line}:{column} にジャンプ',
+                    nextCommandsTitle: '次の推奨コマンド',
                     copyOutput: '出力をコピー',
                     copied: 'コピーしました',
                     output: '出力',

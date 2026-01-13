@@ -1949,6 +1949,7 @@ const en: LanguageMessages = {
                     terminate: 'Terminate',
                     terminateTooltip: 'Terminate Process',
                     jumpToErrorTooltip: 'Open {path} and jump to {line}:{column}',
+                    nextCommandsTitle: 'Suggested next commands',
                     copyOutput: 'Copy Output',
                     copied: 'Copied',
                     output: 'Output',
