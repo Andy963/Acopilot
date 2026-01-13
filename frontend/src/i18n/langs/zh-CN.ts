@@ -331,12 +331,17 @@ const zhCN: LanguageMessages = {
                 rerunStep: '重执行该步'
             },
             current: '当前',
+            goalLabel: '目标',
+            acceptanceCriteriaLabel: '验收',
+            attachmentsLabel: '附件',
             modal: {
                 title: 'Plan & Run',
                 planTitle: '计划标题',
                 planTitlePlaceholder: '例如：修复 xxx 并补充测试',
                 goal: '目标/背景（可选）',
-                goalPlaceholder: '可选：补充上下文、约束、验收标准…',
+                goalPlaceholder: '可选：补充上下文、约束…',
+                acceptanceCriteria: '验收标准（可选）',
+                acceptanceCriteriaPlaceholder: '可选：如何判断完成/通过…',
                 steps: '步骤',
                 addStep: '添加步骤',
                 stepTitle: '步骤标题',
