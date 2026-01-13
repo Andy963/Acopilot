@@ -29,6 +29,7 @@ export interface PlanRunnerData {
   id: string
   title: string
   goal?: string
+  acceptanceCriteria?: string
   createdAt: number
   status: PlanRunnerStatus
   currentStepIndex: number
