@@ -2017,6 +2017,8 @@ export interface LanguageMessages {
                     };
                     terminate: string;
                     terminateTooltip: string;
+                    jumpToErrorTooltip: string;
+                    nextCommandsTitle: string;
                     copyOutput: string;
                     copied: string;
                     output: string;
