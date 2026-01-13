@@ -37,10 +37,11 @@ export const updateContextAwarenessConfig: MessageHandler = async (data, request
  */
 export const getContextInspectorData: MessageHandler = async (data, requestId, ctx) => {
   try {
-    const { conversationId, configId } = data || {};
+    const { conversationId, configId, attachments } = data || {};
     const result = await ctx.chatHandler.handleGetContextInspectorData({
       conversationId,
-      configId
+      configId,
+      attachments
     });
     ctx.sendResponse(requestId, result);
   } catch (error: any) {

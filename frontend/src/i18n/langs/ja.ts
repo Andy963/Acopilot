@@ -176,6 +176,12 @@ const ja: LanguageMessages = {
                 titleUsed: '使用されたコンテキスト',
                 noData: 'コンテキストデータがありません',
                 copyDebug: 'デバッグ情報をコピー',
+                injected: {
+                    title: '注入詳細',
+                    pinnedFiles: 'ピン留めファイル',
+                    pinnedPrompt: 'ピン留めプロンプト',
+                    attachments: '添付ファイル'
+                },
                 trim: {
                     title: 'コンテキストのトリム',
                     fullHistory: '履歴メッセージ数',

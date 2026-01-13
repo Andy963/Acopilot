@@ -508,6 +508,47 @@ export interface ContextInspectorTrim {
   effectiveStartIndex: number
 }
 
+export interface ContextInjectedPinnedFile {
+  id?: string
+  path: string
+  workspace?: string
+  exists?: boolean
+  included?: boolean
+}
+
+export interface ContextInjectedPinnedFiles {
+  totalEnabled: number
+  included: number
+  files: ContextInjectedPinnedFile[]
+}
+
+export interface ContextInjectedPinnedPrompt {
+  mode: 'none' | 'skill' | 'custom'
+  skillId?: string
+  skillName?: string
+  customPromptCharCount?: number
+}
+
+export interface ContextInjectedAttachment {
+  id?: string
+  name: string
+  type?: string
+  mimeType?: string
+  size?: number
+  url?: string
+}
+
+export interface ContextInjectedAttachments {
+  count: number
+  items: ContextInjectedAttachment[]
+}
+
+export interface ContextInjectedInfo {
+  pinnedFiles?: ContextInjectedPinnedFiles
+  pinnedPrompt?: ContextInjectedPinnedPrompt
+  attachments?: ContextInjectedAttachments
+}
+
 export interface ContextInspectorData {
   generatedAt: number
   conversationId?: string
@@ -519,6 +560,7 @@ export interface ContextInspectorData {
   systemInstructionCharCount: number
   systemInstructionTruncated: boolean
   modules: ContextInspectorModule[]
+  injected?: ContextInjectedInfo
   trim?: ContextInspectorTrim
 }
 

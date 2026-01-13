@@ -176,6 +176,12 @@ const zhCN: LanguageMessages = {
                 titleUsed: '本条回复使用的上下文',
                 noData: '暂无上下文数据',
                 copyDebug: '复制调试信息',
+                injected: {
+                    title: '注入明细',
+                    pinnedFiles: '固定文件',
+                    pinnedPrompt: '固定提示词',
+                    attachments: '附件'
+                },
                 trim: {
                     title: '上下文裁剪',
                     fullHistory: '历史消息数',

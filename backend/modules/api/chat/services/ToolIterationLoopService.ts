@@ -39,7 +39,8 @@ import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
 import type { ContextTrimService } from './ContextTrimService';
 import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecutionService';
-import { getPinnedPromptBlock } from './pinnedPrompt';
+import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
+import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
 
 /**
  * 工具迭代循环配置
@@ -296,6 +297,17 @@ export class ToolIterationLoopService {
             }
             const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
 
+            const injected = {
+                pinnedFiles: buildPinnedFilesInjectedInfo(),
+                pinnedPrompt: await getPinnedPromptInjectedInfo(this.conversationManager, conversationId),
+                attachments: buildLastMessageAttachmentsInjectedInfo(history),
+            };
+            const hasInjected = Boolean(
+                injected.pinnedFiles ||
+                injected.attachments ||
+                (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
+            );
+
             const contextSnapshot: ContextSnapshot = {
                 generatedAt: Date.now(),
                 conversationId,
@@ -314,6 +326,7 @@ export class ToolIterationLoopService {
                 systemInstructionCharCount: sysPreview.charCount,
                 systemInstructionTruncated: sysPreview.truncated,
                 modules: ToolIterationLoopService.buildModules(systemInstruction, 6000),
+                injected: hasInjected ? injected : undefined,
                 trim: {
                     fullHistoryCount: fullHistory.length,
                     trimmedHistoryCount: history.length,

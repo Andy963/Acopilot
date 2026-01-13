@@ -188,7 +188,7 @@ export const useChatStore = defineStore('chat', () => {
 
   // ============ Context Inspector ============
 
-  const openContextInspectorPreview = () => openContextInspectorPreviewFn(state)
+  const openContextInspectorPreview = (attachments?: Attachment[]) => openContextInspectorPreviewFn(state, attachments)
   const openContextInspectorWithData = (data: ContextInspectorData) => openContextInspectorWithDataFn(state, data)
   const closeContextInspector = () => closeContextInspectorFn(state)
 
