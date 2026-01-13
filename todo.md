@@ -9,6 +9,8 @@
 - `feature/validation-presets` → P0/可靠性：改动后校验提示卡片（build/test/lint presets）+ 结果回写对话
 - `feature/auto-locate-next-step` → P0/可靠性：`execute_command` 失败一键跳到首个报错位置
 - `feature/diff-patch-workflow` → P0/差异：diff hunk 级 apply/undo、冲突提示、git status + stage/unstage（apply_diff/write_file）
+- `feature/execute-command-next-suggestions` → P0/可靠性：基于错误类型给出建议的下一条命令（execute_command）
+- `feature/plan-only-acceptance-alias` → P1/Plan：Plan Only（验收标准字段 + 附件 alias 映射展示）
 - `feature/plan-runner` → P1/Plan：Plan & Run（逐步执行、暂停/继续/取消、状态持久化恢复）
 - `feature/plan-runner-plan-attachments` → P1/Plan：步骤级图片附件注入
 - `feature/plan-runner-step-rerun-icon` → P1/Plan：步骤级重执行（refresh icon）
@@ -17,10 +19,6 @@
 - （历史）`feature/skills-in-prompt` → P2：Prompt 页支持选择 skill / 自定义 prompt（仅对当前对话生效）
 - `feature/context-inspector-injection-details` → P0/上下文：Pinned Files / Skills / 附件 的实际注入明细（Context Inspector）
 - `feature/context-token-breakdown` → P0/上下文：按模块粗略 token 占用拆分（Context Inspector）
-
-## Branch ↔ TODO 映射（待合并）
-
-- `feature/plan-only-acceptance-alias` → P1/Plan：Plan Only（验收标准字段 + 附件 alias 映射展示）
 
 ## P0（最影响体验，优先做）
 
