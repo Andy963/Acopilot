@@ -67,6 +67,32 @@ const providerSummary = computed(() => {
   if (!data) return ''
   return `${data.providerType} · ${data.model}`
 })
+
+function estimateTokensFromChars(chars: number): number {
+  if (!Number.isFinite(chars) || chars <= 0) return 0
+  return Math.max(1, Math.ceil(chars / 4))
+}
+
+const estimatedSystemTokens = computed(() => {
+  if (!props.data) return 0
+  return estimateTokensFromChars(props.data.systemInstructionCharCount)
+})
+
+const moduleTokens = computed(() => {
+  const data = props.data
+  if (!data) return []
+
+  const rows = (data.modules || []).map((m) => ({
+    ...m,
+    tokens: estimateTokensFromChars(m.charCount)
+  }))
+
+  const total = rows.reduce((sum, r) => sum + (r.tokens || 0), 0)
+  return rows.map((r) => ({
+    ...r,
+    percent: total > 0 ? (r.tokens / total) * 100 : 0
+  }))
+})
 </script>
 
 <template>
@@ -101,7 +127,7 @@ const providerSummary = computed(() => {
               <span v-if="data.tools.mcp"> · mcp: <code>{{ data.tools.mcp }}</code></span>
             </span>
             <span class="summary-muted">
-              systemInstruction: <code>{{ data.systemInstructionCharCount }}</code>
+              systemInstruction: <code>{{ estimatedSystemTokens }}</code> tok · <code>{{ data.systemInstructionCharCount }}</code> ch
               <span v-if="data.systemInstructionTruncated">({{ t('common.truncated') }})</span>
             </span>
             <span class="summary-muted">
@@ -157,7 +183,7 @@ const providerSummary = computed(() => {
           </div>
           <div class="modules">
             <div
-              v-for="(m, idx) in data.modules"
+              v-for="(m, idx) in moduleTokens"
               :key="`${m.title}-${idx}`"
               class="module"
             >
@@ -165,7 +191,7 @@ const providerSummary = computed(() => {
                 <i class="codicon" :class="isExpanded(m) ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
                 <span class="module-title">{{ m.title }}</span>
                 <span class="module-meta">
-                  <code>{{ m.charCount }}</code>
+                  <code>{{ m.tokens }}</code> tok · <code>{{ m.charCount }}</code> ch · {{ m.percent.toFixed(1) }}%
                   <span v-if="m.truncated">({{ t('common.truncated') }})</span>
                 </span>
               </button>
@@ -394,4 +420,3 @@ const providerSummary = computed(() => {
   background: var(--vscode-button-hoverBackground);
 }
 </style>
-
