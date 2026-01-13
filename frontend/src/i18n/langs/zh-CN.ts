@@ -324,7 +324,8 @@ const zhCN: LanguageMessages = {
                 resume: '继续',
                 pause: '暂停',
                 cancel: '取消',
-                clear: '清空'
+                clear: '清空',
+                rerunStep: '重执行该步'
             },
             current: '当前',
             modal: {
