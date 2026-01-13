@@ -719,7 +719,7 @@ watch(selectedChannel, () => {
             <div class="skill-main">
               <div class="skill-name">{{ skill.name || skill.id }}</div>
               <div class="skill-meta">
-                <code class="skill-id">{{ skill.id }}</code>
+                <code class="skill-id" :title="skill.id">{{ skill.id }}</code>
                 <span v-if="skill.description" class="skill-desc" :title="skill.description">{{ skill.description }}</span>
               </div>
             </div>
@@ -950,11 +950,17 @@ watch(selectedChannel, () => {
 }
 
 .skill-id {
+  display: inline-block;
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--vscode-textBlockQuote-background);
   color: var(--vscode-descriptionForeground);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .skill-desc {
