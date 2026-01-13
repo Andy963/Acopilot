@@ -67,6 +67,54 @@ const providerSummary = computed(() => {
   if (!data) return ''
   return `${data.providerType} · ${data.model}`
 })
+
+const hasInjected = computed(() => {
+  const injected = props.data?.injected
+  if (!injected) return false
+  return Boolean(
+    injected.pinnedFiles ||
+    injected.attachments ||
+    (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
+  )
+})
+
+const pinnedPromptSummary = computed(() => {
+  const p = props.data?.injected?.pinnedPrompt
+  if (!p || p.mode === 'none') return ''
+
+  if (p.mode === 'skill') {
+    if (p.skillName && p.skillId) return `${p.skillName} (${p.skillId})`
+    return p.skillName || p.skillId || 'skill'
+  }
+
+  if (p.mode === 'custom') {
+    const count = typeof p.customPromptCharCount === 'number' ? p.customPromptCharCount : 0
+    return t('components.common.contextInspectorModal.injected.pinnedPromptCustom', { count })
+  }
+
+  return ''
+})
+
+const pinnedFilesListText = computed(() => {
+  const pf = props.data?.injected?.pinnedFiles
+  if (!pf || !Array.isArray(pf.files) || pf.files.length === 0) return ''
+  return pf.files
+    .map(f => `${f.path}${f.included === false ? ` (${t('components.common.contextInspectorModal.injected.missing')})` : ''}`)
+    .join('\n')
+})
+
+const attachmentsListText = computed(() => {
+  const a = props.data?.injected?.attachments
+  if (!a || !Array.isArray(a.items) || a.items.length === 0) return ''
+  return a.items
+    .map(item => {
+      const meta: string[] = []
+      if (item.mimeType) meta.push(item.mimeType)
+      if (typeof item.size === 'number') meta.push(`${item.size}B`)
+      return meta.length > 0 ? `${item.name} (${meta.join(', ')})` : item.name
+    })
+    .join('\n')
+})
 </script>
 
 <template>
@@ -107,6 +155,37 @@ const providerSummary = computed(() => {
             <span class="summary-muted">
               generatedAt: <code>{{ new Date(data.generatedAt).toLocaleString() }}</code>
             </span>
+          </div>
+        </div>
+
+        <!-- Injected -->
+        <div v-if="hasInjected" class="block">
+          <div class="block-title">
+            <i class="codicon codicon-symbol-property"></i>
+            <span>{{ t('components.common.contextInspectorModal.injected.title') }}</span>
+          </div>
+          <div class="kv">
+            <div v-if="data.injected?.pinnedFiles" class="kv-row">
+              <span class="k">{{ t('components.common.contextInspectorModal.injected.pinnedFiles') }}</span>
+              <span class="v"><code>{{ data.injected.pinnedFiles.included }} / {{ data.injected.pinnedFiles.totalEnabled }}</code></span>
+            </div>
+            <div v-if="pinnedPromptSummary" class="kv-row">
+              <span class="k">{{ t('components.common.contextInspectorModal.injected.pinnedPrompt') }}</span>
+              <span class="v"><code>{{ pinnedPromptSummary }}</code></span>
+            </div>
+            <div v-if="data.injected?.attachments" class="kv-row">
+              <span class="k">{{ t('components.common.contextInspectorModal.injected.attachments') }}</span>
+              <span class="v"><code>{{ data.injected.attachments.count }}</code></span>
+            </div>
+          </div>
+
+          <div v-if="pinnedFilesListText" class="injected-list">
+            <div class="injected-list-title">{{ t('components.common.contextInspectorModal.injected.pinnedFiles') }}</div>
+            <pre class="pre">{{ pinnedFilesListText }}</pre>
+          </div>
+          <div v-if="attachmentsListText" class="injected-list">
+            <div class="injected-list-title">{{ t('components.common.contextInspectorModal.injected.attachments') }}</div>
+            <pre class="pre">{{ attachmentsListText }}</pre>
           </div>
         </div>
 
@@ -310,6 +389,19 @@ const providerSummary = computed(() => {
   min-width: 0;
 }
 
+.injected-list {
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.injected-list-title {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
 .modules {
   display: flex;
   flex-direction: column;
@@ -394,4 +486,3 @@ const providerSummary = computed(() => {
   background: var(--vscode-button-hoverBackground);
 }
 </style>
-

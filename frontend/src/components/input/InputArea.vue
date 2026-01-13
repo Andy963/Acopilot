@@ -1179,7 +1179,7 @@ watch(pinPanelTab, (tab) => {
 
         <div class="composer-footer-actions">
           <!-- Token 使用量圆环 -->
-          <div class="token-ring-wrapper" @click="chatStore.openContextInspectorPreview()">
+          <div class="token-ring-wrapper" @click="chatStore.openContextInspectorPreview(props.attachments)">
             <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
               <!-- 背景圆环 -->
               <circle

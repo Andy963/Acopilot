@@ -3,7 +3,7 @@
  */
 
 import type { ChatStoreState } from './types'
-import type { ContextInspectorData } from '../../types'
+import type { Attachment, ContextInspectorData } from '../../types'
 import { sendToExtension } from '../../utils/vscode'
 
 function normalizeErrorMessage(error: unknown): string {
@@ -27,16 +27,28 @@ export function openContextInspectorWithData(state: ChatStoreState, data: Contex
   state.contextInspectorVisible.value = true
 }
 
-export async function openContextInspectorPreview(state: ChatStoreState): Promise<void> {
+export async function openContextInspectorPreview(state: ChatStoreState, attachments?: Attachment[]): Promise<void> {
   state.contextInspectorSource.value = 'preview'
   state.contextInspectorError.value = null
   state.contextInspectorLoading.value = true
   state.contextInspectorVisible.value = true
 
   try {
+    const attachmentMeta = Array.isArray(attachments)
+      ? attachments.map(a => ({
+          id: a.id,
+          name: a.name,
+          type: a.type,
+          size: a.size,
+          mimeType: a.mimeType,
+          url: a.url
+        }))
+      : undefined
+
     const data = await sendToExtension<ContextInspectorData>('getContextInspectorData', {
       conversationId: state.currentConversationId.value || undefined,
-      configId: state.configId.value
+      configId: state.configId.value,
+      attachments: attachmentMeta
     })
     state.contextInspectorData.value = data || null
   } catch (error) {
@@ -46,4 +58,3 @@ export async function openContextInspectorPreview(state: ChatStoreState): Promis
     state.contextInspectorLoading.value = false
   }
 }
-

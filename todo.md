@@ -16,6 +16,10 @@
 - （历史）`feature/skills-install-url` → P2：支持通过 URL 安装 skill（GitHub 仓库）
 - （历史）`feature/skills-in-prompt` → P2：Prompt 页支持选择 skill / 自定义 prompt（仅对当前对话生效）
 
+## Branch ↔ TODO 映射（开发中/待合并）
+
+- `feature/context-inspector-injection-details` → P0/上下文：Pinned Files / Skills / 附件 的实际注入明细（Context Inspector）
+
 ## P0（最影响体验，优先做）
 
 - [ ] **上下文可控性与可解释性不足**
@@ -23,7 +27,7 @@
     - [x] 系统提示词模块预览（按 `====` 分段）
     - [x] 工具声明/工具定义预览（含 MCP 数量统计；xml/json 模式展示 definition）
     - [x] 历史裁剪信息展示（full/trimmed/trimStartIndex/lastSummaryIndex）
-    - [ ] Pinned Files / Skills / 附件 的实际注入明细
+    - [x] Pinned Files / Skills / 附件 的实际注入明细
     - [ ] 按模块粗略 token 占用拆分（而非仅总占用百分比）
   - [ ] 对话内落一条可折叠的 `Context Used / Context Trimmed` 摘要，支持复制调试信息用于复现问题。
     - [x] 每条助手消息保存 `Context Used` 快照（按钮打开弹窗查看）

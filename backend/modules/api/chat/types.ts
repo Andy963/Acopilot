@@ -4,7 +4,7 @@
  * 定义对话相关的请求和响应类型
  */
 
-import type { Content } from '../../conversation/types';
+import type { Content, ContextInjectedInfo } from '../../conversation/types';
 import type { StreamChunk } from '../../channel/types';
 import type { CheckpointRecord } from '../../checkpoint';
 
@@ -223,6 +223,8 @@ export interface ContextInspectorData {
     systemInstructionTruncated: boolean;
     /** 解析出的模块列表（基于 "====" 分段） */
     modules: ContextInspectorModule[];
+    /** 注入明细（Pinned Files / Skill / Attachments 等） */
+    injected?: ContextInjectedInfo;
     /** 裁剪信息（无对话时为空） */
     trim?: ContextInspectorTrim;
 }
