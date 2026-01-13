@@ -8,6 +8,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { CustomScrollbar, DeleteDialog, Tooltip, ConfirmDialog } from '../common'
 import MessageItem from './MessageItem.vue'
 import SummaryMessage from './SummaryMessage.vue'
+import PlanRunnerPanel from '../plan/PlanRunnerPanel.vue'
 import { useChatStore } from '../../stores'
 import { formatTime } from '../../utils/format'
 import { useI18n } from '../../i18n'
@@ -513,6 +514,8 @@ function formatCheckpointTime(timestamp: number): string {
           </template>
         </template>
         
+        <PlanRunnerPanel />
+
         <!-- 继续对话提示 - 当最后一条是工具响应时显示 -->
         <div v-if="chatStore.needsContinueButton" class="continue-message">
           <div class="continue-icon">

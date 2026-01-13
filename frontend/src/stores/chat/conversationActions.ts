@@ -34,6 +34,7 @@ export async function createNewConversation(
   state.allMessages.value = []  // 清空消息
   state.checkpoints.value = []  // 清空检查点
   state.error.value = null
+  state.planRunner.value = null
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
   
   // 清除所有加载和流式状态
@@ -214,6 +215,7 @@ export async function switchConversation(
   state.allMessages.value = []
   state.checkpoints.value = []
   state.error.value = null
+  state.planRunner.value = null
   state.isLoading.value = false
   state.isStreaming.value = false
   state.streamingMessageId.value = null
