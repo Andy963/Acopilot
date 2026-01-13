@@ -176,6 +176,12 @@ const en: LanguageMessages = {
                 titleUsed: 'Context Used',
                 noData: 'No context data',
                 copyDebug: 'Copy debug info',
+                injected: {
+                    title: 'Injected Context',
+                    pinnedFiles: 'Pinned Files',
+                    pinnedPrompt: 'Pinned Prompt',
+                    attachments: 'Attachments'
+                },
                 trim: {
                     title: 'Context Trim',
                     fullHistory: 'History messages',

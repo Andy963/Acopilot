@@ -60,7 +60,8 @@ import {
 } from './utils';
 import { ToolCallParserService, MessageBuilderService, TokenEstimationService, ContextTrimService, ToolExecutionService, SummarizeService, ToolIterationLoopService, CheckpointService, OrphanedToolCallService, DiffInterruptService, ChatFlowService } from './services';
 import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
-import { getPinnedPromptBlock } from './services/pinnedPrompt';
+import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
+import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
 
 /** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
 const DEFAULT_MAX_TOOL_ITERATIONS = 20;
@@ -446,7 +447,7 @@ export class ChatHandler {
     /**
      * 获取 Context Inspector 预览数据（不发起模型请求）
      */
-    async handleGetContextInspectorData(request: { conversationId?: string; configId: string }): Promise<ContextInspectorData> {
+    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown }): Promise<ContextInspectorData> {
         const conversationId = request.conversationId?.trim();
         const configId = request.configId;
 
@@ -549,6 +550,17 @@ export class ChatHandler {
             };
         }
 
+        const injected = {
+            pinnedFiles: buildPinnedFilesInjectedInfo(this.settingsManager),
+            pinnedPrompt: conversationId ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId) : undefined,
+            attachments: buildPreviewAttachmentsInjectedInfo(request.attachments),
+        };
+        const hasInjected = Boolean(
+            injected.pinnedFiles ||
+            injected.attachments ||
+            (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
+        );
+
         return {
             generatedAt: Date.now(),
             conversationId: conversationId || undefined,
@@ -560,6 +572,7 @@ export class ChatHandler {
             systemInstructionCharCount,
             systemInstructionTruncated,
             modules,
+            injected: hasInjected ? injected : undefined,
             trim,
         };
     }
