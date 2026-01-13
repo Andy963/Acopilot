@@ -44,6 +44,19 @@ export async function sendMessage(
 
       // 对话创建后，将当前选择的固定提示词/技能持久化（用于首条消息生效）
       await persistPinnedPromptForConversation(state, newId)
+
+      // 对话创建后，若存在 Plan Runner 草稿，也一并持久化（用于重启后恢复）
+      if (state.planRunner.value) {
+        try {
+          await sendToExtension('conversation.setCustomMetadata', {
+            conversationId: newId,
+            key: 'planRunner',
+            value: state.planRunner.value
+          })
+        } catch (err) {
+          console.warn('Failed to persist plan runner state:', err)
+        }
+      }
     }
     
     const userMessage: Message = {

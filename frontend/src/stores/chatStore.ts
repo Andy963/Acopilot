@@ -97,6 +97,16 @@ import {
   openContextInspectorPreview as openContextInspectorPreviewFn,
   openContextInspectorWithData as openContextInspectorWithDataFn
 } from './chat/contextInspectorActions'
+import {
+  loadPlanRunnerState as loadPlanRunnerStateFn,
+  createPlanRunner as createPlanRunnerFn,
+  clearPlanRunner as clearPlanRunnerFn,
+  startPlanRunner as startPlanRunnerFn,
+  resumePlanRunner as resumePlanRunnerFn,
+  pausePlanRunner as pausePlanRunnerFn,
+  cancelPlanRunner as cancelPlanRunnerFn,
+  type PlanRunnerCreateInput
+} from './chat/planRunnerActions'
 
 // 重新导出类型
 export type { Conversation, WorkspaceFilter } from './chat/types'
@@ -140,7 +150,10 @@ export const useChatStore = defineStore('chat', () => {
   
   const createNewConversation = () => createNewConvAction(state, cancelStreamAndRejectTools)
   const loadConversations = () => loadConvsAction(state)
-  const switchConversation = (id: string) => switchConvAction(state, id, cancelStreamAndRejectTools)
+  const switchConversation = async (id: string) => {
+    await switchConvAction(state, id, cancelStreamAndRejectTools)
+    await loadPlanRunnerState()
+  }
   const deleteConversation = (id: string) => deleteConvAction(
     state,
     id,
@@ -175,6 +188,16 @@ export const useChatStore = defineStore('chat', () => {
   const openContextInspectorPreview = () => openContextInspectorPreviewFn(state)
   const openContextInspectorWithData = (data: ContextInspectorData) => openContextInspectorWithDataFn(state, data)
   const closeContextInspector = () => closeContextInspectorFn(state)
+
+  // ============ Plan Runner ============
+
+  const loadPlanRunnerState = () => loadPlanRunnerStateFn(state)
+  const createPlanRunner = (input: PlanRunnerCreateInput) => createPlanRunnerFn(state, input)
+  const clearPlanRunner = () => clearPlanRunnerFn(state)
+  const startPlanRunner = () => startPlanRunnerFn(state, computed)
+  const resumePlanRunner = () => resumePlanRunnerFn(state, computed)
+  const pausePlanRunner = () => pausePlanRunnerFn(state)
+  const cancelPlanRunner = () => cancelPlanRunnerFn(state, computed)
 
   // ============ 流式处理 ============
   
@@ -232,6 +255,7 @@ export const useChatStore = defineStore('chat', () => {
     isWaitingForResponse: state.isWaitingForResponse,
     retryStatus: state.retryStatus,
     error: state.error,
+    planRunner: state.planRunner,
 
     // Context Inspector
     contextInspectorVisible: state.contextInspectorVisible,
@@ -278,6 +302,15 @@ export const useChatStore = defineStore('chat', () => {
     openContextInspectorPreview,
     openContextInspectorWithData,
     closeContextInspector,
+
+    // Plan Runner
+    loadPlanRunnerState,
+    createPlanRunner,
+    clearPlanRunner,
+    startPlanRunner,
+    resumePlanRunner,
+    pausePlanRunner,
+    cancelPlanRunner,
     
     // 配置管理
     setConfigId,

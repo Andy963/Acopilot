@@ -238,6 +238,7 @@ const en: LanguageMessages = {
             stopGenerating: 'Stop generating',
             attachFile: 'Attach file',
             pinnedFiles: 'Pinned',
+            createPlan: 'Plan & Run',
             summarizeContext: 'Summarize context',
             selectChannel: 'Select channel',
             selectModel: 'Select model',
@@ -307,6 +308,39 @@ const en: LanguageMessages = {
                 cannotGetFilePath: 'Cannot get file path, please drag from VSCode Explorer or tab',
                 fileNotMatchOrNotInWorkspace: 'File is not in workspace or filename does not match',
                 removeFailed: 'Remove failed: {error}'
+            }
+        },
+
+        planRunner: {
+            status: {
+                idle: 'Idle',
+                running: 'Running',
+                paused: 'Paused',
+                completed: 'Completed',
+                cancelled: 'Cancelled'
+            },
+            actions: {
+                start: 'Start',
+                resume: 'Resume',
+                pause: 'Pause',
+                cancel: 'Cancel',
+                clear: 'Clear'
+            },
+            current: 'Current',
+            modal: {
+                title: 'Plan & Run',
+                planTitle: 'Plan title',
+                planTitlePlaceholder: 'e.g. Fix xxx and add tests',
+                goal: 'Goal / context (optional)',
+                goalPlaceholder: 'Optional: constraints, acceptance criteria, context…',
+                steps: 'Steps',
+                addStep: 'Add step',
+                stepTitle: 'Step title',
+                stepInstruction: 'Instruction/prompt to send for this step…',
+                removeStep: 'Remove step',
+                hint: 'Need: plan title + at least 1 complete step (title + instruction).',
+                save: 'Save plan',
+                saveAndStart: 'Save & start'
             }
         },
 
