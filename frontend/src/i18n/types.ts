@@ -421,6 +421,7 @@ export interface LanguageMessages {
                 pause: string;
                 cancel: string;
                 clear: string;
+                rerunStep: string;
             };
             current: string;
             modal: {

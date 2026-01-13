@@ -324,7 +324,8 @@ const en: LanguageMessages = {
                 resume: 'Resume',
                 pause: 'Pause',
                 cancel: 'Cancel',
-                clear: 'Clear'
+                clear: 'Clear',
+                rerunStep: 'Rerun step'
             },
             current: 'Current',
             modal: {
