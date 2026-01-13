@@ -154,6 +154,9 @@ export interface ChatStoreState {
   /** Plan Runner（多步任务执行器） */
   planRunner: Ref<PlanRunnerData | null>
 
+  /** 本轮对话是否发生过文件改动（用于在结束后提示运行校验预设） */
+  postEditValidationPending: Ref<boolean>
+
   /** Context Inspector 弹窗是否显示 */
   contextInspectorVisible: Ref<boolean>
   /** Context Inspector 弹窗是否加载中 */
