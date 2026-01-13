@@ -2,6 +2,19 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.44] - 2026-01-13
+
+### Added
+  - Plan Runner：步骤级重执行（refresh icon）。
+  - Plan Runner：步骤级图片附件注入（执行时按步携带）。
+
+### Improved
+  - 差异/补丁工作流：`apply_diff` 支持 hunk 级 apply/undo + 冲突提示，文件级 git 状态展示与 stage/unstage。
+  - 写入文件工作流：`write_file` 支持文件级 apply/undo，文件级 git 状态展示与 stage/unstage。
+
+### Fixed
+  - 修复 Gemini 重复回答（历史消息 role 归一化）。
+
 ## [1.0.43] - 2026-01-13
 
 ### Added
