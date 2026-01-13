@@ -337,7 +337,9 @@ const en: LanguageMessages = {
                 addStep: 'Add step',
                 stepTitle: 'Step title',
                 stepInstruction: 'Instruction/prompt to send for this step…',
+                attachImage: 'Attach image',
                 removeStep: 'Remove step',
+                removeAttachment: 'Remove attachment',
                 hint: 'Need: plan title + at least 1 complete step (title + instruction).',
                 save: 'Save plan',
                 saveAndStart: 'Save & start'
