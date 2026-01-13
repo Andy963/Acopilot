@@ -2,11 +2,19 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { IconButton, Modal, Tooltip } from '../common'
 import { useChatStore } from '../../stores'
-import { copyToClipboard } from '../../utils/format'
+import { copyToClipboard, generateId } from '../../utils/format'
 import { sendToExtension, showNotification } from '../../utils/vscode'
 import { useI18n } from '../../i18n'
 
 type IssueProvider = 'github' | 'unknown'
+
+interface IssueCommentInfo {
+  id: number
+  user: string
+  createdAt: string
+  body: string
+  url?: string
+}
 
 interface IssueInfo {
   provider: IssueProvider
@@ -15,6 +23,9 @@ interface IssueInfo {
   title: string
   body: string
   labels: string[]
+  commentsTotal?: number
+  comments?: IssueCommentInfo[]
+  imageUrls?: string[]
   url: string
 }
 
@@ -146,6 +157,10 @@ function runAnalyze(val: IssueInfo) {
     const body = rawBody.length > MAX_ISSUE_BODY_CHARS ? rawBody.slice(0, MAX_ISSUE_BODY_CHARS) : rawBody
     const bodyTruncated = rawBody.length > MAX_ISSUE_BODY_CHARS
 
+    const comments = Array.isArray(val.comments) ? val.comments : []
+    const commentsTotal = typeof val.commentsTotal === 'number' ? val.commentsTotal : comments.length
+    const MAX_COMMENT_BODY_CHARS = 4000
+
     intentSummary.value = title
       ? `${repo ? `${repo} ` : ''}${num ? `#${num} ` : ''}${title}`.trim()
       : `Analyze issue: ${val.url}`
@@ -169,6 +184,39 @@ function runAnalyze(val: IssueInfo) {
       lines.push(body)
       if (bodyTruncated) lines.push('\n[...truncated...]')
       lines.push('</issue_body>')
+    }
+
+    if (comments.length > 0) {
+      lines.push('')
+      lines.push(`Issue comments (first ${comments.length}${commentsTotal > comments.length ? ` of ${commentsTotal}` : ''}):`)
+      lines.push('<issue_comments>')
+      for (const c of comments) {
+        const who = String(c?.user || '').trim() || 'unknown'
+        const when = String(c?.createdAt || '').trim()
+        const header = when ? `@${who} (${when})` : `@${who}`
+
+        const raw = String(c?.body || '').replace(/\r\n/g, '\n').trim()
+        const clipped = raw.length > MAX_COMMENT_BODY_CHARS ? raw.slice(0, MAX_COMMENT_BODY_CHARS) : raw
+        const truncated = raw.length > MAX_COMMENT_BODY_CHARS
+
+        lines.push(header)
+        if (clipped) lines.push(clipped)
+        if (truncated) lines.push('\n[...truncated...]')
+        lines.push('---')
+      }
+      lines.push('</issue_comments>')
+    }
+
+    const imageUrls = Array.isArray(val.imageUrls) ? val.imageUrls.map(u => String(u || '').trim()).filter(Boolean) : []
+    if (imageUrls.length > 0) {
+      lines.push('')
+      lines.push(`Images referenced in issue/comments (${imageUrls.length}):`)
+      for (const u of imageUrls.slice(0, 10)) {
+        lines.push(`- ${u}`)
+      }
+      if (imageUrls.length > 10) {
+        lines.push('- ...')
+      }
     }
 
     lines.push('')
@@ -248,6 +296,10 @@ async function handleStart() {
   if (!canCreate.value) return
   const task = buildTaskCard()
   insertTaskCardMessage(task)
+  const imageUrlsSnapshot = Array.isArray(issue.value?.imageUrls)
+    ? issue.value!.imageUrls!.map(u => String(u || '').trim()).filter(Boolean)
+    : []
+
   visible.value = false
 
   const prompt = task.prompt
@@ -258,7 +310,37 @@ async function handleStart() {
       await chatStore.rejectPendingToolsWithAnnotation(prompt)
       return
     }
-    await chatStore.sendMessage(prompt)
+
+    const urls = imageUrlsSnapshot
+    const attachments: any[] = []
+
+    if (urls.length > 0) {
+      try {
+        const res = await sendToExtension<{
+          success: boolean
+          attachments?: Array<{ url: string; name: string; mimeType: string; size: number; data: string }>
+        }>('issue.fetchImageAttachments', { urls, maxImages: 5 })
+
+        const list = Array.isArray(res?.attachments) ? res!.attachments! : []
+        for (const a of list) {
+          if (!a?.data || !a?.mimeType) continue
+          attachments.push({
+            id: generateId(),
+            name: a.name || 'issue-image',
+            type: 'image',
+            size: typeof a.size === 'number' ? a.size : a.data.length,
+            mimeType: a.mimeType,
+            data: a.data,
+            thumbnail: `data:${a.mimeType};base64,${a.data}`,
+            url: a.url
+          })
+        }
+      } catch (err) {
+        console.warn('Failed to fetch issue images as attachments:', err)
+      }
+    }
+
+    await chatStore.sendMessage(prompt, attachments.length > 0 ? (attachments as any) : undefined)
   } catch (err) {
     console.error('Failed to start task:', err)
   }
