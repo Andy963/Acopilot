@@ -9,10 +9,18 @@
  * - 写入的内容（带行号）或 diff 对比视图
  */
 
-import { computed, ref, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import CustomScrollbar from '../../common/CustomScrollbar.vue'
 import { useI18n } from '@/composables'
-import { loadDiffContent as loadDiffContentFromBackend } from '@/utils/vscode'
+import {
+  loadDiffContent as loadDiffContentFromBackend,
+  applyWorkspaceFileContent,
+  saveWorkspaceFile,
+  deleteWorkspaceFile,
+  getGitStatusForPaths,
+  stageGitFile,
+  unstageGitFile
+} from '@/utils/vscode'
 
 const props = defineProps<{
   args: Record<string, unknown>
@@ -101,6 +109,236 @@ const mergedFiles = computed((): MergedFile[] => {
     }
   })
 })
+
+// ============ 工作流：文件级 apply/undo + git stage/unstage ============
+
+const appliedFiles = ref<Set<string>>(new Set())
+const fileBusy = ref<Set<string>>(new Set())
+const fileOpErrors = ref<Map<string, string>>(new Map())
+
+interface GitFileStatus {
+  xy: string
+  staged: boolean
+  unstaged: boolean
+  untracked: boolean
+}
+const gitStatuses = ref<Map<string, GitFileStatus>>(new Map())
+const gitLoading = ref<Set<string>>(new Set())
+
+watch(writeResults, (results) => {
+  const next = new Set<string>()
+  for (const result of results) {
+    if (result.status === 'accepted') next.add(result.path)
+  }
+  appliedFiles.value = next
+  fileOpErrors.value = new Map()
+}, { immediate: true })
+
+function isFileApplied(path: string): boolean {
+  return appliedFiles.value.has(path)
+}
+
+function canApplyFile(file: MergedFile): boolean {
+  return file.result?.action !== 'unchanged'
+}
+
+function canUndoFile(file: MergedFile): boolean {
+  if (file.result?.action === 'unchanged') return false
+  if (file.result?.action === 'created') return true
+  return !!getDiffContent(file.path)
+}
+
+function isFileBusy(path: string): boolean {
+  return fileBusy.value.has(path)
+}
+
+function setFileBusy(path: string, busy: boolean) {
+  const next = new Set(fileBusy.value)
+  if (busy) next.add(path)
+  else next.delete(path)
+  fileBusy.value = next
+}
+
+function getFileOpError(path: string): string | null {
+  return fileOpErrors.value.get(path) || null
+}
+
+function setFileOpError(path: string, message: string | null) {
+  const next = new Map(fileOpErrors.value)
+  if (!message) next.delete(path)
+  else next.set(path, message)
+  fileOpErrors.value = next
+}
+
+function getGitStatus(path: string): GitFileStatus | null {
+  return gitStatuses.value.get(path) || null
+}
+
+function isGitLoading(path: string): boolean {
+  return gitLoading.value.has(path)
+}
+
+function setGitLoading(path: string, loading: boolean) {
+  const next = new Set(gitLoading.value)
+  if (loading) next.add(path)
+  else next.delete(path)
+  gitLoading.value = next
+}
+
+async function refreshGitStatus(targetPaths?: string[]) {
+  const paths = targetPaths && targetPaths.length > 0 ? targetPaths : mergedFiles.value.map(f => f.path)
+  if (paths.length === 0) {
+    gitStatuses.value = new Map()
+    return
+  }
+
+  const resp = await getGitStatusForPaths(paths)
+  const statuses = resp?.statuses || {}
+
+  const next = new Map(gitStatuses.value)
+  for (const p of paths) {
+    const entry = statuses[p] as any
+    if (entry && !entry.error && (entry.staged || entry.unstaged || entry.untracked)) {
+      next.set(p, entry as GitFileStatus)
+    } else {
+      next.delete(p)
+    }
+  }
+
+  if (!targetPaths) {
+    for (const existing of next.keys()) {
+      if (!paths.includes(existing)) next.delete(existing)
+    }
+  }
+
+  gitStatuses.value = next
+}
+
+const filePathsKey = computed(() => mergedFiles.value.map(f => f.path).join('\n'))
+watch(filePathsKey, () => {
+  void refreshGitStatus()
+}, { immediate: true })
+
+onMounted(() => {
+  void refreshGitStatus()
+})
+
+async function handleApplyFile(file: MergedFile) {
+  if (!file.path || isFileBusy(file.path) || !canApplyFile(file)) return
+
+  setFileBusy(file.path, true)
+  setFileOpError(file.path, null)
+  try {
+    const diff = getDiffContent(file.path)
+    const contentToApply = diff ? diff.newContent : (file.content || '')
+    const resp = await applyWorkspaceFileContent(file.path, contentToApply, false)
+
+    if (!resp?.success) {
+      setFileOpError(file.path, t('common.failed'))
+      return
+    }
+
+    const next = new Set(appliedFiles.value)
+    next.add(file.path)
+    appliedFiles.value = next
+    await refreshGitStatus([file.path])
+  } catch (err: any) {
+    setFileOpError(file.path, err?.message || t('common.failed'))
+  } finally {
+    setFileBusy(file.path, false)
+  }
+}
+
+async function handleUndoFile(file: MergedFile) {
+  if (!file.path || isFileBusy(file.path) || !canUndoFile(file)) return
+
+  setFileBusy(file.path, true)
+  setFileOpError(file.path, null)
+  try {
+    if (file.result?.action === 'created') {
+      const status = getGitStatus(file.path)
+      if (status?.staged) {
+        await unstageGitFile(file.path)
+      }
+
+      const resp = await deleteWorkspaceFile(file.path)
+      if (!resp?.success) {
+        setFileOpError(file.path, t('common.failed'))
+        return
+      }
+
+      const next = new Set(appliedFiles.value)
+      next.delete(file.path)
+      appliedFiles.value = next
+      await refreshGitStatus([file.path])
+      return
+    }
+
+    const diff = getDiffContent(file.path)
+    if (!diff) {
+      setFileOpError(file.path, t('common.failed'))
+      return
+    }
+
+    const resp = await applyWorkspaceFileContent(file.path, diff.originalContent, false)
+    if (!resp?.success) {
+      setFileOpError(file.path, t('common.failed'))
+      return
+    }
+
+    const next = new Set(appliedFiles.value)
+    next.delete(file.path)
+    appliedFiles.value = next
+    await refreshGitStatus([file.path])
+  } catch (err: any) {
+    setFileOpError(file.path, err?.message || t('common.failed'))
+  } finally {
+    setFileBusy(file.path, false)
+  }
+}
+
+async function handleSaveFile(file: MergedFile) {
+  if (!file.path || isFileBusy(file.path)) return
+
+  setFileBusy(file.path, true)
+  setFileOpError(file.path, null)
+  try {
+    const resp = await saveWorkspaceFile(file.path)
+    if (!resp?.success) {
+      setFileOpError(file.path, t('common.failed'))
+      return
+    }
+
+    await refreshGitStatus([file.path])
+  } catch (err: any) {
+    setFileOpError(file.path, err?.message || t('common.failed'))
+  } finally {
+    setFileBusy(file.path, false)
+  }
+}
+
+async function handleStageFile(path: string) {
+  if (!path || isGitLoading(path)) return
+  setGitLoading(path, true)
+  try {
+    await saveWorkspaceFile(path)
+    await stageGitFile(path)
+  } finally {
+    setGitLoading(path, false)
+    await refreshGitStatus([path])
+  }
+}
+
+async function handleUnstageFile(path: string) {
+  if (!path || isGitLoading(path)) return
+  setGitLoading(path, true)
+  try {
+    await unstageGitFile(path)
+  } finally {
+    setGitLoading(path, false)
+    await refreshGitStatus([path])
+  }
+}
 
 // 监听结果变化，自动加载 diff 内容
 watch(writeResults, async (results) => {
@@ -539,6 +777,30 @@ onBeforeUnmount(() => {
           </div>
           <div class="file-actions">
             <button
+              v-if="file.content && (canApplyFile(file) || canUndoFile(file))"
+              class="action-btn"
+              :disabled="isFileBusy(file.path) || (isFileApplied(file.path) ? !canUndoFile(file) : !canApplyFile(file))"
+              :title="isFileApplied(file.path) ? t('common.undo') : t('common.apply')"
+              @click.stop="isFileApplied(file.path) ? handleUndoFile(file) : handleApplyFile(file)"
+            >
+              <span
+                :class="[
+                  'codicon',
+                  isFileBusy(file.path)
+                    ? 'codicon-loading codicon-modifier-spin'
+                    : (isFileApplied(file.path) ? 'codicon-discard' : 'codicon-diff-added')
+                ]"
+              ></span>
+            </button>
+            <button
+              class="action-btn"
+              :disabled="isFileBusy(file.path)"
+              :title="t('common.save')"
+              @click.stop="handleSaveFile(file)"
+            >
+              <span class="codicon codicon-save"></span>
+            </button>
+            <button
               v-if="file.content"
               class="action-btn"
               :class="{ 'copied': isCopied(file.path) }"
@@ -551,11 +813,42 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- 文件路径 -->
-        <div class="file-path">{{ file.path }}</div>
+        <div class="file-path">
+          <span class="path">{{ file.path }}</span>
+          <span v-if="getGitStatus(file.path)" class="git-status" :title="getGitStatus(file.path)!.xy">
+            <span class="codicon codicon-source-control"></span>
+            <code>{{ getGitStatus(file.path)!.xy }}</code>
+          </span>
+          <div v-if="getGitStatus(file.path)" class="git-actions">
+            <button
+              v-if="getGitStatus(file.path)!.untracked || getGitStatus(file.path)!.unstaged"
+              class="action-btn"
+              :disabled="isGitLoading(file.path)"
+              :title="t('common.stage')"
+              @click.stop="handleStageFile(file.path)"
+            >
+              <span class="codicon codicon-git-branch-staged-changes"></span>
+            </button>
+            <button
+              v-if="getGitStatus(file.path)!.staged"
+              class="action-btn"
+              :disabled="isGitLoading(file.path)"
+              :title="t('common.unstage')"
+              @click.stop="handleUnstageFile(file.path)"
+            >
+              <span class="codicon codicon-git-branch-changes"></span>
+            </button>
+          </div>
+        </div>
         
         <!-- 错误信息 -->
         <div v-if="file.result && !file.result.success && file.result.error" class="file-error">
           {{ file.result.error }}
+        </div>
+
+        <div v-if="getFileOpError(file.path)" class="file-op-error">
+          <span class="codicon codicon-warning"></span>
+          <span class="file-op-error-text">{{ getFileOpError(file.path) }}</span>
         </div>
         
         <!-- 视图切换按钮 -->
@@ -846,15 +1139,41 @@ onBeforeUnmount(() => {
 
 /* 文件路径 */
 .file-path {
-  padding: 2px var(--spacing-sm, 8px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--spacing-sm, 8px);
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-editor-font-family);
   background: var(--vscode-editor-background);
   border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.file-path .path {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.git-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.git-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* 文件错误 */
@@ -863,6 +1182,21 @@ onBeforeUnmount(() => {
   font-size: 11px;
   color: var(--vscode-inputValidation-errorForeground);
   background: var(--vscode-inputValidation-errorBackground);
+}
+
+.file-op-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+  background: rgba(255, 100, 100, 0.08);
+  color: var(--vscode-errorForeground);
+  font-size: 11px;
+}
+
+.file-op-error-text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 文件内容 */
