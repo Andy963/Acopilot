@@ -386,6 +386,68 @@ const showFinishReason = computed(() => {
   return finishReason.value.toLowerCase() !== 'stop'
 })
 
+const finishReasonKey = computed(() => (finishReason.value || '').toLowerCase())
+
+const finishReasonIcon = computed(() => {
+  switch (finishReasonKey.value) {
+    case 'completed':
+    case 'end_turn':
+      return 'codicon-pass'
+    case 'length':
+    case 'max_tokens':
+    case 'incomplete':
+      return 'codicon-warning'
+    case 'content_filter':
+    case 'safety':
+      return 'codicon-shield'
+    case 'tool_calls':
+    case 'tool_use':
+    case 'function_call':
+      return 'codicon-tools'
+    case 'cancelled':
+    case 'canceled':
+      return 'codicon-circle-slash'
+    case 'failed':
+    case 'error':
+      return 'codicon-error'
+    case 'expired':
+    case 'timeout':
+      return 'codicon-clock'
+    case 'queued':
+    case 'in_progress':
+    case 'running':
+      return 'codicon-loading'
+    default:
+      return 'codicon-info'
+  }
+})
+
+const finishReasonClass = computed(() => {
+  switch (finishReasonKey.value) {
+    case 'completed':
+    case 'end_turn':
+      return 'finish-reason-success'
+    default:
+      return ''
+  }
+})
+
+const finishReasonSpin = computed(() => {
+  switch (finishReasonKey.value) {
+    case 'queued':
+    case 'in_progress':
+    case 'running':
+      return true
+    default:
+      return false
+  }
+})
+
+const finishReasonTitle = computed(() => {
+  if (!finishReason.value) return t('components.message.stats.finishReason')
+  return `${t('components.message.stats.finishReason')}: ${finishReason.value}`
+})
+
 // 角色显示名称
 const roleDisplayName = computed(() => {
   if (isUser.value) return t('components.message.roles.user')
@@ -406,7 +468,7 @@ const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnaps
 function formatTokenCount(count: number | undefined): string {
   if (count === undefined) return ''
   if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
-  if (count >= 10_000) return `${Math.round(count / 1_000)}k`
+  if (count >= 1_000) return `${Math.round(count / 1_000)}k`
   return String(count)
 }
 
@@ -702,9 +764,14 @@ function handleOpenContextUsed() {
 	            <span
               v-if="showFinishReason"
               class="finish-reason"
-              :title="t('components.message.stats.finishReason')"
+              :class="finishReasonClass"
+              :title="finishReasonTitle"
+              :aria-label="finishReasonTitle"
             >
-              <i class="codicon codicon-info"></i>{{ finishReason }}
+              <i
+                class="codicon"
+                :class="[finishReasonIcon, { 'codicon-modifier-spin': finishReasonSpin }]"
+              ></i>
             </span>
           </div>
 
@@ -918,6 +985,10 @@ function handleOpenContextUsed() {
 .finish-reason .codicon {
   font-size: 14px;
   line-height: 1;
+}
+
+.finish-reason.finish-reason-success .codicon {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #89d185));
 }
 
 .token-total {
