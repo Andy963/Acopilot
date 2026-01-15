@@ -21,6 +21,13 @@ import { generateId } from '../../utils/format'
 
 const { t } = useI18n()
 
+type RiskBadgeLevel = 'low' | 'medium' | 'high' | 'critical'
+
+interface RiskBadgeInfo {
+  level: RiskBadgeLevel
+  label: string
+}
+
 const props = defineProps<{
   tools: ToolUsage[]
   embedded?: boolean
@@ -247,6 +254,61 @@ function getToolDescription(tool: ToolUsage): string {
   return t('components.message.tool.paramCount', { count: argCount })
 }
 
+function riskLevelFromLabel(label: string): RiskBadgeLevel | null {
+  const normalized = (label || '').trim().toLowerCase()
+  if (!normalized) return null
+
+  const map: Record<string, RiskBadgeLevel> = {
+    '低': 'low',
+    low: 'low',
+    '中': 'medium',
+    medium: 'medium',
+    '高': 'high',
+    high: 'high',
+    '致命': 'critical',
+    critical: 'critical',
+    fatal: 'critical'
+  }
+
+  return map[normalized] ?? null
+}
+
+function parseRiskPrefix(description: string): { badge: RiskBadgeInfo; text: string } | null {
+  const input = description ?? ''
+  const trimmed = input.trimStart()
+  const match = trimmed.match(/^\[(风险|Risk)\s*:\s*([^\]]+)\]\s*(.*)$/s)
+  if (!match) return null
+
+  const label = match[2].trim()
+  const level = riskLevelFromLabel(label)
+  if (!level) return null
+
+  return {
+    badge: { level, label },
+    text: match[3] ?? ''
+  }
+}
+
+interface DisplayToolUsage extends ToolUsage {
+  description: string
+  descriptionText: string
+  riskBadge?: RiskBadgeInfo
+}
+
+const displayTools = computed<DisplayToolUsage[]>(() => {
+  return enhancedTools.value.map((tool) => {
+    const description = getToolDescription(tool)
+    const parsed = parseRiskPrefix(description)
+
+    return {
+      ...tool,
+      description,
+      descriptionText: parsed ? parsed.text : description,
+      riskBadge: parsed?.badge
+    }
+  })
+})
+
 // 检查工具是否可展开
 function isExpandable(tool: ToolUsage): boolean {
   const config = getToolConfig(tool.name)
@@ -375,7 +437,7 @@ function renderToolContent(tool: ToolUsage) {
 <template>
   <div class="tool-message" :class="{ embedded: !!props.embedded }">
     <div
-      v-for="tool in enhancedTools"
+      v-for="tool in displayTools"
       :key="tool.id"
       class="tool-item"
     >
@@ -421,8 +483,14 @@ function renderToolContent(tool: ToolUsage) {
         
         <!-- 工具描述和操作按钮 -->
         <div class="tool-description-row">
-          <div class="tool-description">
-            {{ getToolDescription(tool) }}
+          <div class="tool-description" :class="{ 'has-risk-badge': !!tool.riskBadge }">
+            <span
+              v-if="tool.riskBadge"
+              :class="['risk-badge', `risk-${tool.riskBadge.level}`]"
+            >
+              {{ tool.riskBadge.label }}
+            </span>
+            <span class="tool-description-text">{{ tool.descriptionText }}</span>
           </div>
           
           <div class="tool-action-buttons">
@@ -635,6 +703,60 @@ function renderToolContent(tool: ToolUsage) {
   word-break: break-all;
   line-height: 1.4;
   font-family: var(--vscode-editor-font-family);
+}
+
+.tool-description.has-risk-badge {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 6px;
+  align-items: start;
+}
+
+.tool-description.has-risk-badge .risk-badge {
+  margin-right: 0;
+}
+
+.tool-description-text {
+  min-width: 0;
+}
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  margin-right: 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: text-top;
+}
+
+.risk-badge.risk-low {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+  background: rgba(40, 167, 69, 0.15);
+  border-color: rgba(40, 167, 69, 0.35);
+}
+
+.risk-badge.risk-medium {
+  color: var(--vscode-charts-yellow, #f0c674);
+  background: rgba(240, 198, 116, 0.15);
+  border-color: rgba(240, 198, 116, 0.35);
+}
+
+.risk-badge.risk-high {
+  color: var(--vscode-charts-orange, #e69500);
+  background: rgba(230, 149, 0, 0.15);
+  border-color: rgba(230, 149, 0, 0.35);
+}
+
+.risk-badge.risk-critical {
+  color: var(--vscode-testing-iconFailed, #f85149);
+  background: rgba(220, 53, 69, 0.15);
+  border-color: rgba(220, 53, 69, 0.35);
 }
 
 /* 确认按钮 - 极简无边框设计 */
