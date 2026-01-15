@@ -44,12 +44,25 @@ export class GeminiFormatter extends BaseFormatter {
      * Gemini contents 仅接受 'user' | 'model'（systemInstruction 单独字段）。
      */
     private normalizeHistoryRoles(history: Content[]): Content[] {
-        return history
+        // 1) 角色归一化：兼容不同提供商/网关的 role 命名，并过滤 Gemini 不支持的 role
+        const normalized = history
             .map((content) => {
                 const rawRole = (content as any).role;
-                const role = rawRole === 'assistant' ? 'model' : rawRole;
+                const roleKey = typeof rawRole === 'string'
+                    ? rawRole.trim().toLowerCase()
+                    : rawRole;
 
-                if (role !== 'user' && role !== 'model') {
+                // 兼容常见别名：assistant/model、human/user
+                let role: 'user' | 'model' | null = null;
+                if (roleKey === 'user' || roleKey === 'model') {
+                    role = roleKey;
+                } else if (roleKey === 'assistant' || roleKey === 'bot' || roleKey === 'ai') {
+                    role = 'model';
+                } else if (roleKey === 'human') {
+                    role = 'user';
+                }
+
+                if (!role) {
                     return null;
                 }
 
@@ -59,6 +72,30 @@ export class GeminiFormatter extends BaseFormatter {
                 } as Content;
             })
             .filter((c): c is Content => c !== null);
+
+        // 2) Gemini 推荐/部分网关要求：history 以 user 开始
+        const firstUserIndex = normalized.findIndex(m => m.role === 'user');
+        if (firstUserIndex < 0) {
+            return [];
+        }
+        const normalizedFromUser = normalized.slice(firstUserIndex);
+
+        // 3) 合并连续同角色消息：避免出现 user,user 或 model,model 导致 Gemini 端“错位/忽略”
+        const coalesced: Content[] = [];
+        for (const message of normalizedFromUser) {
+            const last = coalesced[coalesced.length - 1];
+            if (!last || last.role !== message.role) {
+                coalesced.push(message);
+                continue;
+            }
+
+            coalesced[coalesced.length - 1] = {
+                ...last,
+                parts: [...(last.parts || []), ...(message.parts || [])]
+            };
+        }
+
+        return coalesced;
     }
 
     /**
