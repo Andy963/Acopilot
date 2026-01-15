@@ -1,6 +1,9 @@
 # 开发文件
 .vscode/**
 .vscode-test/**
+.github/**
+.claude/**
+.codex/**
 .gitignore
 tsconfig.json
 **/*.map
@@ -8,6 +11,8 @@ tsconfig.json
 # 临时文件/日志/打包产物
 .ads/**
 *.vsix
+build.sh
+todo.md
 
 # 锁文件
 pnpm-lock.yaml
