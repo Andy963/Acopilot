@@ -8,8 +8,33 @@
 
 import { t } from '../../backend/i18n';
 import { registerExecuteCommand } from '../../backend/tools/terminal';
-import type { Content, ContentPart } from '../../backend/modules/conversation/types';
+import type { Content, ContentPart, ThoughtSignatures } from '../../backend/modules/conversation/types';
 import type { HandlerContext, MessageHandler } from '../types';
+
+function findLatestThoughtSignatures(history: ReadonlyArray<Content>): ThoughtSignatures | undefined {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const message = history[i];
+    const parts = Array.isArray(message?.parts) ? message.parts : [];
+
+    for (let j = parts.length - 1; j >= 0; j--) {
+      const part = parts[j] as any;
+      if (!part || typeof part !== 'object') continue;
+
+      if (part.thoughtSignatures && typeof part.thoughtSignatures === 'object') {
+        const signatures = part.thoughtSignatures as ThoughtSignatures;
+        const hasAnySignature = Object.values(signatures).some(v => typeof v === 'string' && v.trim().length > 0);
+        if (hasAnySignature) return signatures;
+      }
+
+      // 向后兼容：旧格式可能是 thoughtSignature（单数，Gemini 原始字段）
+      if (typeof part.thoughtSignature === 'string' && part.thoughtSignature.trim().length > 0) {
+        return { gemini: part.thoughtSignature.trim() };
+      }
+    }
+  }
+
+  return undefined;
+}
 
 export const runValidationCommand: MessageHandler = async (data, requestId, ctx) => {
   const { conversationId, toolCallId, command, cwd, shell, timeout } = data || {};
@@ -32,6 +57,17 @@ export const runValidationCommand: MessageHandler = async (data, requestId, ctx)
   if (typeof shell === 'string' && shell.trim()) toolArgs.shell = shell;
   if (typeof timeout === 'number') toolArgs.timeout = timeout;
 
+  // 兼容 Gemini Thinking：在 function_call 流程中需要回传 thoughtSignature。
+  // 校验预设是“用户主动触发”的本地工具执行，但为了不破坏后续对话请求的历史结构，
+  // 这里复用最近一次模型输出里保存的 thoughtSignatures（如果有）。
+  let latestThoughtSignatures: ThoughtSignatures | undefined;
+  try {
+    const history = await ctx.conversationManager.getHistory(conversationId);
+    latestThoughtSignatures = findLatestThoughtSignatures(history);
+  } catch {
+    // ignore: absence of history/signatures should not block running the command
+  }
+
   // 1) 写入工具调用消息（model -> functionCall）
   const toolCallContent: Content = {
     role: 'model',
@@ -42,7 +78,8 @@ export const runValidationCommand: MessageHandler = async (data, requestId, ctx)
           name: 'execute_command',
           args: toolArgs,
           id: toolCallId
-        }
+        },
+        ...(latestThoughtSignatures ? { thoughtSignatures: latestThoughtSignatures } : {})
       } satisfies ContentPart
     ]
   };
