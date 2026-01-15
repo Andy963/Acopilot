@@ -2,6 +2,12 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.50] - 2026-01-15
+
+### Added
+  - 上下文：支持“仅本条消息”注入覆写（与 Settings 默认值联动），可临时开/关 Workspace Files/Open Tabs/Active Editor/Diagnostics/Pinned Files/Pinned Prompt/Tools，且会写入该条 user 消息以便重试/复现。
+  - 输入区：新增“本条上下文”开关面板；Context Inspector 预览会按当前覆写生成系统提示词/工具声明等内容，确保预览与实际注入一致。
+
 ## [1.0.49] - 2026-01-15
 
 ### Improved
