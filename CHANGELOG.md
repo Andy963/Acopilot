@@ -2,6 +2,12 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.49] - 2026-01-15
+
+### Improved
+  - Gemini：工具迭代（tool-loop）限速下调到 200~400ms（含 jitter），减少等待。
+  - Gemini：429/RESOURCE_EXHAUSTED 重试不再强制最少 15s，继续使用指数退避（基于 retryInterval）+ jitter。
+
 ## [1.0.48] - 2026-01-15
 
 ### Improved
