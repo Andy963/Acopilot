@@ -44,6 +44,11 @@ import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo }
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 
+// Gemini 很容易在“工具循环”里触发 429：工具执行通常很快，导致下一次模型请求紧随其后发出。
+// 这里对工具迭代后的后续轮次做轻量限速，避免短时间内连续请求。
+const GEMINI_TOOL_LOOP_MIN_INTERVAL_MS = 900;
+const GEMINI_TOOL_LOOP_JITTER_MS = 300;
+
 type OpenAIResponsesContinuationState = {
     configId: string;
     previousResponseId: string;
@@ -67,6 +72,12 @@ function isOpenAIResponsesContinuationError(error: unknown): boolean {
     return haystack.includes('previous_response_id') ||
         haystack.includes('previous response') ||
         haystack.includes('response id');
+}
+
+function getGeminiToolLoopDelayMs(iteration: number): number {
+    // 仅对“第 2 轮及以后”的模型调用做延迟：第 1 轮是用户发起，不应额外增加等待。
+    if (iteration <= 1) return 0;
+    return GEMINI_TOOL_LOOP_MIN_INTERVAL_MS + Math.floor(Math.random() * GEMINI_TOOL_LOOP_JITTER_MS);
 }
 
 /**
@@ -120,6 +131,37 @@ export interface NonStreamToolLoopResult {
  */
 export class ToolIterationLoopService {
     private promptManager: PromptManager;
+
+    private delay(ms: number, signal?: AbortSignal): Promise<void> {
+        if (ms <= 0) return Promise.resolve();
+
+        return new Promise((resolve) => {
+            if (signal?.aborted) {
+                resolve();
+                return;
+            }
+
+            let done = false;
+
+            const onAbort = () => finish();
+
+            const finish = () => {
+                if (done) return;
+                done = true;
+
+                clearTimeout(timeoutId);
+                if (signal) {
+                    signal.removeEventListener('abort', onAbort);
+                }
+                resolve();
+            };
+
+            const timeoutId = setTimeout(finish, ms);
+            if (signal) {
+                signal.addEventListener('abort', onAbort);
+            }
+        });
+    }
 
     private static truncatePreview(text: string, maxChars: number): { preview: string; truncated: boolean; charCount: number } {
         const safeText = text || '';
@@ -248,6 +290,18 @@ export class ToolIterationLoopService {
                     cancelled: true as const
                 } as any;
                 return;
+            }
+
+            // 1.1 Gemini 工具迭代限速：工具执行后紧接着的下一次模型请求容易触发 429
+            if (config.type === 'gemini') {
+                await this.delay(getGeminiToolLoopDelayMs(iteration), abortSignal);
+                if (abortSignal?.aborted) {
+                    yield {
+                        conversationId,
+                        cancelled: true as const
+                    } as any;
+                    return;
+                }
             }
 
             // 2. 创建模型消息前的检查点（如果配置了）
@@ -673,6 +727,11 @@ export class ToolIterationLoopService {
         // -1 表示无限制
         while (maxIterations === -1 || iteration < maxIterations) {
             iteration++;
+
+            // Gemini 工具迭代限速（非流式）
+            if (config.type === 'gemini') {
+                await this.delay(getGeminiToolLoopDelayMs(iteration));
+            }
 
             // 获取对话历史（应用总结过滤和上下文阈值裁剪）
             let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
