@@ -2,6 +2,15 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.48] - 2026-01-15
+
+### Improved
+  - OpenAI Responses：支持 prompt_cache_key + previous_response_id continuation，减少重复发送历史与 token 成本（失败自动回退到全量历史）。
+  - Gemini：工具迭代（tool-loop）后续轮次增加轻量限速，降低工具链路触发 429 的概率。
+
+### Fixed
+  - Gemini：遇到 429/RESOURCE_EXHAUSTED 时重试退避至少 15s + jitter，避免重试过快。
+
 ## [1.0.47] - 2026-01-15
 
 ### Added
