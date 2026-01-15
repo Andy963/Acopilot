@@ -164,6 +164,12 @@ export interface Content {
    * 用于解释本次请求注入了哪些上下文/发生了哪些裁剪。
    */
   contextSnapshot?: ContextInspectorData
+  /**
+   * 本条消息级上下文注入覆写（仅用户消息有值）
+   *
+   * 用于“仅本条消息”临时关闭/开启某些上下文模块（与 Settings 默认值联动）。
+   */
+  contextOverrides?: ContextInjectionOverrides
 }
 
 /**
@@ -397,6 +403,7 @@ export interface ChatRequest {
   conversationId: string
   configId: string
   message: string
+  contextOverrides?: ContextInjectionOverrides
 }
 
 export interface RetryRequest {
@@ -562,6 +569,16 @@ export interface ContextInspectorData {
   modules: ContextInspectorModule[]
   injected?: ContextInjectedInfo
   trim?: ContextInspectorTrim
+}
+
+export interface ContextInjectionOverrides {
+  includeWorkspaceFiles?: boolean
+  includeOpenTabs?: boolean
+  includeActiveEditor?: boolean
+  includeDiagnostics?: boolean
+  includePinnedFiles?: boolean
+  includePinnedPrompt?: boolean
+  includeTools?: boolean
 }
 
 // ============ 错误类型 ============

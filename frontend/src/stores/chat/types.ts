@@ -3,7 +3,7 @@
  */
 
 import type { Ref, ComputedRef } from 'vue'
-import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData, Attachment } from '../../types'
+import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData, Attachment, ContextInjectionOverrides } from '../../types'
 
 // 重新导出类型以供其他模块使用
 export type { CheckpointRecord } from '../../types'
@@ -152,6 +152,9 @@ export interface ChatStoreState {
   workspaceFilter: Ref<WorkspaceFilter>
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
+
+  /** 本条消息级上下文注入覆写（仅下一条消息生效） */
+  messageContextOverrides: Ref<ContextInjectionOverrides>
 
   /** Plan Runner（多步任务执行器） */
   planRunner: Ref<PlanRunnerData | null>

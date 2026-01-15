@@ -16,7 +16,7 @@ import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
 import { formatFileSize } from '../../utils/file'
 import { formatModelName, formatNumber } from '../../utils/format'
-import type { Attachment } from '../../types'
+import type { Attachment, ContextInjectionOverrides } from '../../types'
 import { useI18n } from '../../i18n'
 
 const { t } = useI18n()
@@ -230,6 +230,7 @@ function handleSend() {
   
   emit('send', content, attachments)
   chatStore.clearInputValue()  // 使用 store 方法清空
+  showContextOverridesPanel.value = false
 }
 
 // 处理取消
@@ -272,6 +273,8 @@ const isSummarizing = ref(false)
 const pinnedFiles = ref<PinnedFileItem[]>([])
 // 是否显示固定文件面板
 const showPinnedFilesPanel = ref(false)
+// 是否显示“本条消息上下文”开关面板
+const showContextOverridesPanel = ref(false)
 // 是否正在加载固定文件
 const isLoadingPinnedFiles = ref(false)
 // 拖拽状态
@@ -798,6 +801,7 @@ async function handleTogglePinnedFile(id: string, enabled: boolean) {
 async function togglePinnedFilesPanel() {
   showPinnedFilesPanel.value = !showPinnedFilesPanel.value
   if (showPinnedFilesPanel.value) {
+    showContextOverridesPanel.value = false
     syncPinnedPromptDraftFromStore()
     pinPanelTab.value = chatStore.pinnedPrompt?.mode === 'skill'
       ? 'skill'
@@ -809,6 +813,42 @@ async function togglePinnedFilesPanel() {
     await loadPinnedFiles()
     await checkPinnedFilesExistence()
     await loadSkills()
+  }
+}
+
+type ContextOverrideKey = keyof ContextInjectionOverrides
+
+const messageContextOverridesCount = computed(() => Object.keys(chatStore.messageContextOverrides || {}).length)
+const hasMessageContextOverrides = computed(() => messageContextOverridesCount.value > 0)
+
+const messageContextOverrideItems = computed((): Array<{ key: ContextOverrideKey; label: string }> => [
+  { key: 'includePinnedPrompt', label: t('components.input.messageContextOverrides.items.pinnedPrompt') },
+  { key: 'includePinnedFiles', label: t('components.input.messageContextOverrides.items.pinnedFiles') },
+  { key: 'includeWorkspaceFiles', label: t('components.input.messageContextOverrides.items.workspaceFiles') },
+  { key: 'includeOpenTabs', label: t('components.input.messageContextOverrides.items.openTabs') },
+  { key: 'includeActiveEditor', label: t('components.input.messageContextOverrides.items.activeEditor') },
+  { key: 'includeDiagnostics', label: t('components.input.messageContextOverrides.items.diagnostics') },
+  { key: 'includeTools', label: t('components.input.messageContextOverrides.items.tools') }
+])
+
+function getMessageContextOverrideValue(key: ContextOverrideKey): boolean | undefined {
+  const overrides = chatStore.messageContextOverrides
+  const v = overrides ? (overrides as any)[key] : undefined
+  return typeof v === 'boolean' ? v : undefined
+}
+
+function setMessageContextOverride(key: ContextOverrideKey, value: boolean | undefined) {
+  chatStore.setMessageContextOverride(key, value)
+}
+
+function clearMessageContextOverrides() {
+  chatStore.clearMessageContextOverrides()
+}
+
+function toggleContextOverridesPanel() {
+  showContextOverridesPanel.value = !showContextOverridesPanel.value
+  if (showContextOverridesPanel.value) {
+    showPinnedFilesPanel.value = false
   }
 }
 
@@ -848,6 +888,61 @@ watch(pinPanelTab, (tab) => {
   <div class="input-area">
     <CreateTaskModal v-model="showCreateTaskModal" />
     <CreatePlanModal v-model="showCreatePlanModal" />
+
+    <!-- 本条消息上下文开关面板（弹出） -->
+    <div v-if="showContextOverridesPanel" class="context-overrides-panel">
+      <div class="context-overrides-header">
+        <span class="context-overrides-title">
+          <i class="codicon codicon-filter"></i>
+          {{ t('components.input.messageContextOverrides.title') }}
+        </span>
+        <div class="context-overrides-header-actions">
+          <button
+            class="context-overrides-reset"
+            :disabled="!hasMessageContextOverrides"
+            @click="clearMessageContextOverrides"
+          >
+            {{ t('components.input.messageContextOverrides.reset') }}
+          </button>
+          <IconButton
+            icon="codicon-close"
+            size="small"
+            @click="showContextOverridesPanel = false"
+          />
+        </div>
+      </div>
+      <div class="context-overrides-description">
+        {{ t('components.input.messageContextOverrides.description') }}
+      </div>
+      <div class="context-overrides-content">
+        <div v-for="item in messageContextOverrideItems" :key="item.key" class="context-overrides-row">
+          <span class="context-overrides-label">{{ item.label }}</span>
+          <div class="context-overrides-segment">
+            <button
+              class="segment-btn"
+              :class="{ active: getMessageContextOverrideValue(item.key) === undefined }"
+              @click="setMessageContextOverride(item.key, undefined)"
+            >
+              {{ t('components.input.messageContextOverrides.inherit') }}
+            </button>
+            <button
+              class="segment-btn"
+              :class="{ active: getMessageContextOverrideValue(item.key) === true }"
+              @click="setMessageContextOverride(item.key, true)"
+            >
+              {{ t('components.input.messageContextOverrides.on') }}
+            </button>
+            <button
+              class="segment-btn"
+              :class="{ active: getMessageContextOverrideValue(item.key) === false }"
+              @click="setMessageContextOverride(item.key, false)"
+            >
+              {{ t('components.input.messageContextOverrides.off') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 固定文件面板（弹出） -->
     <div
       v-if="showPinnedFilesPanel"
@@ -1178,6 +1273,22 @@ watch(pinPanelTab, (tab) => {
         </div>
 
         <div class="composer-footer-actions">
+          <!-- 本条消息上下文开关 -->
+          <Tooltip :content="t('components.input.messageContextOverrides.title')" placement="top">
+            <div class="context-overrides-button-wrapper">
+              <IconButton
+                icon="codicon-filter"
+                size="small"
+                class="context-overrides-button"
+                :class="{ active: showContextOverridesPanel, 'has-overrides': hasMessageContextOverrides }"
+                @click="toggleContextOverridesPanel"
+              />
+              <span v-if="hasMessageContextOverrides" class="context-overrides-badge">
+                {{ messageContextOverridesCount }}
+              </span>
+            </div>
+          </Tooltip>
+
           <!-- Token 使用量圆环 -->
           <div class="token-ring-wrapper" @click="chatStore.openContextInspectorPreview(props.attachments)">
             <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
@@ -1570,6 +1681,36 @@ watch(pinPanelTab, (tab) => {
   border-radius: 7px;
 }
 
+/* 本条消息上下文开关按钮 */
+.context-overrides-button-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.context-overrides-button.has-overrides :deep(i.codicon) {
+  color: var(--vscode-textLink-foreground);
+}
+
+.context-overrides-button.active {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-overrides-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  text-align: center;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+  border-radius: 7px;
+}
+
 /* Create Task 按钮 */
 .create-task-button {
   color: var(--vscode-textLink-foreground);
@@ -1595,6 +1736,120 @@ watch(pinPanelTab, (tab) => {
   max-height: 360px;
   display: flex;
   flex-direction: column;
+}
+
+/* 本条消息上下文开关面板 */
+.context-overrides-panel {
+  position: absolute;
+  bottom: 100%;
+  right: 8px;
+  width: min(360px, calc(100% - 16px));
+  margin-bottom: 8px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 110;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.context-overrides-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.context-overrides-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.context-overrides-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-overrides-reset {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.context-overrides-reset:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-overrides-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-overrides-description {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.context-overrides-content {
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.context-overrides-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.context-overrides-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  flex: 1;
+  min-width: 0;
+}
+
+.context-overrides-segment {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.segment-btn {
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.segment-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.segment-btn.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
 .pinned-files-header {

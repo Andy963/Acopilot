@@ -297,6 +297,23 @@ const zhCN: LanguageMessages = {
                     hint: '保存后会作为系统提示词额外注入当前对话'
                 }
             },
+            messageContextOverrides: {
+                title: '本条上下文',
+                description: '仅对下一条消息生效（发送后自动恢复默认）',
+                reset: '重置',
+                inherit: '默认',
+                on: '开',
+                off: '关',
+                items: {
+                    pinnedPrompt: '固定提示词/Skill',
+                    pinnedFiles: '固定文件',
+                    workspaceFiles: '工作区文件树',
+                    openTabs: '打开的标签页',
+                    activeEditor: '当前编辑器',
+                    diagnostics: '诊断信息',
+                    tools: '工具'
+                }
+            },
             filePicker: {
                 title: '选择文件',
                 subtitle: '在 @ 后输入文字筛选路径',

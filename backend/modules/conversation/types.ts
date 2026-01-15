@@ -371,6 +371,22 @@ export interface ContextSnapshot {
 }
 
 /**
+ * 本次消息级上下文注入覆写（仅对当前用户消息生效）
+ *
+ * 用于在“仅本条消息”维度临时关闭/开启某些上下文模块，
+ * 同时保持与 Settings 中的全局默认值联动。
+ */
+export interface ContextInjectionOverrides {
+    includeWorkspaceFiles?: boolean;
+    includeOpenTabs?: boolean;
+    includeActiveEditor?: boolean;
+    includeDiagnostics?: boolean;
+    includePinnedFiles?: boolean;
+    includePinnedPrompt?: boolean;
+    includeTools?: boolean;
+}
+
+/**
  * Gemini Content（消息内容）
  *
  * Gemini API 的标准消息格式
@@ -557,6 +573,13 @@ export interface Content {
      * 用于在 UI 中解释“本次请求注入了哪些上下文/发生了哪些裁剪”。
      */
     contextSnapshot?: ContextSnapshot;
+
+    /**
+     * 上下文注入覆写（仅 user 消息有值）
+     *
+     * 该字段由前端在发送消息时提供，并持久化到历史中，便于重试/复现。
+     */
+    contextOverrides?: ContextInjectionOverrides;
 }
 
 /**

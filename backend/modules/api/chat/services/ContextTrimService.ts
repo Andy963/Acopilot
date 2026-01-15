@@ -13,7 +13,7 @@
  * - 总结消息之前的历史会被过滤
  */
 
-import type { Content } from '../../../conversation/types';
+import type { Content, ContextInjectionOverrides } from '../../../conversation/types';
 import type { ConversationManager, GetHistoryOptions } from '../../../conversation/ConversationManager';
 import type { PromptManager } from '../../../prompt';
 import type { BaseChannelConfig } from '../../../config/configs/base';
@@ -215,7 +215,8 @@ export class ContextTrimService {
     async getHistoryWithContextTrimInfo(
         conversationId: string,
         config: BaseChannelConfig,
-        historyOptions: GetHistoryOptions
+        historyOptions: GetHistoryOptions,
+        contextOverrides?: ContextInjectionOverrides
     ): Promise<ContextTrimInfo> {
         // 先获取完整的原始历史
         const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
@@ -235,8 +236,11 @@ export class ContextTrimService {
         const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
         
         // 计算系统提示词的 token 数
-        const baseSystemPrompt = this.promptManager.getSystemPrompt();
-        const pinnedPromptBlock = await getPinnedPromptBlock(this.conversationManager, conversationId);
+        const baseSystemPrompt = this.promptManager.getSystemPrompt(false, contextOverrides);
+        const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+        const pinnedPromptBlock = pinnedPromptEnabled
+            ? await getPinnedPromptBlock(this.conversationManager, conversationId)
+            : '';
         const systemPrompt = pinnedPromptBlock
             ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
             : baseSystemPrompt;
@@ -537,9 +541,10 @@ export class ContextTrimService {
     async getHistoryWithContextTrim(
         conversationId: string,
         config: BaseChannelConfig,
-        historyOptions: GetHistoryOptions
+        historyOptions: GetHistoryOptions,
+        contextOverrides?: ContextInjectionOverrides
     ): Promise<Content[]> {
-        const result = await this.getHistoryWithContextTrimInfo(conversationId, config, historyOptions);
+        const result = await this.getHistoryWithContextTrimInfo(conversationId, config, historyOptions, contextOverrides);
         return result.history;
     }
 }

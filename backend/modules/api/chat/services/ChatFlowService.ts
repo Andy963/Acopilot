@@ -15,7 +15,7 @@ import type { ConversationManager } from '../../../conversation/ConversationMana
 import type { SettingsManager } from '../../../settings/SettingsManager';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import { ChannelError, ErrorType } from '../../../channel/types';
-import type { ContentPart } from '../../../conversation/types';
+import type { ContentPart, ContextInjectionOverrides } from '../../../conversation/types';
 import type { CheckpointRecord } from '../../../checkpoint';
 
 import type {
@@ -119,7 +119,11 @@ export class ChatFlowService {
 
     // 3. 添加用户消息到历史（包含附件）
     const userParts = this.messageBuilderService.buildUserMessageParts(message, request.attachments);
-    await this.conversationManager.addMessage(conversationId, 'user', userParts);
+    await this.conversationManager.addContent(conversationId, {
+      role: 'user',
+      parts: userParts,
+      contextOverrides: request.contextOverrides,
+    });
 
     // 4. 工具调用循环（委托给 ToolIterationLoopService，非流式）
     const maxToolIterations = this.getMaxToolIterations();
@@ -370,7 +374,11 @@ export class ChatFlowService {
 
     // 5. 添加用户消息到历史（包含附件）
     const userParts = this.messageBuilderService.buildUserMessageParts(message, request.attachments);
-    await this.conversationManager.addMessage(conversationId, 'user', userParts);
+    await this.conversationManager.addContent(conversationId, {
+      role: 'user',
+      parts: userParts,
+      contextOverrides: request.contextOverrides,
+    });
 
     // 5.1 预计算用户消息 token 数
     await this.tokenEstimationService.preCountUserMessageTokens(conversationId, config.type);
@@ -686,6 +694,16 @@ export class ChatFlowService {
       return;
     }
 
+    let lastUserContextOverrides: ContextInjectionOverrides | undefined;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i] as any;
+      if (!msg || msg.role !== 'user') continue;
+      if (msg.isFunctionResponse === true) continue;
+      if (msg.isSummary === true) continue;
+      lastUserContextOverrides = msg.contextOverrides as ContextInjectionOverrides | undefined;
+      break;
+    }
+
     const functionCalls = this.toolCallParserService.extractFunctionCalls(lastMessage);
     if (functionCalls.length === 0) {
       yield {
@@ -804,6 +822,7 @@ export class ChatFlowService {
       await this.conversationManager.addContent(conversationId, {
         role: 'user',
         parts: [{ text: request.annotation.trim() }],
+        contextOverrides: lastUserContextOverrides,
       });
       await this.tokenEstimationService.preCountUserMessageTokens(conversationId, config.type);
     }
