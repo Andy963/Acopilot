@@ -46,8 +46,8 @@ const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 
 // Gemini 很容易在“工具循环”里触发 429：工具执行通常很快，导致下一次模型请求紧随其后发出。
 // 这里对工具迭代后的后续轮次做轻量限速，避免短时间内连续请求。
-const GEMINI_TOOL_LOOP_MIN_INTERVAL_MS = 900;
-const GEMINI_TOOL_LOOP_JITTER_MS = 300;
+const GEMINI_TOOL_LOOP_MIN_INTERVAL_MS = 200;
+const GEMINI_TOOL_LOOP_JITTER_MS = 200;
 
 type OpenAIResponsesContinuationState = {
     configId: string;

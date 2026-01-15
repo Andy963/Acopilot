@@ -49,7 +49,6 @@ export type RetryStatusCallback = (status: {
 export class ChannelManager {
     private mcpManager?: McpManager;
     private retryStatusCallback?: RetryStatusCallback;
-    private static readonly RATE_LIMIT_RETRY_MIN_INTERVAL_MS = 15000;
     
     constructor(
         private configManager: ConfigManager,
@@ -356,7 +355,6 @@ export class ChannelManager {
                     // 计算指数退避时间：retryInterval * 2^(attempt-1)
                     let currentInterval = retryInterval * Math.pow(2, attempt - 1);
                     if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
-                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
                         currentInterval += Math.floor(Math.random() * 500); // jitter
                     }
                     
@@ -375,7 +373,6 @@ export class ChannelManager {
                     // 如果没有回调，也要等待
                     let currentInterval = retryInterval * Math.pow(2, attempt - 1);
                     if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
-                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
                         currentInterval += Math.floor(Math.random() * 500); // jitter
                     }
                     await this.delay(currentInterval, request.abortSignal);
@@ -514,7 +511,6 @@ export class ChannelManager {
                     // 计算指数退避时间：retryInterval * 2^(attempt-1)
                     let currentInterval = retryInterval * Math.pow(2, attempt - 1);
                     if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
-                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
                         currentInterval += Math.floor(Math.random() * 500); // jitter
                     }
                     
@@ -533,7 +529,6 @@ export class ChannelManager {
                     // 如果没有回调，也要等待
                     let currentInterval = retryInterval * Math.pow(2, attempt - 1);
                     if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
-                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
                         currentInterval += Math.floor(Math.random() * 500); // jitter
                     }
                     await this.delay(currentInterval, request.abortSignal);
