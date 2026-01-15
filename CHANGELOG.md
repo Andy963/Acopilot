@@ -2,6 +2,18 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.47] - 2026-01-15
+
+### Added
+  - 对话内 Context Used 摘要：在每条助手回复下方展示本次注入的 Pinned Files / Pinned Prompt / Attachments，并可一键打开 Context Inspector。
+
+### Improved
+  - execute_command：风险等级显示改为彩色 badge（低=绿/中=黄/高=橙/致命=红）。
+
+### Fixed
+  - Gemini：history role 归一化更健壮，并合并连续同角色消息，减少错位/忽略。
+  - 校验预设：运行校验命令时回传最近的 thought signatures，兼容 Gemini Thinking（function call 流程）。
+
 ## [1.0.46] - 2026-01-14
 
 ### Improved
