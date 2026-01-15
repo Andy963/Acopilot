@@ -3,7 +3,7 @@
  */
 
 import { ref } from 'vue'
-import type { Message, ErrorInfo, ContextInspectorData } from '../../types'
+import type { Message, ErrorInfo, ContextInspectorData, ContextInjectionOverrides } from '../../types'
 import type { CheckpointRecord } from '../../types'
 import type {
   Conversation,
@@ -86,6 +86,9 @@ export function createChatState(): ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
 
+  /** 本条消息级上下文注入覆写（仅下一条消息生效） */
+  const messageContextOverrides = ref<ContextInjectionOverrides>({})
+
   /** Plan Runner（多步任务执行器） */
   const planRunner = ref<PlanRunnerData | null>(null)
 
@@ -121,6 +124,7 @@ export function createChatState(): ChatStoreState {
     inputValue,
     workspaceFilter,
     pinnedPrompt,
+    messageContextOverrides,
     planRunner,
     postEditValidationPending,
     contextInspectorVisible,

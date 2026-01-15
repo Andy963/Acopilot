@@ -4,7 +4,7 @@
  * 定义对话相关的请求和响应类型
  */
 
-import type { Content, ContextInjectedInfo } from '../../conversation/types';
+import type { Content, ContextInjectedInfo, ContextInjectionOverrides } from '../../conversation/types';
 import type { StreamChunk } from '../../channel/types';
 import type { CheckpointRecord } from '../../checkpoint';
 
@@ -51,6 +51,13 @@ export interface ChatRequestData {
     
     /** 附件列表（可选） */
     attachments?: AttachmentData[];
+
+    /**
+     * 本条消息级上下文注入覆写（可选）
+     *
+     * 仅对本次请求生效，并会被持久化到该条 user 消息上以支持重试/复现。
+     */
+    contextOverrides?: ContextInjectionOverrides;
     
     /** 取消信号 */
     abortSignal?: AbortSignal;

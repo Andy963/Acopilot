@@ -106,13 +106,20 @@ export async function sendMessage(
           thumbnail: att.thumbnail
         }))
       : undefined
+
+    const contextOverrides = state.messageContextOverrides.value
+    const hasContextOverrides = contextOverrides && Object.keys(contextOverrides).length > 0
     
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
       configId: state.configId.value,
       message: messageText,
-      attachments: attachmentData
+      attachments: attachmentData,
+      contextOverrides: hasContextOverrides ? contextOverrides : undefined
     })
+
+    // 仅本条消息生效：发送后清空（避免影响下一条消息）
+    state.messageContextOverrides.value = {}
     
   } catch (err: any) {
     if (state.isStreaming.value) {

@@ -392,6 +392,23 @@ export interface LanguageMessages {
                     hint: string;
                 };
             };
+            messageContextOverrides: {
+                title: string;
+                description: string;
+                reset: string;
+                inherit: string;
+                on: string;
+                off: string;
+                items: {
+                    pinnedPrompt: string;
+                    pinnedFiles: string;
+                    workspaceFiles: string;
+                    openTabs: string;
+                    activeEditor: string;
+                    diagnostics: string;
+                    tools: string;
+                };
+            };
             filePicker: {
                 title: string;
                 subtitle: string;

@@ -12,7 +12,7 @@
 import type { ChannelManager } from '../../../channel/ChannelManager';
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import type { CheckpointRecord } from '../../../checkpoint';
-import type { Content, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim } from '../../../conversation/types';
+import type { Content, ContextInjectionOverrides, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim } from '../../../conversation/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { GenerateResponse } from '../../../channel/types';
 import { ChannelError, ErrorType } from '../../../channel/types';
@@ -235,6 +235,17 @@ export class ToolIterationLoopService {
         return tools.filter((t) => typeof t.name === 'string' && t.name.startsWith('mcp__')).length;
     }
 
+    private static getLastUserContextOverrides(history: Content[]): ContextInjectionOverrides | undefined {
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            return (msg as any).contextOverrides as ContextInjectionOverrides | undefined;
+        }
+        return undefined;
+    }
+
     constructor(
         private channelManager: ChannelManager,
         private conversationManager: ConversationManager,
@@ -317,14 +328,20 @@ export class ToolIterationLoopService {
 
             // 3. 获取对话历史（应用上下文裁剪）
             const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
+            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+
+            const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+            const toolsEnabled = contextOverrides?.includeTools !== false;
+            const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+
             let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
-                historyOptions
+                historyOptions,
+                contextOverrides
             );
 
             const historyForFullRetry = history;
-            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
             // OpenAI Responses: 强制启用 prompt cache + previous response continuation（省 token）
             const promptCacheKey = config.type === 'openai-responses'
@@ -362,17 +379,21 @@ export class ToolIterationLoopService {
             // 4. 获取动态系统提示词
             // 首条消息时使用 refreshAndGetPrompt 强制刷新缓存
             const baseSystemPrompt = (isFirstMessage && iteration === 1)
-                ? this.promptManager.refreshAndGetPrompt()
-                : this.promptManager.getSystemPrompt(true);  // 强制刷新以获取最新的 DIAGNOSTICS
+                ? this.promptManager.refreshAndGetPrompt(contextOverrides)
+                : this.promptManager.getSystemPrompt(true, contextOverrides);  // 强制刷新以获取最新的 DIAGNOSTICS
 
-            const pinnedPromptBlock = await getPinnedPromptBlock(this.conversationManager, conversationId);
+            const pinnedPromptBlock = pinnedPromptEnabled
+                ? await getPinnedPromptBlock(this.conversationManager, conversationId)
+                : '';
             const dynamicSystemPrompt = pinnedPromptBlock
                 ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
                 : baseSystemPrompt;
 
             // 4.1 构建 Context Snapshot（用于 UI 解释/调试）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
-            const declarations = this.channelManager.getToolDeclarationsForPreview(config as any);
+            const declarations = toolsEnabled
+                ? this.channelManager.getToolDeclarationsForPreview(config as any)
+                : [];
             const mcpCount = ToolIterationLoopService.countMcpTools(declarations);
 
             let toolsDefinition = '';
@@ -414,8 +435,12 @@ export class ToolIterationLoopService {
             const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
 
             const injected = {
-                pinnedFiles: buildPinnedFilesInjectedInfo(),
-                pinnedPrompt: await getPinnedPromptInjectedInfo(this.conversationManager, conversationId),
+                pinnedFiles: contextOverrides?.includePinnedFiles === false
+                    ? undefined
+                    : buildPinnedFilesInjectedInfo(),
+                pinnedPrompt: pinnedPromptEnabled
+                    ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
+                    : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
             };
             const hasInjected = Boolean(
@@ -469,7 +494,8 @@ export class ToolIterationLoopService {
                     abortSignal,
                     dynamicSystemPrompt,
                     previousResponseId: requestPreviousResponseId,
-                    promptCacheKey
+                    promptCacheKey,
+                    skipTools: !toolsEnabled
                 });
 
                 let sawAnyChunk = false;
@@ -562,9 +588,11 @@ export class ToolIterationLoopService {
                 }
             }
 
-            // 8. 转换工具调用格式
-            this.toolCallParserService.convertXMLToolCallsToFunctionCalls(finalContent);
-            this.toolCallParserService.ensureFunctionCallIds(finalContent);
+            // 8. 转换工具调用格式（仅在启用 tools 时）
+            if (toolsEnabled) {
+                this.toolCallParserService.convertXMLToolCallsToFunctionCalls(finalContent);
+                this.toolCallParserService.ensureFunctionCallIds(finalContent);
+            }
 
             // 8.1 绑定 Context Snapshot 到消息上（用于前端展示）
             (finalContent as any).contextSnapshot = contextSnapshot;
@@ -589,8 +617,10 @@ export class ToolIterationLoopService {
                 }
             }
 
-            // 10. 检查是否有工具调用
-            const functionCalls = this.toolCallParserService.extractFunctionCalls(finalContent);
+            // 10. 检查是否有工具调用（仅在启用 tools 时）
+            const functionCalls = toolsEnabled
+                ? this.toolCallParserService.extractFunctionCalls(finalContent)
+                : [];
 
             if (functionCalls.length === 0) {
                 // 没有工具调用，创建模型消息后的检查点并返回完成数据
@@ -734,14 +764,20 @@ export class ToolIterationLoopService {
             }
 
             // 获取对话历史（应用总结过滤和上下文阈值裁剪）
+            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+
+            const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+            const toolsEnabled = contextOverrides?.includeTools !== false;
+            const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+
             let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
-                historyOptions
+                historyOptions,
+                contextOverrides
             );
 
             const historyForFullRetry = history;
-            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
             // OpenAI Responses: 强制启用 prompt cache + previous response continuation（省 token）
             const promptCacheKey = config.type === 'openai-responses'
@@ -776,14 +812,117 @@ export class ToolIterationLoopService {
                 }
             }
 
+            // 动态系统提示词（包含 pinned prompt）
+            const shouldRefreshPrompt = iteration === 1 && fullHistory.length === 1 && fullHistory[0]?.role === 'user';
+            const baseSystemPrompt = shouldRefreshPrompt
+                ? this.promptManager.refreshAndGetPrompt(contextOverrides)
+                : this.promptManager.getSystemPrompt(true, contextOverrides);
+
+            const pinnedPromptBlock = pinnedPromptEnabled
+                ? await getPinnedPromptBlock(this.conversationManager, conversationId)
+                : '';
+            const dynamicSystemPrompt = pinnedPromptBlock
+                ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
+                : baseSystemPrompt;
+
+            // Context Snapshot（用于 UI 解释/调试；非流式也可用）
+            const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
+            const declarations = toolsEnabled
+                ? this.channelManager.getToolDeclarationsForPreview(config as any)
+                : [];
+            const mcpCount = ToolIterationLoopService.countMcpTools(declarations);
+
+            let toolsDefinition = '';
+            if (toolMode === 'xml') {
+                toolsDefinition = convertToolsToXML(declarations);
+            } else if (toolMode === 'json') {
+                toolsDefinition = convertToolsToJSON(declarations);
+            }
+
+            let systemInstruction = (config.systemInstruction as string | undefined) || '';
+            if (dynamicSystemPrompt) {
+                systemInstruction = systemInstruction
+                    ? `${systemInstruction}\n\n${dynamicSystemPrompt}`
+                    : dynamicSystemPrompt;
+            }
+
+            const mcpToolsDefinition = '';
+            if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
+                systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
+                systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
+            } else if (toolsDefinition) {
+                systemInstruction = systemInstruction
+                    ? `${systemInstruction}\n\n${toolsDefinition}`
+                    : toolsDefinition;
+            }
+
+            const sysPreview = ToolIterationLoopService.truncatePreview(systemInstruction, 25000);
+            const toolDefPreview = toolsDefinition
+                ? ToolIterationLoopService.truncatePreview(toolsDefinition, 12000)
+                : null;
+
+            let lastSummaryIndex = -1;
+            for (let i = fullHistory.length - 1; i >= 0; i--) {
+                if ((fullHistory[i] as any).isSummary === true) {
+                    lastSummaryIndex = i;
+                    break;
+                }
+            }
+            const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
+
+            const injected = {
+                pinnedFiles: contextOverrides?.includePinnedFiles === false
+                    ? undefined
+                    : buildPinnedFilesInjectedInfo(),
+                pinnedPrompt: pinnedPromptEnabled
+                    ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
+                    : { mode: 'none' as const },
+                attachments: buildLastMessageAttachmentsInjectedInfo(history),
+            };
+            const hasInjected = Boolean(
+                injected.pinnedFiles ||
+                injected.attachments ||
+                (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
+            );
+
+            const contextSnapshot: ContextSnapshot = {
+                generatedAt: Date.now(),
+                conversationId,
+                configId,
+                providerType: config.type,
+                model: (config as any).model || '',
+                tools: {
+                    toolMode,
+                    total: declarations.length,
+                    mcp: mcpCount,
+                    definitionPreview: toolDefPreview?.preview,
+                    definitionCharCount: toolDefPreview?.charCount,
+                    definitionTruncated: toolDefPreview?.truncated,
+                } as ContextSnapshotTools,
+                systemInstructionPreview: sysPreview.preview,
+                systemInstructionCharCount: sysPreview.charCount,
+                systemInstructionTruncated: sysPreview.truncated,
+                modules: ToolIterationLoopService.buildModules(systemInstruction, 6000),
+                injected: hasInjected ? injected : undefined,
+                trim: {
+                    fullHistoryCount: fullHistory.length,
+                    trimmedHistoryCount: history.length,
+                    trimStartIndex,
+                    lastSummaryIndex,
+                    effectiveStartIndex,
+                } as ContextSnapshotTrim,
+            };
+
             // 调用 AI（非流式）
             let response: GenerateResponse | AsyncGenerator<any>;
             try {
                 response = await this.channelManager.generate({
                     configId,
                     history,
+                    dynamicSystemPrompt,
                     previousResponseId,
-                    promptCacheKey
+                    promptCacheKey,
+                    skipTools: !toolsEnabled
                 });
             } catch (error) {
                 const shouldFallback = config.type === 'openai-responses' &&
@@ -798,7 +937,9 @@ export class ToolIterationLoopService {
                 response = await this.channelManager.generate({
                     configId,
                     history: historyForFullRetry,
-                    promptCacheKey
+                    dynamicSystemPrompt,
+                    promptCacheKey,
+                    skipTools: !toolsEnabled
                 });
             }
 
@@ -812,10 +953,15 @@ export class ToolIterationLoopService {
             // 透传结束原因，便于前端判断是否被截断
             finalContent.finishReason = generateResponse.finishReason;
 
-            // 转换 XML 工具调用为 functionCall 格式（如果有）
-            this.toolCallParserService.convertXMLToolCallsToFunctionCalls(finalContent);
-            // 为没有 id 的 functionCall 添加唯一 id（Gemini 格式不返回 id）
-            this.toolCallParserService.ensureFunctionCallIds(finalContent);
+            if (toolsEnabled) {
+                // 转换 XML 工具调用为 functionCall 格式（如果有）
+                this.toolCallParserService.convertXMLToolCallsToFunctionCalls(finalContent);
+                // 为没有 id 的 functionCall 添加唯一 id（Gemini 格式不返回 id）
+                this.toolCallParserService.ensureFunctionCallIds(finalContent);
+            }
+
+            // 绑定 Context Snapshot 到消息上（用于前端展示）
+            (finalContent as any).contextSnapshot = contextSnapshot;
 
             // 保存 AI 响应到历史
             if (finalContent.parts.length > 0) {
@@ -838,8 +984,10 @@ export class ToolIterationLoopService {
                 }
             }
 
-            // 检查是否有工具调用
-            const functionCalls = this.toolCallParserService.extractFunctionCalls(finalContent);
+            // 检查是否有工具调用（仅在启用 tools 时）
+            const functionCalls = toolsEnabled
+                ? this.toolCallParserService.extractFunctionCalls(finalContent)
+                : [];
 
             if (functionCalls.length === 0) {
                 // 没有工具调用，结束循环并返回

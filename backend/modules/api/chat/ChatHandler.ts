@@ -16,7 +16,7 @@ import type { McpManager } from '../../mcp/McpManager';
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
 import { TokenCountService, type TokenCountResult } from '../../channel/TokenCountService';
-import type { Content, ContentPart, ChannelTokenCounts } from '../../conversation/types';
+import type { Content, ContentPart, ChannelTokenCounts, ContextInjectionOverrides } from '../../conversation/types';
 import type { GetHistoryOptions } from '../../conversation/ConversationManager';
 import type { BaseChannelConfig } from '../../config/configs/base';
 import type { StreamChunk, GenerateResponse } from '../../channel/types';
@@ -447,9 +447,12 @@ export class ChatHandler {
     /**
      * 获取 Context Inspector 预览数据（不发起模型请求）
      */
-    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown }): Promise<ContextInspectorData> {
+    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown; contextOverrides?: ContextInjectionOverrides }): Promise<ContextInspectorData> {
         const conversationId = request.conversationId?.trim();
         const configId = request.configId;
+        const contextOverrides = request.contextOverrides;
+        const toolsEnabled = contextOverrides?.includeTools !== false;
+        const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
         // 1. 验证配置
         const config = await this.configManager.getConfig(configId);
@@ -461,8 +464,8 @@ export class ChatHandler {
         }
 
         // 2. 动态系统提示词（包含 pinned prompt）
-        const baseSystemPrompt = this.promptManager.getSystemPrompt(true);
-        const pinnedPromptBlock = conversationId
+        const baseSystemPrompt = this.promptManager.getSystemPrompt(true, contextOverrides);
+        const pinnedPromptBlock = (conversationId && pinnedPromptEnabled)
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
         const dynamicSystemPrompt = pinnedPromptBlock
@@ -479,7 +482,9 @@ export class ChatHandler {
 
         // 4. 工具预览（与实际过滤逻辑一致）
         const toolMode = ((config.toolMode || 'function_call') as ContextInspectorTools['toolMode']);
-        const declarations = this.channelManager.getToolDeclarationsForPreview(config as any);
+        const declarations = toolsEnabled
+            ? this.channelManager.getToolDeclarationsForPreview(config as any)
+            : [];
         const mcpCount = ChatHandler.countMcpTools(declarations);
 
         let toolsDefinition = '';
@@ -529,7 +534,12 @@ export class ChatHandler {
             await this.conversationManager.getHistory(conversationId);
 
             const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
-            const trimInfo = await this.contextTrimService.getHistoryWithContextTrimInfo(conversationId, config, historyOptions);
+            const trimInfo = await this.contextTrimService.getHistoryWithContextTrimInfo(
+                conversationId,
+                config,
+                historyOptions,
+                contextOverrides
+            );
 
             const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
             let lastSummaryIndex = -1;
@@ -551,8 +561,12 @@ export class ChatHandler {
         }
 
         const injected = {
-            pinnedFiles: buildPinnedFilesInjectedInfo(this.settingsManager),
-            pinnedPrompt: conversationId ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId) : undefined,
+            pinnedFiles: contextOverrides?.includePinnedFiles === false
+                ? undefined
+                : buildPinnedFilesInjectedInfo(this.settingsManager),
+            pinnedPrompt: conversationId
+                ? (pinnedPromptEnabled ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId) : { mode: 'none' as const })
+                : undefined,
             attachments: buildPreviewAttachmentsInjectedInfo(request.attachments),
         };
         const hasInjected = Boolean(

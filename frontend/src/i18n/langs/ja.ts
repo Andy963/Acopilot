@@ -297,6 +297,23 @@ const ja: LanguageMessages = {
                     hint: '保存後、この会話のシステムプロンプトに追加されます'
                 }
             },
+            messageContextOverrides: {
+                title: '今回のコンテキスト',
+                description: '次のメッセージにのみ適用（送信後に自動でデフォルトに戻ります）',
+                reset: 'リセット',
+                inherit: 'デフォルト',
+                on: 'ON',
+                off: 'OFF',
+                items: {
+                    pinnedPrompt: 'ピン留めプロンプト',
+                    pinnedFiles: 'ピン留めファイル',
+                    workspaceFiles: 'ワークスペースファイル',
+                    openTabs: '開いているタブ',
+                    activeEditor: 'アクティブエディタ',
+                    diagnostics: '診断',
+                    tools: 'ツール'
+                }
+            },
             filePicker: {
                 title: 'ファイルを選択',
                 subtitle: '@ の後に入力してパスをフィルタリング',

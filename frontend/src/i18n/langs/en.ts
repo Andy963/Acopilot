@@ -297,6 +297,23 @@ const en: LanguageMessages = {
                     hint: 'After saving, it will be injected into the system prompt for this conversation'
                 }
             },
+            messageContextOverrides: {
+                title: 'This message',
+                description: 'Applies to the next message only (auto-reset after send)',
+                reset: 'Reset',
+                inherit: 'Default',
+                on: 'On',
+                off: 'Off',
+                items: {
+                    pinnedPrompt: 'Pinned Prompt',
+                    pinnedFiles: 'Pinned Files',
+                    workspaceFiles: 'Workspace Files',
+                    openTabs: 'Open Tabs',
+                    activeEditor: 'Active Editor',
+                    diagnostics: 'Diagnostics',
+                    tools: 'Tools'
+                }
+            },
             filePicker: {
                 title: 'Select File',
                 subtitle: 'Type after @ to filter paths',

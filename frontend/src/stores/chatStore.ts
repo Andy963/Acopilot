@@ -26,7 +26,7 @@
  */
 
 import { defineStore } from 'pinia'
-import type { Attachment, StreamChunk, ContextInspectorData } from '../types'
+import type { Attachment, StreamChunk, ContextInspectorData, ContextInjectionOverrides } from '../types'
 import { sendToExtension, onMessageFromExtension } from '../utils/vscode'
 
 // 导入模块
@@ -171,6 +171,20 @@ export const useChatStore = defineStore('chat', () => {
   const setInputValue = (value: string) => setInputValueAction(state, value)
   const clearInputValue = () => clearInputValueAction(state)
   const setPinnedPrompt = (pinnedPrompt: PinnedPromptState) => setPinnedPromptFn(state, pinnedPrompt)
+
+  const setMessageContextOverride = (key: keyof ContextInjectionOverrides, value: boolean | undefined): void => {
+    const next: ContextInjectionOverrides = { ...(state.messageContextOverrides.value || {}) }
+    if (value === undefined) {
+      delete (next as any)[key]
+    } else {
+      (next as any)[key] = value
+    }
+    state.messageContextOverrides.value = next
+  }
+
+  const clearMessageContextOverrides = (): void => {
+    state.messageContextOverrides.value = {}
+  }
   
   // ============ 检查点操作 ============
   
@@ -364,6 +378,11 @@ export const useChatStore = defineStore('chat', () => {
     // 固定提示词/技能
     pinnedPrompt: state.pinnedPrompt,
     setPinnedPrompt,
+
+    // 本条消息级上下文覆写
+    messageContextOverrides: state.messageContextOverrides,
+    setMessageContextOverride,
+    clearMessageContextOverrides,
     
     // 上下文总结
     summarizeContext,
