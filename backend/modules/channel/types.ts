@@ -61,6 +61,20 @@ export interface GenerateRequest {
      * 用于替换系统提示词模板中的 {{$MCP_TOOLS}} 占位符。
      */
     mcpToolsContent?: string;
+
+    /**
+     * OpenAI Responses API: previous_response_id（可选）
+     *
+     * 用于让 Responses API 在服务端延续上一轮的上下文，从而避免重复发送完整历史。
+     */
+    previousResponseId?: string;
+
+    /**
+     * OpenAI Responses API: prompt_cache_key（可选）
+     *
+     * 用于提升 prompt cache 命中率，降低重复输入的 token 成本。
+     */
+    promptCacheKey?: string;
 }
 
 /**
@@ -136,6 +150,11 @@ export interface StreamChunk {
     
     /** 模型版本（仅最后一个块包含） */
     modelVersion?: string;
+
+    /**
+     * 供应商响应 ID（如 OpenAI Responses 的 response.id，仅最后一个块包含）
+     */
+    responseId?: string;
     
     /**
      * 思考开始时间戳（毫秒）

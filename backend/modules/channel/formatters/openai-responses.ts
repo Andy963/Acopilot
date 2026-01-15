@@ -62,6 +62,14 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             include: ["reasoning.encrypted_content"] // 始终包含加密思考内容
         };
 
+        // OpenAI Responses continuation / prompt cache
+        if (request.previousResponseId) {
+            body.previous_response_id = request.previousResponseId;
+        }
+        if (request.promptCacheKey) {
+            body.prompt_cache_key = request.promptCacheKey;
+        }
+
         // 添加工具
         if (tools && tools.length > 0) {
             body.tools = this.convertTools(tools);
@@ -534,7 +542,8 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             done,
             usage,
             finishReason,
-            modelVersion: chunk.response?.model
+            modelVersion: chunk.response?.model,
+            responseId: chunk.response?.id
         };
     }
 

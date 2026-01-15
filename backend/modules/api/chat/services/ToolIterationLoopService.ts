@@ -42,6 +42,33 @@ import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecut
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
 
+const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
+
+type OpenAIResponsesContinuationState = {
+    configId: string;
+    previousResponseId: string;
+    lastSyncedHistoryLength: number;
+};
+
+function isOpenAIResponsesContinuationError(error: unknown): boolean {
+    if (!(error instanceof ChannelError)) {
+        return false;
+    }
+    if (error.type !== ErrorType.API_ERROR) {
+        return false;
+    }
+
+    const msg = (error.details as any)?.error?.message;
+    const detailsText = typeof msg === 'string'
+        ? msg
+        : JSON.stringify(error.details ?? {});
+
+    const haystack = detailsText.toLowerCase();
+    return haystack.includes('previous_response_id') ||
+        haystack.includes('previous response') ||
+        haystack.includes('response id');
+}
+
 /**
  * 工具迭代循环配置
  */
@@ -236,11 +263,47 @@ export class ToolIterationLoopService {
 
             // 3. 获取对话历史（应用上下文裁剪）
             const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
-            const { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
+            let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
                 historyOptions
             );
+
+            const historyForFullRetry = history;
+            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+
+            // OpenAI Responses: 强制启用 prompt cache + previous response continuation（省 token）
+            const promptCacheKey = config.type === 'openai-responses'
+                ? `limcode:${conversationId}`
+                : undefined;
+
+            let previousResponseId: string | undefined;
+            if (config.type === 'openai-responses') {
+                const rawState = await this.conversationManager.getCustomMetadata(
+                    conversationId,
+                    OPENAI_RESPONSES_CONTINUATION_KEY
+                );
+                const state = (rawState && typeof rawState === 'object')
+                    ? (rawState as any)
+                    : null;
+
+                // config 变化 / 历史被改写：清理 continuation
+                if (state?.configId && state.configId !== configId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                } else if (typeof state?.previousResponseId === 'string' && typeof state?.lastSyncedHistoryLength === 'number') {
+                    const lastSyncedHistoryLength = state.lastSyncedHistoryLength;
+                    if (lastSyncedHistoryLength > fullHistory.length) {
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                    } else if (lastSyncedHistoryLength > 0 && lastSyncedHistoryLength < fullHistory.length) {
+                        const relativeStart = Math.max(0, lastSyncedHistoryLength - trimStartIndex);
+                        const deltaHistory = history.slice(relativeStart);
+                        if (deltaHistory.length > 0) {
+                            previousResponseId = state.previousResponseId;
+                            history = deltaHistory;
+                        }
+                    }
+                }
+            }
 
             // 4. 获取动态系统提示词
             // 首条消息时使用 refreshAndGetPrompt 强制刷新缓存
@@ -287,7 +350,6 @@ export class ToolIterationLoopService {
                 ? ToolIterationLoopService.truncatePreview(toolsDefinition, 12000)
                 : null;
 
-            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
             let lastSummaryIndex = -1;
             for (let i = fullHistory.length - 1; i >= 0; i--) {
                 if ((fullHistory[i] as any).isSummary === true) {
@@ -336,75 +398,114 @@ export class ToolIterationLoopService {
                 } as ContextSnapshotTrim,
             };
 
-            // 5. 记录请求开始时间
-            const requestStartTime = Date.now();
-
-            // 6. 调用 AI
-            const response = await this.channelManager.generate({
-                configId,
-                history,
-                abortSignal,
-                dynamicSystemPrompt
-            });
-
-            // 7. 处理响应
+            // 5. 调用 AI + 处理响应（OpenAI Responses continuation 失效时自动回退全量）
             let finalContent: Content;
+            let openaiResponseId: string | undefined;
 
-            if (isAsyncGenerator(response)) {
-                // 流式响应处理
-                const processor = new StreamResponseProcessor({
-                    requestStartTime,
-                    providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+            let requestHistory = history;
+            let requestPreviousResponseId = previousResponseId;
+            let attemptedFallback = false;
+
+            while (true) {
+                const requestStartTime = Date.now();
+
+                const response = await this.channelManager.generate({
+                    configId,
+                    history: requestHistory,
                     abortSignal,
-                    conversationId
+                    dynamicSystemPrompt,
+                    previousResponseId: requestPreviousResponseId,
+                    promptCacheKey
                 });
 
-                // 处理流并 yield 每个 chunk
-                for await (const chunkData of processor.processStream(response)) {
-                    yield chunkData;
-                }
+                let sawAnyChunk = false;
 
-                // 检查是否被取消
-                if (processor.isCancelled()) {
-                    const partialContent = processor.getContent();
-                    if (partialContent.parts.length > 0) {
-                        await this.conversationManager.addContent(conversationId, partialContent);
-                    }
-                    // CancelledData 不在对外的流式类型联合中，这里使用 any 交由上层处理
-                    yield processor.getCancelledData() as any;
-                    return;
-                }
+                try {
+                    if (isAsyncGenerator(response)) {
+                        // 流式响应处理
+                        const processor = new StreamResponseProcessor({
+                            requestStartTime,
+                            providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+                            abortSignal,
+                            conversationId
+                        });
 
-                finalContent = processor.getContent();
-
-                // 如果流式未收到完成标记但自然结束，认为是异常中断（常见表现：回复一半就断且无报错）
-                if (!processor.isCompleted()) {
-                    if (finalContent.parts.length > 0) {
-                        await this.conversationManager.addContent(conversationId, finalContent);
-                    }
-                    throw new ChannelError(
-                        ErrorType.NETWORK_ERROR,
-                        t('modules.api.chat.errors.streamEndedUnexpectedly'),
-                        {
-                            providerType: config.type,
-                            chunkCount: finalContent.chunkCount,
-                            responseDuration: finalContent.responseDuration,
-                            hasUsageMetadata: !!finalContent.usageMetadata
+                        // 处理流并 yield 每个 chunk
+                        for await (const chunkData of processor.processStream(response)) {
+                            sawAnyChunk = true;
+                            if (chunkData.chunk.responseId) {
+                                openaiResponseId = chunkData.chunk.responseId;
+                            }
+                            yield chunkData;
                         }
-                    );
-                }
-            } else {
-                // 非流式响应处理
-                const processor = new StreamResponseProcessor({
-                    requestStartTime,
-                    providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
-                    abortSignal,
-                    conversationId
-                });
 
-                const { content, chunkData } = processor.processNonStream(response as GenerateResponse);
-                finalContent = content;
-                yield chunkData;
+                        // 检查是否被取消
+                        if (processor.isCancelled()) {
+                            const partialContent = processor.getContent();
+                            if (partialContent.parts.length > 0) {
+                                await this.conversationManager.addContent(conversationId, partialContent);
+                            }
+                            // CancelledData 不在对外的流式类型联合中，这里使用 any 交由上层处理
+                            yield processor.getCancelledData() as any;
+                            return;
+                        }
+
+                        finalContent = processor.getContent();
+
+                        // 如果流式未收到完成标记但自然结束，认为是异常中断（常见表现：回复一半就断且无报错）
+                        if (!processor.isCompleted()) {
+                            if (finalContent.parts.length > 0) {
+                                await this.conversationManager.addContent(conversationId, finalContent);
+                            }
+                            throw new ChannelError(
+                                ErrorType.NETWORK_ERROR,
+                                t('modules.api.chat.errors.streamEndedUnexpectedly'),
+                                {
+                                    providerType: config.type,
+                                    chunkCount: finalContent.chunkCount,
+                                    responseDuration: finalContent.responseDuration,
+                                    hasUsageMetadata: !!finalContent.usageMetadata
+                                }
+                            );
+                        }
+                    } else {
+                        // 非流式响应处理
+                        const processor = new StreamResponseProcessor({
+                            requestStartTime,
+                            providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+                            abortSignal,
+                            conversationId
+                        });
+
+                        const generateResponse = response as GenerateResponse;
+                        if (config.type === 'openai-responses') {
+                            openaiResponseId = (generateResponse.raw as any)?.id;
+                        }
+
+                        const { content, chunkData } = processor.processNonStream(generateResponse);
+                        finalContent = content;
+                        sawAnyChunk = true;
+                        yield chunkData;
+                    }
+
+                    break;
+                } catch (error) {
+                    const shouldFallback = config.type === 'openai-responses' &&
+                        !!requestPreviousResponseId &&
+                        !attemptedFallback &&
+                        !sawAnyChunk &&
+                        isOpenAIResponsesContinuationError(error);
+
+                    if (shouldFallback) {
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                        attemptedFallback = true;
+                        requestHistory = historyForFullRetry;
+                        requestPreviousResponseId = undefined;
+                        continue;
+                    }
+
+                    throw error;
+                }
             }
 
             // 8. 转换工具调用格式
@@ -417,6 +518,21 @@ export class ToolIterationLoopService {
             // 9. 保存 AI 响应到历史
             if (finalContent.parts.length > 0) {
                 await this.conversationManager.addContent(conversationId, finalContent);
+            }
+
+            // 9.1 OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
+            if (config.type === 'openai-responses') {
+                if (openaiResponseId) {
+                    const syncedHistory = await this.conversationManager.getHistoryRef(conversationId);
+                    const state: OpenAIResponsesContinuationState = {
+                        configId,
+                        previousResponseId: openaiResponseId,
+                        lastSyncedHistoryLength: syncedHistory.length
+                    };
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, state);
+                } else {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                }
             }
 
             // 10. 检查是否有工具调用
@@ -559,17 +675,73 @@ export class ToolIterationLoopService {
             iteration++;
 
             // 获取对话历史（应用总结过滤和上下文阈值裁剪）
-            const history = await this.contextTrimService.getHistoryWithContextTrim(
+            let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
                 historyOptions
             );
 
+            const historyForFullRetry = history;
+            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+
+            // OpenAI Responses: 强制启用 prompt cache + previous response continuation（省 token）
+            const promptCacheKey = config.type === 'openai-responses'
+                ? `limcode:${conversationId}`
+                : undefined;
+
+            let previousResponseId: string | undefined;
+            if (config.type === 'openai-responses') {
+                const rawState = await this.conversationManager.getCustomMetadata(
+                    conversationId,
+                    OPENAI_RESPONSES_CONTINUATION_KEY
+                );
+                const state = (rawState && typeof rawState === 'object')
+                    ? (rawState as any)
+                    : null;
+
+                // config 变化 / 历史被改写：清理 continuation
+                if (state?.configId && state.configId !== configId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                } else if (typeof state?.previousResponseId === 'string' && typeof state?.lastSyncedHistoryLength === 'number') {
+                    const lastSyncedHistoryLength = state.lastSyncedHistoryLength;
+                    if (lastSyncedHistoryLength > fullHistory.length) {
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                    } else if (lastSyncedHistoryLength > 0 && lastSyncedHistoryLength < fullHistory.length) {
+                        const relativeStart = Math.max(0, lastSyncedHistoryLength - trimStartIndex);
+                        const deltaHistory = history.slice(relativeStart);
+                        if (deltaHistory.length > 0) {
+                            previousResponseId = state.previousResponseId;
+                            history = deltaHistory;
+                        }
+                    }
+                }
+            }
+
             // 调用 AI（非流式）
-            const response = await this.channelManager.generate({
-                configId,
-                history
-            });
+            let response: GenerateResponse | AsyncGenerator<any>;
+            try {
+                response = await this.channelManager.generate({
+                    configId,
+                    history,
+                    previousResponseId,
+                    promptCacheKey
+                });
+            } catch (error) {
+                const shouldFallback = config.type === 'openai-responses' &&
+                    !!previousResponseId &&
+                    isOpenAIResponsesContinuationError(error);
+
+                if (!shouldFallback) {
+                    throw error;
+                }
+
+                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                response = await this.channelManager.generate({
+                    configId,
+                    history: historyForFullRetry,
+                    promptCacheKey
+                });
+            }
 
             // 类型守卫：确保是 GenerateResponse
             if (!('content' in response)) {
@@ -589,6 +761,22 @@ export class ToolIterationLoopService {
             // 保存 AI 响应到历史
             if (finalContent.parts.length > 0) {
                 await this.conversationManager.addContent(conversationId, finalContent);
+            }
+
+            // OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
+            if (config.type === 'openai-responses') {
+                const openaiResponseId = (generateResponse.raw as any)?.id;
+                if (openaiResponseId) {
+                    const syncedHistory = await this.conversationManager.getHistoryRef(conversationId);
+                    const state: OpenAIResponsesContinuationState = {
+                        configId,
+                        previousResponseId: openaiResponseId,
+                        lastSyncedHistoryLength: syncedHistory.length
+                    };
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, state);
+                } else {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                }
             }
 
             // 检查是否有工具调用

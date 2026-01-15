@@ -39,6 +39,8 @@ import type {
 
 import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
+
+const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 import type { ToolIterationLoopService } from './ToolIterationLoopService';
 import type { CheckpointService } from './CheckpointService';
 import type { DiffInterruptService } from './DiffInterruptService';
@@ -175,6 +177,13 @@ export class ChatFlowService {
       };
     }
 
+    // Retry 需要重新生成上一轮内容：清理 OpenAI Responses continuation（避免继续写在旧 response 上）
+    await this.conversationManager.setCustomMetadata(
+      conversationId,
+      OPENAI_RESPONSES_CONTINUATION_KEY,
+      null,
+    );
+
     // 3. 工具调用循环（委托给 ToolIterationLoopService，非流式）
     const maxToolIterations = this.getMaxToolIterations();
     const loopResult = await this.toolIterationLoopService.runNonStreamLoop(
@@ -274,6 +283,13 @@ export class ChatFlowService {
       await this.checkpointService.deleteCheckpointsFromIndex(conversationId, messageIndex + 1);
       await this.conversationManager.deleteToMessage(conversationId, messageIndex + 1);
     }
+
+    // EditAndRetry 会改写历史：清理 OpenAI Responses continuation（避免 previous_response_id 对不上）
+    await this.conversationManager.setCustomMetadata(
+      conversationId,
+      OPENAI_RESPONSES_CONTINUATION_KEY,
+      null,
+    );
 
     // 6. 工具调用循环（委托给 ToolIterationLoopService，非流式）
     const maxToolIterations = this.getMaxToolIterations();
@@ -456,6 +472,13 @@ export class ChatFlowService {
     const isRetryFirstMessage =
       retryHistoryCheck.length === 1 && retryHistoryCheck[0].role === 'user';
 
+    // Retry 需要重新生成上一轮内容：清理 OpenAI Responses continuation（避免继续写在旧 response 上）
+    await this.conversationManager.setCustomMetadata(
+      conversationId,
+      OPENAI_RESPONSES_CONTINUATION_KEY,
+      null,
+    );
+
     // 7. 工具调用循环（委托给 ToolIterationLoopService）
     const maxToolIterations = this.getMaxToolIterations();
 
@@ -571,6 +594,13 @@ export class ChatFlowService {
     if (messageIndex + 1 < historyRef.length) {
       await this.conversationManager.deleteToMessage(conversationId, messageIndex + 1);
     }
+
+    // EditAndRetry 会改写历史：清理 OpenAI Responses continuation（避免 previous_response_id 对不上）
+    await this.conversationManager.setCustomMetadata(
+      conversationId,
+      OPENAI_RESPONSES_CONTINUATION_KEY,
+      null,
+    );
 
     // 9. 为编辑后的用户消息创建存档点（执行后）
     const afterEditCheckpoint = await this.checkpointService.createUserMessageCheckpoint(
@@ -816,6 +846,13 @@ export class ChatFlowService {
 
       // 4. 删除消息
       const deletedCount = await this.conversationManager.deleteToMessage(conversationId, targetIndex);
+
+      // 历史被截断：清理 OpenAI Responses continuation（避免 previous_response_id 对不上）
+      await this.conversationManager.setCustomMetadata(
+        conversationId,
+        OPENAI_RESPONSES_CONTINUATION_KEY,
+        null,
+      );
 
       return {
         success: true,
