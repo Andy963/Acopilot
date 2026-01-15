@@ -49,6 +49,7 @@ export type RetryStatusCallback = (status: {
 export class ChannelManager {
     private mcpManager?: McpManager;
     private retryStatusCallback?: RetryStatusCallback;
+    private static readonly RATE_LIMIT_RETRY_MIN_INTERVAL_MS = 15000;
     
     constructor(
         private configManager: ConfigManager,
@@ -182,6 +183,34 @@ export class ChannelManager {
         }
         // 网络错误可重试
         return true;
+    }
+
+    private isRateLimitError(error: unknown, errorDetails?: any): boolean {
+        if (!(error instanceof ChannelError)) return false;
+        if (error.type !== ErrorType.API_ERROR) return false;
+
+        const details = errorDetails ?? error.details;
+        const code = (details as any)?.error?.code ?? (details as any)?.code;
+        if (code === 429) return true;
+
+        const status = (details as any)?.error?.status ?? (details as any)?.status;
+        if (status === 429) return true;
+        if (typeof status === 'string' && status.toUpperCase() === 'RESOURCE_EXHAUSTED') return true;
+
+        const message = (details as any)?.error?.message ?? (details as any)?.message;
+        const messageText = [
+            typeof message === 'string' ? message : '',
+            typeof details === 'string' ? details : '',
+            error.message
+        ].filter(Boolean).join(' ');
+
+        const haystack = messageText.toLowerCase();
+        if (haystack.includes('429')) return true;
+
+        return haystack.includes('rate limit') ||
+            haystack.includes('too many requests') ||
+            haystack.includes('resource_exhausted') ||
+            haystack.includes('quota');
     }
     
     /**
@@ -325,7 +354,11 @@ export class ChannelManager {
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
                     // 计算指数退避时间：retryInterval * 2^(attempt-1)
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
                     
                     this.retryStatusCallback({
                         type: 'retrying',
@@ -340,7 +373,11 @@ export class ChannelManager {
                     await this.delay(currentInterval, request.abortSignal);
                 } else {
                     // 如果没有回调，也要等待
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
                     await this.delay(currentInterval, request.abortSignal);
                 }
             }
@@ -475,7 +512,11 @@ export class ChannelManager {
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
                     // 计算指数退避时间：retryInterval * 2^(attempt-1)
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
                     
                     this.retryStatusCallback({
                         type: 'retrying',
@@ -490,7 +531,11 @@ export class ChannelManager {
                     await this.delay(currentInterval, request.abortSignal);
                 } else {
                     // 如果没有回调，也要等待
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval = Math.max(currentInterval, ChannelManager.RATE_LIMIT_RETRY_MIN_INTERVAL_MS);
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
                     await this.delay(currentInterval, request.abortSignal);
                 }
             }
