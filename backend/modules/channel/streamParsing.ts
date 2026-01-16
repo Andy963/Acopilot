@@ -102,12 +102,26 @@ function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; 
 
         const lines = block.split('\n');
         const dataLines: string[] = [];
+        let eventName: string | undefined;
 
         for (const rawLine of lines) {
             if (!rawLine) continue;
 
             // 忽略 SSE 注释行（以 ":" 开头）
             if (rawLine.startsWith(':')) {
+                continue;
+            }
+
+            // 记录事件名：部分提供商会把事件类型放在 event: 行，而不是 JSON 的 type 字段中
+            if (rawLine.startsWith('event:')) {
+                let value = rawLine.slice(6);
+                if (value.startsWith(' ')) {
+                    value = value.slice(1);
+                }
+                const name = value.trim();
+                if (name) {
+                    eventName = name;
+                }
                 continue;
             }
 
@@ -141,7 +155,17 @@ function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; 
         }
 
         try {
-            chunks.push(JSON.parse(data));
+            const parsed = JSON.parse(data);
+            if (
+                eventName &&
+                parsed &&
+                typeof parsed === 'object' &&
+                !Array.isArray(parsed) &&
+                typeof (parsed as any).type !== 'string'
+            ) {
+                (parsed as any).type = eventName;
+            }
+            chunks.push(parsed);
         } catch {
             // 若解析失败：该事件块不是 JSON（或格式异常），直接忽略
         }
