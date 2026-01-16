@@ -2,6 +2,11 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.53] - 2026-01-16
+
+### Fixed
+  - Gemini：工具调用场景下不再向 Gemini 发送 `functionCall.id` / `functionResponse.id`，并将 `functionResponse.parts` 提升为 message parts，避免触发 “contents array is required”。
+
 ## [1.0.52] - 2026-01-16
 
 ### Fixed
