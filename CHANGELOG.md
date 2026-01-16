@@ -2,6 +2,11 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.51] - 2026-01-16
+
+### Fixed
+  - OpenAI Responses：当 `previous_response_id` / `prompt_cache_key` 不被服务端接受时，对该对话自动熔断并停止继续透传，避免每轮“报错→回退→再报错”的慢循环。
+
 ## [1.0.50] - 2026-01-15
 
 ### Added
