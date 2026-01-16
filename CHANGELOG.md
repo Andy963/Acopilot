@@ -2,11 +2,16 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.54] - 2026-01-16
+
+### Fixed
+  - Gemini：兼容 `url` 配置为 base/full-endpoint、多种 model 写法（`gemini-xxx`/`models/gemini-xxx`），避免出现“找不到模型”。
+  - OpenAI/OpenAI Responses/Anthropic：自定义 body 不再允许覆盖 `stream` 导致请求与解析模式不一致；当上游要求 `stream=true` 时会自动回退到流式，避免直接不可用。
+
 ## [1.0.53] - 2026-01-16
 
 ### Fixed
   - Gemini：对请求体做更严格的 schema 对齐与清洗（`systemInstruction.role`、`tools.functionDeclarations`、`contents` 结构兜底），降低工具循环中触发 “contents array is required” 的概率。
-  - OpenAI/OpenAI Responses/Anthropic：自定义 body 不再允许覆盖 `stream` 导致请求与解析模式不一致；当上游要求 `stream=true` 时会自动回退到流式，避免直接不可用。
   - OpenAI Responses：prompt cache key 采用对话内 stateful marker 持久化；当对话元数据缺失/被清理时可自动恢复继续透传（不支持时仍会自动熔断回退）。
 
 ## [1.0.52] - 2026-01-16
