@@ -300,8 +300,8 @@ export class GeminiFormatter extends BaseFormatter {
             };
         }
         
-        // 决定是否使用流式（完全由配置决定）
-        const useStream = config.options?.stream ?? config.preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
         
         // 构建 URL
         const baseUrl = config.url.endsWith('/')

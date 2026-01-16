@@ -142,8 +142,8 @@ export class OpenAIFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
         
-        // 决定是否使用流式（完全由配置决定）
-        const useStream = config.options?.stream ?? config.preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
         
         // 始终将 stream 添加到请求体（明确发送 true 或 false）
         body.stream = useStream;
@@ -183,7 +183,22 @@ export class OpenAIFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body（如果启用）
-        const finalBody = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        let finalBody: any = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+
+        // custom body 可能覆盖 stream 字段，导致“走流式但 body.stream=false”或反之；这里强制对齐。
+        finalBody.stream = useStream;
+        if (useStream) {
+            const so = finalBody.stream_options && typeof finalBody.stream_options === 'object' && !Array.isArray(finalBody.stream_options)
+                ? finalBody.stream_options
+                : {};
+            so.include_usage = true;
+            finalBody.stream_options = so;
+        } else if (finalBody.stream_options) {
+            delete finalBody.stream_options;
+        }
         
         // 构建请求选项
         return {

@@ -79,8 +79,8 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
 
-        // 决定是否使用流式
-        const useStream = config.options?.stream ?? config.preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
         
         // 始终将 stream 添加到请求体
         body.stream = useStream;
@@ -108,7 +108,13 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body
-        const finalBody = applyCustomBody(body, config.customBody, config.customBodyEnabled);
+        let finalBody: any = applyCustomBody(body, config.customBody, config.customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+
+        // custom body 可能覆盖 stream 字段，导致请求与解析模式不一致；这里强制对齐。
+        finalBody.stream = useStream;
 
         return {
             url,

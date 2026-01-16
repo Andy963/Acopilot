@@ -145,8 +145,8 @@ export class AnthropicFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
         
-        // 决定是否使用流式（始终发送 stream 字段）
-        const useStream = (config.options as any)?.stream ?? (config as any).preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? (config.options as any)?.stream ?? (config as any).preferStream ?? false;
         body.stream = useStream;
         
         // 构建 URL
@@ -184,7 +184,13 @@ export class AnthropicFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body（如果启用）
-        const finalBody = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        let finalBody: any = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+
+        // custom body 可能覆盖 stream 字段，导致请求与解析模式不一致；这里强制对齐。
+        finalBody.stream = useStream;
         
         // 构建请求选项
         return {
