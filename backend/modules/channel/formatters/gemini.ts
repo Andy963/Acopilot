@@ -640,6 +640,14 @@ export class GeminiFormatter extends BaseFormatter {
      * 解析流式响应块
      */
     parseStreamChunk(chunk: any): StreamChunk {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+            return {
+                delta: [],
+                done: true,
+                finishReason: 'done'
+            };
+        }
+
         // 检查是否是错误响应（与非流式保持一致的错误格式）
         if (chunk.error) {
             throw new ChannelError(

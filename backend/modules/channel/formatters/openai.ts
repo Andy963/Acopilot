@@ -825,6 +825,15 @@ export class OpenAIFormatter extends BaseFormatter {
      * 3. 结束标记: data: [DONE]（在 ChannelManager 中处理）
      */
     parseStreamChunk(chunk: any): StreamChunk {
+        // parseStreamBuffer 会把 data: [DONE] 转成内部 sentinel，用于兼容某些网关不发送最终 JSON chunk 的情况
+        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+            return {
+                delta: [],
+                done: true,
+                finishReason: 'done'
+            };
+        }
+
         // OpenAI 流式响应格式
         const choice = chunk.choices?.[0];
         const parts: ContentPart[] = [];
