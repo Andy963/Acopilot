@@ -28,7 +28,11 @@
       },
       {
         "command": "limcode.addSelectionToChat",
-        "title": "LimCode: 添加选中内容到聊天引用"
+        "title": "Add Selection to LimCode Chat"
+      },
+      {
+        "command": "limcode.addFileToChat",
+        "title": "Add File to LimCode Chat"
       },
       {
         "command": "limcode.newChat",
@@ -51,6 +55,17 @@
         {
           "command": "limcode.addSelectionToChat",
           "when": "editorTextFocus && editorHasSelection",
+          "group": "navigation@9"
+        },
+        {
+          "command": "limcode.addFileToChat",
+          "when": "editorTextFocus",
+          "group": "navigation@10"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "limcode.addFileToChat",
           "group": "navigation@9"
         }
       ],
