@@ -18,6 +18,16 @@ export interface GenerateRequest {
     
     /** 对话历史（统一的 Content 格式） */
     history: Content[];
+
+    /**
+     * 强制流式开关（可选）
+     *
+     * 如果提供，将覆盖 config.options.stream / config.preferStream 的决策。
+     * 用于：
+     * - 强制某次请求以流式方式发送（或关闭流式）
+     * - 对某些网关仅支持 stream=true 的情况做自动兜底
+     */
+    streamOverride?: boolean;
     
     /** 取消信号 */
     abortSignal?: AbortSignal;
