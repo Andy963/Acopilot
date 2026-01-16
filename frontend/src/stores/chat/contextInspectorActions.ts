@@ -48,10 +48,14 @@ export async function openContextInspectorPreview(state: ChatStoreState, attachm
     const contextOverrides = state.messageContextOverrides.value
     const hasContextOverrides = contextOverrides && Object.keys(contextOverrides).length > 0
 
+    const selectionReferences = state.selectionReferences.value
+    const hasSelectionReferences = Array.isArray(selectionReferences) && selectionReferences.length > 0
+
     const data = await sendToExtension<ContextInspectorData>('getContextInspectorData', {
       conversationId: state.currentConversationId.value || undefined,
       configId: state.configId.value,
       attachments: attachmentMeta,
+      selectionReferences: hasSelectionReferences ? selectionReferences : undefined,
       contextOverrides: hasContextOverrides ? contextOverrides : undefined
     })
     state.contextInspectorData.value = data || null

@@ -12,7 +12,7 @@
 import type { ChannelManager } from '../../../channel/ChannelManager';
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import type { CheckpointRecord } from '../../../checkpoint';
-import type { Content, ContextInjectionOverrides, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim } from '../../../conversation/types';
+import type { Content, ContextInjectionOverrides, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim, SelectionReference } from '../../../conversation/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { GenerateResponse } from '../../../channel/types';
 import { ChannelError, ErrorType } from '../../../channel/types';
@@ -47,7 +47,7 @@ import type { TokenEstimationService } from './TokenEstimationService';
 import type { ContextTrimService } from './ContextTrimService';
 import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecutionService';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
-import { getPinnedSelectionsBlock, getPinnedSelectionsInjectedInfo } from './pinnedSelections';
+import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
@@ -359,6 +359,18 @@ export class ToolIterationLoopService {
         return undefined;
     }
 
+    private static getLastUserSelectionReferences(history: Content[]): SelectionReference[] | undefined {
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            const refs = (msg as any).selectionReferences;
+            return Array.isArray(refs) ? (refs as SelectionReference[]) : undefined;
+        }
+        return undefined;
+    }
+
     constructor(
         private channelManager: ChannelManager,
         private conversationManager: ConversationManager,
@@ -444,6 +456,7 @@ export class ToolIterationLoopService {
             const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
             const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+            const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
             const toolsEnabled = contextOverrides?.includeTools !== false;
             const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
@@ -555,8 +568,8 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const pinnedSelectionsBlock = await getPinnedSelectionsBlock(this.conversationManager, conversationId);
-            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+            const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
                 .filter(Boolean)
                 .join('\n\n');
 
@@ -613,7 +626,7 @@ export class ToolIterationLoopService {
                     ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
                     : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
-                pinnedSelections: await getPinnedSelectionsInjectedInfo(this.conversationManager, conversationId),
+                pinnedSelections: getSelectionReferencesInjectedInfo(selectionReferences),
             };
             const hasInjected = Boolean(
                 injected.pinnedFiles ||
@@ -1096,8 +1109,9 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const pinnedSelectionsBlock = await getPinnedSelectionsBlock(this.conversationManager, conversationId);
-            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+            const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
+            const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
                 .filter(Boolean)
                 .join('\n\n');
 
@@ -1154,7 +1168,7 @@ export class ToolIterationLoopService {
                     ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
                     : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
-                pinnedSelections: await getPinnedSelectionsInjectedInfo(this.conversationManager, conversationId),
+                pinnedSelections: getSelectionReferencesInjectedInfo(selectionReferences),
             };
             const hasInjected = Boolean(
                 injected.pinnedFiles ||

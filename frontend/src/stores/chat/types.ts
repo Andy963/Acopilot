@@ -84,9 +84,9 @@ export interface PinnedPromptState {
 }
 
 /**
- * 对话内固定引用（选中代码片段）
+ * 本条消息引用（选中代码片段）
  */
-export interface PinnedSelectionState {
+export interface SelectionReference {
   id: string
   uri: string
   path: string
@@ -169,8 +169,8 @@ export interface ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
 
-  /** 当前对话的固定引用（选中代码片段） */
-  pinnedSelections: Ref<PinnedSelectionState[]>
+  /** 本条消息引用（发送后自动清空） */
+  selectionReferences: Ref<SelectionReference[]>
 
   /** 本条消息级上下文注入覆写（仅下一条消息生效） */
   messageContextOverrides: Ref<ContextInjectionOverrides>

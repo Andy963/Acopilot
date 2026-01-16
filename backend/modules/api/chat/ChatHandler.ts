@@ -16,7 +16,7 @@ import type { McpManager } from '../../mcp/McpManager';
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
 import { TokenCountService, type TokenCountResult } from '../../channel/TokenCountService';
-import type { Content, ContentPart, ChannelTokenCounts, ContextInjectionOverrides } from '../../conversation/types';
+import type { Content, ContentPart, ChannelTokenCounts, ContextInjectionOverrides, SelectionReference } from '../../conversation/types';
 import type { GetHistoryOptions } from '../../conversation/ConversationManager';
 import type { BaseChannelConfig } from '../../config/configs/base';
 import type { StreamChunk, GenerateResponse } from '../../channel/types';
@@ -61,7 +61,7 @@ import {
 import { ToolCallParserService, MessageBuilderService, TokenEstimationService, ContextTrimService, ToolExecutionService, SummarizeService, ToolIterationLoopService, CheckpointService, OrphanedToolCallService, DiffInterruptService, ChatFlowService } from './services';
 import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
-import { getPinnedSelectionsBlock, getPinnedSelectionsInjectedInfo } from './services/pinnedSelections';
+import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './services/selectionReferences';
 import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
 
 /** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
@@ -448,10 +448,11 @@ export class ChatHandler {
     /**
      * 获取 Context Inspector 预览数据（不发起模型请求）
      */
-    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown; contextOverrides?: ContextInjectionOverrides }): Promise<ContextInspectorData> {
+    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown; selectionReferences?: SelectionReference[]; contextOverrides?: ContextInjectionOverrides }): Promise<ContextInspectorData> {
         const conversationId = request.conversationId?.trim();
         const configId = request.configId;
         const contextOverrides = request.contextOverrides;
+        const selectionReferences = request.selectionReferences;
         const toolsEnabled = contextOverrides?.includeTools !== false;
         const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
@@ -469,10 +470,8 @@ export class ChatHandler {
         const pinnedPromptBlock = (conversationId && pinnedPromptEnabled)
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
-        const pinnedSelectionsBlock = conversationId
-            ? await getPinnedSelectionsBlock(this.conversationManager, conversationId)
-            : '';
-        const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+        const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+        const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
             .filter(Boolean)
             .join('\n\n');
 
@@ -542,7 +541,8 @@ export class ChatHandler {
                 conversationId,
                 config,
                 historyOptions,
-                contextOverrides
+                contextOverrides,
+                selectionReferences
             );
 
             const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
@@ -572,9 +572,7 @@ export class ChatHandler {
                 ? (pinnedPromptEnabled ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId) : { mode: 'none' as const })
                 : undefined,
             attachments: buildPreviewAttachmentsInjectedInfo(request.attachments),
-            pinnedSelections: conversationId
-                ? await getPinnedSelectionsInjectedInfo(this.conversationManager, conversationId)
-                : undefined,
+            pinnedSelections: getSelectionReferencesInjectedInfo(selectionReferences),
         };
         const hasInjected = Boolean(
             injected.pinnedFiles ||

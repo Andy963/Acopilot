@@ -1,7 +1,10 @@
-import type { ConversationManager } from '../../../conversation/ConversationManager';
-import type { ContextInjectedPinnedSelection, ContextInjectedPinnedSelections } from '../../../conversation/types';
+import type {
+    ContextInjectedPinnedSelection,
+    ContextInjectedPinnedSelections,
+    SelectionReference
+} from '../../../conversation/types';
 
-type ConversationPinnedSelection = {
+type ConversationSelectionReference = {
     id?: unknown;
     uri?: unknown;
     path?: unknown;
@@ -11,9 +14,10 @@ type ConversationPinnedSelection = {
     text?: unknown;
     originalCharCount?: unknown;
     truncated?: unknown;
+    createdAt?: unknown;
 };
 
-type NormalizedPinnedSelection = {
+type NormalizedSelectionReference = {
     id?: string;
     path: string;
     startLine?: number;
@@ -51,14 +55,14 @@ function normalizeBoolean(value: unknown): boolean | undefined {
     return undefined;
 }
 
-function normalizePinnedSelections(raw: unknown): NormalizedPinnedSelection[] {
+function normalizeSelectionReferences(raw: unknown): NormalizedSelectionReference[] {
     if (!Array.isArray(raw)) return [];
 
-    const items: NormalizedPinnedSelection[] = [];
+    const items: NormalizedSelectionReference[] = [];
     for (const entry of raw) {
         if (!isRecord(entry)) continue;
 
-        const e = entry as ConversationPinnedSelection;
+        const e = entry as ConversationSelectionReference;
         const path = normalizeString(e.path).trim();
         const text = normalizeString(e.text);
         if (!path || !text.trim()) continue;
@@ -86,12 +90,10 @@ function normalizePinnedSelections(raw: unknown): NormalizedPinnedSelection[] {
     return items;
 }
 
-export async function getPinnedSelectionsInjectedInfo(
-    conversationManager: ConversationManager,
-    conversationId: string
-): Promise<ContextInjectedPinnedSelections | undefined> {
-    const raw = await conversationManager.getCustomMetadata(conversationId, 'pinnedSelections');
-    const selections = normalizePinnedSelections(raw);
+export function getSelectionReferencesInjectedInfo(
+    selectionReferences: SelectionReference[] | unknown
+): ContextInjectedPinnedSelections | undefined {
+    const selections = normalizeSelectionReferences(selectionReferences);
     if (selections.length === 0) return undefined;
 
     const items: ContextInjectedPinnedSelection[] = selections.map((s) => ({
@@ -107,12 +109,10 @@ export async function getPinnedSelectionsInjectedInfo(
     return { count: items.length, items };
 }
 
-export async function getPinnedSelectionsBlock(
-    conversationManager: ConversationManager,
-    conversationId: string
-): Promise<string> {
-    const raw = await conversationManager.getCustomMetadata(conversationId, 'pinnedSelections');
-    const selections = normalizePinnedSelections(raw);
+export function getSelectionReferencesBlock(
+    selectionReferences: SelectionReference[] | unknown
+): string {
+    const selections = normalizeSelectionReferences(selectionReferences);
     if (selections.length === 0) return '';
 
     const blocks: string[] = [];
@@ -133,6 +133,6 @@ export async function getPinnedSelectionsBlock(
         blocks.push([header, fenced].join('\n'));
     }
 
-    return `====\n\nPINNED SELECTIONS\n\n${blocks.join('\n\n')}`;
+    return `====\n\nSELECTION REFERENCES\n\n${blocks.join('\n\n')}`;
 }
 

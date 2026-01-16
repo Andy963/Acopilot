@@ -14,7 +14,7 @@ import type {
   PlanRunnerData
 } from './types'
 import type { PinnedPromptState } from './types'
-import type { PinnedSelectionState } from './types'
+import type { SelectionReference } from './types'
 
 /**
  * 创建 Chat Store 状态
@@ -87,8 +87,8 @@ export function createChatState(): ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
 
-  /** 当前对话的固定引用（选中代码片段） */
-  const pinnedSelections = ref<PinnedSelectionState[]>([])
+  /** 本条消息引用（发送后自动清空） */
+  const selectionReferences = ref<SelectionReference[]>([])
 
   /** 本条消息级上下文注入覆写（仅下一条消息生效） */
   const messageContextOverrides = ref<ContextInjectionOverrides>({})
@@ -128,7 +128,7 @@ export function createChatState(): ChatStoreState {
     inputValue,
     workspaceFilter,
     pinnedPrompt,
-    pinnedSelections,
+    selectionReferences,
     messageContextOverrides,
     planRunner,
     postEditValidationPending,
