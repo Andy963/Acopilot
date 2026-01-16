@@ -500,10 +500,6 @@ async function removeSelectionReference(id: string) {
   await chatStore.removeSelectionReference(id)
 }
 
-async function clearSelectionReferences() {
-  await chatStore.clearSelectionReferences()
-}
-
 function syncPinnedPromptDraftFromStore() {
   selectedSkillId.value = String(chatStore.pinnedPrompt?.skillId || '').trim()
   customPromptDraft.value = String(chatStore.pinnedPrompt?.customPrompt || '')
@@ -1197,8 +1193,28 @@ watch(pinPanelTab, (tab) => {
           />
         </Tooltip>
 
-        <!-- 附件列表：放在顶部工具栏右侧（同一行） -->
-        <div v-if="hasAttachments" class="attachments-list">
+        <!-- 附件/引用列表：放在顶部工具栏右侧（同一行） -->
+        <div v-if="hasAttachments || selectionReferencesCount > 0" class="attachments-list">
+          <!-- 本条消息引用（类似 Copilot 的 reference pills） -->
+          <div
+            v-for="r in selectionReferences"
+            :key="r.id"
+            class="attachment-item reference-chip"
+            :title="`${r.path}#L${r.startLine}-L${r.endLine}`"
+            @click="openSelectionReference(r)"
+          >
+            <i class="codicon codicon-references attachment-icon reference-chip-icon"></i>
+            <code class="reference-chip-text">{{ r.path }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
+            <span v-if="r.truncated" class="reference-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
+            <IconButton
+              icon="codicon-close"
+              size="small"
+              :disabled="uploading"
+              @click.stop="removeSelectionReference(r.id)"
+              :title="t('components.input.remove')"
+            />
+          </div>
+
           <div
             v-for="attachment in attachments"
             :key="attachment.id"
@@ -1253,37 +1269,6 @@ watch(pinPanelTab, (tab) => {
             />
           </div>
         </div>
-      </div>
-
-      <!-- 本条消息引用（类似 Copilot 的 reference pills） -->
-      <div v-if="selectionReferencesCount > 0" class="composer-references">
-        <div class="composer-references-list">
-          <div
-            v-for="r in selectionReferences"
-            :key="r.id"
-            class="reference-item"
-            :title="`${r.path}#L${r.startLine}-L${r.endLine}`"
-            @click="openSelectionReference(r)"
-          >
-            <i class="codicon codicon-references reference-icon"></i>
-            <code class="reference-text">{{ r.path }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
-            <span v-if="r.truncated" class="reference-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
-            <IconButton
-              icon="codicon-close"
-              size="small"
-              class="reference-remove"
-              @click.stop="removeSelectionReference(r.id)"
-              :title="t('components.input.remove')"
-            />
-          </div>
-        </div>
-        <button
-          class="composer-references-clear"
-          :disabled="selectionReferencesCount === 0"
-          @click="clearSelectionReferences"
-        >
-          {{ t('components.input.pinnedFilesPanel.refs.clear') }}
-        </button>
       </div>
 
       <!-- 中部：输入框 + 发送按钮（在输入框内） -->
@@ -1508,92 +1493,31 @@ watch(pinPanelTab, (tab) => {
   flex-wrap: nowrap;
 }
 
-.composer-references {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 6px;
-  border-top: 1px solid var(--vscode-panel-border);
-}
-
-.composer-references-list {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  flex-wrap: nowrap;
-}
-
-.reference-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  border-radius: 999px;
-  border: 1px solid var(--vscode-input-border);
-  max-width: 360px;
-  min-width: 0;
-  cursor: pointer;
-  transition: opacity var(--transition-fast, 0.1s);
-}
-
-.reference-item:hover {
-  opacity: 0.9;
-}
-
-.reference-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  opacity: 0.75;
-}
-
-.reference-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 280px;
-}
-
 .reference-truncated {
   font-size: 11px;
   opacity: 0.75;
   flex-shrink: 0;
 }
 
-.reference-item :deep(.icon-button.small) {
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
-}
-
-.reference-item :deep(.icon-button.default) {
-  color: inherit;
-  opacity: 0.75;
-}
-
-.composer-references-clear {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--vscode-panel-border);
-  background: transparent;
-  color: var(--vscode-foreground);
+.attachment-item.reference-chip {
+  max-width: 360px;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-.composer-references-clear:hover:not(:disabled) {
-  background: var(--vscode-toolbar-hoverBackground);
+.attachment-icon.reference-chip-icon {
+  font-size: 12px;
+  opacity: 0.7;
 }
 
-.composer-references-clear:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.reference-chip-text {
+  flex: 0 1 auto;
+  font-size: 12px;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+  min-width: 0;
 }
 
 .attachment-item {
