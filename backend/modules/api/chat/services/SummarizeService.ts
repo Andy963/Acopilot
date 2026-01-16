@@ -13,6 +13,7 @@ import type { Content } from '../../../conversation/types';
 import type { GenerateResponse, StreamChunk } from '../../../channel/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import { StreamAccumulator } from '../../../channel/StreamAccumulator';
+import { isInternalMarkerMimeType } from '../../../conversation/internalMarkers';
 import type { ContextTrimService } from './ContextTrimService';
 import type {
     SummarizeContextRequestData,
@@ -323,7 +324,9 @@ export class SummarizeService {
             ...msg,
             parts: msg.parts
                 // 过滤掉思考内容
-                .filter(part => !part.thought && !(part.thoughtSignatures && Object.keys(part).length === 1))
+                .filter(part => !part.thought &&
+                    !(part.thoughtSignatures && Object.keys(part).length === 1) &&
+                    !(part.inlineData && isInternalMarkerMimeType(part.inlineData.mimeType)))
                 .map(part => {
                     let cleanedPart = { ...part };
 

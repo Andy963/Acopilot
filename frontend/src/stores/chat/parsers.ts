@@ -7,6 +7,8 @@
 import type { Message, Content, Attachment } from '../../types'
 import { generateId } from '../../utils/format'
 
+const OPENAI_RESPONSES_STATEFUL_MARKER_MIME = 'application/x-limcode-openai-responses-stateful-marker'
+
 /**
  * 解析 XML 工具调用
  */
@@ -169,6 +171,9 @@ export function contentToMessageEnhanced(content: Content, id?: string): Message
     
     // 从 inlineData 提取附件
     if (part.inlineData) {
+      if (part.inlineData.mimeType === OPENAI_RESPONSES_STATEFUL_MARKER_MIME) {
+        continue
+      }
       const attType = getAttachmentTypeFromMime(part.inlineData.mimeType)
       const ext = getExtensionFromMime(part.inlineData.mimeType)
       

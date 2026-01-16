@@ -6,6 +6,7 @@ All notable changes to the "Lim Code" extension will be documented in this file.
 
 ### Fixed
   - Gemini：工具调用场景下不再向 Gemini 发送 `functionCall.id` / `functionResponse.id`，并将 `functionResponse.parts` 提升为 message parts，避免触发 “contents array is required”。
+  - OpenAI Responses：prompt cache key 采用对话内 stateful marker 持久化；当对话元数据缺失/被清理时可自动恢复继续透传（不支持时仍会自动熔断回退）。
 
 ## [1.0.52] - 2026-01-16
 
