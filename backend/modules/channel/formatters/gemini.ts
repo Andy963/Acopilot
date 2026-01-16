@@ -75,10 +75,9 @@ export class GeminiFormatter extends BaseFormatter {
 
         // 2) Gemini 推荐/部分网关要求：history 以 user 开始
         const firstUserIndex = normalized.findIndex(m => m.role === 'user');
-        if (firstUserIndex < 0) {
-            return [];
-        }
-        const normalizedFromUser = normalized.slice(firstUserIndex);
+        const normalizedFromUser = firstUserIndex >= 0
+            ? normalized.slice(firstUserIndex)
+            : normalized;
 
         // 3) 合并连续同角色消息：避免出现 user,user 或 model,model 导致 Gemini 端“错位/忽略”
         const coalesced: Content[] = [];
@@ -238,7 +237,20 @@ export class GeminiFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body（如果启用）
-        const finalBody = applyCustomBody(body, config.customBody, config.customBodyEnabled);
+        // 注意：自定义 body 可能会误覆盖必填字段（如 contents），这里做一次兜底校验。
+        let finalBody: any = applyCustomBody(body, config.customBody, config.customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+        if (!Array.isArray(finalBody.contents) || finalBody.contents.length === 0) {
+            // 如果自定义 body 破坏了 contents，则回退到原始 body
+            if (Array.isArray(body.contents) && body.contents.length > 0) {
+                finalBody = body;
+            }
+        }
+        if (!Array.isArray(finalBody.contents) || finalBody.contents.length === 0) {
+            throw new Error('Gemini request requires a non-empty contents array');
+        }
         
         // 构建请求选项
         return {
