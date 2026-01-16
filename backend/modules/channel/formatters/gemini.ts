@@ -35,6 +35,115 @@ import {
  * - 流式和非流式输出
  */
 export class GeminiFormatter extends BaseFormatter {
+    private static readonly VALID_CONTENT_ROLES = new Set(['user', 'model']);
+
+    private sanitizeContents(contents: unknown): Content[] {
+        if (!Array.isArray(contents)) {
+            return [];
+        }
+
+        const cleaned: Content[] = [];
+        for (const item of contents) {
+            if (!item || typeof item !== 'object') {
+                continue;
+            }
+
+            const rawRole = (item as any).role;
+            const role = typeof rawRole === 'string' ? rawRole.trim().toLowerCase() : '';
+            if (!GeminiFormatter.VALID_CONTENT_ROLES.has(role)) {
+                continue;
+            }
+
+            const rawParts = (item as any).parts;
+            if (!Array.isArray(rawParts)) {
+                continue;
+            }
+
+            const parts: ContentPart[] = [];
+            for (const rawPart of rawParts) {
+                if (!rawPart || typeof rawPart !== 'object') {
+                    continue;
+                }
+
+                const part: ContentPart = {};
+
+                const text = (rawPart as any).text;
+                if (typeof text === 'string') {
+                    part.text = text;
+                }
+
+                const inlineData = (rawPart as any).inlineData;
+                if (inlineData && typeof inlineData === 'object') {
+                    const mimeType = (inlineData as any).mimeType;
+                    const data = (inlineData as any).data;
+                    if (typeof mimeType === 'string' && typeof data === 'string') {
+                        part.inlineData = { mimeType, data };
+                        const displayName = (inlineData as any).displayName;
+                        if (typeof displayName === 'string' && displayName.trim()) {
+                            part.inlineData.displayName = displayName;
+                        }
+                    }
+                }
+
+                const fileData = (rawPart as any).fileData;
+                if (fileData && typeof fileData === 'object') {
+                    part.fileData = { ...(fileData as any) };
+                }
+
+                const functionCall = (rawPart as any).functionCall;
+                if (functionCall && typeof functionCall === 'object') {
+                    const name = (functionCall as any).name;
+                    const args = (functionCall as any).args;
+                    if (typeof name === 'string' && name.trim()) {
+                        part.functionCall = {
+                            name: name.trim(),
+                            args: args ?? {}
+                        };
+                    }
+                }
+
+                const functionResponse = (rawPart as any).functionResponse;
+                if (functionResponse && typeof functionResponse === 'object') {
+                    const name = (functionResponse as any).name;
+                    const responseValue = (functionResponse as any).response;
+                    if (typeof name === 'string' && name.trim()) {
+                        part.functionResponse = {
+                            name: name.trim(),
+                            response: responseValue && typeof responseValue === 'object'
+                                ? responseValue
+                                : { output: responseValue }
+                        };
+                    }
+                }
+
+                const thoughtSignature = (rawPart as any).thoughtSignature;
+                if (typeof thoughtSignature === 'string' && thoughtSignature.trim()) {
+                    (part as any).thoughtSignature = thoughtSignature;
+                }
+
+                const thought = (rawPart as any).thought;
+                if (thought !== undefined) {
+                    (part as any).thought = thought;
+                }
+
+                if (Object.keys(part).length > 0) {
+                    parts.push(part);
+                }
+            }
+
+            if (parts.length === 0) {
+                continue;
+            }
+
+            cleaned.push({
+                role: role as 'user' | 'model',
+                parts
+            });
+        }
+
+        return cleaned;
+    }
+
     /**
      * 归一化历史消息角色
      *
@@ -130,9 +239,10 @@ export class GeminiFormatter extends BaseFormatter {
         // 文本类附件（如 text/markdown）不应作为 inlineData 发送；将其解码为 text part
         processedHistory = this.convertTextInlineDataToTextParts(processedHistory);
         
-        // 构建请求体
+        // 构建请求体（在应用 custom body 前先做一次基础清洗，避免非预期字段进入 Gemini）
+        const sanitizedHistory = this.sanitizeContents(processedHistory);
         const body: any = {
-            contents: processedHistory,
+            contents: sanitizedHistory,
             generationConfig: this.buildGenerationConfig(config)
         };
         
@@ -185,6 +295,7 @@ export class GeminiFormatter extends BaseFormatter {
         // 添加系统指令
         if (systemInstruction) {
             body.systemInstruction = {
+                role: 'user',
                 parts: [{ text: systemInstruction }]
             };
         }
@@ -242,14 +353,43 @@ export class GeminiFormatter extends BaseFormatter {
         if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
             finalBody = body;
         }
-        if (!Array.isArray(finalBody.contents) || finalBody.contents.length === 0) {
-            // 如果自定义 body 破坏了 contents，则回退到原始 body
-            if (Array.isArray(body.contents) && body.contents.length > 0) {
-                finalBody = body;
+
+        // 1) contents 必须为非空数组且结构正确；否则回退到内建 body.contents
+        let sanitizedContents = this.sanitizeContents(finalBody.contents);
+        if (sanitizedContents.length === 0) {
+            sanitizedContents = sanitizedHistory;
+        }
+        if (sanitizedContents.length === 0) {
+            throw new Error('Gemini request requires a non-empty contents array');
+        }
+        finalBody.contents = sanitizedContents;
+
+        // 2) systemInstruction 兼容性：必须是对象且包含 role + parts
+        if (finalBody.systemInstruction !== undefined) {
+            const si = finalBody.systemInstruction;
+            const siOk = si && typeof si === 'object' && !Array.isArray(si) && Array.isArray((si as any).parts);
+            if (!siOk) {
+                if (body.systemInstruction) {
+                    finalBody.systemInstruction = body.systemInstruction;
+                } else {
+                    delete finalBody.systemInstruction;
+                }
+            } else if (typeof (si as any).role !== 'string') {
+                (si as any).role = 'user';
             }
         }
-        if (!Array.isArray(finalBody.contents) || finalBody.contents.length === 0) {
-            throw new Error('Gemini request requires a non-empty contents array');
+
+        // 3) tools 字段兼容：部分实现使用 function_declarations，官方为 functionDeclarations
+        if (Array.isArray(finalBody.tools)) {
+            finalBody.tools = finalBody.tools
+                .filter((t: any) => t && typeof t === 'object' && !Array.isArray(t))
+                .map((t: any) => {
+                    if (t.functionDeclarations || !t.function_declarations) {
+                        return t;
+                    }
+                    const { function_declarations, ...rest } = t;
+                    return { ...rest, functionDeclarations: function_declarations };
+                });
         }
         
         // 构建请求选项
@@ -674,9 +814,9 @@ export class GeminiFormatter extends BaseFormatter {
             parameters: tool.parameters
         }));
         
-        // Gemini 格式需要包装在 function_declarations 数组中
+        // Gemini 格式需要包装在 functionDeclarations 数组中
         return [{
-            function_declarations: functionDeclarations
+            functionDeclarations: functionDeclarations
         }];
     }
 }

@@ -389,9 +389,6 @@ export function cleanContentForAPI(content: Content): Content {
                 name: part.functionCall.name,
                 args: part.functionCall.args
             };
-            if (part.functionCall.id) {
-                cleanedPart.functionCall.id = part.functionCall.id;
-            }
             // 不包含 rejected
         }
         
@@ -405,9 +402,6 @@ export function cleanContentForAPI(content: Content): Content {
                 name: part.functionResponse.name,
                 response: cleanedResponse
             };
-            if (part.functionResponse.id) {
-                cleanedPart.functionResponse.id = part.functionResponse.id;
-            }
             // 不包含 parts（嵌套多模态内容由 ConversationManager 单独处理）
         }
         
