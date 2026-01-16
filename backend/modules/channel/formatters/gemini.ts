@@ -37,6 +37,95 @@ import {
 export class GeminiFormatter extends BaseFormatter {
     private static readonly VALID_CONTENT_ROLES = new Set(['user', 'model']);
 
+    private static normalizeBaseUrl(raw: string): URL {
+        const value = (raw || '').trim();
+        if (!value) {
+            throw new Error('Gemini config url is required');
+        }
+
+        try {
+            return new URL(value);
+        } catch {
+            // Try to recover from missing scheme
+            if (!/^https?:\/\//i.test(value)) {
+                return new URL(`https://${value}`);
+            }
+            throw new Error(`Invalid Gemini url: ${value}`);
+        }
+    }
+
+    private static joinPath(basePath: string, nextPath: string): string {
+        const a = basePath || '';
+        const b = nextPath || '';
+        const aTrim = a.endsWith('/') ? a.slice(0, -1) : a;
+        const bTrim = b.startsWith('/') ? b : `/${b}`;
+        return `${aTrim || ''}${bTrim}`;
+    }
+
+    private normalizeGeminiModelPath(modelId: string): string {
+        const raw = (modelId || '').trim();
+        if (!raw) {
+            throw new Error('Gemini config model is required');
+        }
+
+        // Accept both "gemini-xxx" and "models/gemini-xxx" / "tunedModels/xxx"
+        if (raw.startsWith('models/') || raw.startsWith('tunedModels/')) {
+            return raw;
+        }
+
+        // If user pasted a full path, try to extract the model segment.
+        const modelsIndex = raw.indexOf('models/');
+        if (modelsIndex >= 0) {
+            return raw.slice(modelsIndex);
+        }
+        const tunedIndex = raw.indexOf('tunedModels/');
+        if (tunedIndex >= 0) {
+            return raw.slice(tunedIndex);
+        }
+
+        return `models/${raw}`;
+    }
+
+    private buildGeminiGenerateContentUrl(rawBaseUrl: string, modelId: string, useStream: boolean): string {
+        const u0 = GeminiFormatter.normalizeBaseUrl(rawBaseUrl);
+        const u = new URL(u0.toString());
+
+        const method = useStream ? 'streamGenerateContent' : 'generateContent';
+        let basePath = (u.pathname || '').replace(/\/+$/, '') || '/';
+
+        // If configured as a full endpoint, keep it (just switch method based on stream).
+        if (/:generateContent$/i.test(basePath) || /:streamGenerateContent$/i.test(basePath)) {
+            u.pathname = basePath.replace(/:(streamGenerateContent|generateContent)$/i, `:${method}`);
+            if (useStream) {
+                u.searchParams.set('alt', 'sse');
+            } else {
+                u.searchParams.delete('alt');
+            }
+            return u.toString();
+        }
+
+        // Allow base urls ending with "/models"
+        if (/\/models$/i.test(basePath)) {
+            basePath = basePath.replace(/\/models$/i, '') || '/';
+        }
+
+        // Ensure v1beta segment exists
+        if (!/\/v1beta$/i.test(basePath) && !/\/v1beta\//i.test(`${basePath}/`)) {
+            basePath = GeminiFormatter.joinPath(basePath, '/v1beta');
+        }
+
+        const modelPath = this.normalizeGeminiModelPath(modelId);
+        u.pathname = GeminiFormatter.joinPath(basePath, `/${modelPath}:${method}`);
+
+        if (useStream) {
+            u.searchParams.set('alt', 'sse');
+        } else {
+            u.searchParams.delete('alt');
+        }
+
+        return u.toString();
+    }
+
     private sanitizeContents(contents: unknown): Content[] {
         if (!Array.isArray(contents)) {
             return [];
@@ -303,18 +392,7 @@ export class GeminiFormatter extends BaseFormatter {
         // 决定是否使用流式（可由 request.streamOverride 强制覆写）
         const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
         
-        // 构建 URL
-        const baseUrl = config.url.endsWith('/')
-            ? config.url.slice(0, -1)
-            : config.url;
-        
-        const method = useStream
-            ? 'streamGenerateContent'
-            : 'generateContent';
-        
-        // 流式请求需要添加 ?alt=sse 参数以获取 SSE 格式响应
-        const queryParams = useStream ? '?alt=sse' : '';
-        const url = `${baseUrl}/models/${config.model}:${method}${queryParams}`;
+        const url = this.buildGeminiGenerateContentUrl(config.url, config.model, useStream);
         
         // 构建请求头
         const headers: Record<string, string> = {
