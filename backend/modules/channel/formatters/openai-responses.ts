@@ -436,6 +436,14 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
      * Responses API 使用 SSE 发送事件，每个 chunk 是一个完整的 JSON 事件
      */
     parseStreamChunk(chunk: any): StreamChunk {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+            return {
+                delta: [],
+                done: true,
+                finishReason: 'done'
+            };
+        }
+
         const parts: ContentPart[] = [];
         let done = false;
         let usage: any;
