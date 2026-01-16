@@ -84,6 +84,22 @@ export interface PinnedPromptState {
 }
 
 /**
+ * 对话内固定引用（选中代码片段）
+ */
+export interface PinnedSelectionState {
+  id: string
+  uri: string
+  path: string
+  startLine: number
+  endLine: number
+  languageId: string
+  text: string
+  originalCharCount?: number
+  truncated?: boolean
+  createdAt: number
+}
+
+/**
  * 重试状态
  */
 export interface RetryStatus {
@@ -152,6 +168,9 @@ export interface ChatStoreState {
   workspaceFilter: Ref<WorkspaceFilter>
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
+
+  /** 当前对话的固定引用（选中代码片段） */
+  pinnedSelections: Ref<PinnedSelectionState[]>
 
   /** 本条消息级上下文注入覆写（仅下一条消息生效） */
   messageContextOverrides: Ref<ContextInjectionOverrides>

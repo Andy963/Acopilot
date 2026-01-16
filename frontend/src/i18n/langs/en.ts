@@ -180,6 +180,7 @@ const en: LanguageMessages = {
                     title: 'Injected Context',
                     pinnedFiles: 'Pinned Files',
                     pinnedPrompt: 'Pinned Prompt',
+                    pinnedSelections: 'References',
                     attachments: 'Attachments',
                     missing: 'missing',
                     pinnedPromptCustom: 'Custom ({count} chars)'
@@ -279,8 +280,15 @@ const en: LanguageMessages = {
                 dropHint: 'Release to add file',
                 tabs: {
                     files: 'Files',
+                    refs: 'References',
                     skill: 'Skill',
                     custom: 'Custom'
+                },
+                refs: {
+                    empty: 'No references',
+                    open: 'Open',
+                    clear: 'Clear references',
+                    truncated: 'Truncated'
                 },
                 skill: {
                     selectLabel: 'Select Skill',

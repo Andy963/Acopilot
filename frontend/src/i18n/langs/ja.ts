@@ -180,6 +180,7 @@ const ja: LanguageMessages = {
                     title: '注入詳細',
                     pinnedFiles: 'ピン留めファイル',
                     pinnedPrompt: 'ピン留めプロンプト',
+                    pinnedSelections: '参照',
                     attachments: '添付ファイル',
                     missing: '見つかりません',
                     pinnedPromptCustom: 'カスタム（{count} 文字）'
@@ -279,8 +280,15 @@ const ja: LanguageMessages = {
                 dropHint: 'ファイルを追加するにはマウスを離してください',
                 tabs: {
                     files: 'ファイル',
+                    refs: '参照',
                     skill: 'Skill',
                     custom: 'カスタム'
+                },
+                refs: {
+                    empty: '参照がありません',
+                    open: '開く',
+                    clear: '参照をクリア',
+                    truncated: '切り詰め'
                 },
                 skill: {
                     selectLabel: 'Skill を選択',

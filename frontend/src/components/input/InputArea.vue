@@ -287,7 +287,7 @@ const showCreateTaskModal = ref(false)
 const showCreatePlanModal = ref(false)
 
 // 固定提示词/技能面板 Tab
-type PinPanelTab = 'files' | 'skill' | 'custom'
+type PinPanelTab = 'files' | 'refs' | 'skill' | 'custom'
 const pinPanelTab = ref<PinPanelTab>('files')
 
 // Skills
@@ -473,6 +473,36 @@ const selectedSkill = computed(() => {
 const hasPinnedPrompt = computed(() => {
   return Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none')
 })
+
+const pinnedSelections = computed(() => {
+  return Array.isArray(chatStore.pinnedSelections) ? chatStore.pinnedSelections : []
+})
+
+const pinnedSelectionsCount = computed(() => pinnedSelections.value.length)
+
+async function openPinnedSelection(selection: any) {
+  const path = String(selection?.path || '').trim()
+  const line = Number(selection?.startLine)
+  if (!path || !Number.isFinite(line) || line <= 0) return
+
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', {
+      path,
+      line,
+      column: 1
+    })
+  } catch (error) {
+    console.error('Failed to open pinned selection:', error)
+  }
+}
+
+async function removePinnedSelection(id: string) {
+  await chatStore.removePinnedSelection(id)
+}
+
+async function clearPinnedSelections() {
+  await chatStore.clearPinnedSelections()
+}
 
 function syncPinnedPromptDraftFromStore() {
   selectedSkillId.value = String(chatStore.pinnedPrompt?.skillId || '').trim()
@@ -979,6 +1009,14 @@ watch(pinPanelTab, (tab) => {
         </button>
         <button
           class="pinned-tab"
+          :class="{ active: pinPanelTab === 'refs' }"
+          @click="pinPanelTab = 'refs'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.refs') }}
+          <span v-if="pinnedSelectionsCount > 0"> ({{ pinnedSelectionsCount }})</span>
+        </button>
+        <button
+          class="pinned-tab"
           :class="{ active: pinPanelTab === 'skill' }"
           @click="pinPanelTab = 'skill'"
         >
@@ -1029,6 +1067,43 @@ watch(pinPanelTab, (tab) => {
               :title="t('components.input.remove')"
             />
           </div>
+        </div>
+      </div>
+
+      <!-- Refs -->
+      <div v-else-if="pinPanelTab === 'refs'" class="pinned-refs-content">
+        <div v-if="pinnedSelectionsCount === 0" class="pinned-files-empty">
+          <i class="codicon codicon-info"></i>
+          <span>{{ t('components.input.pinnedFilesPanel.refs.empty') }}</span>
+        </div>
+        <div v-else class="pinned-refs-list">
+          <div v-for="s in pinnedSelections" :key="s.id" class="pinned-ref-item">
+            <div class="pinned-ref-main">
+              <i class="codicon codicon-references"></i>
+              <code class="pinned-ref-path">{{ s.path }}:{{ s.startLine }}</code>
+              <span class="pinned-ref-range">L{{ s.startLine }}-L{{ s.endLine }}</span>
+              <span v-if="s.truncated" class="pinned-ref-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
+            </div>
+            <div class="pinned-ref-actions">
+              <IconButton
+                icon="codicon-go-to-file"
+                size="small"
+                @click="openPinnedSelection(s)"
+                :title="t('components.input.pinnedFilesPanel.refs.open')"
+              />
+              <IconButton
+                icon="codicon-close"
+                size="small"
+                @click="removePinnedSelection(s.id)"
+                :title="t('components.input.remove')"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="pinned-refs-footer">
+          <button class="pinned-refs-clear" :disabled="pinnedSelectionsCount === 0" @click="clearPinnedSelections">
+            {{ t('components.input.pinnedFilesPanel.refs.clear') }}
+          </button>
         </div>
       </div>
 
@@ -1915,6 +1990,90 @@ watch(pinPanelTab, (tab) => {
   min-height: 0;
   overflow-y: auto;
   padding: 8px;
+}
+
+.pinned-refs-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pinned-refs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pinned-ref-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.04);
+}
+
+.pinned-ref-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pinned-ref-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-ref-range {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.pinned-ref-truncated {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.pinned-ref-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pinned-refs-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.pinned-refs-clear {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.pinned-refs-clear:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-refs-clear:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .pinned-skill-content,

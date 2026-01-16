@@ -61,6 +61,7 @@ import {
 import { ToolCallParserService, MessageBuilderService, TokenEstimationService, ContextTrimService, ToolExecutionService, SummarizeService, ToolIterationLoopService, CheckpointService, OrphanedToolCallService, DiffInterruptService, ChatFlowService } from './services';
 import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
+import { getPinnedSelectionsBlock, getPinnedSelectionsInjectedInfo } from './services/pinnedSelections';
 import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
 
 /** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
@@ -468,9 +469,12 @@ export class ChatHandler {
         const pinnedPromptBlock = (conversationId && pinnedPromptEnabled)
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
-        const dynamicSystemPrompt = pinnedPromptBlock
-            ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-            : baseSystemPrompt;
+        const pinnedSelectionsBlock = conversationId
+            ? await getPinnedSelectionsBlock(this.conversationManager, conversationId)
+            : '';
+        const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+            .filter(Boolean)
+            .join('\n\n');
 
         // 3. 合成系统指令（与 formatter 行为一致）
         let systemInstruction = (config.systemInstruction as string | undefined) || '';
@@ -568,10 +572,14 @@ export class ChatHandler {
                 ? (pinnedPromptEnabled ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId) : { mode: 'none' as const })
                 : undefined,
             attachments: buildPreviewAttachmentsInjectedInfo(request.attachments),
+            pinnedSelections: conversationId
+                ? await getPinnedSelectionsInjectedInfo(this.conversationManager, conversationId)
+                : undefined,
         };
         const hasInjected = Boolean(
             injected.pinnedFiles ||
             injected.attachments ||
+            injected.pinnedSelections ||
             (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
         );
 

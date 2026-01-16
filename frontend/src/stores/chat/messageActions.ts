@@ -11,6 +11,7 @@ import { generateId } from '../../utils/format'
 import { createAndPersistConversation } from './conversationActions'
 import { clearCheckpointsFromIndex } from './checkpointActions'
 import { persistPinnedPromptForConversation } from './pinnedPromptActions'
+import { persistPinnedSelectionsForConversation } from './pinnedSelectionActions'
 
 /**
  * 取消流式的回调类型
@@ -47,6 +48,7 @@ export async function sendMessage(
 
       // 对话创建后，将当前选择的固定提示词/技能持久化（用于首条消息生效）
       await persistPinnedPromptForConversation(state, newId)
+      await persistPinnedSelectionsForConversation(state, newId)
 
       // 对话创建后，若存在 Plan Runner 草稿，也一并持久化（用于重启后恢复）
       if (state.planRunner.value) {

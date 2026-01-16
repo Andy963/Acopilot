@@ -63,6 +63,10 @@ class DiffPreviewContentProvider implements vscode.TextDocumentContentProvider, 
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
+
+    // Webview readiness handshake
+    private webviewReady = false;
+    private pendingWebviewMessages: any[] = [];
     
     // Diff 预览内容提供者
     private diffPreviewProvider: DiffPreviewContentProvider;
@@ -359,6 +363,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
+        this.webviewReady = false;
 
         webviewView.webview.options = {
             enableScripts: true,
@@ -415,6 +420,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         const { type, data, requestId } = message;
 
         try {
+            // Webview ready handshake: flush any queued commands
+            if (type === 'webviewReady') {
+                this.webviewReady = true;
+                this.flushPendingWebviewMessages();
+                if (requestId) {
+                    this.sendResponse(requestId, { success: true });
+                }
+                return;
+            }
+
             // 等待初始化完成
             await this.initPromise;
             
@@ -431,6 +446,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         } catch (error: any) {
             console.error('Error handling message:', error);
             this.sendError(requestId, error.code || 'HANDLER_ERROR', error.message);
+        }
+    }
+
+    private enqueueWebviewMessage(message: any): void {
+        if (this._view?.webview && this.webviewReady) {
+            this._view.webview.postMessage(message);
+            return;
+        }
+
+        this.pendingWebviewMessages.push(message);
+        // 防止极端情况下无限增长
+        if (this.pendingWebviewMessages.length > 200) {
+            this.pendingWebviewMessages.shift();
+        }
+    }
+
+    private flushPendingWebviewMessages(): void {
+        if (!this._view?.webview || !this.webviewReady) return;
+        const pending = this.pendingWebviewMessages.splice(0);
+        for (const msg of pending) {
+            this._view.webview.postMessage(msg);
         }
     }
 
@@ -529,10 +565,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     /**
      * 发送命令到 Webview
      */
-    public sendCommand(command: string): void {
-        this._view?.webview.postMessage({
+    public sendCommand(command: string, data?: any): void {
+        this.enqueueWebviewMessage({
             type: 'command',
-            command
+            command,
+            data
         });
     }
 
