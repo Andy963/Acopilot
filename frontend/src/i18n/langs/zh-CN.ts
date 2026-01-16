@@ -180,6 +180,7 @@ const zhCN: LanguageMessages = {
                     title: '注入明细',
                     pinnedFiles: '固定文件',
                     pinnedPrompt: '固定提示词',
+                    pinnedSelections: '引用',
                     attachments: '附件',
                     missing: '缺失',
                     pinnedPromptCustom: '自定义（{count} 字符）'
@@ -279,8 +280,15 @@ const zhCN: LanguageMessages = {
                 dropHint: '释放鼠标添加文件',
                 tabs: {
                     files: '文件',
+                    refs: '引用',
                     skill: 'Skill',
                     custom: '自定义'
+                },
+                refs: {
+                    empty: '暂无引用',
+                    open: '打开',
+                    clear: '清空引用',
+                    truncated: '已截断'
                 },
                 skill: {
                     selectLabel: '选择 Skill',

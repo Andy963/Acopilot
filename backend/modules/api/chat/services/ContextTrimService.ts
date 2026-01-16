@@ -21,6 +21,7 @@ import type { ConversationRound, ContextTrimInfo } from '../utils';
 import type { TokenEstimationService } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
 import { getPinnedPromptBlock } from './pinnedPrompt';
+import { getPinnedSelectionsBlock } from './pinnedSelections';
 
 /**
  * 回合 Token 信息（内部使用）
@@ -241,9 +242,10 @@ export class ContextTrimService {
         const pinnedPromptBlock = pinnedPromptEnabled
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
-        const systemPrompt = pinnedPromptBlock
-            ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-            : baseSystemPrompt;
+        const pinnedSelectionsBlock = await getPinnedSelectionsBlock(this.conversationManager, conversationId);
+        const systemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+            .filter(Boolean)
+            .join('\n\n');
         let systemPromptTokens = 0;
         if (systemPrompt) {
             systemPromptTokens = await this.tokenEstimationService.countSystemPromptTokens(systemPrompt, channelType);

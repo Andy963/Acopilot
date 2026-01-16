@@ -27,6 +27,10 @@
         "title": "LimCode: 打开聊天面板"
       },
       {
+        "command": "limcode.addSelectionToChat",
+        "title": "LimCode: 添加选中内容到聊天引用"
+      },
+      {
         "command": "limcode.newChat",
         "title": "新建对话",
         "icon": "$(add)"
@@ -43,6 +47,13 @@
       }
     ],
     "menus": {
+      "editor/context": [
+        {
+          "command": "limcode.addSelectionToChat",
+          "when": "editorTextFocus && editorHasSelection",
+          "group": "navigation@9"
+        }
+      ],
       "view/title": [
         {
           "command": "limcode.newChat",

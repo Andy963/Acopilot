@@ -8,6 +8,59 @@ import { ChatViewProvider } from './webview/ChatViewProvider';
 // 保存 ChatViewProvider 实例以便在停用时清理
 let chatViewProvider: ChatViewProvider | undefined;
 
+type SelectionReferencePayload = {
+    uri: string;
+    path: string;
+    startLine: number;
+    endLine: number;
+    languageId: string;
+    text: string;
+    originalCharCount: number;
+    truncated: boolean;
+};
+
+function buildSelectionReferencePayload(
+    editor: vscode.TextEditor,
+    maxChars: number
+): SelectionReferencePayload | null {
+    const nonEmptySelections = editor.selections.filter((s) => !s.isEmpty);
+    if (nonEmptySelections.length === 0) return null;
+
+    const selection = nonEmptySelections[0];
+    const originalText = editor.document.getText(selection);
+    const normalizedText = originalText.replace(/\r\n/g, '\n');
+
+    const originalCharCount = normalizedText.length;
+    const truncated = originalCharCount > maxChars;
+    const text = truncated
+        ? `${normalizedText.slice(0, maxChars)}\n…(truncated, original ${originalCharCount} chars)`
+        : normalizedText;
+
+    const start = selection.start;
+    const end = selection.end;
+
+    const startLine = start.line + 1;
+    let endLine = end.line + 1;
+    // 常见的“选中整行”会让 end 落在下一行的 column=0，此时不应把最后一行算进去
+    if (end.character === 0 && end.line > start.line) {
+        endLine = end.line;
+    }
+
+    const uri = editor.document.uri.toString();
+    const path = vscode.workspace.asRelativePath(editor.document.uri, false);
+
+    return {
+        uri,
+        path,
+        startLine,
+        endLine,
+        languageId: editor.document.languageId,
+        text,
+        originalCharCount,
+        truncated
+    };
+}
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('LimCode extension is now active!');
 
@@ -31,6 +84,26 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('limcode.openChat', () => {
             vscode.commands.executeCommand('limcode.chatView.focus');
+        })
+    );
+
+    // 注册命令：把选中内容添加到聊天引用（类似 Copilot 的 Add Selection to Chat）
+    context.subscriptions.push(
+        vscode.commands.registerCommand('limcode.addSelectionToChat', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showInformationMessage('No active editor');
+                return;
+            }
+
+            const payload = buildSelectionReferencePayload(editor, 12000);
+            if (!payload) {
+                vscode.window.showInformationMessage('请先选中一段代码/文本');
+                return;
+            }
+
+            await vscode.commands.executeCommand('limcode.chatView.focus');
+            chatViewProvider?.sendCommand('addSelectionToChat', payload);
         })
     );
 

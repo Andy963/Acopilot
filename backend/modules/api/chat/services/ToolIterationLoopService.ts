@@ -47,6 +47,7 @@ import type { TokenEstimationService } from './TokenEstimationService';
 import type { ContextTrimService } from './ContextTrimService';
 import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecutionService';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
+import { getPinnedSelectionsBlock, getPinnedSelectionsInjectedInfo } from './pinnedSelections';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
@@ -554,9 +555,10 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const dynamicSystemPrompt = pinnedPromptBlock
-                ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-                : baseSystemPrompt;
+            const pinnedSelectionsBlock = await getPinnedSelectionsBlock(this.conversationManager, conversationId);
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+                .filter(Boolean)
+                .join('\n\n');
 
             // 4.1 构建 Context Snapshot（用于 UI 解释/调试）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
@@ -611,10 +613,12 @@ export class ToolIterationLoopService {
                     ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
                     : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
+                pinnedSelections: await getPinnedSelectionsInjectedInfo(this.conversationManager, conversationId),
             };
             const hasInjected = Boolean(
                 injected.pinnedFiles ||
                 injected.attachments ||
+                injected.pinnedSelections ||
                 (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
             );
 
@@ -1092,9 +1096,10 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const dynamicSystemPrompt = pinnedPromptBlock
-                ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-                : baseSystemPrompt;
+            const pinnedSelectionsBlock = await getPinnedSelectionsBlock(this.conversationManager, conversationId);
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, pinnedSelectionsBlock]
+                .filter(Boolean)
+                .join('\n\n');
 
             // Context Snapshot（用于 UI 解释/调试；非流式也可用）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
@@ -1149,10 +1154,12 @@ export class ToolIterationLoopService {
                     ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
                     : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
+                pinnedSelections: await getPinnedSelectionsInjectedInfo(this.conversationManager, conversationId),
             };
             const hasInjected = Boolean(
                 injected.pinnedFiles ||
                 injected.attachments ||
+                injected.pinnedSelections ||
                 (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
             );
 

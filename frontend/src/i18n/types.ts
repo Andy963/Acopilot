@@ -200,6 +200,7 @@ export interface LanguageMessages {
                     title: string;
                     pinnedFiles: string;
                     pinnedPrompt: string;
+                    pinnedSelections: string;
                     attachments: string;
                     missing: string;
                     pinnedPromptCustom: string;
@@ -374,8 +375,15 @@ export interface LanguageMessages {
                 dropHint: string;
                 tabs: {
                     files: string;
+                    refs: string;
                     skill: string;
                     custom: string;
+                };
+                refs: {
+                    empty: string;
+                    open: string;
+                    clear: string;
+                    truncated: string;
                 };
                 skill: {
                     selectLabel: string;
