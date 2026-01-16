@@ -43,6 +43,7 @@ import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPromp
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
+const OPENAI_RESPONSES_FEATURES_KEY = 'openaiResponsesFeatures';
 
 // Gemini 很容易在“工具循环”里触发 429：工具执行通常很快，导致下一次模型请求紧随其后发出。
 // 这里对工具迭代后的后续轮次做轻量限速，避免短时间内连续请求。
@@ -55,6 +56,29 @@ type OpenAIResponsesContinuationState = {
     lastSyncedHistoryLength: number;
 };
 
+type OpenAIResponsesFeatures = {
+    configId: string;
+    disablePreviousResponseId?: boolean;
+    disablePromptCacheKey?: boolean;
+};
+
+function getApiErrorText(error: ChannelError): string {
+    const details = error.details as any;
+    const msg =
+        (details?.error && typeof details.error.message === 'string' ? details.error.message : undefined) ??
+        (typeof details?.message === 'string' ? details.message : undefined);
+
+    if (typeof msg === 'string' && msg.trim()) {
+        return msg;
+    }
+
+    try {
+        return JSON.stringify(details ?? {});
+    } catch {
+        return String(details ?? '');
+    }
+}
+
 function isOpenAIResponsesContinuationError(error: unknown): boolean {
     if (!(error instanceof ChannelError)) {
         return false;
@@ -63,15 +87,25 @@ function isOpenAIResponsesContinuationError(error: unknown): boolean {
         return false;
     }
 
-    const msg = (error.details as any)?.error?.message;
-    const detailsText = typeof msg === 'string'
-        ? msg
-        : JSON.stringify(error.details ?? {});
+    const detailsText = getApiErrorText(error);
 
     const haystack = detailsText.toLowerCase();
     return haystack.includes('previous_response_id') ||
-        haystack.includes('previous response') ||
-        haystack.includes('response id');
+        haystack.includes('previous response id');
+}
+
+function isOpenAIResponsesPromptCacheKeyError(error: unknown): boolean {
+    if (!(error instanceof ChannelError)) {
+        return false;
+    }
+    if (error.type !== ErrorType.API_ERROR) {
+        return false;
+    }
+
+    const detailsText = getApiErrorText(error);
+    const haystack = detailsText.toLowerCase();
+    return haystack.includes('prompt_cache_key') ||
+        haystack.includes('prompt cache key');
 }
 
 function getGeminiToolLoopDelayMs(iteration: number): number {
@@ -343,13 +377,34 @@ export class ToolIterationLoopService {
 
             const historyForFullRetry = history;
 
-            // OpenAI Responses: 强制启用 prompt cache + previous response continuation（省 token）
-            const promptCacheKey = config.type === 'openai-responses'
+            let openaiResponsesFeatures: OpenAIResponsesFeatures | null = null;
+            if (config.type === 'openai-responses') {
+                const rawFeatures = await this.conversationManager.getCustomMetadata(
+                    conversationId,
+                    OPENAI_RESPONSES_FEATURES_KEY
+                );
+                const f = (rawFeatures && typeof rawFeatures === 'object')
+                    ? (rawFeatures as any)
+                    : null;
+
+                if (f && typeof f.configId === 'string' && f.configId !== configId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, null);
+                } else if (f && typeof f.configId === 'string' && f.configId === configId) {
+                    openaiResponsesFeatures = {
+                        configId: f.configId,
+                        disablePreviousResponseId: f.disablePreviousResponseId === true,
+                        disablePromptCacheKey: f.disablePromptCacheKey === true
+                    };
+                }
+            }
+
+            // OpenAI Responses: prompt cache / previous response continuation（省 token）
+            const promptCacheKey = config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePromptCacheKey
                 ? `limcode:${conversationId}`
                 : undefined;
 
             let previousResponseId: string | undefined;
-            if (config.type === 'openai-responses') {
+            if (config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePreviousResponseId) {
                 const rawState = await this.conversationManager.getCustomMetadata(
                     conversationId,
                     OPENAI_RESPONSES_CONTINUATION_KEY
@@ -483,7 +538,8 @@ export class ToolIterationLoopService {
 
             let requestHistory = history;
             let requestPreviousResponseId = previousResponseId;
-            let attemptedFallback = false;
+            let requestPromptCacheKey = promptCacheKey;
+            let fallbackCount = 0;
 
             while (true) {
                 const requestStartTime = Date.now();
@@ -494,7 +550,7 @@ export class ToolIterationLoopService {
                     abortSignal,
                     dynamicSystemPrompt,
                     previousResponseId: requestPreviousResponseId,
-                    promptCacheKey,
+                    promptCacheKey: requestPromptCacheKey,
                     skipTools: !toolsEnabled
                 });
 
@@ -570,18 +626,52 @@ export class ToolIterationLoopService {
 
                     break;
                 } catch (error) {
-                    const shouldFallback = config.type === 'openai-responses' &&
-                        !!requestPreviousResponseId &&
-                        !attemptedFallback &&
+                    const canFallback = config.type === 'openai-responses' &&
                         !sawAnyChunk &&
-                        isOpenAIResponsesContinuationError(error);
+                        fallbackCount < 2 &&
+                        (
+                            (!!requestPreviousResponseId && isOpenAIResponsesContinuationError(error)) ||
+                            (!!requestPromptCacheKey && isOpenAIResponsesPromptCacheKeyError(error))
+                        );
 
-                    if (shouldFallback) {
-                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
-                        attemptedFallback = true;
-                        requestHistory = historyForFullRetry;
-                        requestPreviousResponseId = undefined;
-                        continue;
+                    if (canFallback) {
+                        fallbackCount++;
+
+                        let changed = false;
+
+                        // previous_response_id 不兼容：禁用 continuation，避免每次都先报错再回退（非常慢）
+                        if (requestPreviousResponseId && isOpenAIResponsesContinuationError(error)) {
+                            if (!openaiResponsesFeatures || openaiResponsesFeatures.configId !== configId) {
+                                openaiResponsesFeatures = { configId };
+                            }
+                            if (openaiResponsesFeatures.disablePreviousResponseId !== true) {
+                                openaiResponsesFeatures.disablePreviousResponseId = true;
+                                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, openaiResponsesFeatures);
+                            }
+
+                            await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                            requestHistory = historyForFullRetry;
+                            requestPreviousResponseId = undefined;
+                            changed = true;
+                        }
+
+                        // prompt_cache_key 不兼容：禁用 prompt cache key，避免一直 400
+                        if (requestPromptCacheKey && isOpenAIResponsesPromptCacheKeyError(error)) {
+                            if (!openaiResponsesFeatures || openaiResponsesFeatures.configId !== configId) {
+                                openaiResponsesFeatures = { configId };
+                            }
+                            if (openaiResponsesFeatures.disablePromptCacheKey !== true) {
+                                openaiResponsesFeatures.disablePromptCacheKey = true;
+                                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, openaiResponsesFeatures);
+                            }
+
+                            requestPromptCacheKey = undefined;
+                            changed = true;
+                        }
+
+                        if (changed) {
+                            continue;
+                        }
                     }
 
                     throw error;
@@ -604,7 +694,9 @@ export class ToolIterationLoopService {
 
             // 9.1 OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
             if (config.type === 'openai-responses') {
-                if (openaiResponseId) {
+                if (openaiResponsesFeatures?.disablePreviousResponseId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                } else if (openaiResponseId) {
                     const syncedHistory = await this.conversationManager.getHistoryRef(conversationId);
                     const state: OpenAIResponsesContinuationState = {
                         configId,
@@ -779,13 +871,34 @@ export class ToolIterationLoopService {
 
             const historyForFullRetry = history;
 
-            // OpenAI Responses: 强制启用 prompt cache + previous response continuation（省 token）
-            const promptCacheKey = config.type === 'openai-responses'
+            let openaiResponsesFeatures: OpenAIResponsesFeatures | null = null;
+            if (config.type === 'openai-responses') {
+                const rawFeatures = await this.conversationManager.getCustomMetadata(
+                    conversationId,
+                    OPENAI_RESPONSES_FEATURES_KEY
+                );
+                const f = (rawFeatures && typeof rawFeatures === 'object')
+                    ? (rawFeatures as any)
+                    : null;
+
+                if (f && typeof f.configId === 'string' && f.configId !== configId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, null);
+                } else if (f && typeof f.configId === 'string' && f.configId === configId) {
+                    openaiResponsesFeatures = {
+                        configId: f.configId,
+                        disablePreviousResponseId: f.disablePreviousResponseId === true,
+                        disablePromptCacheKey: f.disablePromptCacheKey === true
+                    };
+                }
+            }
+
+            // OpenAI Responses: prompt cache / previous response continuation（省 token）
+            const promptCacheKey = config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePromptCacheKey
                 ? `limcode:${conversationId}`
                 : undefined;
 
             let previousResponseId: string | undefined;
-            if (config.type === 'openai-responses') {
+            if (config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePreviousResponseId) {
                 const rawState = await this.conversationManager.getCustomMetadata(
                     conversationId,
                     OPENAI_RESPONSES_CONTINUATION_KEY
@@ -915,32 +1028,72 @@ export class ToolIterationLoopService {
 
             // 调用 AI（非流式）
             let response: GenerateResponse | AsyncGenerator<any>;
-            try {
-                response = await this.channelManager.generate({
-                    configId,
-                    history,
-                    dynamicSystemPrompt,
-                    previousResponseId,
-                    promptCacheKey,
-                    skipTools: !toolsEnabled
-                });
-            } catch (error) {
-                const shouldFallback = config.type === 'openai-responses' &&
-                    !!previousResponseId &&
-                    isOpenAIResponsesContinuationError(error);
+            let requestHistory = history;
+            let requestPreviousResponseId = previousResponseId;
+            let requestPromptCacheKey = promptCacheKey;
+            let fallbackCount = 0;
 
-                if (!shouldFallback) {
+            while (true) {
+                try {
+                    response = await this.channelManager.generate({
+                        configId,
+                        history: requestHistory,
+                        dynamicSystemPrompt,
+                        previousResponseId: requestPreviousResponseId,
+                        promptCacheKey: requestPromptCacheKey,
+                        skipTools: !toolsEnabled
+                    });
+                    break;
+                } catch (error) {
+                    const canFallback = config.type === 'openai-responses' &&
+                        fallbackCount < 2 &&
+                        (
+                            (!!requestPreviousResponseId && isOpenAIResponsesContinuationError(error)) ||
+                            (!!requestPromptCacheKey && isOpenAIResponsesPromptCacheKeyError(error))
+                        );
+
+                    if (!canFallback) {
+                        throw error;
+                    }
+
+                    fallbackCount++;
+
+                    let changed = false;
+
+                    if (requestPreviousResponseId && isOpenAIResponsesContinuationError(error)) {
+                        if (!openaiResponsesFeatures || openaiResponsesFeatures.configId !== configId) {
+                            openaiResponsesFeatures = { configId };
+                        }
+                        if (openaiResponsesFeatures.disablePreviousResponseId !== true) {
+                            openaiResponsesFeatures.disablePreviousResponseId = true;
+                            await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, openaiResponsesFeatures);
+                        }
+
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                        requestHistory = historyForFullRetry;
+                        requestPreviousResponseId = undefined;
+                        changed = true;
+                    }
+
+                    if (requestPromptCacheKey && isOpenAIResponsesPromptCacheKeyError(error)) {
+                        if (!openaiResponsesFeatures || openaiResponsesFeatures.configId !== configId) {
+                            openaiResponsesFeatures = { configId };
+                        }
+                        if (openaiResponsesFeatures.disablePromptCacheKey !== true) {
+                            openaiResponsesFeatures.disablePromptCacheKey = true;
+                            await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, openaiResponsesFeatures);
+                        }
+
+                        requestPromptCacheKey = undefined;
+                        changed = true;
+                    }
+
+                    if (changed) {
+                        continue;
+                    }
+
                     throw error;
                 }
-
-                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
-                response = await this.channelManager.generate({
-                    configId,
-                    history: historyForFullRetry,
-                    dynamicSystemPrompt,
-                    promptCacheKey,
-                    skipTools: !toolsEnabled
-                });
             }
 
             // 类型守卫：确保是 GenerateResponse
@@ -971,7 +1124,9 @@ export class ToolIterationLoopService {
             // OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
             if (config.type === 'openai-responses') {
                 const openaiResponseId = (generateResponse.raw as any)?.id;
-                if (openaiResponseId) {
+                if (openaiResponsesFeatures?.disablePreviousResponseId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                } else if (openaiResponseId) {
                     const syncedHistory = await this.conversationManager.getHistoryRef(conversationId);
                     const state: OpenAIResponsesContinuationState = {
                         configId,
