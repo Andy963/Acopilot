@@ -2,6 +2,11 @@
 
 All notable changes to the "Lim Code" extension will be documented in this file.
 
+## [1.0.52] - 2026-01-16
+
+### Fixed
+  - Gemini：防止自定义 body（advanced）误覆盖请求体导致 `contents` 丢失/为空并触发 “contents array is required”；现在会忽略非对象的 custom body 根并做必填字段兜底校验。
+
 ## [1.0.51] - 2026-01-16
 
 ### Fixed
