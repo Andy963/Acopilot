@@ -61,6 +61,34 @@ function buildSelectionReferencePayload(
     };
 }
 
+function buildFileReferencePayload(
+    document: vscode.TextDocument,
+    maxChars: number
+): SelectionReferencePayload | null {
+    const originalText = document.getText();
+    const normalizedText = originalText.replace(/\r\n/g, '\n');
+
+    const originalCharCount = normalizedText.length;
+    const truncated = originalCharCount > maxChars;
+    const text = truncated
+        ? `${normalizedText.slice(0, maxChars)}\n…(truncated, original ${originalCharCount} chars)`
+        : normalizedText;
+
+    const uri = document.uri.toString();
+    const path = vscode.workspace.asRelativePath(document.uri, false);
+
+    return {
+        uri,
+        path,
+        startLine: 1,
+        endLine: Math.max(1, document.lineCount),
+        languageId: document.languageId,
+        text,
+        originalCharCount,
+        truncated
+    };
+}
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('LimCode extension is now active!');
 
@@ -99,6 +127,42 @@ export function activate(context: vscode.ExtensionContext) {
             const payload = buildSelectionReferencePayload(editor, 12000);
             if (!payload) {
                 vscode.window.showInformationMessage('请先选中一段代码/文本');
+                return;
+            }
+
+            await vscode.commands.executeCommand('limcode.chatView.focus');
+            chatViewProvider?.sendCommand('addSelectionToChat', payload);
+        })
+    );
+
+    // 注册命令：把文件内容添加到聊天引用（类似 Copilot 的 Add File to Chat）
+    context.subscriptions.push(
+        vscode.commands.registerCommand('limcode.addFileToChat', async (resource?: unknown) => {
+            let uri: vscode.Uri | undefined;
+            if (resource instanceof vscode.Uri) {
+                uri = resource;
+            } else if (Array.isArray(resource) && resource.length > 0 && resource[0] instanceof vscode.Uri) {
+                uri = resource[0];
+            }
+
+            let document: vscode.TextDocument | undefined;
+            try {
+                document = uri
+                    ? await vscode.workspace.openTextDocument(uri)
+                    : vscode.window.activeTextEditor?.document;
+            } catch (error) {
+                vscode.window.showInformationMessage('请选择一个可打开的文本文件');
+                return;
+            }
+
+            if (!document) {
+                vscode.window.showInformationMessage('No active editor');
+                return;
+            }
+
+            const payload = buildFileReferencePayload(document, 12000);
+            if (!payload) {
+                vscode.window.showInformationMessage('未能读取文件内容');
                 return;
             }
 
