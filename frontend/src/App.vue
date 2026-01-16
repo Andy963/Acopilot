@@ -226,7 +226,7 @@ onMounted(async () => {
           break
         case 'addSelectionToChat':
           settingsStore.showChat()
-          chatStore.addPinnedSelection(message.data).catch(() => {})
+          chatStore.addSelectionReference(message.data).catch(() => {})
           sendToExtension('showNotification', { message: '已添加到引用', type: 'info' }).catch(() => {})
           break
         case 'showHistory':

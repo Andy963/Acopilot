@@ -387,6 +387,24 @@ export interface ContextSnapshot {
 }
 
 /**
+ * 本条消息引用（仅 user 消息有值）
+ *
+ * 由前端通过“Add Selection to Chat”添加，并会持久化到该条 user 消息上以支持重试/复现。
+ */
+export interface SelectionReference {
+    id?: string;
+    uri?: string;
+    path: string;
+    startLine?: number;
+    endLine?: number;
+    languageId?: string;
+    text: string;
+    originalCharCount?: number;
+    truncated?: boolean;
+    createdAt?: number;
+}
+
+/**
  * 本次消息级上下文注入覆写（仅对当前用户消息生效）
  *
  * 用于在“仅本条消息”维度临时关闭/开启某些上下文模块，
@@ -589,6 +607,13 @@ export interface Content {
      * 用于在 UI 中解释“本次请求注入了哪些上下文/发生了哪些裁剪”。
      */
     contextSnapshot?: ContextSnapshot;
+
+    /**
+     * 本条消息引用（仅 user 消息有值）
+     *
+     * 由前端通过“Add Selection to Chat”添加，并持久化到历史中，便于重试/复现。
+     */
+    selectionReferences?: SelectionReference[];
 
     /**
      * 上下文注入覆写（仅 user 消息有值）

@@ -10,7 +10,6 @@ import { contentToMessageEnhanced } from './parsers'
 import type { Content } from '../../types'
 import { generateConversationTitleFromText } from '../../utils/conversationTitle'
 import { createDefaultPinnedPrompt, loadPinnedPrompt } from './pinnedPromptActions'
-import { loadPinnedSelections } from './pinnedSelectionActions'
 
 /**
  * 取消流式并拒绝工具的回调类型
@@ -38,7 +37,7 @@ export async function createNewConversation(
   state.planRunner.value = null
   state.postEditValidationPending.value = false
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
-  state.pinnedSelections.value = []
+  state.selectionReferences.value = []
   
   // 清除所有加载和流式状态
   state.isLoading.value = false
@@ -226,11 +225,10 @@ export async function switchConversation(
   state.streamingMessageId.value = null
   state.isWaitingForResponse.value = false
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
-  state.pinnedSelections.value = []
+  state.selectionReferences.value = []
 
   // 切换对话时加载固定提示词/技能
   await loadPinnedPrompt(state, id)
-  await loadPinnedSelections(state, id)
   
   // 如果是已持久化的对话，从后端加载历史和检查点
   if (conv.isPersisted) {

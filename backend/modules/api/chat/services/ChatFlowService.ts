@@ -122,6 +122,7 @@ export class ChatFlowService {
     await this.conversationManager.addContent(conversationId, {
       role: 'user',
       parts: userParts,
+      selectionReferences: request.selectionReferences,
       contextOverrides: request.contextOverrides,
     });
 
@@ -377,6 +378,7 @@ export class ChatFlowService {
     await this.conversationManager.addContent(conversationId, {
       role: 'user',
       parts: userParts,
+      selectionReferences: request.selectionReferences,
       contextOverrides: request.contextOverrides,
     });
 
