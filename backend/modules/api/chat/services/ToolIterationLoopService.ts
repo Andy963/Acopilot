@@ -20,6 +20,13 @@ import { PromptManager } from '../../../prompt';
 import { t } from '../../../../i18n';
 import { convertToolsToJSON } from '../../../../tools/jsonFormatter';
 import { convertToolsToXML } from '../../../../tools/xmlFormatter';
+import {
+    decodeOpenAIResponsesStatefulMarker,
+    encodeOpenAIResponsesStatefulMarker,
+    OPENAI_RESPONSES_STATEFUL_MARKER_MIME,
+    type OpenAIResponsesStatefulMarkerPayload
+} from '../../../conversation/internalMarkers';
+import { nanoid } from 'nanoid';
 import type { CheckpointService } from './CheckpointService';
 
 import type {
@@ -44,6 +51,7 @@ import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo }
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 const OPENAI_RESPONSES_FEATURES_KEY = 'openaiResponsesFeatures';
+const OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY = 'openaiResponsesPromptCacheKey';
 
 // Gemini 很容易在“工具循环”里触发 429：工具执行通常很快，导致下一次模型请求紧随其后发出。
 // 这里对工具迭代后的后续轮次做轻量限速，避免短时间内连续请求。
@@ -61,6 +69,15 @@ type OpenAIResponsesFeatures = {
     disablePreviousResponseId?: boolean;
     disablePromptCacheKey?: boolean;
 };
+
+type OpenAIResponsesPromptCacheState = {
+    configId: string;
+    promptCacheKey: string;
+};
+
+function createOpenAIResponsesPromptCacheKey(conversationId: string, configId: string): string {
+    return `limcode:${configId}:${conversationId}:${nanoid(10)}`;
+}
 
 function getApiErrorText(error: ChannelError): string {
     const details = error.details as any;
@@ -112,6 +129,67 @@ function getGeminiToolLoopDelayMs(iteration: number): number {
     // 仅对“第 2 轮及以后”的模型调用做延迟：第 1 轮是用户发起，不应额外增加等待。
     if (iteration <= 1) return 0;
     return GEMINI_TOOL_LOOP_MIN_INTERVAL_MS + Math.floor(Math.random() * GEMINI_TOOL_LOOP_JITTER_MS);
+}
+
+type OpenAIResponsesStatefulMarkerLocation = {
+    marker: OpenAIResponsesStatefulMarkerPayload;
+    index: number;
+};
+
+function findLastOpenAIResponsesStatefulMarker(fullHistory: Content[], configId: string): OpenAIResponsesStatefulMarkerLocation | null {
+    for (let i = fullHistory.length - 1; i >= 0; i--) {
+        const msg = fullHistory[i];
+        if (!msg || msg.role !== 'model' || !Array.isArray(msg.parts)) continue;
+
+        for (const part of msg.parts) {
+            const inlineData = (part as any)?.inlineData;
+            if (!inlineData || inlineData.mimeType !== OPENAI_RESPONSES_STATEFUL_MARKER_MIME) {
+                continue;
+            }
+
+            const parsed = decodeOpenAIResponsesStatefulMarker(inlineData.data);
+            if (parsed && parsed.configId === configId) {
+                return { marker: parsed, index: i };
+            }
+        }
+    }
+    return null;
+}
+
+function appendOpenAIResponsesStatefulMarker(
+    content: Content,
+    payload: Omit<OpenAIResponsesStatefulMarkerPayload, 'v'> & { v?: 1 }
+): void {
+    if (!content || !Array.isArray(content.parts)) return;
+
+    const previousResponseId = typeof payload.previousResponseId === 'string' && payload.previousResponseId.trim()
+        ? payload.previousResponseId.trim()
+        : undefined;
+    const promptCacheKey = typeof payload.promptCacheKey === 'string' && payload.promptCacheKey.trim()
+        ? payload.promptCacheKey.trim()
+        : undefined;
+
+    if (!previousResponseId && !promptCacheKey) return;
+
+    const hasMarker = content.parts.some((p) => (p as any)?.inlineData?.mimeType === OPENAI_RESPONSES_STATEFUL_MARKER_MIME);
+    if (hasMarker) return;
+
+    const configId = payload.configId;
+    if (typeof configId !== 'string' || !configId.trim()) return;
+
+    const encoded = encodeOpenAIResponsesStatefulMarker({
+        v: 1,
+        configId: configId.trim(),
+        previousResponseId,
+        promptCacheKey
+    });
+
+    content.parts.push({
+        inlineData: {
+            mimeType: OPENAI_RESPONSES_STATEFUL_MARKER_MIME,
+            data: encoded
+        }
+    });
 }
 
 /**
@@ -399,9 +477,43 @@ export class ToolIterationLoopService {
             }
 
             // OpenAI Responses: prompt cache / previous response continuation（省 token）
-            const promptCacheKey = config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePromptCacheKey
-                ? `limcode:${conversationId}`
-                : undefined;
+            let promptCacheKey: string | undefined;
+            if (config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePromptCacheKey) {
+                const rawPromptCache = await this.conversationManager.getCustomMetadata(
+                    conversationId,
+                    OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY
+                );
+                const s = (rawPromptCache && typeof rawPromptCache === 'object')
+                    ? (rawPromptCache as any)
+                    : null;
+
+                if (s && typeof s.configId === 'string' && s.configId !== configId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
+                } else if (s && s.configId === configId && typeof s.promptCacheKey === 'string' && s.promptCacheKey.trim()) {
+                    promptCacheKey = s.promptCacheKey;
+                }
+
+                if (!promptCacheKey) {
+                    const marker = findLastOpenAIResponsesStatefulMarker(fullHistory, configId);
+                    if (marker?.marker.promptCacheKey) {
+                        promptCacheKey = marker.marker.promptCacheKey;
+                        const nextState: OpenAIResponsesPromptCacheState = {
+                            configId,
+                            promptCacheKey
+                        };
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, nextState);
+                    }
+                }
+
+                if (!promptCacheKey) {
+                    promptCacheKey = createOpenAIResponsesPromptCacheKey(conversationId, configId);
+                    const nextState: OpenAIResponsesPromptCacheState = {
+                        configId,
+                        promptCacheKey
+                    };
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, nextState);
+                }
+            }
 
             let previousResponseId: string | undefined;
             if (config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePreviousResponseId) {
@@ -416,10 +528,12 @@ export class ToolIterationLoopService {
                 // config 变化 / 历史被改写：清理 continuation
                 if (state?.configId && state.configId !== configId) {
                     await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
                 } else if (typeof state?.previousResponseId === 'string' && typeof state?.lastSyncedHistoryLength === 'number') {
                     const lastSyncedHistoryLength = state.lastSyncedHistoryLength;
                     if (lastSyncedHistoryLength > fullHistory.length) {
                         await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
                     } else if (lastSyncedHistoryLength > 0 && lastSyncedHistoryLength < fullHistory.length) {
                         const relativeStart = Math.max(0, lastSyncedHistoryLength - trimStartIndex);
                         const deltaHistory = history.slice(relativeStart);
@@ -655,19 +769,20 @@ export class ToolIterationLoopService {
                             changed = true;
                         }
 
-                        // prompt_cache_key 不兼容：禁用 prompt cache key，避免一直 400
-                        if (requestPromptCacheKey && isOpenAIResponsesPromptCacheKeyError(error)) {
-                            if (!openaiResponsesFeatures || openaiResponsesFeatures.configId !== configId) {
-                                openaiResponsesFeatures = { configId };
-                            }
-                            if (openaiResponsesFeatures.disablePromptCacheKey !== true) {
-                                openaiResponsesFeatures.disablePromptCacheKey = true;
-                                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, openaiResponsesFeatures);
-                            }
+	                        // prompt_cache_key 不兼容：禁用 prompt cache key，避免一直 400
+	                        if (requestPromptCacheKey && isOpenAIResponsesPromptCacheKeyError(error)) {
+	                            if (!openaiResponsesFeatures || openaiResponsesFeatures.configId !== configId) {
+	                                openaiResponsesFeatures = { configId };
+	                            }
+	                            if (openaiResponsesFeatures.disablePromptCacheKey !== true) {
+	                                openaiResponsesFeatures.disablePromptCacheKey = true;
+	                                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_FEATURES_KEY, openaiResponsesFeatures);
+	                            }
 
-                            requestPromptCacheKey = undefined;
-                            changed = true;
-                        }
+	                            await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
+	                            requestPromptCacheKey = undefined;
+	                            changed = true;
+	                        }
 
                         if (changed) {
                             continue;
@@ -689,6 +804,13 @@ export class ToolIterationLoopService {
 
             // 9. 保存 AI 响应到历史
             if (finalContent.parts.length > 0) {
+                if (config.type === 'openai-responses') {
+                    appendOpenAIResponsesStatefulMarker(finalContent, {
+                        configId,
+                        previousResponseId: openaiResponseId,
+                        promptCacheKey: requestPromptCacheKey
+                    });
+                }
                 await this.conversationManager.addContent(conversationId, finalContent);
             }
 
@@ -893,9 +1015,43 @@ export class ToolIterationLoopService {
             }
 
             // OpenAI Responses: prompt cache / previous response continuation（省 token）
-            const promptCacheKey = config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePromptCacheKey
-                ? `limcode:${conversationId}`
-                : undefined;
+            let promptCacheKey: string | undefined;
+            if (config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePromptCacheKey) {
+                const rawPromptCache = await this.conversationManager.getCustomMetadata(
+                    conversationId,
+                    OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY
+                );
+                const s = (rawPromptCache && typeof rawPromptCache === 'object')
+                    ? (rawPromptCache as any)
+                    : null;
+
+                if (s && typeof s.configId === 'string' && s.configId !== configId) {
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
+                } else if (s && s.configId === configId && typeof s.promptCacheKey === 'string' && s.promptCacheKey.trim()) {
+                    promptCacheKey = s.promptCacheKey;
+                }
+
+                if (!promptCacheKey) {
+                    const marker = findLastOpenAIResponsesStatefulMarker(fullHistory, configId);
+                    if (marker?.marker.promptCacheKey) {
+                        promptCacheKey = marker.marker.promptCacheKey;
+                        const nextState: OpenAIResponsesPromptCacheState = {
+                            configId,
+                            promptCacheKey
+                        };
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, nextState);
+                    }
+                }
+
+                if (!promptCacheKey) {
+                    promptCacheKey = createOpenAIResponsesPromptCacheKey(conversationId, configId);
+                    const nextState: OpenAIResponsesPromptCacheState = {
+                        configId,
+                        promptCacheKey
+                    };
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, nextState);
+                }
+            }
 
             let previousResponseId: string | undefined;
             if (config.type === 'openai-responses' && !openaiResponsesFeatures?.disablePreviousResponseId) {
@@ -910,10 +1066,12 @@ export class ToolIterationLoopService {
                 // config 变化 / 历史被改写：清理 continuation
                 if (state?.configId && state.configId !== configId) {
                     await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                    await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
                 } else if (typeof state?.previousResponseId === 'string' && typeof state?.lastSyncedHistoryLength === 'number') {
                     const lastSyncedHistoryLength = state.lastSyncedHistoryLength;
                     if (lastSyncedHistoryLength > fullHistory.length) {
                         await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
                     } else if (lastSyncedHistoryLength > 0 && lastSyncedHistoryLength < fullHistory.length) {
                         const relativeStart = Math.max(0, lastSyncedHistoryLength - trimStartIndex);
                         const deltaHistory = history.slice(relativeStart);
@@ -1103,6 +1261,9 @@ export class ToolIterationLoopService {
 
             const generateResponse = response as GenerateResponse;
             const finalContent = generateResponse.content;
+            const openaiResponseId = config.type === 'openai-responses'
+                ? (generateResponse.raw as any)?.id
+                : undefined;
             // 透传结束原因，便于前端判断是否被截断
             finalContent.finishReason = generateResponse.finishReason;
 
@@ -1118,12 +1279,18 @@ export class ToolIterationLoopService {
 
             // 保存 AI 响应到历史
             if (finalContent.parts.length > 0) {
+                if (config.type === 'openai-responses') {
+                    appendOpenAIResponsesStatefulMarker(finalContent, {
+                        configId,
+                        previousResponseId: openaiResponseId,
+                        promptCacheKey: requestPromptCacheKey
+                    });
+                }
                 await this.conversationManager.addContent(conversationId, finalContent);
             }
 
             // OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
             if (config.type === 'openai-responses') {
-                const openaiResponseId = (generateResponse.raw as any)?.id;
                 if (openaiResponsesFeatures?.disablePreviousResponseId) {
                     await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
                 } else if (openaiResponseId) {

@@ -14,6 +14,7 @@ import type { Content, ContentPart, ChannelTokenCounts } from '../../../conversa
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import type { SettingsManager } from '../../../settings/SettingsManager';
 import type { TokenCountService } from '../../../channel/TokenCountService';
+import { isInternalMarkerMimeType } from '../../../conversation/internalMarkers';
 
 /**
  * 规范化的渠道类型
@@ -201,6 +202,9 @@ export class TokenEstimationService {
                 tokens += Math.ceil(part.text.length / 4);
             }
             if (part.inlineData) {
+                if (isInternalMarkerMimeType(part.inlineData.mimeType)) {
+                    continue;
+                }
                 tokens += this.estimateMultimodalTokens(part.inlineData);
             }
             if (part.functionCall) {

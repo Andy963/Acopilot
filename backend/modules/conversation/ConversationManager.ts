@@ -26,6 +26,7 @@ import {
 } from './types';
 import type { IStorageAdapter } from './storage';
 import { cleanFunctionResponseForAPI } from './helpers';
+import { isInternalMarkerMimeType } from './internalMarkers';
 
 /**
  * 多模态能力（用于过滤历史中的多模态数据）
@@ -804,6 +805,11 @@ export class ConversationManager {
         const cleanInlineData = (part: ContentPart, isFunctionResponse: boolean, isHistoryMessage: boolean): ContentPart | null => {
             if (!part.inlineData) {
                 return part;
+            }
+
+            // Internal marker payloads should never be forwarded to any provider.
+            if (isInternalMarkerMimeType(part.inlineData.mimeType)) {
+                return null;
             }
             
             // 获取多模态能力配置
