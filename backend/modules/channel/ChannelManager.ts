@@ -762,15 +762,22 @@ export class ChannelManager {
                     if (externalSignal?.aborted) {
                         break;
                     }
-                    
-                    // 收到数据，重置超时计时器
-                    resetTimeout();
-                    
+
                     buffer += chunk;
+
+                    // 仅在收到“有效内容/进度”时才重置超时，避免 SSE keep-alive 导致永不超时
+                    if (!buffer.trim()) {
+                        buffer = '';
+                        continue;
+                    }
                     
                     // 处理流式响应
                     const result = parseStreamBuffer(buffer);
                     buffer = result.remaining;
+
+                    if (result.chunks.length > 0 || buffer.length > 0) {
+                        resetTimeout();
+                    }
                     
                     for (const parsed of result.chunks) {
                         yield parsed;
@@ -836,15 +843,22 @@ export class ChannelManager {
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        
-                        // 收到数据，重置超时计时器
-                        resetTimeout();
-                        
+
                         buffer += decoder.decode(value, { stream: true });
+
+                        // 仅在收到“有效内容/进度”时才重置超时，避免 SSE keep-alive 导致永不超时
+                        if (!buffer.trim()) {
+                            buffer = '';
+                            continue;
+                        }
                         
                         // 处理流式响应
                         const result = parseStreamBuffer(buffer);
                         buffer = result.remaining;
+
+                        if (result.chunks.length > 0 || buffer.length > 0) {
+                            resetTimeout();
+                        }
                         
                         for (const chunk of result.chunks) {
                             yield chunk;
