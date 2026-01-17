@@ -478,6 +478,9 @@ export interface LanguageMessages {
                 attachImage: string;
                 removeStep: string;
                 removeAttachment: string;
+                stash: string;
+                stashed: string;
+                draftLoaded: string;
                 hint: string;
                 save: string;
                 saveAndStart: string;

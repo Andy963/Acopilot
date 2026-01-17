@@ -452,6 +452,9 @@ const ja: LanguageMessages = {
                 attachImage: '画像を添付',
                 removeStep: 'ステップを削除',
                 removeAttachment: '添付を削除',
+                stash: '下書きを保存',
+                stashed: '保存しました',
+                draftLoaded: '保存した下書きを読み込みました（次回も編集を続けられます）',
                 hint: '必要：プランタイトル + 少なくとも 1 つの完全なステップ（タイトル + 指示）。',
                 save: '保存',
                 saveAndStart: '保存して開始'

@@ -382,6 +382,9 @@ const en: LanguageMessages = {
                 attachImage: 'Attach image',
                 removeStep: 'Remove step',
                 removeAttachment: 'Remove attachment',
+                stash: 'Save draft',
+                stashed: 'Draft saved',
+                draftLoaded: 'Loaded saved draft (you can continue editing next time)',
                 hint: 'Need: plan title + at least 1 complete step (title + instruction).',
                 save: 'Save plan',
                 saveAndStart: 'Save & start'
