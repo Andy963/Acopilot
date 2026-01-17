@@ -1,5 +1,5 @@
 /**
- * LimCode MCP 模块 - Stdio 客户端
+ * Acopilot MCP 模块 - Stdio 客户端
  * 
  * 通过 stdin/stdout 与 MCP 服务器通信
  */
@@ -157,7 +157,7 @@ export class StdioMcpClient extends EventEmitter {
                 roots: { listChanged: true }
             },
             clientInfo: {
-                name: 'LimCode',
+                name: 'Acopilot',
                 version: '1.0.5'
             }
         });

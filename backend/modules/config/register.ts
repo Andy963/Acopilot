@@ -1,5 +1,5 @@
 /**
- * LimCode - 配置管理模块注册
+ * Acopilot - 配置管理模块注册
  * 
  * 注册配置管理模块到 ModuleRegistry
  */

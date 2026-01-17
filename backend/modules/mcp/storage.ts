@@ -1,5 +1,5 @@
 /**
- * LimCode MCP 模块 - 存储适配器
+ * Acopilot MCP 模块 - 存储适配器
  */
 
 import type { McpStorageAdapter, McpServerConfig } from './types';
@@ -10,7 +10,7 @@ import type { McpStorageAdapter, McpServerConfig } from './types';
  * 使用 VSCode 的 Memento API 存储 MCP 配置
  */
 export class MementoMcpStorageAdapter implements McpStorageAdapter {
-    private static readonly STORAGE_KEY = 'limcode.mcp.servers';
+    private static readonly STORAGE_KEY = 'acopilot.mcp.servers';
     
     /** VSCode Memento 实例 */
     private memento: {

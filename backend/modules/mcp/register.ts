@@ -1,5 +1,5 @@
 /**
- * LimCode MCP 模块 - 注册到 ModuleRegistry
+ * Acopilot MCP 模块 - 注册到 ModuleRegistry
  */
 
 import type { ModuleDefinition } from '../../core/registry/types';

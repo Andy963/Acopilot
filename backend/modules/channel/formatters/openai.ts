@@ -1,5 +1,5 @@
 /**
- * LimCode - OpenAI 格式转换器
+ * Acopilot - OpenAI 格式转换器
  *
  * 将统一格式转换为 OpenAI API 格式（兼容 DeepSeek 等）
  *
@@ -826,7 +826,7 @@ export class OpenAIFormatter extends BaseFormatter {
      */
     parseStreamChunk(chunk: any): StreamChunk {
         // parseStreamBuffer 会把 data: [DONE] 转成内部 sentinel，用于兼容某些网关不发送最终 JSON chunk 的情况
-        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
             return {
                 delta: [],
                 done: true,

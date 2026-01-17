@@ -1,5 +1,5 @@
 /**
- * LimCode - Gemini 配置类型
+ * Acopilot - Gemini 配置类型
  * 
  * Google Gemini API 的完整配置支持
  */

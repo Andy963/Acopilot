@@ -1,5 +1,5 @@
 /**
- * LimCode MCP (Model Context Protocol) 模块 - 客户端管理器
+ * Acopilot MCP (Model Context Protocol) 模块 - 客户端管理器
  *
  * 管理 MCP 服务器配置和客户端连接
  */

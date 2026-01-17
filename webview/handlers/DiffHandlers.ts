@@ -232,8 +232,8 @@ async function openDiffView(
   diffTitle: string,
   ctx: HandlerContext
 ): Promise<void> {
-  const originalUri = vscode.Uri.parse(`limcode-diff-preview:original/${encodeURIComponent(filePath)}`);
-  const newUri = vscode.Uri.parse(`limcode-diff-preview:modified/${encodeURIComponent(filePath)}`);
+  const originalUri = vscode.Uri.parse(`acopilot-diff-preview:original/${encodeURIComponent(filePath)}`);
+  const newUri = vscode.Uri.parse(`acopilot-diff-preview:modified/${encodeURIComponent(filePath)}`);
   
   ctx.diffPreviewProvider.setContent(originalUri.toString(), originalContent);
   ctx.diffPreviewProvider.setContent(newUri.toString(), newContent);

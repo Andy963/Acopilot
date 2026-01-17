@@ -1,5 +1,5 @@
 /**
- * LimCode - 工具迭代循环服务
+ * Acopilot - 工具迭代循环服务
  *
  * 封装工具调用循环的核心逻辑，统一处理：
  * - handleChatStream
@@ -77,7 +77,7 @@ type OpenAIResponsesPromptCacheState = {
 };
 
 function createOpenAIResponsesPromptCacheKey(conversationId: string, configId: string): string {
-    return `limcode:${configId}:${conversationId}:${nanoid(10)}`;
+    return `acopilot:${configId}:${conversationId}:${nanoid(10)}`;
 }
 
 function getApiErrorText(error: ChannelError): string {

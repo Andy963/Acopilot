@@ -1,6 +1,6 @@
 # Change Log
 
-All notable changes to the "Lim Code" extension will be documented in this file.
+All notable changes to the "Acopilot" extension will be documented in this file.
 
 ## [1.0.55] - 2026-01-16
 

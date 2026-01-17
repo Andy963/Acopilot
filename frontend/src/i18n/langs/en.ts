@@ -1,5 +1,5 @@
 /**
- * LimCode - English Language Pack
+ * Acopilot - English Language Pack
  * Organized by component directory structure
  */
 
@@ -235,7 +235,7 @@ const en: LanguageMessages = {
         },
 
         home: {
-            welcome: 'Welcome to LimCode',
+            welcome: 'Welcome to Acopilot',
             welcomeMessage: 'AI coding assistant helping you write code more efficiently',
             welcomeHint: 'Type a message in the input box below to start a conversation',
             quickStart: 'Quick Start',
@@ -870,7 +870,7 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'LimCode - Vibe Coding Assistant',
+                    name: 'Acopilot - Vibe Coding Assistant',
                     version: 'Version',
                     repository: 'Repository',
                     developer: 'Developer'
@@ -1365,7 +1365,7 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: 'Version: {version}',
                     repository: 'Repository',
                     developer: 'Developer'

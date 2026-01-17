@@ -1,5 +1,5 @@
 /**
- * LimCode - Gemini 格式转换器
+ * Acopilot - Gemini 格式转换器
  *
  * 将统一格式转换为 Gemini API 格式
  */
@@ -640,7 +640,7 @@ export class GeminiFormatter extends BaseFormatter {
      * 解析流式响应块
      */
     parseStreamChunk(chunk: any): StreamChunk {
-        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
             return {
                 delta: [],
                 done: true,

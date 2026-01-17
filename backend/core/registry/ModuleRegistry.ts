@@ -1,5 +1,5 @@
 /**
- * LimCode 模块注册表实现
+ * Acopilot 模块注册表实现
  */
 
 import type {
