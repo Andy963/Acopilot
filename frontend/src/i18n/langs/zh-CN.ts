@@ -402,7 +402,8 @@ const zhCN: LanguageMessages = {
                 responseDuration: '响应时间',
                 tokenRate: 'Token 速率',
                 finishReason: '结束原因',
-                contextUsed: '使用的上下文'
+                contextUsed: '使用的上下文',
+                cacheHit: '缓存命中：{tokens}（{percent}%）'
             },
             thought: {
                 thinking: '正在思考...',

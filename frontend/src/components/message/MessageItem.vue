@@ -473,6 +473,30 @@ function formatTokenCount(count: number | undefined): string {
   return String(count)
 }
 
+const cacheHitInfo = computed(() => {
+  const usage = usageMetadata.value
+  const cachedTokens = usage?.cachedPromptTokenCount ?? 0
+  const inputTokens = usage?.promptTokenCount ?? 0
+
+  if (cachedTokens <= 0) return null
+  if (inputTokens <= 0) return null
+
+  const percent = Math.max(0, Math.min(100, Math.round((cachedTokens / inputTokens) * 100)))
+  return {
+    cachedTokens,
+    percent,
+    cachedTokensText: formatTokenCount(cachedTokens)
+  }
+})
+
+const cacheHitTitle = computed(() => {
+  if (!cacheHitInfo.value) return ''
+  return t('components.message.stats.cacheHit', {
+    tokens: cacheHitInfo.value.cachedTokensText,
+    percent: cacheHitInfo.value.percent
+  })
+})
+
 // 响应持续时间（从请求发送到响应结束，使用后端提供的数据）
 const responseDuration = computed(() => {
   const duration = props.message.metadata?.responseDuration
@@ -754,6 +778,11 @@ function handleOpenContextUsed() {
 	              <span class="token-rate-value">{{ tokenRate }}</span>
 	              <span class="token-rate-unit">t/s</span>
 	            </span>
+
+              <span v-if="cacheHitInfo" class="cache-hit" :title="cacheHitTitle">
+                <i class="codicon codicon-database"></i>
+                <span class="cache-hit-value">{{ cacheHitInfo.cachedTokensText }}({{ cacheHitInfo.percent }}%)</span>
+              </span>
 	
 	            <div v-if="hasUsage" class="token-usage">
 	              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
@@ -937,6 +966,24 @@ function handleOpenContextUsed() {
 }
 
 .token-rate .codicon {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1;
+}
+
+/* OpenAI Responses prompt cache 命中展示 */
+.cache-hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.cache-hit .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
   line-height: 1;

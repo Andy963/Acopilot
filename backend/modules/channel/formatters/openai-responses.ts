@@ -416,6 +416,7 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             const usage = response.usage;
             content.usageMetadata = {
                 promptTokenCount: usage.input_tokens,
+                cachedPromptTokenCount: usage.input_tokens_details?.cached_tokens,
                 candidatesTokenCount: usage.output_tokens,
                 totalTokenCount: usage.total_tokens,
                 thoughtsTokenCount: usage.output_tokens_details?.reasoning_tokens
@@ -531,6 +532,7 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
                     const u = chunk.response.usage;
                     usage = {
                         promptTokenCount: u.input_tokens,
+                        cachedPromptTokenCount: u.input_tokens_details?.cached_tokens,
                         candidatesTokenCount: u.output_tokens,
                         totalTokenCount: u.total_tokens,
                         thoughtsTokenCount: u.output_tokens_details?.reasoning_tokens
