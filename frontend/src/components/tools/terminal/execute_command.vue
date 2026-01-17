@@ -214,6 +214,28 @@ const changeHeaderMeta = computed(() => {
 const changesExpanded = ref(false)
 const changesUserToggled = ref(false)
 
+const headerChangesPreviewLimit = 2
+
+function getPathBasename(p: string): string {
+  const normalized = String(p || '').replace(/\\/g, '/')
+  const parts = normalized.split('/').filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : normalized
+}
+
+const showHeaderChangesPreview = computed(() => {
+  if (isRunning.value) return false
+  if (expanded.value) return false
+  return changedFiles.value.length > 0
+})
+
+const headerPreviewFiles = computed(() => changedFiles.value.slice(0, headerChangesPreviewLimit))
+
+const headerMoreCount = computed(() => {
+  const total = changeCount.value
+  const shown = headerPreviewFiles.value.length
+  return Math.max(0, total - shown)
+})
+
 const defaultChangesExpanded = computed(() => {
   const s = changesSummary.value
   if (s?.unsupportedReason) return false
@@ -343,6 +365,17 @@ async function openChangedFile(file: ChangedFileEntry) {
   } catch (err) {
     console.warn('Failed to open file:', err)
   }
+}
+
+async function handleHeaderChangeClick(file: ChangedFileEntry) {
+  if (!file.path) return
+
+  if (file.diffContentId) {
+    await openFileDiffInVSCode(file)
+    return
+  }
+
+  toggleExpanded()
 }
 
 function getActionLabel(action: FileChangeAction): string {
@@ -1065,6 +1098,37 @@ watch(isRunning, (running) => {
         {{ formatDuration(duration) }}
       </span>
 
+      <div
+        v-if="showHeaderChangesPreview"
+        class="changes-preview-header"
+        @click.stop
+      >
+        <i
+          class="codicon codicon-diff"
+          :title="t('components.tools.terminal.executeCommandPanel.fileChanges.title')"
+        ></i>
+
+        <button
+          v-for="f in headerPreviewFiles"
+          :key="f.path"
+          class="change-chip"
+          :class="{ disabled: !f.diffContentId }"
+          :title="f.diffContentId ? `${t('components.tools.terminal.executeCommandPanel.fileChanges.viewInVSCode')}: ${f.path}` : (f.skippedReason ? String(f.skippedReason) : t('components.tools.terminal.executeCommandPanel.fileChanges.diffUnavailable'))"
+          @click.stop="handleHeaderChangeClick(f)"
+        >
+          {{ getPathBasename(f.path) }}
+        </button>
+
+        <button
+          v-if="headerMoreCount > 0"
+          class="change-chip more"
+          :title="t('common.expand')"
+          @click.stop="toggleExpanded"
+        >
+          +{{ headerMoreCount }}
+        </button>
+      </div>
+
       <div class="header-actions" @click.stop>
         <button
           v-if="isRunning"
@@ -1674,6 +1738,53 @@ watch(isRunning, (running) => {
 .duration {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.changes-preview-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+}
+
+.changes-preview-header .codicon {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.change-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  max-width: 110px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.22);
+  background: rgba(127, 127, 127, 0.04);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change-chip:hover {
+  background: rgba(127, 127, 127, 0.07);
+  border-color: rgba(128, 128, 128, 0.32);
+  color: var(--vscode-foreground);
+}
+
+.change-chip.disabled {
+  opacity: 0.55;
+}
+
+.change-chip.more {
   flex-shrink: 0;
 }
 
