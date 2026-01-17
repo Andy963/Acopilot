@@ -284,8 +284,10 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
   if (candidateBase) {
     candidates.push(candidateBase);
     candidates.push(`${candidateBase}/.codex/skills`);
+    candidates.push(`${candidateBase}/.codex`);
   }
   candidates.push('.codex/skills');
+  candidates.push('.codex');
 
   let remoteSkillsRoot: string | null = null;
   for (const candidate of candidates) {
@@ -299,6 +301,12 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
 
       // Only treat `.codex/skills` as a skills root directory (avoid false positives on arbitrary paths).
       if (/(^|\/)\.codex\/skills$/.test(candidate)) {
+        remoteSkillsRoot = candidate;
+        break;
+      }
+
+      // Fallback: some repos put skills directly under `.codex/<skill>/SKILL.md` (no `skills/` subdir).
+      if (/(^|\/)\.codex$/.test(candidate)) {
         remoteSkillsRoot = candidate;
         break;
       }
@@ -367,11 +375,30 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
   }
 
   const skillDirs = remoteEntries.filter(e => e.type === 'dir');
-  summary.found = skillDirs.length;
+  const isCodexRoot = /(^|\/)\.codex$/.test(remoteSkillsRoot);
+  summary.found = isCodexRoot ? 0 : skillDirs.length;
 
   for (const dir of skillDirs) {
     const localSkillDir = path.join(localSkillsRoot, dir.name);
-    if (fs.existsSync(localSkillDir)) {
+    const localExists = fs.existsSync(localSkillDir);
+
+    // `.codex` root may contain non-skill folders; only treat dirs with SKILL.md as skills.
+    if (isCodexRoot || !localExists) {
+      const remoteDirEntries = await listGitHubDirectory(parsed.owner, parsed.repo, ref, dir.path).catch(() => null);
+      if (!remoteDirEntries || !remoteDirEntries.some(e => e.type === 'file' && e.name === 'SKILL.md')) {
+        // `.codex/skills` is an explicit skills root: mark missing SKILL.md as invalid.
+        if (!isCodexRoot) {
+          summary.invalid += 1;
+        }
+        continue;
+      }
+
+      if (isCodexRoot) {
+        summary.found += 1;
+      }
+    }
+
+    if (localExists) {
       // Skip existing skill directories (idempotent), but return the local SKILL.md if available.
       const existing = await readInstalledSkill(localSkillDir);
       if (existing) {
@@ -381,13 +408,6 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
       } else {
         summary.invalid += 1;
       }
-      continue;
-    }
-
-    // Only install directories that actually contain SKILL.md.
-    const remoteDirEntries = await listGitHubDirectory(parsed.owner, parsed.repo, ref, dir.path).catch(() => null);
-    if (!remoteDirEntries || !remoteDirEntries.some(e => e.type === 'file' && e.name === 'SKILL.md')) {
-      summary.invalid += 1;
       continue;
     }
 
