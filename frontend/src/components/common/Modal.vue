@@ -155,6 +155,8 @@ onUnmounted(() => {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  /* Allow flex item to shrink so footer stays visible and body scrolls */
+  min-height: 0;
 }
 
 .modal-footer {

@@ -6,6 +6,7 @@ import { generateId } from '../../utils/format'
 import { createThumbnail, formatFileSize, getFileType, inferMimeType, readFileAsBase64, validateFile } from '../../utils/file'
 import type { PlanRunnerCreateInput } from '../../stores/chat/planRunnerActions'
 import { useI18n } from '../../i18n'
+import { sendToExtension } from '../../utils/vscode'
 import type { Attachment } from '../../types'
 
 const { t } = useI18n()
@@ -26,11 +27,23 @@ const visible = computed({
 const chatStore = useChatStore()
 
 type StepDraft = { id: string; title: string; instruction: string; attachments: Attachment[] }
+type PlanDraft = {
+  title: string
+  goal?: string
+  acceptanceCriteria?: string
+  steps: StepDraft[]
+  savedAt: number
+}
+
+const PLAN_DRAFT_METADATA_KEY = 'planRunnerDraft'
 
 const title = ref('')
 const goal = ref('')
 const acceptanceCriteria = ref('')
 const steps = ref<StepDraft[]>([])
+const draftSaving = ref(false)
+const draftSaved = ref(false)
+const loadedFromDraft = ref(false)
 
 function createEmptyStep(): StepDraft {
   return { id: `step_${generateId()}`, title: '', instruction: '', attachments: [] }
@@ -41,6 +54,73 @@ function resetForm() {
   goal.value = ''
   acceptanceCriteria.value = ''
   steps.value = [createEmptyStep()]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : String(value ?? '')
+}
+
+function normalizeAttachmentType(value: unknown): Attachment['type'] | null {
+  const v = asString(value).trim()
+  if (v === 'image' || v === 'video' || v === 'audio' || v === 'document' || v === 'code') return v
+  return null
+}
+
+function normalizeAttachment(raw: unknown): Attachment | null {
+  if (!isRecord(raw)) return null
+
+  const id = asString((raw as any).id).trim()
+  const name = asString((raw as any).name).trim()
+  const type = normalizeAttachmentType((raw as any).type)
+  const size = typeof (raw as any).size === 'number' ? (raw as any).size : Number((raw as any).size)
+  const mimeType = asString((raw as any).mimeType).trim()
+
+  if (!id || !name || !type || !Number.isFinite(size) || !mimeType) return null
+
+  return {
+    id,
+    name,
+    type,
+    size,
+    url: typeof (raw as any).url === 'string' ? (raw as any).url : undefined,
+    data: typeof (raw as any).data === 'string' ? (raw as any).data : undefined,
+    mimeType,
+    thumbnail: typeof (raw as any).thumbnail === 'string' ? (raw as any).thumbnail : undefined,
+    metadata: isRecord((raw as any).metadata) ? (raw as any).metadata : undefined
+  }
+}
+
+function normalizeDraft(raw: unknown): PlanDraft | null {
+  if (!isRecord(raw)) return null
+
+  const stepsRaw = (raw as any).steps
+  if (!Array.isArray(stepsRaw)) return null
+
+  const normalizedSteps: StepDraft[] = []
+  for (const s of stepsRaw) {
+    if (!isRecord(s)) continue
+    const id = asString((s as any).id || `step_${generateId()}`)
+    const title = asString((s as any).title || '')
+    const instruction = asString((s as any).instruction || '')
+    const attachmentsRaw = (s as any).attachments
+    const attachments = Array.isArray(attachmentsRaw)
+      ? (attachmentsRaw.map(normalizeAttachment).filter(Boolean) as Attachment[])
+      : []
+
+    normalizedSteps.push({ id, title, instruction, attachments })
+  }
+
+  return {
+    title: asString((raw as any).title || ''),
+    goal: typeof (raw as any).goal === 'string' ? (raw as any).goal : undefined,
+    acceptanceCriteria: typeof (raw as any).acceptanceCriteria === 'string' ? (raw as any).acceptanceCriteria : undefined,
+    steps: normalizedSteps.length > 0 ? normalizedSteps : [createEmptyStep()],
+    savedAt: typeof (raw as any).savedAt === 'number' ? (raw as any).savedAt : Date.now()
+  }
 }
 
 function loadFromExistingPlan() {
@@ -65,9 +145,54 @@ function loadFromExistingPlan() {
   }
 }
 
+async function loadFromDraftOrExistingPlan() {
+  loadedFromDraft.value = false
+
+  const conversationId = chatStore.currentConversationId
+  if (!conversationId) {
+    loadFromExistingPlan()
+    return
+  }
+
+  try {
+    const meta = await sendToExtension<any>('conversation.getConversationMetadata', {
+      conversationId
+    })
+    const rawDraft = meta?.custom?.[PLAN_DRAFT_METADATA_KEY]
+    const draft = normalizeDraft(rawDraft)
+
+    const plan = chatStore.planRunner
+    const planUpdatedAt = (plan as any)?.lastUpdatedAt ?? plan?.createdAt ?? 0
+
+    if (draft && (!plan || draft.savedAt > planUpdatedAt)) {
+      title.value = draft.title || ''
+      goal.value = draft.goal || ''
+      acceptanceCriteria.value = draft.acceptanceCriteria || ''
+      steps.value = (draft.steps || []).map(s => ({
+        id: s.id || `step_${generateId()}`,
+        title: s.title || '',
+        instruction: s.instruction || '',
+        attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
+      }))
+
+      if (steps.value.length === 0) {
+        steps.value = [createEmptyStep()]
+      }
+
+      loadedFromDraft.value = true
+      return
+    }
+  } catch {
+    // ignore draft load failures; fall back to existing plan
+  }
+
+  loadFromExistingPlan()
+}
+
 watch(visible, (v) => {
   if (v) {
-    loadFromExistingPlan()
+    draftSaved.value = false
+    loadFromDraftOrExistingPlan()
   }
 })
 
@@ -159,15 +284,65 @@ const normalizedInput = computed<PlanRunnerCreateInput>(() => ({
 
 const canSave = computed(() => normalizedInput.value.title.length > 0 && normalizedInput.value.steps.length > 0)
 
+const canStash = computed(() => {
+  if (title.value.trim() || goal.value.trim() || acceptanceCriteria.value.trim()) return true
+  return steps.value.some(s => s.title.trim() || s.instruction.trim() || s.attachments.length > 0)
+})
+
+async function persistDraft(value: PlanDraft | null) {
+  const conversationId = chatStore.currentConversationId
+  if (!conversationId) return
+
+  await sendToExtension('conversation.setCustomMetadata', {
+    conversationId,
+    key: PLAN_DRAFT_METADATA_KEY,
+    value
+  })
+}
+
+async function handleStash() {
+  if (!canStash.value) return
+  if (draftSaving.value) return
+
+  draftSaving.value = true
+  try {
+    const draft: PlanDraft = {
+      title: title.value,
+      goal: goal.value || undefined,
+      acceptanceCriteria: acceptanceCriteria.value || undefined,
+      steps: steps.value.map(s => ({
+        id: s.id,
+        title: s.title,
+        instruction: s.instruction,
+        attachments: s.attachments
+      })),
+      savedAt: Date.now()
+    }
+
+    await persistDraft(draft)
+    draftSaved.value = true
+    loadedFromDraft.value = true
+    setTimeout(() => {
+      draftSaved.value = false
+    }, 1500)
+  } catch (err) {
+    console.warn('[planRunner] Failed to stash draft:', err)
+  } finally {
+    draftSaving.value = false
+  }
+}
+
 async function handleSave() {
   if (!canSave.value) return
   await chatStore.createPlanRunner(normalizedInput.value)
+  await persistDraft(null)
   visible.value = false
 }
 
 async function handleSaveAndStart() {
   if (!canSave.value) return
   await chatStore.createPlanRunner(normalizedInput.value)
+  await persistDraft(null)
   visible.value = false
   await chatStore.startPlanRunner()
 }
@@ -180,6 +355,11 @@ async function handleSaveAndStart() {
     width="720px"
   >
     <div class="plan-form">
+      <div v-if="loadedFromDraft" class="draft-banner">
+        <i class="codicon codicon-save"></i>
+        <span>{{ t('components.planRunner.modal.draftLoaded') }}</span>
+      </div>
+
       <div class="form-row">
         <label class="form-label">{{ t('components.planRunner.modal.planTitle') }}</label>
         <input v-model="title" class="form-input" :placeholder="t('components.planRunner.modal.planTitlePlaceholder')" />
@@ -270,6 +450,10 @@ async function handleSaveAndStart() {
 
     <template #footer>
       <button class="btn" @click="visible = false">{{ t('common.cancel') }}</button>
+      <button class="btn" :disabled="!canStash || draftSaving" @click="handleStash">
+        <i :class="['codicon', draftSaved ? 'codicon-check' : 'codicon-save']"></i>
+        {{ draftSaved ? t('components.planRunner.modal.stashed') : t('components.planRunner.modal.stash') }}
+      </button>
       <button class="btn primary" :disabled="!canSave" @click="handleSave">
         {{ t('components.planRunner.modal.save') }}
       </button>
@@ -286,6 +470,22 @@ async function handleSaveAndStart() {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.draft-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.06);
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.draft-banner .codicon {
+  color: var(--vscode-textLink-foreground);
 }
 
 .form-row {

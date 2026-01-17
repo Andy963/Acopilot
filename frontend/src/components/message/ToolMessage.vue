@@ -226,6 +226,16 @@ function toggleExpand(toolId: string) {
   }
 }
 
+function toolClassName(name: string): string {
+  const normalized = String(name || 'tool')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+
+  return normalized ? `tool-${normalized}` : 'tool'
+}
+
 // 检查是否已展开
 function isExpanded(toolId: string): boolean {
   return expandedTools.value.has(toolId)
@@ -439,7 +449,7 @@ function renderToolContent(tool: ToolUsage) {
     <div
       v-for="tool in displayTools"
       :key="tool.id"
-      class="tool-item"
+      :class="['tool-item', toolClassName(tool.name)]"
     >
       <!-- 工具头部 - 可点击展开/收起（如果可展开） -->
       <div
@@ -686,6 +696,10 @@ function renderToolContent(tool: ToolUsage) {
   justify-content: space-between;
   gap: var(--spacing-sm, 8px);
   margin-left: 28px; /* 对齐图标 */
+}
+
+.tool-item.tool-execute-command .tool-description-row {
+  margin-left: 0;
 }
 
 .tool-action-buttons {

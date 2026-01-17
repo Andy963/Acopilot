@@ -382,6 +382,9 @@ const zhCN: LanguageMessages = {
                 attachImage: '添加图片',
                 removeStep: '删除步骤',
                 removeAttachment: '移除附件',
+                stash: '暂存',
+                stashed: '已暂存',
+                draftLoaded: '已加载暂存草稿（下次打开可继续编辑）',
                 hint: '至少需要：计划标题 + 1 个完整步骤（标题+指令）。',
                 save: '保存计划',
                 saveAndStart: '保存并开始'
