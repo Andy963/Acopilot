@@ -1397,6 +1397,12 @@ export interface LanguageMessages {
                         validation: {
                             urlRequired: string;
                             noSkillsFound: string;
+                            noValidSkillsFound: string;
+                        };
+                        notifications: {
+                            installSuccess: string;
+                            noNewSkills: string;
+                            partialInvalid: string;
                         };
                         installFailed: string;
                     };

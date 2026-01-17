@@ -1233,7 +1233,13 @@ const zhCN: LanguageMessages = {
                         },
                         validation: {
                             urlRequired: '请输入 GitHub URL',
-                            noSkillsFound: '未找到可安装的 Codex skill（需要包含 .codex/skills）'
+                            noSkillsFound: '未找到可安装的 Codex skill（需要包含 .codex/skills）',
+                            noValidSkillsFound: '未找到有效的 Codex skill（缺少 SKILL.md）'
+                        },
+                        notifications: {
+                            installSuccess: '已安装 {count} 个 Skill',
+                            noNewSkills: 'Skill 已存在，无新增（{count} 个）',
+                            partialInvalid: '有 {count} 个 Skill 无效（缺少 SKILL.md），已跳过'
                         },
                         installFailed: '安装失败'
                     },

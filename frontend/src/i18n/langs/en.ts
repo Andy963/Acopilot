@@ -1233,7 +1233,13 @@ const en: LanguageMessages = {
                         },
                         validation: {
                             urlRequired: 'Please enter a GitHub URL',
-                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills)'
+                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills)',
+                            noValidSkillsFound: 'No valid Codex skills found (missing SKILL.md)'
+                        },
+                        notifications: {
+                            installSuccess: 'Installed {count} skill(s)',
+                            noNewSkills: 'Skills already exist, no new installs ({count})',
+                            partialInvalid: '{count} skill(s) are invalid (missing SKILL.md) and were skipped'
                         },
                         installFailed: 'Install failed'
                     },

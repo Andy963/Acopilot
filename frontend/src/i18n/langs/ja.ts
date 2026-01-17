@@ -1233,7 +1233,13 @@ const ja: LanguageMessages = {
                         },
                         validation: {
                             urlRequired: 'GitHub URL を入力してください',
-                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills が必要です）'
+                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills が必要です）',
+                            noValidSkillsFound: '有効な Codex skill が見つかりません（SKILL.md がありません）'
+                        },
+                        notifications: {
+                            installSuccess: '{count} 件の Skill をインストールしました',
+                            noNewSkills: '既に存在するため新規追加はありません（{count} 件）',
+                            partialInvalid: '{count} 件の Skill が無効（SKILL.md がありません）なためスキップしました'
                         },
                         installFailed: 'インストールに失敗しました'
                     },
