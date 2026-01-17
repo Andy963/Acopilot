@@ -25,6 +25,7 @@ const issueRef = computed(() => {
 const issueUrl = computed(() => String(props.task?.issueUrl || '').trim())
 const intentSummary = computed(() => String(props.task?.intentSummary || '').trim())
 const prompt = computed(() => String(props.task?.prompt || '').trim())
+const taskContext = computed(() => String(props.task?.taskContext || '').trim())
 
 async function handleCopyPrompt() {
   if (!prompt.value) return
@@ -47,7 +48,14 @@ async function handleStart() {
       await chatStore.rejectPendingToolsWithAnnotation(prompt.value)
       return
     }
-    await chatStore.sendMessage(prompt.value)
+    const shouldAttachTaskContext =
+      Boolean(taskContext.value) && !prompt.value.includes('<issue_body>') && !prompt.value.includes('<issue_comments>')
+
+    await chatStore.sendMessage(
+      prompt.value,
+      undefined,
+      shouldAttachTaskContext ? { taskContext: taskContext.value } : undefined
+    )
   } catch (err) {
     console.error('Failed to start from task card:', err)
   }
@@ -264,4 +272,3 @@ async function handleOpenIssue() {
   background: var(--vscode-button-hoverBackground);
 }
 </style>
-

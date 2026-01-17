@@ -380,6 +380,55 @@ export class ToolIterationLoopService {
         return undefined;
     }
 
+    private static getLastUserTaskContext(history: Content[]): string | undefined {
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            const ctx = (msg as any).taskContext;
+            if (typeof ctx !== 'string') return undefined;
+            const trimmed = ctx.trim();
+            return trimmed ? trimmed : undefined;
+        }
+        return undefined;
+    }
+
+    private static injectTaskContextIntoHistory(history: Content[], taskContext: string | undefined): Content[] {
+        const raw = typeof taskContext === 'string' ? taskContext.trim() : '';
+        if (!raw) return history;
+
+        const taskContextBlock = `====\n\nTASK CONTEXT\n\n${raw}`;
+
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            if (!Array.isArray(msg.parts)) continue;
+
+            const parts = msg.parts.map((p) => ({ ...p }));
+            const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
+
+            if (firstTextIndex >= 0) {
+                const originalText = (parts[firstTextIndex] as any).text ?? '';
+                const nextText = originalText.trim()
+                    ? `${taskContextBlock}\n\n${originalText}`
+                    : taskContextBlock;
+                parts[firstTextIndex] = { ...(parts[firstTextIndex] as any), text: nextText };
+            } else {
+                parts.unshift({ text: taskContextBlock });
+            }
+
+            const updated: Content = { ...msg, parts };
+            const nextHistory = history.slice();
+            nextHistory[i] = updated;
+            return nextHistory;
+        }
+
+        return history;
+    }
+
     private static injectSelectionReferencesIntoHistory(history: Content[], selectionReferences: SelectionReference[] | undefined): Content[] {
         const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
         if (!selectionReferencesBlock) return history;
@@ -499,6 +548,7 @@ export class ToolIterationLoopService {
 
             const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
             const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
+            const taskContext = ToolIterationLoopService.getLastUserTaskContext(fullHistory);
             const toolsEnabled = contextOverrides?.includeTools !== false;
             const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
@@ -726,7 +776,10 @@ export class ToolIterationLoopService {
                 try {
                     const response = await this.channelManager.generate({
                         configId,
-                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(requestHistory, selectionReferences),
+                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(
+                            ToolIterationLoopService.injectTaskContextIntoHistory(requestHistory, taskContext),
+                            selectionReferences
+                        ),
                         abortSignal,
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
@@ -1196,6 +1249,7 @@ export class ToolIterationLoopService {
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
             const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
+            const taskContext = ToolIterationLoopService.getLastUserTaskContext(fullHistory);
             const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
                 .filter(Boolean)
                 .join('\n\n');
@@ -1301,7 +1355,10 @@ export class ToolIterationLoopService {
                 try {
                     response = await this.channelManager.generate({
                         configId,
-                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(requestHistory, selectionReferences),
+                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(
+                            ToolIterationLoopService.injectTaskContextIntoHistory(requestHistory, taskContext),
+                            selectionReferences
+                        ),
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
                         promptCacheKey: requestPromptCacheKey,

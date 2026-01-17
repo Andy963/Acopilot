@@ -17,6 +17,10 @@ import { persistPinnedPromptForConversation } from './pinnedPromptActions'
  */
 export type CancelStreamCallback = () => Promise<void>
 
+export interface SendMessageOptions {
+  taskContext?: string
+}
+
 /**
  * 发送消息
  */
@@ -24,7 +28,8 @@ export async function sendMessage(
   state: ChatStoreState,
   computed: ChatStoreComputed,
   messageText: string,
-  attachments?: Attachment[]
+  attachments?: Attachment[],
+  options?: SendMessageOptions
 ): Promise<void> {
   if (!messageText.trim() && (!attachments || attachments.length === 0)) return
   
@@ -117,6 +122,7 @@ export async function sendMessage(
       ? selectionReferences.map((r) => ({ ...r }))
       : undefined
     const contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
+    const taskContextPayload = options?.taskContext?.trim() ? String(options.taskContext) : undefined
     
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
@@ -124,7 +130,8 @@ export async function sendMessage(
       message: messageText,
       attachments: attachmentData,
       selectionReferences: selectionReferencesPayload,
-      contextOverrides: contextOverridesPayload
+      contextOverrides: contextOverridesPayload,
+      taskContext: taskContextPayload
     })
 
     // 仅本条消息生效：发送后清空（避免影响下一条消息）

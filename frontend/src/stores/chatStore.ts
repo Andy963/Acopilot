@@ -89,6 +89,7 @@ import {
   deleteSingleMessage as deleteSingleMessageFn,
   clearMessages as clearMessagesFn
 } from './chat/messageActions'
+import type { SendMessageOptions } from './chat/messageActions'
 
 import type { PinnedPromptState } from './chat/types'
 import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
@@ -140,8 +141,8 @@ export const useChatStore = defineStore('chat', () => {
 
   // ============ 消息操作 ============
   
-  const sendMessage = (messageText: string, attachments?: Attachment[]) =>
-    sendMessageFn(state, computed, messageText, attachments)
+  const sendMessage = (messageText: string, attachments?: Attachment[], options?: SendMessageOptions) =>
+    sendMessageFn(state, computed, messageText, attachments, options)
   
   const retryLastMessage = () => retryLastMessageFn(state, computed, cancelStream)
   const retryFromMessage = (messageIndex: number) => 
