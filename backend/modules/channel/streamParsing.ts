@@ -22,9 +22,10 @@ export function parseStreamBuffer(
     const chunks: any[] = [];
 
     // 先尝试按 SSE 解析：
-    // - 仅当存在以行首开头的 data: 字段时才视为 SSE，避免误判 JSON 内容中的 "data:"
-    const sseDataLinePattern = /(^|\r?\n)data:/;
-    if (sseDataLinePattern.test(buffer)) {
+    // - 兼容 SSE 注释/事件行（":" / "event:" / "id:" / "retry:"），避免 keep-alive 被误当作未知格式而无限累积
+    // - 同时避免误判 JSON 内容中的 "data:"（要求出现在行首）
+    const sseLinePattern = /(^|\r?\n)(data:|event:|id:|retry:|:)/;
+    if (sseLinePattern.test(buffer)) {
         return parseSseStreamBuffer(buffer, final);
     }
 

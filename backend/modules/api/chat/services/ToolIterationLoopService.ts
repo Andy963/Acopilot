@@ -713,6 +713,7 @@ export class ToolIterationLoopService {
             let requestPromptCacheKey = promptCacheKey;
             let fallbackCount = 0;
             let openaiResponsesStreamNoDoneRetryCount = 0;
+            let streamNoDoneRetryCount = 0;
             let shouldPersistOpenAIResponsesContinuation = true;
 
             while (true) {
@@ -721,19 +722,18 @@ export class ToolIterationLoopService {
                 // 每次请求默认允许更新 continuation（仅当明确收到完成标记时才会真正启用）
                 shouldPersistOpenAIResponsesContinuation = true;
 
-                const response = await this.channelManager.generate({
-                    configId,
-                    history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(requestHistory, selectionReferences),
-                    abortSignal,
-                    dynamicSystemPrompt,
-                    previousResponseId: requestPreviousResponseId,
-                    promptCacheKey: requestPromptCacheKey,
-                    skipTools: !toolsEnabled
-                });
-
                 let sawAnyChunk = false;
-
                 try {
+                    const response = await this.channelManager.generate({
+                        configId,
+                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(requestHistory, selectionReferences),
+                        abortSignal,
+                        dynamicSystemPrompt,
+                        previousResponseId: requestPreviousResponseId,
+                        promptCacheKey: requestPromptCacheKey,
+                        skipTools: !toolsEnabled
+                    });
+
                     if (isAsyncGenerator(response)) {
                         // 流式响应处理
                         const processor = new StreamResponseProcessor({
@@ -767,15 +767,15 @@ export class ToolIterationLoopService {
 
                         // 如果流式未收到完成标记但自然结束，认为是异常中断（常见表现：回复一半就断且无报错）
                         if (!processor.isCompleted()) {
-                            // 一些 OpenAI-兼容网关（尤其是 /responses）会直接关闭连接而不发送完成事件（response.completed / [DONE]）。
-                            // Copilot 的实现对这种情况会直接当作完成处理；这里也采用相同策略，避免频繁误报并导致二次请求失败。
-                            const canTreatAsCompleted =
-                                config.type === 'openai-responses' &&
-                                finalContent.parts.length > 0;
-
-                            if (canTreatAsCompleted) {
-                                // 未收到完成标记：不要把这次的 responseId 写回 continuation，否则下一轮 previous_response_id 可能导致 0 token/ECONNRESET 等问题。
-                                shouldPersistOpenAIResponsesContinuation = false;
+                            // 一些网关会直接关闭连接而不发送完成事件（例如 response.completed / [DONE] / stop）。
+                            // 在这种情况下：
+                            // - 若已收到内容：把本次当作完成，避免误报为网络错误（但标记 finishReason 以便前端提示可能被截断）。
+                            // - 若完全没有内容：做一次轻量重试（避免用户无法重试最后一步）。
+                            if (finalContent.parts.length > 0) {
+                                // OpenAI Responses：未收到完成标记时，不要把这次的 responseId 写回 continuation，避免下一轮 previous_response_id 可能导致 0 token/ECONNRESET 等问题。
+                                if (config.type === 'openai-responses') {
+                                    shouldPersistOpenAIResponsesContinuation = false;
+                                }
                                 if (!finalContent.finishReason) {
                                     finalContent.finishReason = 'stream_closed';
                                 }
@@ -793,6 +793,17 @@ export class ToolIterationLoopService {
                                 await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
                                 requestHistory = historyForFullRetry;
                                 requestPreviousResponseId = undefined;
+                                continue;
+                            } else if (
+                                config.type !== 'openai-responses' &&
+                                finalContent.parts.length === 0 &&
+                                streamNoDoneRetryCount < 1 &&
+                                !abortSignal?.aborted
+                            ) {
+                                // 少量情况下（长任务、网络抖动等）会在输出开始前就自然结束连接（无完成标记且无内容）。
+                                // 自动重试一次该请求，减少用户手动重试成本。
+                                streamNoDoneRetryCount++;
+                                openaiResponseId = undefined;
                                 continue;
                             } else {
                                 if (finalContent.parts.length > 0) {
