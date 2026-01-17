@@ -18,6 +18,7 @@ import { useChatStore } from '../../stores'
 import { sendToExtension } from '../../utils/vscode'
 import { useI18n } from '../../i18n'
 import { generateId } from '../../utils/format'
+import { IconButton } from '../common'
 
 const { t } = useI18n()
 
@@ -547,6 +548,22 @@ function renderToolContent(tool: ToolUsage) {
                 >
                   {{ tool.riskBadge.label }}
                 </span>
+
+                <div class="exec-command-inline-actions" @click.stop>
+                  <IconButton
+                    :icon="copiedCommandToolId === tool.id ? 'codicon-check' : 'codicon-copy'"
+                    size="small"
+                    :tooltip="copiedCommandToolId === tool.id ? t('common.copied') : t('common.copy')"
+                    @click.stop="copyExecuteCommand(tool)"
+                  />
+                  <IconButton
+                    icon="codicon-terminal"
+                    size="small"
+                    :loading="runningInTerminalToolId === tool.id"
+                    :tooltip="t('common.runInTerminal')"
+                    @click.stop="runExecuteCommandInTerminal(tool)"
+                  />
+                </div>
               </div>
 
               <div v-if="getExecuteCommandArgs(tool).cwd || (getExecuteCommandArgs(tool).shell && getExecuteCommandArgs(tool).shell !== 'default')" class="exec-command-meta">
@@ -557,21 +574,6 @@ function renderToolContent(tool: ToolUsage) {
                   目录: {{ getExecuteCommandArgs(tool).cwd }}
                 </span>
               </div>
-            </div>
-
-            <div class="exec-command-actions" @click.stop>
-              <button class="exec-action-btn" @click.stop="copyExecuteCommand(tool)">
-                <span :class="['codicon', copiedCommandToolId === tool.id ? 'codicon-check' : 'codicon-copy']"></span>
-                Copy
-              </button>
-              <button
-                class="exec-action-btn exec-action-primary"
-                :disabled="runningInTerminalToolId === tool.id"
-                @click.stop="runExecuteCommandInTerminal(tool)"
-              >
-                <span class="codicon codicon-terminal"></span>
-                Run in Terminal
-              </button>
             </div>
           </div>
 
@@ -855,6 +857,13 @@ function renderToolContent(tool: ToolUsage) {
   margin-right: 0;
 }
 
+.exec-command-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .exec-command-meta {
   margin-top: 6px;
   display: flex;
@@ -870,53 +879,6 @@ function renderToolContent(tool: ToolUsage) {
   align-items: center;
   gap: 6px;
   min-width: 0;
-}
-
-.exec-command-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.exec-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 4px 10px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid rgba(128, 128, 128, 0.25);
-  background: rgba(128, 128, 128, 0.08);
-  color: var(--vscode-foreground);
-  font-size: 11px;
-  cursor: pointer;
-  transition: background-color var(--transition-fast, 0.1s), border-color var(--transition-fast, 0.1s);
-  flex: 0 0 auto;
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.exec-action-btn:hover:not(:disabled) {
-  background: rgba(128, 128, 128, 0.12);
-  border-color: rgba(128, 128, 128, 0.35);
-}
-
-.exec-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.exec-action-primary {
-  border-color: rgba(40, 167, 69, 0.35);
-  background: rgba(40, 167, 69, 0.15);
-  color: var(--vscode-testing-iconPassed);
-}
-
-.exec-action-primary:hover:not(:disabled) {
-  background: rgba(40, 167, 69, 0.22);
-  border-color: rgba(40, 167, 69, 0.45);
 }
 
 .risk-badge {
