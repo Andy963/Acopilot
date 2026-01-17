@@ -123,6 +123,9 @@ export class ChatFlowService {
       role: 'user',
       parts: userParts,
       selectionReferences: request.selectionReferences,
+      taskContext: typeof request.taskContext === 'string' && request.taskContext.trim()
+        ? request.taskContext
+        : undefined,
       contextOverrides: request.contextOverrides,
     });
 
@@ -379,6 +382,9 @@ export class ChatFlowService {
       role: 'user',
       parts: userParts,
       selectionReferences: request.selectionReferences,
+      taskContext: typeof request.taskContext === 'string' && request.taskContext.trim()
+        ? request.taskContext
+        : undefined,
       contextOverrides: request.contextOverrides,
     });
 
