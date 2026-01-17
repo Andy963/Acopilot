@@ -36,6 +36,7 @@ type PlanDraft = {
 }
 
 const PLAN_DRAFT_METADATA_KEY = 'planRunnerDraft'
+const PLAN_DRAFT_LOCALSTORAGE_KEY = 'acopilot.planRunnerDraft'
 
 const title = ref('')
 const goal = ref('')
@@ -124,6 +125,28 @@ function normalizeDraft(raw: unknown): PlanDraft | null {
   }
 }
 
+function loadDraftFromLocalStorage(key: string): PlanDraft | null {
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    return normalizeDraft(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+function persistDraftToLocalStorage(key: string, value: PlanDraft | null): void {
+  try {
+    if (!value) {
+      window.localStorage.removeItem(key)
+      return
+    }
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // ignore localStorage quota/errors
+  }
+}
+
 function loadFromExistingPlan() {
   const plan = chatStore.planRunner
   if (!plan) {
@@ -150,7 +173,30 @@ async function loadFromDraftOrExistingPlan() {
   loadedFromDraft.value = false
 
   const conversationId = chatStore.currentConversationId
+  const localKey = conversationId ? `${PLAN_DRAFT_LOCALSTORAGE_KEY}.${conversationId}` : `${PLAN_DRAFT_LOCALSTORAGE_KEY}.__unpersisted__`
+  const tempKey = `${PLAN_DRAFT_LOCALSTORAGE_KEY}.__unpersisted__`
+
   if (!conversationId) {
+    const localDraft = loadDraftFromLocalStorage(localKey)
+    if (localDraft) {
+      title.value = localDraft.title || ''
+      goal.value = localDraft.goal || ''
+      acceptanceCriteria.value = localDraft.acceptanceCriteria || ''
+      steps.value = (localDraft.steps || []).map(s => ({
+        id: s.id || `step_${generateId()}`,
+        title: s.title || '',
+        instruction: s.instruction || '',
+        attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
+      }))
+
+      if (steps.value.length === 0) {
+        steps.value = [createEmptyStep()]
+      }
+
+      loadedFromDraft.value = true
+      return
+    }
+
     loadFromExistingPlan()
     return
   }
@@ -165,11 +211,24 @@ async function loadFromDraftOrExistingPlan() {
     const plan = chatStore.planRunner
     const planUpdatedAt = (plan as any)?.lastUpdatedAt ?? plan?.createdAt ?? 0
 
-    if (draft && (!plan || draft.savedAt > planUpdatedAt)) {
-      title.value = draft.title || ''
-      goal.value = draft.goal || ''
-      acceptanceCriteria.value = draft.acceptanceCriteria || ''
-      steps.value = (draft.steps || []).map(s => ({
+    const localDraft = loadDraftFromLocalStorage(localKey)
+    const tempDraft = loadDraftFromLocalStorage(tempKey)
+
+    // Prefer the newest available draft (metadata/local/temp), but do not override a newer existing plan.
+    const candidates = [draft, localDraft, tempDraft].filter(Boolean) as PlanDraft[]
+    const newestDraft = candidates.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0]
+
+    if (newestDraft && (!plan || newestDraft.savedAt > planUpdatedAt)) {
+      // If we loaded from temp draft and now we have a conversationId, migrate it to this conversation key/meta.
+      if (tempDraft && newestDraft === tempDraft) {
+        persistDraftToLocalStorage(tempKey, null)
+        await persistDraft(newestDraft)
+      }
+
+      title.value = newestDraft.title || ''
+      goal.value = newestDraft.goal || ''
+      acceptanceCriteria.value = newestDraft.acceptanceCriteria || ''
+      steps.value = (newestDraft.steps || []).map(s => ({
         id: s.id || `step_${generateId()}`,
         title: s.title || '',
         instruction: s.instruction || '',
@@ -184,7 +243,26 @@ async function loadFromDraftOrExistingPlan() {
       return
     }
   } catch {
-    // ignore draft load failures; fall back to existing plan
+    // ignore draft load failures; fall back to local draft
+    const localDraft = loadDraftFromLocalStorage(localKey) || loadDraftFromLocalStorage(tempKey)
+    if (localDraft) {
+      title.value = localDraft.title || ''
+      goal.value = localDraft.goal || ''
+      acceptanceCriteria.value = localDraft.acceptanceCriteria || ''
+      steps.value = (localDraft.steps || []).map(s => ({
+        id: s.id || `step_${generateId()}`,
+        title: s.title || '',
+        instruction: s.instruction || '',
+        attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
+      }))
+
+      if (steps.value.length === 0) {
+        steps.value = [createEmptyStep()]
+      }
+
+      loadedFromDraft.value = true
+      return
+    }
   }
 
   loadFromExistingPlan()
@@ -306,13 +384,20 @@ const canStash = computed(() => {
 
 async function persistDraft(value: PlanDraft | null) {
   const conversationId = chatStore.currentConversationId
+  const key = conversationId ? `${PLAN_DRAFT_LOCALSTORAGE_KEY}.${conversationId}` : `${PLAN_DRAFT_LOCALSTORAGE_KEY}.__unpersisted__`
+  persistDraftToLocalStorage(key, value)
+
   if (!conversationId) return
 
-  await sendToExtension('conversation.setCustomMetadata', {
-    conversationId,
-    key: PLAN_DRAFT_METADATA_KEY,
-    value
-  })
+  try {
+    await sendToExtension('conversation.setCustomMetadata', {
+      conversationId,
+      key: PLAN_DRAFT_METADATA_KEY,
+      value
+    })
+  } catch (e) {
+    console.warn('[planRunner] Failed to persist draft to metadata:', e)
+  }
 }
 
 async function handleStash() {

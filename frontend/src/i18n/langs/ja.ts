@@ -177,6 +177,14 @@ const ja: LanguageMessages = {
                 titleUsed: '使用されたコンテキスト',
                 noData: 'コンテキストデータがありません',
                 copyDebug: 'デバッグ情報をコピー',
+                summary: {
+                    config: '設定',
+                    toolMode: 'ツールモード',
+                    tools: 'ツール',
+                    mcp: 'MCP',
+                    systemInstruction: 'システム指示',
+                    generatedAt: '生成日時'
+                },
                 injected: {
                     title: '注入詳細',
                     pinnedFiles: 'ピン留めファイル',
@@ -197,7 +205,20 @@ const ja: LanguageMessages = {
                     title: 'ツール定義'
                 },
                 modules: {
-                    title: 'システムプロンプトのセクション'
+                    title: 'システムプロンプトのセクション',
+                    labels: {
+                        text: 'テキスト',
+                        environment: '環境',
+                        workspaceFiles: 'ワークスペースファイル',
+                        pinnedFiles: 'ピン留めファイル',
+                        tools: 'ツール',
+                        mcpTools: 'MCP ツール',
+                        guidelines: 'ガイドライン',
+                        openTabs: '開いているタブ',
+                        activeEditor: 'アクティブエディタ',
+                        diagnostics: '診断',
+                        selectionReferences: '選択範囲の参照'
+                    }
                 },
                 raw: {
                     title: 'システム指示 (Raw)'
@@ -397,6 +418,7 @@ const ja: LanguageMessages = {
             error: {
                 title: 'リクエストに失敗しました',
                 retry: '再試行',
+                copy: 'エラー詳細をコピー',
                 dismiss: '閉じる'
             },
             tool: {

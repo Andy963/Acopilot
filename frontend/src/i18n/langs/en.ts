@@ -177,6 +177,14 @@ const en: LanguageMessages = {
                 titleUsed: 'Context Used',
                 noData: 'No context data',
                 copyDebug: 'Copy debug info',
+                summary: {
+                    config: 'Config',
+                    toolMode: 'Tool mode',
+                    tools: 'Tools',
+                    mcp: 'MCP',
+                    systemInstruction: 'System instruction',
+                    generatedAt: 'Generated at'
+                },
                 injected: {
                     title: 'Injected Context',
                     pinnedFiles: 'Pinned Files',
@@ -197,7 +205,20 @@ const en: LanguageMessages = {
                     title: 'Tool Definitions'
                 },
                 modules: {
-                    title: 'System Prompt Sections'
+                    title: 'System Prompt Sections',
+                    labels: {
+                        text: 'Text',
+                        environment: 'Environment',
+                        workspaceFiles: 'Workspace files',
+                        pinnedFiles: 'Pinned files',
+                        tools: 'Tools',
+                        mcpTools: 'MCP tools',
+                        guidelines: 'Guidelines',
+                        openTabs: 'Open tabs',
+                        activeEditor: 'Active editor',
+                        diagnostics: 'Diagnostics',
+                        selectionReferences: 'Selection references'
+                    }
                 },
                 raw: {
                     title: 'System Instruction (Raw)'
@@ -441,6 +462,7 @@ const en: LanguageMessages = {
             error: {
                 title: 'Request Failed',
                 retry: 'Retry',
+                copy: 'Copy error details',
                 dismiss: 'Dismiss'
             },
             tool: {

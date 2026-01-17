@@ -177,6 +177,14 @@ const zhCN: LanguageMessages = {
                 titleUsed: '本条回复使用的上下文',
                 noData: '暂无上下文数据',
                 copyDebug: '复制调试信息',
+                summary: {
+                    config: '配置',
+                    toolMode: '工具模式',
+                    tools: '工具',
+                    mcp: 'MCP',
+                    systemInstruction: '系统指令',
+                    generatedAt: '生成时间'
+                },
                 injected: {
                     title: '注入明细',
                     pinnedFiles: '固定文件',
@@ -197,7 +205,20 @@ const zhCN: LanguageMessages = {
                     title: '工具定义预览'
                 },
                 modules: {
-                    title: '系统提示词分段'
+                    title: '系统提示词分段',
+                    labels: {
+                        text: '文本',
+                        environment: '环境',
+                        workspaceFiles: '工作区文件',
+                        pinnedFiles: '固定文件',
+                        tools: '工具',
+                        mcpTools: 'MCP 工具',
+                        guidelines: '规范',
+                        openTabs: '打开的标签页',
+                        activeEditor: '当前编辑器',
+                        diagnostics: '诊断信息',
+                        selectionReferences: '选区引用'
+                    }
                 },
                 raw: {
                     title: '系统指令（Raw）'
@@ -441,6 +462,7 @@ const zhCN: LanguageMessages = {
             error: {
                 title: '请求失败',
                 retry: '重试',
+                copy: '复制错误信息',
                 dismiss: '关闭'
             },
             tool: {
