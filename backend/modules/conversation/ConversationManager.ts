@@ -733,22 +733,28 @@ export class ConversationManager {
             isHistoryPart: boolean,
             messageIndex: number
         ): ContentPart => {
+            // Gemini Thinking: tool/function calls may require thoughtSignature to be replayed.
+            // Even if the user disables sending historical thought signatures, we must preserve
+            // signatures attached to functionCall parts, otherwise Gemini may reject the request.
+            const preserveGeminiFunctionCallSignature =
+                channelType === 'gemini' && !!part.functionCall;
+
             // 1. 处理历史消息的签名
             if (isHistoryPart) {
-                if (!sendHistoryThoughtSignatures) {
+                if (!sendHistoryThoughtSignatures && !preserveGeminiFunctionCallSignature) {
                     const { thoughtSignatures, thoughtSignature, ...rest } = part as any;
                     return rest;
                 }
                 // 检查是否在允许的历史思考回合范围内
                 const isInHistoryThoughtRange = messageIndex >= historyThoughtMinIndex && messageIndex < historyThoughtMaxIndex;
-                if (!isInHistoryThoughtRange) {
+                if (!isInHistoryThoughtRange && !preserveGeminiFunctionCallSignature) {
                     const { thoughtSignatures, thoughtSignature, ...rest } = part as any;
                     return rest;
                 }
             } else {
                 // 2. 处理当前轮次的签名
                 // 当前轮次的签名发送由 sendCurrentThoughtSignatures 独立控制
-                if (!sendCurrentThoughtSignatures) {
+                if (!sendCurrentThoughtSignatures && !preserveGeminiFunctionCallSignature) {
                     const { thoughtSignatures, thoughtSignature, ...rest } = part as any;
                     return rest;
                 }
