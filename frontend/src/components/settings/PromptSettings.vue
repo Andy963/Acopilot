@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
-import { sendToExtension } from '@/utils/vscode'
+import { sendToExtension, showNotification } from '@/utils/vscode'
 import { Modal, ConfirmDialog } from '@/components/common'
 import { useI18n } from '@/i18n'
 
@@ -32,6 +32,19 @@ interface SkillDefinition {
   name: string
   description?: string
   prompt: string
+}
+
+interface InstallSkillsSummary {
+  found: number
+  installed: number
+  skippedExisting: number
+  invalid: number
+}
+
+interface InstallSkillsFromUrlResult {
+  skills?: SkillDefinition[]
+  summary?: InstallSkillsSummary
+  skippedExisting?: string[]
 }
 
 // 可用的提示词变量列表
@@ -383,35 +396,98 @@ async function confirmInstallSkill() {
   installSkillError.value = ''
 
   try {
-    const result = await sendToExtension<{ skills?: SkillDefinition[] }>('installSkillFromUrl', { url })
-    const installed = Array.isArray(result?.skills) ? result.skills : []
+    const result = await sendToExtension<InstallSkillsFromUrlResult>('installSkillFromUrl', { url })
+    const summary = result?.summary
+    const returnedSkills = Array.isArray(result?.skills) ? result.skills : []
 
-    if (installed.length === 0) {
+    // Backward compatibility (older extension versions only return `skills`).
+    if (!summary) {
+      if (returnedSkills.length === 0) {
+        installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.noSkillsFound')
+        return
+      }
+
+      const nextSkills = [...skills.value]
+      for (const skill of returnedSkills) {
+        if (!skill?.id) continue
+        const idx = nextSkills.findIndex(s => s.id === skill.id)
+        if (idx !== -1) {
+          nextSkills[idx] = skill
+        } else {
+          nextSkills.push(skill)
+        }
+      }
+
+      nextSkills.sort((a, b) => {
+        const nameCmp = (a.name || a.id).localeCompare(b.name || b.id)
+        if (nameCmp !== 0) return nameCmp
+        return a.id.localeCompare(b.id)
+      })
+
+      showInstallSkillModal.value = false
+      await persistSkills(nextSkills)
+      await showNotification(
+        t('components.settings.promptSettings.skills.installFromUrl.notifications.installSuccess', { count: returnedSkills.length }),
+        'info'
+      )
+      return
+    }
+
+    if (summary.found === 0) {
       installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.noSkillsFound')
       return
     }
 
-    const nextSkills = [...skills.value]
-    for (const skill of installed) {
-      if (!skill?.id) continue
-      const idx = nextSkills.findIndex(s => s.id === skill.id)
-      if (idx !== -1) {
-        nextSkills[idx] = skill
-      } else {
-        nextSkills.push(skill)
+    if (returnedSkills.length > 0) {
+      const nextSkills = [...skills.value]
+      for (const skill of returnedSkills) {
+        if (!skill?.id) continue
+        const idx = nextSkills.findIndex(s => s.id === skill.id)
+        if (idx !== -1) {
+          nextSkills[idx] = skill
+        } else {
+          nextSkills.push(skill)
+        }
       }
+
+      nextSkills.sort((a, b) => {
+        const nameCmp = (a.name || a.id).localeCompare(b.name || b.id)
+        if (nameCmp !== 0) return nameCmp
+        return a.id.localeCompare(b.id)
+      })
+
+      await persistSkills(nextSkills)
     }
 
-    nextSkills.sort((a, b) => {
-      const nameCmp = (a.name || a.id).localeCompare(b.name || b.id)
-      if (nameCmp !== 0) return nameCmp
-      return a.id.localeCompare(b.id)
-    })
-
     showInstallSkillModal.value = false
-    await persistSkills(nextSkills)
+
+    if (summary.installed > 0) {
+      await showNotification(
+        t('components.settings.promptSettings.skills.installFromUrl.notifications.installSuccess', { count: summary.installed }),
+        'info'
+      )
+    } else if (summary.skippedExisting > 0) {
+      await showNotification(
+        t('components.settings.promptSettings.skills.installFromUrl.notifications.noNewSkills', { count: summary.skippedExisting }),
+        'info'
+      )
+    }
+
+    if (summary.invalid > 0) {
+      await showNotification(
+        t('components.settings.promptSettings.skills.installFromUrl.notifications.partialInvalid', { count: summary.invalid }),
+        'warning'
+      )
+    }
   } catch (error: any) {
-    installSkillError.value = error.message || t('components.settings.promptSettings.skills.installFromUrl.installFailed')
+    const message = error?.message || ''
+    if (message === 'NO_SKILLS_DIR') {
+      installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.noSkillsFound')
+    } else if (message === 'NO_VALID_SKILLS') {
+      installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.noValidSkillsFound')
+    } else {
+      installSkillError.value = message || t('components.settings.promptSettings.skills.installFromUrl.installFailed')
+    }
   } finally {
     isInstallingSkill.value = false
   }
