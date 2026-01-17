@@ -54,7 +54,7 @@ export async function sendMessage(
           await sendToExtension('conversation.setCustomMetadata', {
             conversationId: newId,
             key: 'planRunner',
-            value: state.planRunner.value
+            value: JSON.parse(JSON.stringify(state.planRunner.value))
           })
         } catch (err) {
           console.warn('Failed to persist plan runner state:', err)
@@ -112,14 +112,19 @@ export async function sendMessage(
 
     const selectionReferences = state.selectionReferences.value
     const hasSelectionReferences = Array.isArray(selectionReferences) && selectionReferences.length > 0
+
+    const selectionReferencesPayload = hasSelectionReferences
+      ? selectionReferences.map((r) => ({ ...r }))
+      : undefined
+    const contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
     
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
       configId: state.configId.value,
       message: messageText,
       attachments: attachmentData,
-      selectionReferences: hasSelectionReferences ? selectionReferences : undefined,
-      contextOverrides: hasContextOverrides ? contextOverrides : undefined
+      selectionReferences: selectionReferencesPayload,
+      contextOverrides: contextOverridesPayload
     })
 
     // 仅本条消息生效：发送后清空（避免影响下一条消息）
