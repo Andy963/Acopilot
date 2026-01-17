@@ -213,10 +213,6 @@ export class PromptManager {
             lines.push(`Operating System: ${context.os}`)
         }
         
-        if (context.currentTime) {
-            lines.push(`Current Time: ${context.currentTime}`)
-        }
-        
         if (context.timezone) {
             lines.push(`Timezone: ${context.timezone}`)
         }
@@ -226,6 +222,11 @@ export class PromptManager {
         if (userLanguage) {
             lines.push(`User Language: ${userLanguage}`)
             lines.push(`Please respond using the user's language by default.`)
+        }
+
+        // Keep volatile "Current Time" at the very end to reduce prompt prefix churn (improves prompt cache hit rate).
+        if (context.currentTime) {
+            lines.push(`Current Time: ${context.currentTime}`)
         }
         
         return lines.join('\n')

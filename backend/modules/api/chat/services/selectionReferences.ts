@@ -87,6 +87,35 @@ function normalizeSelectionReferences(raw: unknown): NormalizedSelectionReferenc
         });
     }
 
+    // 保证输出顺序稳定：避免来源顺序变化导致提示词抖动（影响缓存命中/可重复性）
+    items.sort((a, b) => {
+        if (a.path !== b.path) return a.path < b.path ? -1 : 1;
+
+        const aStart = a.startLine ?? 0;
+        const bStart = b.startLine ?? 0;
+        if (aStart !== bStart) return aStart - bStart;
+
+        const aEnd = a.endLine ?? 0;
+        const bEnd = b.endLine ?? 0;
+        if (aEnd !== bEnd) return aEnd - bEnd;
+
+        if (a.charCount !== b.charCount) return a.charCount - b.charCount;
+
+        const aLang = a.languageId ?? '';
+        const bLang = b.languageId ?? '';
+        if (aLang !== bLang) return aLang < bLang ? -1 : 1;
+
+        const aText = a.text;
+        const bText = b.text;
+        if (aText !== bText) return aText < bText ? -1 : 1;
+
+        const aId = a.id ?? '';
+        const bId = b.id ?? '';
+        if (aId !== bId) return aId < bId ? -1 : 1;
+
+        return 0;
+    });
+
     return items;
 }
 
@@ -135,4 +164,3 @@ export function getSelectionReferencesBlock(
 
     return `====\n\nSELECTION REFERENCES\n\n${blocks.join('\n\n')}`;
 }
-
