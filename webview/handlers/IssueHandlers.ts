@@ -195,7 +195,7 @@ export const fetchIssue: MessageHandler = async (data, requestId, ctx) => {
     const res = await fetch(apiUrl, {
       headers: {
         Accept: 'application/vnd.github+json',
-        'User-Agent': 'limcode',
+        'User-Agent': 'acopilot',
         'X-GitHub-Api-Version': '2022-11-28',
         ...getGitHubAuthHeaders()
       }
@@ -220,7 +220,7 @@ export const fetchIssue: MessageHandler = async (data, requestId, ctx) => {
         const commentsRes = await fetch(`${commentsUrl}?per_page=5&page=1`, {
           headers: {
             Accept: 'application/vnd.github+json',
-            'User-Agent': 'limcode',
+            'User-Agent': 'acopilot',
             'X-GitHub-Api-Version': '2022-11-28',
             ...getGitHubAuthHeaders()
           }
@@ -330,7 +330,7 @@ export const fetchIssueImageAttachments: MessageHandler = async (data, requestId
       const res = await fetch(parsed.toString(), {
         headers: {
           Accept: 'application/octet-stream',
-          'User-Agent': 'limcode',
+          'User-Agent': 'acopilot',
           ...getGitHubAuthHeaders()
         }
       });

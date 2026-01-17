@@ -1,5 +1,5 @@
 /**
- * LimCode 前端类型定义
+ * Acopilot 前端类型定义
  */
 
 // ============ 消息相关类型 ============
@@ -550,10 +550,26 @@ export interface ContextInjectedAttachments {
   items: ContextInjectedAttachment[]
 }
 
+export interface ContextInjectedPinnedSelection {
+  id?: string
+  path: string
+  startLine?: number
+  endLine?: number
+  languageId?: string
+  charCount?: number
+  truncated?: boolean
+}
+
+export interface ContextInjectedPinnedSelections {
+  count: number
+  items: ContextInjectedPinnedSelection[]
+}
+
 export interface ContextInjectedInfo {
   pinnedFiles?: ContextInjectedPinnedFiles
   pinnedPrompt?: ContextInjectedPinnedPrompt
   attachments?: ContextInjectedAttachments
+  pinnedSelections?: ContextInjectedPinnedSelections
 }
 
 export interface ContextInspectorData {

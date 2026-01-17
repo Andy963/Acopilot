@@ -41,7 +41,7 @@ async function fetchGitHubJson<T = any>(url: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'LimCode',
+      'User-Agent': 'Acopilot',
       'X-GitHub-Api-Version': '2022-11-28',
       ...getGitHubAuthHeaders()
     }
@@ -59,7 +59,7 @@ async function fetchGitHubBinary(url: string): Promise<Uint8Array> {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/octet-stream',
-      'User-Agent': 'LimCode',
+      'User-Agent': 'Acopilot',
       ...getGitHubAuthHeaders()
     }
   });

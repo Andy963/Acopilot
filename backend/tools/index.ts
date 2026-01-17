@@ -1,5 +1,5 @@
 /**
- * LimCode - 工具系统主导出
+ * Acopilot - 工具系统主导出
  *
  * VSCode 扩展工具管理
  */

@@ -446,7 +446,7 @@ onMounted(() => {
       <SettingsGroup v-for="(categoryTools, category) in toolsByCategory" :key="category"
         :title="getCategoryDisplayName(category)" :icon="getCategoryIcon(category)"
         :badge="`${t('components.settings.toolsSettings.badges.enabled')} ${getCategoryEnabledCount(categoryTools)}/${getCategoryEnabledTotal(categoryTools)} · ${t('components.settings.toolsSettings.badges.autoExec')} ${getCategoryAutoExecCount(categoryTools)}/${categoryTools.length}`"
-        :storage-key="`limcode.settings.tools.category.${category}`" :default-expanded="true">
+        :storage-key="`acopilot.settings.tools.category.${category}`" :default-expanded="true">
         <template #actions>
           <div class="group-columns" @click.stop>
             <span class="col-header">{{ t('components.settings.toolsSettings.columns.enabled') }}</span>

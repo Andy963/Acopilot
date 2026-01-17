@@ -474,6 +474,32 @@ const hasPinnedPrompt = computed(() => {
   return Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none')
 })
 
+const selectionReferences = computed(() => {
+  return Array.isArray(chatStore.selectionReferences) ? chatStore.selectionReferences : []
+})
+
+const selectionReferencesCount = computed(() => selectionReferences.value.length)
+
+async function openSelectionReference(selection: any) {
+  const path = String(selection?.path || '').trim()
+  const line = Number(selection?.startLine)
+  if (!path || !Number.isFinite(line) || line <= 0) return
+
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', {
+      path,
+      line,
+      column: 1
+    })
+  } catch (error) {
+    console.error('Failed to open selection reference:', error)
+  }
+}
+
+async function removeSelectionReference(id: string) {
+  await chatStore.removeSelectionReference(id)
+}
+
 function syncPinnedPromptDraftFromStore() {
   selectedSkillId.value = String(chatStore.pinnedPrompt?.skillId || '').trim()
   customPromptDraft.value = String(chatStore.pinnedPrompt?.customPrompt || '')
@@ -1167,8 +1193,28 @@ watch(pinPanelTab, (tab) => {
           />
         </Tooltip>
 
-        <!-- 附件列表：放在顶部工具栏右侧（同一行） -->
-        <div v-if="hasAttachments" class="attachments-list">
+        <!-- 附件/引用列表：放在顶部工具栏右侧（同一行） -->
+        <div v-if="hasAttachments || selectionReferencesCount > 0" class="attachments-list">
+          <!-- 本条消息引用（类似 Copilot 的 reference pills） -->
+          <div
+            v-for="r in selectionReferences"
+            :key="r.id"
+            class="attachment-item reference-chip"
+            :title="`${r.path}#L${r.startLine}-L${r.endLine}`"
+            @click="openSelectionReference(r)"
+          >
+            <i class="codicon codicon-references attachment-icon reference-chip-icon"></i>
+            <code class="reference-chip-text">{{ r.path }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
+            <span v-if="r.truncated" class="reference-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
+            <IconButton
+              icon="codicon-close"
+              size="small"
+              :disabled="uploading"
+              @click.stop="removeSelectionReference(r.id)"
+              :title="t('components.input.remove')"
+            />
+          </div>
+
           <div
             v-for="attachment in attachments"
             :key="attachment.id"
@@ -1445,6 +1491,33 @@ watch(pinPanelTab, (tab) => {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
+}
+
+.reference-truncated {
+  font-size: 11px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.attachment-item.reference-chip {
+  max-width: 360px;
+  cursor: pointer;
+}
+
+.attachment-icon.reference-chip-icon {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.reference-chip-text {
+  flex: 0 1 auto;
+  font-size: 12px;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+  min-width: 0;
 }
 
 .attachment-item {

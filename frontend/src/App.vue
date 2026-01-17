@@ -209,7 +209,7 @@ async function loadLanguageSettings() {
 
 // 组件挂载
 onMounted(async () => {
-  console.log('LimCode Chat 已加载')
+  console.log('Acopilot Chat 已加载')
   
   // 初始化终端 store（监听终端输出事件）
   terminalStore.initialize()
@@ -224,6 +224,11 @@ onMounted(async () => {
         case 'newChat':
           handleNewChat()
           break
+        case 'addSelectionToChat':
+          settingsStore.showChat()
+          chatStore.addSelectionReference(message.data).catch(() => {})
+          sendToExtension('showNotification', { message: '已添加到引用', type: 'info' }).catch(() => {})
+          break
         case 'showHistory':
           handleShowHistory()
           break
@@ -233,6 +238,9 @@ onMounted(async () => {
       }
     }
   })
+
+  // 通知后端：webview 已就绪（用于发送队列命令）
+  sendToExtension('webviewReady', {}).catch(() => {})
   
   // 异步初始化 chatStore（加载历史对话等）
   chatStore.initialize()

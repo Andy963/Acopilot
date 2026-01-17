@@ -1,5 +1,5 @@
 /**
- * LimCode Backend - English Language Pack
+ * Acopilot Backend - English Language Pack
  */
 
 import type { BackendLanguageMessages } from '../types';

@@ -1,5 +1,5 @@
 /**
- * LimCode - 上下文裁剪服务
+ * Acopilot - 上下文裁剪服务
  *
  * 负责管理对话历史的上下文裁剪逻辑：
  * - 识别对话回合
@@ -13,7 +13,7 @@
  * - 总结消息之前的历史会被过滤
  */
 
-import type { Content, ContextInjectionOverrides } from '../../../conversation/types';
+import type { Content, ContextInjectionOverrides, SelectionReference } from '../../../conversation/types';
 import type { ConversationManager, GetHistoryOptions } from '../../../conversation/ConversationManager';
 import type { PromptManager } from '../../../prompt';
 import type { BaseChannelConfig } from '../../../config/configs/base';
@@ -21,6 +21,7 @@ import type { ConversationRound, ContextTrimInfo } from '../utils';
 import type { TokenEstimationService } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
 import { getPinnedPromptBlock } from './pinnedPrompt';
+import { getSelectionReferencesBlock } from './selectionReferences';
 
 /**
  * 回合 Token 信息（内部使用）
@@ -41,6 +42,18 @@ export class ContextTrimService {
         private tokenEstimationService: TokenEstimationService,
         private messageBuilderService: MessageBuilderService
     ) {}
+
+    private static getLastUserSelectionReferences(history: Content[]): SelectionReference[] | undefined {
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            const refs = (msg as any).selectionReferences;
+            return Array.isArray(refs) ? (refs as SelectionReference[]) : undefined;
+        }
+        return undefined;
+    }
 
     /**
      * 识别对话回合
@@ -216,7 +229,8 @@ export class ContextTrimService {
         conversationId: string,
         config: BaseChannelConfig,
         historyOptions: GetHistoryOptions,
-        contextOverrides?: ContextInjectionOverrides
+        contextOverrides?: ContextInjectionOverrides,
+        selectionReferences?: SelectionReference[]
     ): Promise<ContextTrimInfo> {
         // 先获取完整的原始历史
         const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
@@ -241,9 +255,12 @@ export class ContextTrimService {
         const pinnedPromptBlock = pinnedPromptEnabled
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
-        const systemPrompt = pinnedPromptBlock
-            ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-            : baseSystemPrompt;
+        const selectionReferencesBlock = getSelectionReferencesBlock(
+            selectionReferences ?? ContextTrimService.getLastUserSelectionReferences(fullHistory)
+        );
+        const systemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+            .filter(Boolean)
+            .join('\n\n');
         let systemPromptTokens = 0;
         if (systemPrompt) {
             systemPromptTokens = await this.tokenEstimationService.countSystemPromptTokens(systemPrompt, channelType);

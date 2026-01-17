@@ -46,7 +46,7 @@ export async function setPinnedPrompt(state: ChatStoreState, pinnedPrompt: Pinne
     await sendToExtension('conversation.setCustomMetadata', {
       conversationId,
       key: 'pinnedPrompt',
-      value: pinnedPrompt
+      value: { ...pinnedPrompt }
     })
   } catch (error) {
     console.error('Failed to persist pinned prompt:', error)
@@ -73,10 +73,9 @@ export async function persistPinnedPromptForConversation(
     await sendToExtension('conversation.setCustomMetadata', {
       conversationId,
       key: 'pinnedPrompt',
-      value: state.pinnedPrompt.value
+      value: { ...state.pinnedPrompt.value }
     })
   } catch (error) {
     console.error('Failed to persist pinned prompt:', error)
   }
 }
-

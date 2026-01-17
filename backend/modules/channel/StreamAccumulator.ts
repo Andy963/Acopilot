@@ -1,5 +1,5 @@
 /**
- * LimCode - 流式响应累加器
+ * Acopilot - 流式响应累加器
  *
  * 用于累加流式响应块，生成完整的 Content
  * 参考 Gemini 流式响应格式设计

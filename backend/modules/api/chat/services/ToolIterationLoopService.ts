@@ -1,5 +1,5 @@
 /**
- * LimCode - 工具迭代循环服务
+ * Acopilot - 工具迭代循环服务
  *
  * 封装工具调用循环的核心逻辑，统一处理：
  * - handleChatStream
@@ -12,7 +12,7 @@
 import type { ChannelManager } from '../../../channel/ChannelManager';
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import type { CheckpointRecord } from '../../../checkpoint';
-import type { Content, ContextInjectionOverrides, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim } from '../../../conversation/types';
+import type { Content, ContextInjectionOverrides, ContextSnapshot, ContextSnapshotModule, ContextSnapshotTools, ContextSnapshotTrim, SelectionReference } from '../../../conversation/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { GenerateResponse } from '../../../channel/types';
 import { ChannelError, ErrorType } from '../../../channel/types';
@@ -47,6 +47,7 @@ import type { TokenEstimationService } from './TokenEstimationService';
 import type { ContextTrimService } from './ContextTrimService';
 import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecutionService';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
+import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
@@ -76,14 +77,23 @@ type OpenAIResponsesPromptCacheState = {
 };
 
 function createOpenAIResponsesPromptCacheKey(conversationId: string, configId: string): string {
-    return `limcode:${configId}:${conversationId}:${nanoid(10)}`;
+    return `acopilot:${configId}:${conversationId}:${nanoid(10)}`;
 }
 
 function getApiErrorText(error: ChannelError): string {
-    const details = error.details as any;
+    const rawDetails = error.details as any;
+    const details = (rawDetails &&
+        typeof rawDetails === 'object' &&
+        !Array.isArray(rawDetails) &&
+        typeof rawDetails.status === 'number' &&
+        Object.prototype.hasOwnProperty.call(rawDetails, 'body'))
+        ? rawDetails.body
+        : rawDetails;
+
     const msg =
         (details?.error && typeof details.error.message === 'string' ? details.error.message : undefined) ??
-        (typeof details?.message === 'string' ? details.message : undefined);
+        (typeof details?.message === 'string' ? details.message : undefined) ??
+        (typeof (details as any)?.detail === 'string' ? (details as any).detail : undefined);
 
     if (typeof msg === 'string' && msg.trim()) {
         return msg;
@@ -358,6 +368,18 @@ export class ToolIterationLoopService {
         return undefined;
     }
 
+    private static getLastUserSelectionReferences(history: Content[]): SelectionReference[] | undefined {
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            const refs = (msg as any).selectionReferences;
+            return Array.isArray(refs) ? (refs as SelectionReference[]) : undefined;
+        }
+        return undefined;
+    }
+
     constructor(
         private channelManager: ChannelManager,
         private conversationManager: ConversationManager,
@@ -443,6 +465,7 @@ export class ToolIterationLoopService {
             const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
             const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+            const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
             const toolsEnabled = contextOverrides?.includeTools !== false;
             const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
@@ -554,9 +577,10 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const dynamicSystemPrompt = pinnedPromptBlock
-                ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-                : baseSystemPrompt;
+            const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+                .filter(Boolean)
+                .join('\n\n');
 
             // 4.1 构建 Context Snapshot（用于 UI 解释/调试）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
@@ -611,10 +635,12 @@ export class ToolIterationLoopService {
                     ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
                     : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
+                pinnedSelections: getSelectionReferencesInjectedInfo(selectionReferences),
             };
             const hasInjected = Boolean(
                 injected.pinnedFiles ||
                 injected.attachments ||
+                injected.pinnedSelections ||
                 (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
             );
 
@@ -654,9 +680,14 @@ export class ToolIterationLoopService {
             let requestPreviousResponseId = previousResponseId;
             let requestPromptCacheKey = promptCacheKey;
             let fallbackCount = 0;
+            let openaiResponsesStreamNoDoneRetryCount = 0;
+            let shouldPersistOpenAIResponsesContinuation = true;
 
             while (true) {
                 const requestStartTime = Date.now();
+
+                // 每次请求默认允许更新 continuation（仅当明确收到完成标记时才会真正启用）
+                shouldPersistOpenAIResponsesContinuation = true;
 
                 const response = await this.channelManager.generate({
                     configId,
@@ -704,19 +735,48 @@ export class ToolIterationLoopService {
 
                         // 如果流式未收到完成标记但自然结束，认为是异常中断（常见表现：回复一半就断且无报错）
                         if (!processor.isCompleted()) {
-                            if (finalContent.parts.length > 0) {
-                                await this.conversationManager.addContent(conversationId, finalContent);
-                            }
-                            throw new ChannelError(
-                                ErrorType.NETWORK_ERROR,
-                                t('modules.api.chat.errors.streamEndedUnexpectedly'),
-                                {
-                                    providerType: config.type,
-                                    chunkCount: finalContent.chunkCount,
-                                    responseDuration: finalContent.responseDuration,
-                                    hasUsageMetadata: !!finalContent.usageMetadata
+                            // 一些 OpenAI-兼容网关（尤其是 /responses）会直接关闭连接而不发送完成事件（response.completed / [DONE]）。
+                            // Copilot 的实现对这种情况会直接当作完成处理；这里也采用相同策略，避免频繁误报并导致二次请求失败。
+                            const canTreatAsCompleted =
+                                config.type === 'openai-responses' &&
+                                finalContent.parts.length > 0;
+
+                            if (canTreatAsCompleted) {
+                                // 未收到完成标记：不要把这次的 responseId 写回 continuation，否则下一轮 previous_response_id 可能导致 0 token/ECONNRESET 等问题。
+                                shouldPersistOpenAIResponsesContinuation = false;
+                                if (!finalContent.finishReason) {
+                                    finalContent.finishReason = 'stream_closed';
                                 }
-                            );
+                            } else if (
+                                config.type === 'openai-responses' &&
+                                finalContent.parts.length === 0 &&
+                                openaiResponsesStreamNoDoneRetryCount < 1 &&
+                                !abortSignal?.aborted
+                            ) {
+                                // 少量网关会在输出开始前就关闭连接（无 done 标记且无任何内容）；对用户来说等同于“偶发空响应”。
+                                // 这里做一次轻量重试：清空 previous_response_id 并回退到全量历史，避免卡死在无效 continuation 上。
+                                openaiResponsesStreamNoDoneRetryCount++;
+                                shouldPersistOpenAIResponsesContinuation = false;
+                                openaiResponseId = undefined;
+                                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                                requestHistory = historyForFullRetry;
+                                requestPreviousResponseId = undefined;
+                                continue;
+                            } else {
+                                if (finalContent.parts.length > 0) {
+                                    await this.conversationManager.addContent(conversationId, finalContent);
+                                }
+                                throw new ChannelError(
+                                    ErrorType.NETWORK_ERROR,
+                                    t('modules.api.chat.errors.streamEndedUnexpectedly'),
+                                    {
+                                        providerType: config.type,
+                                        chunkCount: finalContent.chunkCount,
+                                        responseDuration: finalContent.responseDuration,
+                                        hasUsageMetadata: !!finalContent.usageMetadata
+                                    }
+                                );
+                            }
                         }
                     } else {
                         // 非流式响应处理
@@ -807,7 +867,7 @@ export class ToolIterationLoopService {
                 if (config.type === 'openai-responses') {
                     appendOpenAIResponsesStatefulMarker(finalContent, {
                         configId,
-                        previousResponseId: openaiResponseId,
+                        previousResponseId: shouldPersistOpenAIResponsesContinuation ? openaiResponseId : undefined,
                         promptCacheKey: requestPromptCacheKey
                     });
                 }
@@ -816,7 +876,7 @@ export class ToolIterationLoopService {
 
             // 9.1 OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
             if (config.type === 'openai-responses') {
-                if (openaiResponsesFeatures?.disablePreviousResponseId) {
+                if (openaiResponsesFeatures?.disablePreviousResponseId || !shouldPersistOpenAIResponsesContinuation) {
                     await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
                 } else if (openaiResponseId) {
                     const syncedHistory = await this.conversationManager.getHistoryRef(conversationId);
@@ -1092,9 +1152,11 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const dynamicSystemPrompt = pinnedPromptBlock
-                ? [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n')
-                : baseSystemPrompt;
+            const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
+            const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+                .filter(Boolean)
+                .join('\n\n');
 
             // Context Snapshot（用于 UI 解释/调试；非流式也可用）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
@@ -1149,10 +1211,12 @@ export class ToolIterationLoopService {
                     ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId)
                     : { mode: 'none' as const },
                 attachments: buildLastMessageAttachmentsInjectedInfo(history),
+                pinnedSelections: getSelectionReferencesInjectedInfo(selectionReferences),
             };
             const hasInjected = Boolean(
                 injected.pinnedFiles ||
                 injected.attachments ||
+                injected.pinnedSelections ||
                 (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
             );
 

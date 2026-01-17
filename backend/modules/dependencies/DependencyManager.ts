@@ -3,7 +3,7 @@
  *
  * 用于管理可选的原生依赖（如 sharp），支持：
  * - 检查依赖是否已安装
- * - 在本地文件系统中安装依赖（默认 ~/.limcode/node_modules）
+ * - 在本地文件系统中安装依赖（默认 ~/.acopilot/node_modules）
  * - 动态加载已安装的依赖
  */
 
@@ -58,10 +58,10 @@ export interface InstallProgressEvent {
 export class DependencyManager {
     private static instance: DependencyManager;
     
-    /** LimCode 根目录（默认 ~/.limcode 或自定义路径下的 dependencies） */
-    private limcodeDir: string;
+    /** Acopilot 根目录（默认 ~/.acopilot 或自定义路径下的 dependencies） */
+    private acopilotDir: string;
     
-    /** 依赖安装目录（limcodeDir/node_modules） */
+    /** 依赖安装目录（acopilotDir/node_modules） */
     private depsDir: string;
     
     /** 进度事件监听器 */
@@ -84,9 +84,9 @@ export class DependencyManager {
     
     private constructor(private context: vscode.ExtensionContext, customDepsPath?: string) {
         // 如果提供了自定义路径，使用自定义路径
-        // 否则使用用户主目录下的 .limcode 文件夹
-        this.limcodeDir = customDepsPath || path.join(os.homedir(), '.limcode');
-        this.depsDir = path.join(this.limcodeDir, 'node_modules');
+        // 否则使用用户主目录下的 .acopilot 文件夹
+        this.acopilotDir = customDepsPath || path.join(os.homedir(), '.acopilot');
+        this.depsDir = path.join(this.acopilotDir, 'node_modules');
     }
     
     /**
@@ -109,7 +109,7 @@ export class DependencyManager {
      * 获取安装目录路径
      */
     getInstallPath(): string {
-        return this.limcodeDir;
+        return this.acopilotDir;
     }
     
     /**
@@ -117,7 +117,7 @@ export class DependencyManager {
      */
     async initialize(): Promise<void> {
         try {
-            await mkdir(this.limcodeDir, { recursive: true });
+            await mkdir(this.acopilotDir, { recursive: true });
             await mkdir(this.depsDir, { recursive: true });
         } catch {
             // 目录可能已存在
@@ -227,14 +227,14 @@ export class DependencyManager {
             
             // 创建临时 package.json
             const tempPackageJson = {
-                name: 'limcode-deps',
+                name: 'acopilot-deps',
                 version: '1.0.5',
                 dependencies: {
                     [name]: config.version
                 }
             };
             
-            const tempDir = path.join(this.limcodeDir, 'deps-temp');
+            const tempDir = path.join(this.acopilotDir, 'deps-temp');
             const packageJsonPath = path.join(tempDir, 'package.json');
             
             // 创建临时目录

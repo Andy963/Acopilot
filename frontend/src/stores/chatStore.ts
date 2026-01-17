@@ -92,6 +92,12 @@ import {
 
 import type { PinnedPromptState } from './chat/types'
 import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
+import type { SelectionReference } from './chat/types'
+import {
+  addSelectionReference as addSelectionReferenceFn,
+  removeSelectionReference as removeSelectionReferenceFn,
+  clearSelectionReferences as clearSelectionReferencesFn
+} from './chat/selectionReferenceActions'
 import {
   closeContextInspector as closeContextInspectorFn,
   openContextInspectorPreview as openContextInspectorPreviewFn,
@@ -171,6 +177,9 @@ export const useChatStore = defineStore('chat', () => {
   const setInputValue = (value: string) => setInputValueAction(state, value)
   const clearInputValue = () => clearInputValueAction(state)
   const setPinnedPrompt = (pinnedPrompt: PinnedPromptState) => setPinnedPromptFn(state, pinnedPrompt)
+  const addSelectionReference = (selection: Partial<SelectionReference>) => addSelectionReferenceFn(state, selection)
+  const removeSelectionReference = (id: string) => removeSelectionReferenceFn(state, id)
+  const clearSelectionReferences = () => clearSelectionReferencesFn(state)
 
   const setMessageContextOverride = (key: keyof ContextInjectionOverrides, value: boolean | undefined): void => {
     const next: ContextInjectionOverrides = { ...(state.messageContextOverrides.value || {}) }
@@ -378,6 +387,12 @@ export const useChatStore = defineStore('chat', () => {
     // 固定提示词/技能
     pinnedPrompt: state.pinnedPrompt,
     setPinnedPrompt,
+
+    // 本条消息引用（选中代码片段）
+    selectionReferences: state.selectionReferences,
+    addSelectionReference,
+    removeSelectionReference,
+    clearSelectionReferences,
 
     // 本条消息级上下文覆写
     messageContextOverrides: state.messageContextOverrides,

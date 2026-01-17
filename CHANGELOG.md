@@ -1,11 +1,12 @@
 # Change Log
 
-All notable changes to the "Lim Code" extension will be documented in this file.
+All notable changes to the "Acopilot" extension will be documented in this file.
 
 ## [1.0.55] - 2026-01-16
 
 ### Fixed
   - OpenAI/兼容网关：支持将 `data: [DONE]` 作为流式完成标记，避免偶发出现“流式响应异常结束 未收到完成标记”。
+  - 修复 Webview 通过 `postMessage` 发送选中引用（Add Selection to Chat）时的 `DataCloneError`（`[object Array] could not be cloned`）。
 
 ## [1.0.54] - 2026-01-16
 
