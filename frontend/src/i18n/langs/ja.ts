@@ -1,5 +1,5 @@
 /**
- * LimCode - 日本語言語パック
+ * Acopilot - 日本語言語パック
  * コンポーネントディレクトリ構造に従って翻訳を編成
  */
 
@@ -32,6 +32,7 @@ const ja: LanguageMessages = {
         ok: 'OK',
         copy: 'コピー',
         copied: 'コピーしました',
+        runInTerminal: 'ターミナルで実行',
         paste: '貼り付け',
         reset: 'リセット',
         default: 'デフォルト',
@@ -180,6 +181,7 @@ const ja: LanguageMessages = {
                     title: '注入詳細',
                     pinnedFiles: 'ピン留めファイル',
                     pinnedPrompt: 'ピン留めプロンプト',
+                    pinnedSelections: '参照',
                     attachments: '添付ファイル',
                     missing: '見つかりません',
                     pinnedPromptCustom: 'カスタム（{count} 文字）'
@@ -233,7 +235,7 @@ const ja: LanguageMessages = {
         },
 
         home: {
-            welcome: 'LimCode へようこそ',
+            welcome: 'Acopilot へようこそ',
             welcomeMessage: 'より効率的にコードを書くための AI コーディングアシスタント',
             welcomeHint: '下の入力欄にメッセージを入力して会話を開始',
             quickStart: 'クイックスタート',
@@ -279,8 +281,15 @@ const ja: LanguageMessages = {
                 dropHint: 'ファイルを追加するにはマウスを離してください',
                 tabs: {
                     files: 'ファイル',
+                    refs: '参照',
                     skill: 'Skill',
                     custom: 'カスタム'
+                },
+                refs: {
+                    empty: '参照がありません',
+                    open: '開く',
+                    clear: '参照をクリア',
+                    truncated: '切り詰め'
                 },
                 skill: {
                     selectLabel: 'Skill を選択',
@@ -444,6 +453,9 @@ const ja: LanguageMessages = {
                 attachImage: '画像を添付',
                 removeStep: 'ステップを削除',
                 removeAttachment: '添付を削除',
+                stash: '下書きを保存',
+                stashed: '保存しました',
+                draftLoaded: '保存した下書きを読み込みました（次回も編集を続けられます）',
                 hint: '必要：プランタイトル + 少なくとも 1 つの完全なステップ（タイトル + 指示）。',
                 save: '保存',
                 saveAndStart: '保存して開始'
@@ -858,7 +870,7 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'LimCode - Vibe Coding アシスタント',
+                    name: 'Acopilot - Vibe Coding アシスタント',
                     version: 'バージョン',
                     repository: 'リポジトリ',
                     developer: '開発者'
@@ -1353,7 +1365,7 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: 'バージョン：{version}',
                     repository: 'リポジトリ',
                     developer: '開発者'

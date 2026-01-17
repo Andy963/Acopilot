@@ -174,7 +174,7 @@ async function selectModel(modelId: string) {
       :title="t('components.settings.modelManager.title')"
       icon="codicon-list-tree"
       :badge="models.length"
-      :storage-key="`limcode.settings.modelManager.${configId}.expanded`"
+      :storage-key="`acopilot.settings.modelManager.${configId}.expanded`"
       :default-expanded="true"
     >
       <template #actions>

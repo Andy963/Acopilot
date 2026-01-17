@@ -1,5 +1,5 @@
 /**
- * LimCode - 存储适配器接口
+ * Acopilot - 存储适配器接口
  * 
  * 存储格式说明:
  * - 对话历史: 完整的 Gemini Content[] 格式
@@ -160,11 +160,11 @@ export class VSCodeStorageAdapter implements IStorageAdapter {
     ) {}
 
     async saveHistory(conversationId: string, history: ConversationHistory): Promise<void> {
-        const key = `limcode.history.${conversationId}`;
+        const key = `acopilot.history.${conversationId}`;
         await this.context.globalState.update(key, history);
         
         // 更新元数据的 updatedAt
-        const metaKey = `limcode.meta.${conversationId}`;
+        const metaKey = `acopilot.meta.${conversationId}`;
         const meta = this.context.globalState.get(metaKey) as ConversationMetadata | undefined;
         if (meta) {
             meta.updatedAt = Date.now();
@@ -173,13 +173,13 @@ export class VSCodeStorageAdapter implements IStorageAdapter {
     }
 
     async loadHistory(conversationId: string): Promise<ConversationHistory | null> {
-        const key = `limcode.history.${conversationId}`;
+        const key = `acopilot.history.${conversationId}`;
         return (this.context.globalState.get(key) as ConversationHistory | undefined) || null;
     }
 
     async deleteHistory(conversationId: string): Promise<void> {
-        const historyKey = `limcode.history.${conversationId}`;
-        const metaKey = `limcode.meta.${conversationId}`;
+        const historyKey = `acopilot.history.${conversationId}`;
+        const metaKey = `acopilot.meta.${conversationId}`;
         await this.context.globalState.update(historyKey, undefined);
         await this.context.globalState.update(metaKey, undefined);
     }
@@ -187,38 +187,38 @@ export class VSCodeStorageAdapter implements IStorageAdapter {
     async listConversations(): Promise<string[]> {
         const keys = this.context.globalState.keys();
         return keys
-            .filter((k: string) => k.startsWith('limcode.history.'))
-            .map((k: string) => k.replace('limcode.history.', ''));
+            .filter((k: string) => k.startsWith('acopilot.history.'))
+            .map((k: string) => k.replace('acopilot.history.', ''));
     }
 
     async saveMetadata(metadata: ConversationMetadata): Promise<void> {
-        const key = `limcode.meta.${metadata.id}`;
+        const key = `acopilot.meta.${metadata.id}`;
         await this.context.globalState.update(key, metadata);
     }
 
     async loadMetadata(conversationId: string): Promise<ConversationMetadata | null> {
-        const key = `limcode.meta.${conversationId}`;
+        const key = `acopilot.meta.${conversationId}`;
         return (this.context.globalState.get(key) as ConversationMetadata | undefined) || null;
     }
 
     async saveSnapshot(snapshot: HistorySnapshot): Promise<void> {
-        const key = `limcode.snapshot.${snapshot.id}`;
+        const key = `acopilot.snapshot.${snapshot.id}`;
         await this.context.globalState.update(key, snapshot);
     }
 
     async loadSnapshot(snapshotId: string): Promise<HistorySnapshot | null> {
-        const key = `limcode.snapshot.${snapshotId}`;
+        const key = `acopilot.snapshot.${snapshotId}`;
         return (this.context.globalState.get(key) as HistorySnapshot | undefined) || null;
     }
 
     async deleteSnapshot(snapshotId: string): Promise<void> {
-        const key = `limcode.snapshot.${snapshotId}`;
+        const key = `acopilot.snapshot.${snapshotId}`;
         await this.context.globalState.update(key, undefined);
     }
 
     async listSnapshots(conversationId: string): Promise<string[]> {
         const keys = this.context.globalState.keys();
-        const snapshotKeys = keys.filter((k: string) => k.startsWith('limcode.snapshot.'));
+        const snapshotKeys = keys.filter((k: string) => k.startsWith('acopilot.snapshot.'));
         
         const snapshots: string[] = [];
         for (const key of snapshotKeys) {

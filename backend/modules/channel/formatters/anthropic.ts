@@ -1,5 +1,5 @@
 /**
- * LimCode - Anthropic 格式转换器
+ * Acopilot - Anthropic 格式转换器
  *
  * 将统一格式转换为 Anthropic Claude API 格式
  *
@@ -789,7 +789,7 @@ export class AnthropicFormatter extends BaseFormatter {
      * - content_block_delta: { type: "signature_delta", signature: "..." }
      */
     parseStreamChunk(chunk: any): StreamChunk {
-        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
             return {
                 delta: [],
                 done: true,

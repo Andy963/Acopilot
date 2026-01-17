@@ -1,5 +1,5 @@
 /**
- * LimCode - i18n 类型定义
+ * Acopilot - i18n 类型定义
  * 按组件目录结构组织翻译
  */
 
@@ -200,6 +200,7 @@ export interface LanguageMessages {
                     title: string;
                     pinnedFiles: string;
                     pinnedPrompt: string;
+                    pinnedSelections: string;
                     attachments: string;
                     missing: string;
                     pinnedPromptCustom: string;
@@ -374,8 +375,15 @@ export interface LanguageMessages {
                 dropHint: string;
                 tabs: {
                     files: string;
+                    refs: string;
                     skill: string;
                     custom: string;
+                };
+                refs: {
+                    empty: string;
+                    open: string;
+                    clear: string;
+                    truncated: string;
                 };
                 skill: {
                     selectLabel: string;
@@ -470,6 +478,9 @@ export interface LanguageMessages {
                 attachImage: string;
                 removeStep: string;
                 removeAttachment: string;
+                stash: string;
+                stashed: string;
+                draftLoaded: string;
                 hint: string;
                 save: string;
                 saveAndStart: string;

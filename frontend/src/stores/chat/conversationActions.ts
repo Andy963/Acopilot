@@ -37,6 +37,7 @@ export async function createNewConversation(
   state.planRunner.value = null
   state.postEditValidationPending.value = false
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.selectionReferences.value = []
   
   // 清除所有加载和流式状态
   state.isLoading.value = false
@@ -223,6 +224,8 @@ export async function switchConversation(
   state.isStreaming.value = false
   state.streamingMessageId.value = null
   state.isWaitingForResponse.value = false
+  state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.selectionReferences.value = []
 
   // 切换对话时加载固定提示词/技能
   await loadPinnedPrompt(state, id)

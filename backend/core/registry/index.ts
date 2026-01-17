@@ -1,5 +1,5 @@
 /**
- * LimCode 模块注册系统
+ * Acopilot 模块注册系统
  */
 
 export { ModuleRegistry, globalRegistry } from './ModuleRegistry';

@@ -1,5 +1,5 @@
 /**
- * LimCode - 简体中文语言包
+ * Acopilot - 简体中文语言包
  * 按组件目录结构组织翻译
  */
 
@@ -32,6 +32,7 @@ const zhCN: LanguageMessages = {
         ok: '确定',
         copy: '复制',
         copied: '已复制',
+        runInTerminal: '在终端运行',
         paste: '粘贴',
         reset: '重置',
         default: '默认',
@@ -180,6 +181,7 @@ const zhCN: LanguageMessages = {
                     title: '注入明细',
                     pinnedFiles: '固定文件',
                     pinnedPrompt: '固定提示词',
+                    pinnedSelections: '引用',
                     attachments: '附件',
                     missing: '缺失',
                     pinnedPromptCustom: '自定义（{count} 字符）'
@@ -233,7 +235,7 @@ const zhCN: LanguageMessages = {
         },
 
         home: {
-            welcome: '欢迎使用 LimCode',
+            welcome: '欢迎使用 Acopilot',
             welcomeMessage: 'AI 编程助手，帮助您更高效地编写代码',
             welcomeHint: '在下方输入框中输入消息开始对话',
             quickStart: '快速开始',
@@ -279,8 +281,15 @@ const zhCN: LanguageMessages = {
                 dropHint: '释放鼠标添加文件',
                 tabs: {
                     files: '文件',
+                    refs: '引用',
                     skill: 'Skill',
                     custom: '自定义'
+                },
+                refs: {
+                    empty: '暂无引用',
+                    open: '打开',
+                    clear: '清空引用',
+                    truncated: '已截断'
                 },
                 skill: {
                     selectLabel: '选择 Skill',
@@ -374,6 +383,9 @@ const zhCN: LanguageMessages = {
                 attachImage: '添加图片',
                 removeStep: '删除步骤',
                 removeAttachment: '移除附件',
+                stash: '暂存',
+                stashed: '已暂存',
+                draftLoaded: '已加载暂存草稿（下次打开可继续编辑）',
                 hint: '至少需要：计划标题 + 1 个完整步骤（标题+指令）。',
                 save: '保存计划',
                 saveAndStart: '保存并开始'
@@ -858,7 +870,7 @@ const zhCN: LanguageMessages = {
                 },
                 appInfo: {
                     title: '应用信息',
-                    name: 'LimCode - Vibe Coding 助手',
+                    name: 'Acopilot - Vibe Coding 助手',
                     version: '版本',
                     repository: '项目仓库',
                     developer: '开发者'
@@ -1353,7 +1365,7 @@ const zhCN: LanguageMessages = {
                 },
                 appInfo: {
                     title: '应用信息',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: '版本：{version}',
                     repository: '项目仓库',
                     developer: '开发者'

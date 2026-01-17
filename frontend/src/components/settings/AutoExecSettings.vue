@@ -239,7 +239,7 @@ onMounted(() => {
         :title="getCategoryDisplayName(category)"
         :icon="getCategoryIcon(category)"
         :badge="`${getCategoryAutoExecCount(categoryTools)}/${categoryTools.length}`"
-        :storage-key="`limcode.settings.autoExec.category.${category}`"
+        :storage-key="`acopilot.settings.autoExec.category.${category}`"
         :default-expanded="true"
       >
         <div class="category-rows">

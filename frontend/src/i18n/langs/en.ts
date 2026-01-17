@@ -1,5 +1,5 @@
 /**
- * LimCode - English Language Pack
+ * Acopilot - English Language Pack
  * Organized by component directory structure
  */
 
@@ -32,6 +32,7 @@ const en: LanguageMessages = {
         ok: 'OK',
         copy: 'Copy',
         copied: 'Copied',
+        runInTerminal: 'Run in Terminal',
         paste: 'Paste',
         reset: 'Reset',
         default: 'Default',
@@ -180,6 +181,7 @@ const en: LanguageMessages = {
                     title: 'Injected Context',
                     pinnedFiles: 'Pinned Files',
                     pinnedPrompt: 'Pinned Prompt',
+                    pinnedSelections: 'References',
                     attachments: 'Attachments',
                     missing: 'missing',
                     pinnedPromptCustom: 'Custom ({count} chars)'
@@ -233,7 +235,7 @@ const en: LanguageMessages = {
         },
 
         home: {
-            welcome: 'Welcome to LimCode',
+            welcome: 'Welcome to Acopilot',
             welcomeMessage: 'AI coding assistant helping you write code more efficiently',
             welcomeHint: 'Type a message in the input box below to start a conversation',
             quickStart: 'Quick Start',
@@ -279,8 +281,15 @@ const en: LanguageMessages = {
                 dropHint: 'Release to add file',
                 tabs: {
                     files: 'Files',
+                    refs: 'References',
                     skill: 'Skill',
                     custom: 'Custom'
+                },
+                refs: {
+                    empty: 'No references',
+                    open: 'Open',
+                    clear: 'Clear references',
+                    truncated: 'Truncated'
                 },
                 skill: {
                     selectLabel: 'Select Skill',
@@ -374,6 +383,9 @@ const en: LanguageMessages = {
                 attachImage: 'Attach image',
                 removeStep: 'Remove step',
                 removeAttachment: 'Remove attachment',
+                stash: 'Save draft',
+                stashed: 'Draft saved',
+                draftLoaded: 'Loaded saved draft (you can continue editing next time)',
                 hint: 'Need: plan title + at least 1 complete step (title + instruction).',
                 save: 'Save plan',
                 saveAndStart: 'Save & start'
@@ -858,7 +870,7 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'LimCode - Vibe Coding Assistant',
+                    name: 'Acopilot - Vibe Coding Assistant',
                     version: 'Version',
                     repository: 'Repository',
                     developer: 'Developer'
@@ -1353,7 +1365,7 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: 'Version: {version}',
                     repository: 'Repository',
                     developer: 'Developer'

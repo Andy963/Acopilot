@@ -1,5 +1,5 @@
 /**
- * LimCode - 对话历史管理类型定义
+ * Acopilot - 对话历史管理类型定义
  * 
  * 完整支持 Gemini API 格式,包括:
  * - 文本、文件、内联数据
@@ -349,10 +349,26 @@ export interface ContextInjectedAttachments {
     items: ContextInjectedAttachment[];
 }
 
+export interface ContextInjectedPinnedSelection {
+    id?: string;
+    path: string;
+    startLine?: number;
+    endLine?: number;
+    languageId?: string;
+    charCount?: number;
+    truncated?: boolean;
+}
+
+export interface ContextInjectedPinnedSelections {
+    count: number;
+    items: ContextInjectedPinnedSelection[];
+}
+
 export interface ContextInjectedInfo {
     pinnedFiles?: ContextInjectedPinnedFiles;
     pinnedPrompt?: ContextInjectedPinnedPrompt;
     attachments?: ContextInjectedAttachments;
+    pinnedSelections?: ContextInjectedPinnedSelections;
 }
 
 export interface ContextSnapshot {
@@ -368,6 +384,24 @@ export interface ContextSnapshot {
     modules: ContextSnapshotModule[];
     injected?: ContextInjectedInfo;
     trim?: ContextSnapshotTrim;
+}
+
+/**
+ * 本条消息引用（仅 user 消息有值）
+ *
+ * 由前端通过“Add Selection to Chat”添加，并会持久化到该条 user 消息上以支持重试/复现。
+ */
+export interface SelectionReference {
+    id?: string;
+    uri?: string;
+    path: string;
+    startLine?: number;
+    endLine?: number;
+    languageId?: string;
+    text: string;
+    originalCharCount?: number;
+    truncated?: boolean;
+    createdAt?: number;
 }
 
 /**
@@ -573,6 +607,13 @@ export interface Content {
      * 用于在 UI 中解释“本次请求注入了哪些上下文/发生了哪些裁剪”。
      */
     contextSnapshot?: ContextSnapshot;
+
+    /**
+     * 本条消息引用（仅 user 消息有值）
+     *
+     * 由前端通过“Add Selection to Chat”添加，并持久化到历史中，便于重试/复现。
+     */
+    selectionReferences?: SelectionReference[];
 
     /**
      * 上下文注入覆写（仅 user 消息有值）

@@ -1,5 +1,5 @@
 /**
- * LimCode - 全局设置类型定义
+ * Acopilot - 全局设置类型定义
  * 
  * 定义全局设置的类型和接口
  */
@@ -930,7 +930,7 @@ export interface StoragePathConfig {
      * 自定义数据存储根目录
      *
      * 如果为空或未设置，使用默认的 globalStorageUri
-     * 例如: "D:\\LimCodeData" 或 "/home/user/limcode-data"
+     * 例如: "D:\\AcopilotData" 或 "/home/user/acopilot-data"
      */
     customDataPath?: string;
     

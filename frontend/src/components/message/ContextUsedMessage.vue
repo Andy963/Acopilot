@@ -7,7 +7,7 @@
  */
 
 import { computed, ref } from 'vue'
-import type { ContextInspectorData, ContextInspectorModule, ContextInjectedAttachment, ContextInjectedPinnedFile } from '../../types'
+import type { ContextInspectorData, ContextInspectorModule, ContextInjectedAttachment, ContextInjectedPinnedFile, ContextInjectedPinnedSelection } from '../../types'
 import { useI18n } from '../../i18n'
 import { formatFileSize } from '../../utils/file'
 
@@ -26,6 +26,7 @@ const expanded = ref(false)
 const injected = computed(() => props.snapshot?.injected)
 const pinnedFiles = computed(() => injected.value?.pinnedFiles)
 const pinnedPrompt = computed(() => injected.value?.pinnedPrompt)
+const pinnedSelections = computed(() => injected.value?.pinnedSelections)
 const attachments = computed(() => injected.value?.attachments)
 
 const hasInjected = computed(() => {
@@ -33,6 +34,7 @@ const hasInjected = computed(() => {
   if (!i) return false
   return Boolean(
     i.pinnedFiles ||
+    i.pinnedSelections ||
     i.attachments ||
     (i.pinnedPrompt && i.pinnedPrompt.mode !== 'none')
   )
@@ -74,9 +76,16 @@ const attachmentsCount = computed(() => {
   return Array.isArray(a.items) ? a.items.length : 0
 })
 
+const pinnedSelectionsCount = computed(() => {
+  const s = pinnedSelections.value
+  if (!s) return 0
+  if (typeof s.count === 'number') return s.count
+  return Array.isArray(s.items) ? s.items.length : 0
+})
+
 const pinnedPromptCount = computed(() => (pinnedPromptSummary.value ? 1 : 0))
 
-const referenceCount = computed(() => pinnedFilesUsedCount.value + attachmentsCount.value + pinnedPromptCount.value)
+const referenceCount = computed(() => pinnedFilesUsedCount.value + pinnedSelectionsCount.value + attachmentsCount.value + pinnedPromptCount.value)
 
 const headerMeta = computed(() => {
   const parts: string[] = []
@@ -88,6 +97,11 @@ const headerMeta = computed(() => {
 
   if (pinnedPromptSummary.value) {
     parts.push(`${t('components.common.contextInspectorModal.injected.pinnedPrompt')} ${pinnedPromptSummary.value}`)
+  }
+
+  const s = pinnedSelections.value
+  if (s) {
+    parts.push(`${t('components.common.contextInspectorModal.injected.pinnedSelections')} ${pinnedSelectionsCount.value}`)
   }
 
   const a = attachments.value
@@ -118,6 +132,13 @@ function formatAttachmentMeta(item: ContextInjectedAttachment): string {
   if (item.mimeType) meta.push(item.mimeType)
   if (typeof item.size === 'number' && Number.isFinite(item.size)) meta.push(formatFileSize(item.size))
   return meta.length > 0 ? meta.join(', ') : ''
+}
+
+function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string {
+  const range = item.startLine
+    ? (item.endLine ? `#L${item.startLine}-L${item.endLine}` : `#L${item.startLine}`)
+    : ''
+  return `${item.path}${range}`
 }
 </script>
 
@@ -153,6 +174,16 @@ function formatAttachmentMeta(item: ContextInjectedAttachment): string {
             <span v-if="f.included === false" class="missing">
               ({{ t('components.common.contextInspectorModal.injected.missing') }})
             </span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="pinnedSelections?.items && pinnedSelections.items.length > 0" class="section">
+        <div class="section-title">{{ t('components.common.contextInspectorModal.injected.pinnedSelections') }}</div>
+        <div class="list">
+          <div v-for="s in pinnedSelections.items" :key="s.id || s.path" class="list-row">
+            <code class="list-code">{{ formatPinnedSelectionMeta(s) }}</code>
+            <span v-if="s.truncated" class="meta">({{ t('common.truncated') }})</span>
           </div>
         </div>
       </div>
@@ -308,4 +339,3 @@ function formatAttachmentMeta(item: ContextInjectedAttachment): string {
   overflow: auto;
 }
 </style>
-

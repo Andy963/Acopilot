@@ -1,5 +1,5 @@
 /**
- * LimCode Backend - i18n 国际化模块
+ * Acopilot Backend - i18n 国际化模块
  * 
  * 支持语言切换和翻译
  * 与前端共享相同的语言配置

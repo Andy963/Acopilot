@@ -226,6 +226,16 @@ function toggleExpand(toolId: string) {
   }
 }
 
+function toolClassName(name: string): string {
+  const normalized = String(name || 'tool')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+
+  return normalized ? `tool-${normalized}` : 'tool'
+}
+
 // 检查是否已展开
 function isExpanded(toolId: string): boolean {
   return expandedTools.value.has(toolId)
@@ -308,6 +318,50 @@ const displayTools = computed<DisplayToolUsage[]>(() => {
     }
   })
 })
+
+function getExecuteCommandArgs(tool: ToolUsage): { command: string; cwd?: string; shell?: string } {
+  const args = (tool.args ?? {}) as Record<string, unknown>
+  return {
+    command: typeof args.command === 'string' ? args.command : '',
+    cwd: typeof args.cwd === 'string' ? args.cwd : undefined,
+    shell: typeof args.shell === 'string' ? args.shell : undefined
+  }
+}
+
+const copiedCommandToolId = ref<string>('')
+async function copyExecuteCommand(tool: ToolUsage) {
+  const { command } = getExecuteCommandArgs(tool)
+  if (!command) return
+
+  try {
+    await navigator.clipboard.writeText(command)
+    copiedCommandToolId.value = tool.id
+    setTimeout(() => {
+      if (copiedCommandToolId.value === tool.id) copiedCommandToolId.value = ''
+    }, 1000)
+  } catch (err) {
+    console.error('复制命令失败:', err)
+  }
+}
+
+const runningInTerminalToolId = ref<string>('')
+async function runExecuteCommandInTerminal(tool: ToolUsage) {
+  const { command, cwd, shell } = getExecuteCommandArgs(tool)
+  if (!command) return
+
+  if (runningInTerminalToolId.value === tool.id) return
+  runningInTerminalToolId.value = tool.id
+
+  try {
+    await sendToExtension('terminal.runInTerminal', { command, cwd, shell })
+  } catch (err) {
+    console.warn('Failed to run command in terminal:', err)
+  } finally {
+    if (runningInTerminalToolId.value === tool.id) {
+      runningInTerminalToolId.value = ''
+    }
+  }
+}
 
 // 检查工具是否可展开
 function isExpandable(tool: ToolUsage): boolean {
@@ -439,7 +493,7 @@ function renderToolContent(tool: ToolUsage) {
     <div
       v-for="tool in displayTools"
       :key="tool.id"
-      class="tool-item"
+      :class="['tool-item', toolClassName(tool.name)]"
     >
       <!-- 工具头部 - 可点击展开/收起（如果可展开） -->
       <div
@@ -483,7 +537,45 @@ function renderToolContent(tool: ToolUsage) {
         
         <!-- 工具描述和操作按钮 -->
         <div class="tool-description-row">
-          <div class="tool-description" :class="{ 'has-risk-badge': !!tool.riskBadge }">
+          <div v-if="tool.name === 'execute_command'" class="exec-command">
+            <div class="exec-command-body">
+              <div class="exec-command-line">
+                <code class="exec-command-text">{{ getExecuteCommandArgs(tool).command }}</code>
+                <span
+                  v-if="tool.riskBadge"
+                  :class="['risk-badge', `risk-${tool.riskBadge.level}`, 'exec-risk-badge']"
+                >
+                  {{ tool.riskBadge.label }}
+                </span>
+              </div>
+
+              <div v-if="getExecuteCommandArgs(tool).cwd || (getExecuteCommandArgs(tool).shell && getExecuteCommandArgs(tool).shell !== 'default')" class="exec-command-meta">
+                <span v-if="getExecuteCommandArgs(tool).shell && getExecuteCommandArgs(tool).shell !== 'default'" class="exec-meta-item">
+                  Shell: {{ getExecuteCommandArgs(tool).shell }}
+                </span>
+                <span v-if="getExecuteCommandArgs(tool).cwd" class="exec-meta-item">
+                  目录: {{ getExecuteCommandArgs(tool).cwd }}
+                </span>
+              </div>
+            </div>
+
+            <div class="exec-command-actions" @click.stop>
+              <button class="exec-action-btn" @click.stop="copyExecuteCommand(tool)">
+                <span :class="['codicon', copiedCommandToolId === tool.id ? 'codicon-check' : 'codicon-copy']"></span>
+                Copy
+              </button>
+              <button
+                class="exec-action-btn exec-action-primary"
+                :disabled="runningInTerminalToolId === tool.id"
+                @click.stop="runExecuteCommandInTerminal(tool)"
+              >
+                <span class="codicon codicon-terminal"></span>
+                Run in Terminal
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="tool-description" :class="{ 'has-risk-badge': !!tool.riskBadge }">
             <span
               v-if="tool.riskBadge"
               :class="['risk-badge', `risk-${tool.riskBadge.level}`]"
@@ -688,6 +780,10 @@ function renderToolContent(tool: ToolUsage) {
   margin-left: 28px; /* 对齐图标 */
 }
 
+.tool-item.tool-execute-command .tool-description-row {
+  margin-left: 0;
+}
+
 .tool-action-buttons {
   display: flex;
   align-items: center;
@@ -718,6 +814,106 @@ function renderToolContent(tool: ToolUsage) {
 
 .tool-description-text {
   min-width: 0;
+}
+
+.exec-command {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exec-command-body {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(127, 127, 127, 0.04);
+}
+
+.exec-command-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.exec-command-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exec-risk-badge {
+  flex-shrink: 0;
+  margin-right: 0;
+}
+
+.exec-command-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-font-family);
+}
+
+.exec-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.exec-command-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.exec-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  background: rgba(128, 128, 128, 0.08);
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast, 0.1s), border-color var(--transition-fast, 0.1s);
+  flex: 1;
+  min-width: 140px;
+}
+
+.exec-action-btn:hover:not(:disabled) {
+  background: rgba(128, 128, 128, 0.12);
+  border-color: rgba(128, 128, 128, 0.35);
+}
+
+.exec-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.exec-action-primary {
+  border-color: rgba(40, 167, 69, 0.35);
+  background: rgba(40, 167, 69, 0.15);
+  color: var(--vscode-testing-iconPassed);
+}
+
+.exec-action-primary:hover:not(:disabled) {
+  background: rgba(40, 167, 69, 0.22);
+  border-color: rgba(40, 167, 69, 0.45);
 }
 
 .risk-badge {

@@ -99,6 +99,7 @@ const hasInjected = computed(() => {
   if (!injected) return false
   return Boolean(
     injected.pinnedFiles ||
+    injected.pinnedSelections ||
     injected.attachments ||
     (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
   )
@@ -138,6 +139,23 @@ const attachmentsListText = computed(() => {
       if (item.mimeType) meta.push(item.mimeType)
       if (typeof item.size === 'number') meta.push(`${item.size}B`)
       return meta.length > 0 ? `${item.name} (${meta.join(', ')})` : item.name
+    })
+    .join('\n')
+})
+
+const pinnedSelectionsListText = computed(() => {
+  const s = props.data?.injected?.pinnedSelections
+  if (!s || !Array.isArray(s.items) || s.items.length === 0) return ''
+  return s.items
+    .map(item => {
+      const range = item.startLine
+        ? (item.endLine ? `#L${item.startLine}-L${item.endLine}` : `#L${item.startLine}`)
+        : ''
+      const meta: string[] = []
+      if (item.languageId) meta.push(item.languageId)
+      if (typeof item.charCount === 'number') meta.push(`${item.charCount}ch`)
+      if (item.truncated) meta.push(t('common.truncated'))
+      return meta.length > 0 ? `${item.path}${range} (${meta.join(', ')})` : `${item.path}${range}`
     })
     .join('\n')
 })
@@ -199,12 +217,20 @@ const attachmentsListText = computed(() => {
               <span class="k">{{ t('components.common.contextInspectorModal.injected.pinnedPrompt') }}</span>
               <span class="v"><code>{{ pinnedPromptSummary }}</code></span>
             </div>
+            <div v-if="data.injected?.pinnedSelections" class="kv-row">
+              <span class="k">{{ t('components.common.contextInspectorModal.injected.pinnedSelections') }}</span>
+              <span class="v"><code>{{ data.injected.pinnedSelections.count }}</code></span>
+            </div>
             <div v-if="data.injected?.attachments" class="kv-row">
               <span class="k">{{ t('components.common.contextInspectorModal.injected.attachments') }}</span>
               <span class="v"><code>{{ data.injected.attachments.count }}</code></span>
             </div>
           </div>
 
+          <div v-if="pinnedSelectionsListText" class="injected-list">
+            <div class="injected-list-title">{{ t('components.common.contextInspectorModal.injected.pinnedSelections') }}</div>
+            <pre class="pre">{{ pinnedSelectionsListText }}</pre>
+          </div>
           <div v-if="pinnedFilesListText" class="injected-list">
             <div class="injected-list-title">{{ t('components.common.contextInspectorModal.injected.pinnedFiles') }}</div>
             <pre class="pre">{{ pinnedFilesListText }}</pre>
