@@ -207,7 +207,7 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   border-radius: 8px;
   background: rgba(127, 127, 127, 0.04);
   overflow: hidden;
-  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .context-used-header {

@@ -665,6 +665,13 @@ function handleOpenContextUsed() {
         
         <!-- 显示模式 -->
         <div class="message-content">
+        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
+        <ContextUsedMessage
+          v-if="!isUser && !isTool && !isSummary && message.metadata?.contextSnapshot"
+          :snapshot="message.metadata.contextSnapshot"
+          @open-details="handleOpenContextUsed"
+        />
+
         <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
         <template v-if="displayBlocks.length > 0">
           <template v-for="(block, index) in displayBlocks" :key="index">
@@ -752,13 +759,6 @@ function handleOpenContextUsed() {
 
         <!-- 流式指示器 - 简洁下划线 -->
         <span v-if="isStreaming" class="streaming-indicator"></span>
-
-        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
-        <ContextUsedMessage
-          v-if="!isUser && !isTool && !isSummary && message.metadata?.contextSnapshot"
-          :snapshot="message.metadata.contextSnapshot"
-          @open-details="handleOpenContextUsed"
-        />
 
         <!-- 消息底部信息：工具栏统一放在下方 -->
         <div
