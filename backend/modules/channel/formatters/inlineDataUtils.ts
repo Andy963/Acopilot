@@ -2,7 +2,7 @@
  * Utilities for handling inlineData attachments across providers.
  *
  * Problem:
- * - LimCode stores user attachments as Gemini-style `inlineData` (base64 + mimeType).
+ * - Acopilot stores user attachments as Gemini-style `inlineData` (base64 + mimeType).
  * - Some providers (OpenAI/Anthropic) only support images in their multimodal blocks.
  * - Text files like `text/markdown` must be decoded and sent as text instead.
  */

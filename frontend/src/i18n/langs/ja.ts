@@ -1,5 +1,5 @@
 /**
- * LimCode - 日本語言語パック
+ * Acopilot - 日本語言語パック
  * コンポーネントディレクトリ構造に従って翻訳を編成
  */
 
@@ -235,7 +235,7 @@ const ja: LanguageMessages = {
         },
 
         home: {
-            welcome: 'LimCode へようこそ',
+            welcome: 'Acopilot へようこそ',
             welcomeMessage: 'より効率的にコードを書くための AI コーディングアシスタント',
             welcomeHint: '下の入力欄にメッセージを入力して会話を開始',
             quickStart: 'クイックスタート',
@@ -870,7 +870,7 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'LimCode - Vibe Coding アシスタント',
+                    name: 'Acopilot - Vibe Coding アシスタント',
                     version: 'バージョン',
                     repository: 'リポジトリ',
                     developer: '開発者'
@@ -1365,7 +1365,7 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: 'バージョン：{version}',
                     repository: 'リポジトリ',
                     developer: '開発者'

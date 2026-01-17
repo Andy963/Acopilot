@@ -1,5 +1,5 @@
 /**
- * LimCode - 流式响应解析工具
+ * Acopilot - 流式响应解析工具
  *
  * 纯函数实现（不依赖 VSCode），用于解析不同提供商的流式返回格式。
  *
@@ -150,7 +150,7 @@ function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; 
         // OpenAI / 部分 OpenAI-兼容网关使用 data: [DONE] 作为结束标记（可能不会再补一个带 finish_reason 的 JSON chunk）。
         // 为了让上层 StreamAccumulator/StreamResponseProcessor 能正确判断完成，这里透传一个内部 sentinel。
         if (data === '[DONE]') {
-            chunks.push({ __limcode_sse_done: true });
+            chunks.push({ __acopilot_sse_done: true });
             continue;
         }
 

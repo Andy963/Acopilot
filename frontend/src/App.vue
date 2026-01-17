@@ -209,7 +209,7 @@ async function loadLanguageSettings() {
 
 // 组件挂载
 onMounted(async () => {
-  console.log('LimCode Chat 已加载')
+  console.log('Acopilot Chat 已加载')
   
   // 初始化终端 store（监听终端输出事件）
   terminalStore.initialize()

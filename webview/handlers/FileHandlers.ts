@@ -174,7 +174,7 @@ export const previewAttachment: MessageHandler = async (data, requestId, ctx) =>
   try {
     const { name, mimeType, data: base64Data } = data;
     
-    const tempDir = path.join(os.tmpdir(), 'limcode-preview');
+    const tempDir = path.join(os.tmpdir(), 'acopilot-preview');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }

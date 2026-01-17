@@ -1,5 +1,5 @@
 /**
- * LimCode - 简体中文语言包
+ * Acopilot - 简体中文语言包
  * 按组件目录结构组织翻译
  */
 
@@ -235,7 +235,7 @@ const zhCN: LanguageMessages = {
         },
 
         home: {
-            welcome: '欢迎使用 LimCode',
+            welcome: '欢迎使用 Acopilot',
             welcomeMessage: 'AI 编程助手，帮助您更高效地编写代码',
             welcomeHint: '在下方输入框中输入消息开始对话',
             quickStart: '快速开始',
@@ -870,7 +870,7 @@ const zhCN: LanguageMessages = {
                 },
                 appInfo: {
                     title: '应用信息',
-                    name: 'LimCode - Vibe Coding 助手',
+                    name: 'Acopilot - Vibe Coding 助手',
                     version: '版本',
                     repository: '项目仓库',
                     developer: '开发者'
@@ -1365,7 +1365,7 @@ const zhCN: LanguageMessages = {
                 },
                 appInfo: {
                     title: '应用信息',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: '版本：{version}',
                     repository: '项目仓库',
                     developer: '开发者'

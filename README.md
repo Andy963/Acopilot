@@ -1,11 +1,8 @@
-# LimCode
+# Acopilot
 
 <p align="center">
-  <img src="resources/icon.png" alt="LimCode Logo" width="128">
-</p>
-
-<p align="center">
-  <strong>一个强大的 VS Code AI 编程助手</strong>
+  <strong>一个强大的 VS Code AI 编程助手</strong> 
+  基于 <a href="https://github.com/Lianues/Lim-Code.git">Lim-Code</a> 开发而来
 </p>
 
 <p align="center">
@@ -59,7 +56,7 @@
 ## 📦 安装
 
 ### 从 VSIX 安装
-1. 下载最新的 `limcode-x.x.x.vsix` 文件
+1. 下载最新的 `acopilot-x.x.x.vsix` 文件
 2. 在 VS Code 中打开命令面板 (`Ctrl+Shift+P`)
 3. 搜索 "从 VSIX 安装..."
 4. 选择下载的文件
@@ -67,8 +64,8 @@
 ### 从源码构建
 ```bash
 # 克隆仓库
-git clone https://github.com/limcode/limcode.git
-cd limcode
+git clone https://github.com/Andy963/Acopilot.git
+cd acopilot
 
 # 安装依赖
 pnpm install
@@ -85,7 +82,7 @@ npx vsce package
 
 ## 🚀 快速开始
 
-1. 点击侧边栏的 LimCode 图标打开面板
+1. 点击侧边栏的 Acopilot 图标打开面板
 2. 进入设置，配置 AI 渠道：
    - 选择渠道类型（Gemini/OpenAI/Anthropic）
    - 填入 API URL 和 API Key
@@ -115,10 +112,10 @@ npx vsce package
 
 ## 🏗️ 架构
 
-LimCode 采用模块化架构：
+Acopilot 采用模块化架构：
 
 ```
-limcode/
+acopilot/
 ├── backend/           # 后端模块
 │   ├── core/          # 核心服务
 │   ├── modules/       # 功能模块
@@ -147,5 +144,5 @@ limcode/
 ---
 
 <p align="center">
-  Made with ❤️ by LimCode Team
+  Made with ❤️ by Acopilot Team
 </p>

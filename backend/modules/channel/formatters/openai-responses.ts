@@ -1,5 +1,5 @@
 /**
- * LimCode - OpenAI Responses 格式转换器
+ * Acopilot - OpenAI Responses 格式转换器
  *
  * 将统一格式转换为 OpenAI Responses API 格式
  * 详情参考: https://api.openai.com/v1/responses
@@ -436,7 +436,7 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
      * Responses API 使用 SSE 发送事件，每个 chunk 是一个完整的 JSON 事件
      */
     parseStreamChunk(chunk: any): StreamChunk {
-        if (chunk && typeof chunk === 'object' && (chunk as any).__limcode_sse_done === true) {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
             return {
                 delta: [],
                 done: true,

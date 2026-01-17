@@ -7,7 +7,7 @@
 import type { Message, Content, Attachment } from '../../types'
 import { generateId } from '../../utils/format'
 
-const OPENAI_RESPONSES_STATEFUL_MARKER_MIME = 'application/x-limcode-openai-responses-stateful-marker'
+const OPENAI_RESPONSES_STATEFUL_MARKER_MIME = 'application/x-acopilot-openai-responses-stateful-marker'
 
 /**
  * 解析 XML 工具调用

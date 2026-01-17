@@ -1,5 +1,5 @@
 /**
- * LimCode - Chat 模块工具函数
+ * Acopilot - Chat 模块工具函数
  *
  * 提供 ChatHandler 及其服务类使用的通用工具函数和接口定义
  */

@@ -1,5 +1,5 @@
 /**
- * LimCode MCP 模块 - HTTP/SSE 客户端
+ * Acopilot MCP 模块 - HTTP/SSE 客户端
  *
  * 通过 HTTP 或 SSE 与 MCP 服务器通信
  */
@@ -127,7 +127,7 @@ export class HttpMcpClient extends EventEmitter {
                 roots: { listChanged: true }
             },
             clientInfo: {
-                name: 'LimCode',
+                name: 'Acopilot',
                 version: '1.0.5'
             }
         });

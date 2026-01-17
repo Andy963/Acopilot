@@ -1,5 +1,5 @@
 /**
- * LimCode - Chat 服务模块导出
+ * Acopilot - Chat 服务模块导出
  *
  * 统一导出所有 Chat 相关的服务类
  */

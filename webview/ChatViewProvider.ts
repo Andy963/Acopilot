@@ -1,5 +1,5 @@
 /**
- * LimCode - 完整的聊天视图提供者
+ * Acopilot - 完整的聊天视图提供者
  * 
  * 集成后端API模块，提供完整功能
  */
@@ -102,7 +102,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         // 初始化 Diff 预览内容提供者
         this.diffPreviewProvider = new DiffPreviewContentProvider();
         this.diffPreviewProviderDisposable = vscode.workspace.registerTextDocumentContentProvider(
-            'limcode-diff-preview',
+            'acopilot-diff-preview',
             this.diffPreviewProvider
         );
         context.subscriptions.push(this.diffPreviewProviderDisposable);
@@ -144,7 +144,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         // 7. 初始化配置管理器（使用Memento存储）
         const configStorage = new MementoStorageAdapter(
             this.context.globalState,
-            'limcode.configs'
+            'acopilot.configs'
         );
         this.configManager = new ConfigManager(configStorage);
         
@@ -257,7 +257,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.sendError.bind(this)
         );
         
-        console.log('LimCode backend initialized with global context');
+        console.log('Acopilot backend initialized with global context');
         console.log('Effective data path:', this.storagePathManager.getEffectiveDataPath());
     }
     
@@ -595,7 +595,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data: blob:; media-src ${webview.cspSource} data: blob:;">
     <link href="${codiconsUri}" rel="stylesheet">
     <link href="${styleUri}" rel="stylesheet">
-    <title>LimCode Chat</title>
+    <title>Acopilot Chat</title>
 </head>
 <body>
     <div id="app"></div>

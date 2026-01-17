@@ -4,7 +4,7 @@
  * These markers must never be forwarded to any model provider request body.
  */
 
-export const OPENAI_RESPONSES_STATEFUL_MARKER_MIME = 'application/x-limcode-openai-responses-stateful-marker';
+export const OPENAI_RESPONSES_STATEFUL_MARKER_MIME = 'application/x-acopilot-openai-responses-stateful-marker';
 
 export function isInternalMarkerMimeType(mimeType: unknown): boolean {
     return typeof mimeType === 'string' && mimeType === OPENAI_RESPONSES_STATEFUL_MARKER_MIME;

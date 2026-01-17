@@ -285,7 +285,7 @@ export const terminalRunInTerminal: MessageHandler = async (data, requestId, ctx
 
     const cwd = resolveRunInTerminalCwd(data?.cwd);
     const terminal = vscode.window.createTerminal({
-      name: 'LimCode',
+      name: 'Acopilot',
       cwd
     });
 
