@@ -32,6 +32,7 @@ const ja: LanguageMessages = {
         ok: 'OK',
         copy: 'コピー',
         copied: 'コピーしました',
+        runInTerminal: 'ターミナルで実行',
         paste: '貼り付け',
         reset: 'リセット',
         default: 'デフォルト',

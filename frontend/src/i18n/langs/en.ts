@@ -32,6 +32,7 @@ const en: LanguageMessages = {
         ok: 'OK',
         copy: 'Copy',
         copied: 'Copied',
+        runInTerminal: 'Run in Terminal',
         paste: 'Paste',
         reset: 'Reset',
         default: 'Default',
