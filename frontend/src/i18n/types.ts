@@ -196,6 +196,14 @@ export interface LanguageMessages {
                 titleUsed: string;
                 noData: string;
                 copyDebug: string;
+                summary: {
+                    config: string;
+                    toolMode: string;
+                    tools: string;
+                    mcp: string;
+                    systemInstruction: string;
+                    generatedAt: string;
+                };
                 injected: {
                     title: string;
                     pinnedFiles: string;
@@ -217,6 +225,19 @@ export interface LanguageMessages {
                 };
                 modules: {
                     title: string;
+                    labels: {
+                        text: string;
+                        environment: string;
+                        workspaceFiles: string;
+                        pinnedFiles: string;
+                        tools: string;
+                        mcpTools: string;
+                        guidelines: string;
+                        openTabs: string;
+                        activeEditor: string;
+                        diagnostics: string;
+                        selectionReferences: string;
+                    };
                 };
                 raw: {
                     title: string;
@@ -315,6 +336,7 @@ export interface LanguageMessages {
             error: {
                 title: string;
                 retry: string;
+                copy: string;
                 dismiss: string;
             };
             tool: {
