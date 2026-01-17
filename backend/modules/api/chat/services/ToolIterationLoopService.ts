@@ -380,6 +380,39 @@ export class ToolIterationLoopService {
         return undefined;
     }
 
+    private static injectSelectionReferencesIntoHistory(history: Content[], selectionReferences: SelectionReference[] | undefined): Content[] {
+        const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+        if (!selectionReferencesBlock) return history;
+
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            if (!Array.isArray(msg.parts)) continue;
+
+            const parts = msg.parts.map((p) => ({ ...p }));
+            const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
+
+            if (firstTextIndex >= 0) {
+                const originalText = (parts[firstTextIndex] as any).text ?? '';
+                const nextText = originalText.trim()
+                    ? `${selectionReferencesBlock}\n\n${originalText}`
+                    : selectionReferencesBlock;
+                parts[firstTextIndex] = { ...(parts[firstTextIndex] as any), text: nextText };
+            } else {
+                parts.unshift({ text: selectionReferencesBlock });
+            }
+
+            const updated: Content = { ...msg, parts };
+            const nextHistory = history.slice();
+            nextHistory[i] = updated;
+            return nextHistory;
+        }
+
+        return history;
+    }
+
     constructor(
         private channelManager: ChannelManager,
         private conversationManager: ConversationManager,
@@ -577,8 +610,7 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
-            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
                 .filter(Boolean)
                 .join('\n\n');
 
@@ -691,7 +723,7 @@ export class ToolIterationLoopService {
 
                 const response = await this.channelManager.generate({
                     configId,
-                    history: requestHistory,
+                    history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(requestHistory, selectionReferences),
                     abortSignal,
                     dynamicSystemPrompt,
                     previousResponseId: requestPreviousResponseId,
@@ -1153,8 +1185,7 @@ export class ToolIterationLoopService {
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
             const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
-            const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
-            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
                 .filter(Boolean)
                 .join('\n\n');
 
@@ -1259,7 +1290,7 @@ export class ToolIterationLoopService {
                 try {
                     response = await this.channelManager.generate({
                         configId,
-                        history: requestHistory,
+                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(requestHistory, selectionReferences),
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
                         promptCacheKey: requestPromptCacheKey,

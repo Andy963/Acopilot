@@ -255,16 +255,20 @@ export class ContextTrimService {
         const pinnedPromptBlock = pinnedPromptEnabled
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
-        const selectionReferencesBlock = getSelectionReferencesBlock(
-            selectionReferences ?? ContextTrimService.getLastUserSelectionReferences(fullHistory)
-        );
-        const systemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+        const systemPrompt = [pinnedPromptBlock, baseSystemPrompt]
             .filter(Boolean)
             .join('\n\n');
         let systemPromptTokens = 0;
         if (systemPrompt) {
             systemPromptTokens = await this.tokenEstimationService.countSystemPromptTokens(systemPrompt, channelType);
         }
+
+        // Selection References 不再注入到 system prompt，而是作为本轮 user message 的前缀发送（request-only）。
+        // 这里将其 token 计入“当前 user message”，避免裁剪/阈值判断偏差。
+        const selectionReferencesBlock = getSelectionReferencesBlock(
+            selectionReferences ?? ContextTrimService.getLastUserSelectionReferences(fullHistory)
+        );
+        const selectionReferencesTokens = selectionReferencesBlock ? Math.ceil(selectionReferencesBlock.length / 4) : 0;
         
         // 计算从 effectiveStartIndex 开始的消息 token 数
         // 这是解决上下文振荡问题的关键：使用累加的单条消息 token 数，而不是 API 返回的累计值
@@ -329,7 +333,8 @@ export class ContextTrimService {
             sendHistoryThoughtSignatures,
             sendCurrentThoughts,
             sendCurrentThoughtSignatures,
-            systemPromptTokens
+            systemPromptTokens,
+            selectionReferencesTokens
         );
         
         estimatedTotalTokens = tokenAccumulationResult.estimatedTotalTokens;
@@ -395,7 +400,8 @@ export class ContextTrimService {
         sendHistoryThoughtSignatures: boolean,
         sendCurrentThoughts: boolean,
         sendCurrentThoughtSignatures: boolean,
-        systemPromptTokens: number
+        systemPromptTokens: number,
+        selectionReferencesTokens: number
     ): { estimatedTotalTokens: number; hasEstimatedTokens: boolean; roundTokenInfos: RoundTokenInfo[] } {
         let estimatedTotalTokens = systemPromptTokens;
         let hasEstimatedTokens = systemPromptTokens > 0;
@@ -422,7 +428,13 @@ export class ContextTrimService {
                 
                 // 用户消息：优先使用 estimatedTokenCount，否则估算
                 const tokenCount = message.estimatedTokenCount ?? this.tokenEstimationService.estimateMessageTokens(message);
-                estimatedTotalTokens += tokenCount;
+                const extraSelectionTokens =
+                    selectionReferencesTokens > 0 &&
+                    i === lastNonFunctionResponseUserIndex &&
+                    !message.isFunctionResponse
+                        ? selectionReferencesTokens
+                        : 0;
+                estimatedTotalTokens += tokenCount + extraSelectionTokens;
                 hasEstimatedTokens = true;
             } else if (message.role === 'model' && message.usageMetadata) {
                 // model 消息：根据用户配置、消息内容和回合位置决定是否计算思考 token

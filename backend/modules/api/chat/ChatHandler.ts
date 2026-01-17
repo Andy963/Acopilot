@@ -470,8 +470,7 @@ export class ChatHandler {
         const pinnedPromptBlock = (conversationId && pinnedPromptEnabled)
             ? await getPinnedPromptBlock(this.conversationManager, conversationId)
             : '';
-        const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
-        const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+        const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
             .filter(Boolean)
             .join('\n\n');
 
