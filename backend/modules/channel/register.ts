@@ -1,5 +1,5 @@
 /**
- * LimCode - 渠道调用模块注册
+ * Acopilot - 渠道调用模块注册
  * 
  * 注册渠道调用模块到 ModuleRegistry
  */

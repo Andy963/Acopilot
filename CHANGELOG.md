@@ -1,12 +1,144 @@
 # Change Log
 
-All notable changes to the "Lim Code" extension will be documented in this file.
+All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.55] - 2026-01-16
+
+### Fixed
+  - OpenAI/兼容网关：支持将 `data: [DONE]` 作为流式完成标记，避免偶发出现“流式响应异常结束 未收到完成标记”。
+  - 修复 Webview 通过 `postMessage` 发送选中引用（Add Selection to Chat）时的 `DataCloneError`（`[object Array] could not be cloned`）。
+
+## [1.0.54] - 2026-01-16
+
+### Fixed
+  - Gemini：兼容 `url` 配置为 base/full-endpoint、多种 model 写法（`gemini-xxx`/`models/gemini-xxx`），避免出现“找不到模型”。
+  - OpenAI/OpenAI Responses/Anthropic：自定义 body 不再允许覆盖 `stream` 导致请求与解析模式不一致；当上游要求 `stream=true` 时会自动回退到流式，避免直接不可用。
+
+## [1.0.53] - 2026-01-16
+
+### Fixed
+  - Gemini：对请求体做更严格的 schema 对齐与清洗（`systemInstruction.role`、`tools.functionDeclarations`、`contents` 结构兜底），降低工具循环中触发 “contents array is required” 的概率。
+  - OpenAI Responses：prompt cache key 采用对话内 stateful marker 持久化；当对话元数据缺失/被清理时可自动恢复继续透传（不支持时仍会自动熔断回退）。
+
+## [1.0.52] - 2026-01-16
+
+### Fixed
+  - Gemini：防止自定义 body（advanced）误覆盖请求体导致 `contents` 丢失/为空并触发 “contents array is required”；现在会忽略非对象的 custom body 根并做必填字段兜底校验。
+
+## [1.0.51] - 2026-01-16
+
+### Fixed
+  - OpenAI Responses：当 `previous_response_id` / `prompt_cache_key` 不被服务端接受时，对该对话自动熔断并停止继续透传，避免每轮“报错→回退→再报错”的慢循环。
+
+## [1.0.50] - 2026-01-15
+
+### Added
+  - 上下文：支持“仅本条消息”注入覆写（与 Settings 默认值联动），可临时开/关 Workspace Files/Open Tabs/Active Editor/Diagnostics/Pinned Files/Pinned Prompt/Tools，且会写入该条 user 消息以便重试/复现。
+  - 输入区：新增“本条上下文”开关面板；Context Inspector 预览会按当前覆写生成系统提示词/工具声明等内容，确保预览与实际注入一致。
+
+## [1.0.49] - 2026-01-15
+
+### Improved
+  - Gemini：工具迭代（tool-loop）限速下调到 200~400ms（含 jitter），减少等待。
+  - Gemini：429/RESOURCE_EXHAUSTED 重试不再强制最少 15s，继续使用指数退避（基于 retryInterval）+ jitter。
+
+## [1.0.48] - 2026-01-15
+
+### Improved
+  - OpenAI Responses：支持 prompt_cache_key + previous_response_id continuation，减少重复发送历史与 token 成本（失败自动回退到全量历史）。
+  - Gemini：工具迭代（tool-loop）后续轮次增加轻量限速，降低工具链路触发 429 的概率。
+
+### Fixed
+  - Gemini：遇到 429/RESOURCE_EXHAUSTED 时重试退避至少 15s + jitter，避免重试过快。
+
+## [1.0.47] - 2026-01-15
+
+### Added
+  - 对话内 Context Used 摘要：在每条助手回复下方展示本次注入的 Pinned Files / Pinned Prompt / Attachments，并可一键打开 Context Inspector。
+
+### Improved
+  - execute_command：风险等级显示改为彩色 badge（低=绿/中=黄/高=橙/致命=红）。
+
+### Fixed
+  - Gemini：history role 归一化更健壮，并合并连续同角色消息，减少错位/忽略。
+  - 校验预设：运行校验命令时回传最近的 thought signatures，兼容 Gemini Thinking（function call 流程）。
+
+## [1.0.46] - 2026-01-14
+
+### Improved
+  - Skills 列表：长 ID 显示优化（不再竖排换行，超长省略，hover 可看全称）。
+  - 多模态：文档图片开关在未选中时也可见，并修复该行图标显示。
+
+## [1.0.45] - 2026-01-13
+
+### Improved
+  - Token 统计：支持 k/m 缩写显示（如 2409 -> 2k）。
+  - Finish reason：状态改为图标显示，Completed 显示绿色通过 icon。
+
+## [1.0.44] - 2026-01-13
+
+### Added
+  - Plan Runner：步骤级重执行（refresh icon）。
+  - Plan Runner：步骤级图片附件注入（执行时按步携带）。
+
+### Improved
+  - 差异/补丁工作流：`apply_diff` 支持 hunk 级 apply/undo + 冲突提示，文件级 git 状态展示与 stage/unstage。
+  - 写入文件工作流：`write_file` 支持文件级 apply/undo，文件级 git 状态展示与 stage/unstage。
+
+### Fixed
+  - 修复 Gemini 重复回答（历史消息 role 归一化）。
+
+## [1.0.43] - 2026-01-13
+
+### Added
+  - Plan Runner（Plan & Run）：创建计划并逐步执行，支持暂停/继续/取消，状态对话级持久化（重启 VS Code 也可恢复）。
+  - 改动后校验预设：当工具导致文件发生改动后，提示一键运行 build/test/lint 等命令，并将 execute_command 结果写回对话流。
+  - execute_command 失败定位：从终端输出解析 `path:line:col` 并一键打开文件跳转到报错位置。
+
+### Improved
+  - 新增“任务卡片”创建入口与展示（Create Task modal / TaskCardMessage）。
+  - 新增 Context Inspector：可视化注入上下文与裁剪信息，并支持复制调试信息。
+
+### Fixed
+  - 修复 checkpoint 对 `write_file` 工具名的兼容问题（兼容 `write_to_file`）。
+
+## [1.0.42] - 2026-01-12
+
+### Added
+  - Skills 支持从 GitHub URL 一键安装（安装到当前项目 `.codex/skills/`，并自动导入到 Skills 列表）
+
+### Improved
+  - 兼容部分第三方 skill 仓库脚本引用路径（自动修正 SKILL.md 中 `.codex/scripts` 到 `.codex/skills/<skill>/scripts`）
+  - 支持通过 `GITHUB_TOKEN`/`GH_TOKEN` 访问私有仓库（如需要）
+
+## [1.0.41] - 2026-01-12
+
+### Added
+  - 无标题对话自动从首条用户消息生成标题（兜底）
+
+### Improved
+  - 合并「工具」与「自动执行」设置为单页「工具与执行」，右侧列对齐并更紧凑
+  - 工具描述支持 hover 查看完整内容
 
 ## [1.0.38] - 2026-01-08
 
 ### Fixed
   - 修复cmd工具无法执行的问题
+
+## [1.0.40] - 2026-01-11
+
+### Added
+  - execute_command 风险策略（前后端）
+
+### Fixed
+  - 修复 markdown/text 附件处理
+  - 修复模型名称下沿被裁剪问题
+  - 修复渠道设置下拉层级遮挡问题
+  - 优化重试/删除对话框体验
+
+### Improved
+  - 调整历史/返回按钮位置
+  - 渠道设置界面优化（折叠多模态细节等）
 
 ## [1.0.37] - 2026-01-08
 

@@ -109,18 +109,35 @@ function handleRestoreAndDelete() {
             <button class="dialog-btn cancel" @click="handleCancel">
               {{ t('components.common.deleteDialog.cancel') }}
             </button>
-            <!-- 有检查点时显示回档选项 -->
-            <button
-              v-if="latestCheckpoint"
-              class="dialog-btn restore"
-              @click="handleRestoreAndDelete"
-            >
-              <i class="codicon codicon-discard"></i>
-              {{ formatCheckpointDesc(latestCheckpoint) }}
-            </button>
-            <button class="dialog-btn confirm danger" @click="handleDelete">
-              {{ t('components.common.deleteDialog.delete') }}
-            </button>
+
+            <div class="dialog-footer-actions">
+              <!-- 有检查点：提供“直接删除”和“回档并删除” -->
+              <button
+                v-if="latestCheckpoint"
+                class="dialog-btn danger-outline"
+                @click="handleDelete"
+              >
+                {{ t('components.common.deleteDialog.directDelete') }}
+              </button>
+              <button
+                v-if="latestCheckpoint"
+                class="dialog-btn primary"
+                :title="formatCheckpointDesc(latestCheckpoint)"
+                @click="handleRestoreAndDelete"
+              >
+                <i class="codicon codicon-discard"></i>
+                {{ t('components.common.deleteDialog.restoreAndDelete') }}
+              </button>
+
+              <!-- 无检查点：仅显示删除 -->
+              <button
+                v-else
+                class="dialog-btn danger"
+                @click="handleDelete"
+              >
+                {{ t('components.common.deleteDialog.delete') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -139,7 +156,7 @@ function handleRestoreAndDelete() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 20000;
 }
 
 .dialog {
@@ -208,65 +225,80 @@ function handleRestoreAndDelete() {
 
 .dialog-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   border-top: 1px solid var(--vscode-panel-border);
   flex-wrap: wrap;
 }
 
+.dialog-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .dialog-btn {
-  padding: 6px 14px;
-  border-radius: 4px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   transition: background-color 0.15s, opacity 0.15s;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .dialog-btn.cancel {
   background: transparent;
+  border: none;
   color: var(--vscode-foreground);
-  border: 1px solid var(--vscode-panel-border);
+  opacity: 0.8;
+  padding: 0 6px;
 }
 
 .dialog-btn.cancel:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  opacity: 1;
+  text-decoration: underline;
 }
 
-.dialog-btn.restore {
-  background: var(--vscode-editorInfo-foreground);
-  color: white;
-}
-
-.dialog-btn.restore:hover {
-  opacity: 0.9;
-}
-
-.dialog-btn.restore .codicon {
-  font-size: 12px;
-}
-
-.dialog-btn.confirm {
+.dialog-btn.primary {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
 }
 
-.dialog-btn.confirm:hover {
+.dialog-btn.primary:hover {
   background: var(--vscode-button-hoverBackground);
 }
 
-.dialog-btn.confirm.danger {
-  background: var(--vscode-inputValidation-errorBackground);
-  border: 1px solid var(--vscode-inputValidation-errorBorder);
-  color: var(--vscode-inputValidation-errorForeground);
+.dialog-btn.danger {
+  background: var(--vscode-errorForeground, #f14c4c);
+  color: #fff;
 }
 
-.dialog-btn.confirm.danger:hover {
+.dialog-btn.danger:hover {
   opacity: 0.9;
+}
+
+.dialog-btn.danger-outline {
+  background: transparent;
+  border-color: var(--vscode-errorForeground, #f14c4c);
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.dialog-btn.danger-outline:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(244, 67, 54, 0.12));
+}
+
+.dialog-btn .codicon {
+  font-size: 14px;
 }
 
 /* 动画 */

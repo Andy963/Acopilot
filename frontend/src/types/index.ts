@@ -1,5 +1,5 @@
 /**
- * LimCode 前端类型定义
+ * Acopilot 前端类型定义
  */
 
 // ============ 消息相关类型 ============
@@ -158,6 +158,18 @@ export interface Content {
   thoughtsTokenCount?: number
   /** @deprecated 使用 usageMetadata.candidatesTokenCount */
   candidatesTokenCount?: number
+  /**
+   * Context Inspector 上下文快照（仅助手消息有值）
+   *
+   * 用于解释本次请求注入了哪些上下文/发生了哪些裁剪。
+   */
+  contextSnapshot?: ContextInspectorData
+  /**
+   * 本条消息级上下文注入覆写（仅用户消息有值）
+   *
+   * 用于“仅本条消息”临时关闭/开启某些上下文模块（与 Settings 默认值联动）。
+   */
+  contextOverrides?: ContextInjectionOverrides
 }
 
 /**
@@ -253,6 +265,12 @@ export interface MessageMetadata {
   thoughtsTokenCount?: number
   /** @deprecated 使用 usageMetadata.candidatesTokenCount */
   candidatesTokenCount?: number
+  /**
+   * Context Inspector 上下文快照（仅助手消息有值）
+   *
+   * 用于解释本次请求注入了哪些上下文/发生了哪些裁剪。
+   */
+  contextSnapshot?: ContextInspectorData
   [key: string]: any
 }
 
@@ -385,6 +403,7 @@ export interface ChatRequest {
   conversationId: string
   configId: string
   message: string
+  contextOverrides?: ContextInjectionOverrides
 }
 
 export interface RetryRequest {
@@ -468,6 +487,114 @@ export interface StreamChunk {
   pendingToolCalls?: PendingToolCall[]
   /** 标记工具即将开始执行（用于在工具执行前先发送计时信息） */
   toolsExecuting?: boolean
+}
+
+// ============ Context Inspector ============
+
+export interface ContextInspectorModule {
+  title: string
+  contentPreview: string
+  charCount: number
+  truncated: boolean
+}
+
+export interface ContextInspectorTools {
+  toolMode: 'function_call' | 'xml' | 'json'
+  total: number
+  mcp: number
+  definitionPreview?: string
+  definitionCharCount?: number
+  definitionTruncated?: boolean
+}
+
+export interface ContextInspectorTrim {
+  fullHistoryCount: number
+  trimmedHistoryCount: number
+  trimStartIndex: number
+  lastSummaryIndex: number
+  effectiveStartIndex: number
+}
+
+export interface ContextInjectedPinnedFile {
+  id?: string
+  path: string
+  workspace?: string
+  exists?: boolean
+  included?: boolean
+}
+
+export interface ContextInjectedPinnedFiles {
+  totalEnabled: number
+  included: number
+  files: ContextInjectedPinnedFile[]
+}
+
+export interface ContextInjectedPinnedPrompt {
+  mode: 'none' | 'skill' | 'custom'
+  skillId?: string
+  skillName?: string
+  customPromptCharCount?: number
+}
+
+export interface ContextInjectedAttachment {
+  id?: string
+  name: string
+  type?: string
+  mimeType?: string
+  size?: number
+  url?: string
+}
+
+export interface ContextInjectedAttachments {
+  count: number
+  items: ContextInjectedAttachment[]
+}
+
+export interface ContextInjectedPinnedSelection {
+  id?: string
+  path: string
+  startLine?: number
+  endLine?: number
+  languageId?: string
+  charCount?: number
+  truncated?: boolean
+}
+
+export interface ContextInjectedPinnedSelections {
+  count: number
+  items: ContextInjectedPinnedSelection[]
+}
+
+export interface ContextInjectedInfo {
+  pinnedFiles?: ContextInjectedPinnedFiles
+  pinnedPrompt?: ContextInjectedPinnedPrompt
+  attachments?: ContextInjectedAttachments
+  pinnedSelections?: ContextInjectedPinnedSelections
+}
+
+export interface ContextInspectorData {
+  generatedAt: number
+  conversationId?: string
+  configId: string
+  providerType: string
+  model: string
+  tools: ContextInspectorTools
+  systemInstructionPreview: string
+  systemInstructionCharCount: number
+  systemInstructionTruncated: boolean
+  modules: ContextInspectorModule[]
+  injected?: ContextInjectedInfo
+  trim?: ContextInspectorTrim
+}
+
+export interface ContextInjectionOverrides {
+  includeWorkspaceFiles?: boolean
+  includeOpenTabs?: boolean
+  includeActiveEditor?: boolean
+  includeDiagnostics?: boolean
+  includePinnedFiles?: boolean
+  includePinnedPrompt?: boolean
+  includeTools?: boolean
 }
 
 // ============ 错误类型 ============

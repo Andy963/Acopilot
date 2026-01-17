@@ -1,5 +1,5 @@
 /**
- * LimCode Backend - 后端模块入口
+ * Acopilot Backend - 后端模块入口
  */
 
 // 核心注册系统

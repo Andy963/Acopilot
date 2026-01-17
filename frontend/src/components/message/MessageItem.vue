@@ -9,7 +9,9 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import MessageActions from './MessageActions.vue'
 import ToolMessage from './ToolMessage.vue'
 import MessageAttachments from './MessageAttachments.vue'
-import { MarkdownRenderer, RetryDialog, EditDialog } from '../common'
+import TaskCardMessage from './TaskCardMessage.vue'
+import ContextUsedMessage from './ContextUsedMessage.vue'
+import { MarkdownRenderer, RetryDialog, EditDialog, IconButton } from '../common'
 import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
 import { formatModelName, formatTime } from '../../utils/format'
 import { useChatStore } from '../../stores/chatStore'
@@ -43,6 +45,9 @@ const isTool = computed(() => props.message.role === 'tool')
 
 // 是否为总结消息
 const isSummary = computed(() => props.message.isSummary === true)
+
+// 是否为 Task 卡片消息
+const taskCard = computed(() => props.message.metadata?.taskCard)
 
 // 是否为流式消息
 const isStreaming = computed(() => props.message.streaming === true)
@@ -382,6 +387,68 @@ const showFinishReason = computed(() => {
   return finishReason.value.toLowerCase() !== 'stop'
 })
 
+const finishReasonKey = computed(() => (finishReason.value || '').toLowerCase())
+
+const finishReasonIcon = computed(() => {
+  switch (finishReasonKey.value) {
+    case 'completed':
+    case 'end_turn':
+      return 'codicon-pass'
+    case 'length':
+    case 'max_tokens':
+    case 'incomplete':
+      return 'codicon-warning'
+    case 'content_filter':
+    case 'safety':
+      return 'codicon-shield'
+    case 'tool_calls':
+    case 'tool_use':
+    case 'function_call':
+      return 'codicon-tools'
+    case 'cancelled':
+    case 'canceled':
+      return 'codicon-circle-slash'
+    case 'failed':
+    case 'error':
+      return 'codicon-error'
+    case 'expired':
+    case 'timeout':
+      return 'codicon-clock'
+    case 'queued':
+    case 'in_progress':
+    case 'running':
+      return 'codicon-loading'
+    default:
+      return 'codicon-info'
+  }
+})
+
+const finishReasonClass = computed(() => {
+  switch (finishReasonKey.value) {
+    case 'completed':
+    case 'end_turn':
+      return 'finish-reason-success'
+    default:
+      return ''
+  }
+})
+
+const finishReasonSpin = computed(() => {
+  switch (finishReasonKey.value) {
+    case 'queued':
+    case 'in_progress':
+    case 'running':
+      return true
+    default:
+      return false
+  }
+})
+
+const finishReasonTitle = computed(() => {
+  if (!finishReason.value) return t('components.message.stats.finishReason')
+  return `${t('components.message.stats.finishReason')}: ${finishReason.value}`
+})
+
 // 角色显示名称
 const roleDisplayName = computed(() => {
   if (isUser.value) return t('components.message.roles.user')
@@ -397,10 +464,12 @@ const hasUsage = computed(() =>
   (usageMetadata.value.totalTokenCount || usageMetadata.value.promptTokenCount || usageMetadata.value.candidatesTokenCount)
 )
 
+const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
+
 function formatTokenCount(count: number | undefined): string {
   if (count === undefined) return ''
   if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
-  if (count >= 10_000) return `${Math.round(count / 1_000)}k`
+  if (count >= 1_000) return `${Math.round(count / 1_000)}k`
   return String(count)
 }
 
@@ -502,6 +571,13 @@ function handleRestoreAndRetry(checkpointId: string) {
   emit('restoreAndRetry', props.message.id, checkpointId)
 }
 
+function handleOpenContextUsed() {
+  const snapshot = props.message.metadata?.contextSnapshot
+  if (snapshot) {
+    chatStore.openContextInspectorWithData(snapshot)
+  }
+}
+
 </script>
 
 <template>
@@ -529,8 +605,12 @@ function handleRestoreAndRetry(checkpointId: string) {
     />
 
     <div class="message-body">
+      <!-- Task 卡片消息 -->
+      <div v-if="taskCard" class="task-card-block">
+        <TaskCardMessage :task="taskCard" />
+      </div>
       <!-- 总结消息特殊显示 -->
-      <div v-if="isSummary" class="summary-block">
+      <div v-else-if="isSummary" class="summary-block">
         <div
           class="summary-header"
           @click="isSummaryExpanded = !isSummaryExpanded"
@@ -649,6 +729,13 @@ function handleRestoreAndRetry(checkpointId: string) {
         <!-- 流式指示器 - 简洁下划线 -->
         <span v-if="isStreaming" class="streaming-indicator"></span>
 
+        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
+        <ContextUsedMessage
+          v-if="!isUser && !isTool && !isSummary && message.metadata?.contextSnapshot"
+          :snapshot="message.metadata.contextSnapshot"
+          @open-details="handleOpenContextUsed"
+        />
+
         <!-- 消息底部信息：工具栏统一放在下方 -->
         <div
           v-if="formattedTime || showActions || (!isUser && (responseDuration || tokenRate || hasUsage))"
@@ -685,13 +772,25 @@ function handleRestoreAndRetry(checkpointId: string) {
 	            <span
               v-if="showFinishReason"
               class="finish-reason"
-              :title="t('components.message.stats.finishReason')"
+              :class="finishReasonClass"
+              :title="finishReasonTitle"
+              :aria-label="finishReasonTitle"
             >
-              <i class="codicon codicon-info"></i>{{ finishReason }}
+              <i
+                class="codicon"
+                :class="[finishReasonIcon, { 'codicon-modifier-spin': finishReasonSpin }]"
+              ></i>
             </span>
           </div>
 
           <div class="message-footer-right">
+            <IconButton
+              v-if="!isUser && !isTool && hasContextSnapshot"
+              icon="codicon-eye"
+              size="small"
+              :tooltip="t('components.message.stats.contextUsed')"
+              @click="handleOpenContextUsed"
+            />
             <MessageActions
               v-if="showActions"
               :message="message"
@@ -750,7 +849,9 @@ function handleRestoreAndRetry(checkpointId: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1;
+  /* Avoid clipping descenders (g/p/y) in VS Code webview fonts */
+  line-height: 1.2;
+  padding-bottom: 1px;
 }
 
 .user-message .role-label {
@@ -892,6 +993,10 @@ function handleRestoreAndRetry(checkpointId: string) {
 .finish-reason .codicon {
   font-size: 14px;
   line-height: 1;
+}
+
+.finish-reason.finish-reason-success .codicon {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #89d185));
 }
 
 .token-total {

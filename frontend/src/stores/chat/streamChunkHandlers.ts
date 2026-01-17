@@ -16,6 +16,47 @@ import {
 } from './streamHelpers'
 
 /**
+ * 判断工具结果是否代表“文件系统发生了实际改动”
+ *
+ * 用于在一轮对话结束后提示用户运行 build/test/lint 等校验命令。
+ */
+function hasFileChanges(toolResults: Array<{ name: string; result: any }> | undefined): boolean {
+  if (!toolResults || toolResults.length === 0) return false
+
+  for (const tr of toolResults) {
+    const toolName = tr.name
+    const r = tr.result || {}
+
+    if (toolName === 'write_file' && r.success && r.data?.results) {
+      const results = Array.isArray(r.data.results) ? r.data.results : []
+      const changed = results.some((x: any) =>
+        x?.success === true &&
+        (x?.status === 'accepted' || x?.status === undefined) &&
+        (x?.action === 'created' || x?.action === 'modified')
+      )
+      if (changed) return true
+    }
+
+    if (toolName === 'apply_diff' && r.success && r.data) {
+      // apply_diff：只有在用户接受（saved）后才算改动已落盘
+      if (r.data.status === 'accepted' && (r.data.appliedCount ?? 0) > 0) {
+        return true
+      }
+    }
+
+    if (toolName === 'delete_file' && r.success && Array.isArray(r.data?.deletedPaths) && r.data.deletedPaths.length > 0) {
+      return true
+    }
+
+    if (toolName === 'create_directory' && r.success && Array.isArray(r.data?.createdPaths) && r.data.createdPaths.length > 0) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
  * 处理 chunk 类型
  */
 export function handleChunkType(chunk: StreamChunk, state: ChatStoreState): void {
@@ -286,6 +327,11 @@ export function handleToolIteration(
       addCheckpoint(cp)
     }
   }
+
+  // 如果这一轮工具执行导致文件发生了实际改动，标记为需要在结束后提示校验
+  if (hasFileChanges(chunk.toolResults as any)) {
+    state.postEditValidationPending.value = true
+  }
   
   // 如果有工具被取消，结束 streaming 状态，不继续后续 AI 响应
   if (hasCancelledTools) {
@@ -361,6 +407,9 @@ export function handleComplete(
       addCheckpoint(cp)
     }
   }
+
+  // 如果这一轮对话发生过文件改动，在对话流尾部插入“校验预设”卡片
+  // 注意：不要往 allMessages 插入 UI-only 消息，否则会导致前后端消息索引不一致。
   
   state.streamingMessageId.value = null
   state.isStreaming.value = false

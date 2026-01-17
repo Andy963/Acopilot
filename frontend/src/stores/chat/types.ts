@@ -3,10 +3,40 @@
  */
 
 import type { Ref, ComputedRef } from 'vue'
-import type { Message, ErrorInfo, CheckpointRecord } from '../../types'
+import type { Message, ErrorInfo, CheckpointRecord, ContextInspectorData, Attachment, ContextInjectionOverrides } from '../../types'
 
 // 重新导出类型以供其他模块使用
 export type { CheckpointRecord } from '../../types'
+
+// ============ Plan Runner ============
+
+export type PlanRunnerStatus = 'idle' | 'running' | 'paused' | 'completed' | 'cancelled'
+
+export type PlanRunnerStepStatus = 'pending' | 'running' | 'success' | 'error' | 'cancelled'
+
+export interface PlanRunnerStep {
+  id: string
+  title: string
+  instruction: string
+  attachments?: Attachment[]
+  status: PlanRunnerStepStatus
+  startedAt?: number
+  endedAt?: number
+  error?: string
+}
+
+export interface PlanRunnerData {
+  id: string
+  title: string
+  goal?: string
+  acceptanceCriteria?: string
+  createdAt: number
+  status: PlanRunnerStatus
+  currentStepIndex: number
+  steps: PlanRunnerStep[]
+  pauseRequested?: boolean
+  lastUpdatedAt?: number
+}
 
 /**
  * 对话摘要
@@ -40,6 +70,33 @@ export interface AttachmentData {
   mimeType: string
   data: string
   thumbnail?: string
+}
+
+/**
+ * 对话固定提示词/技能（每个对话独立）
+ */
+export type PinnedPromptMode = 'none' | 'skill' | 'custom'
+
+export interface PinnedPromptState {
+  mode: PinnedPromptMode
+  skillId?: string
+  customPrompt?: string
+}
+
+/**
+ * 本条消息引用（选中代码片段）
+ */
+export interface SelectionReference {
+  id: string
+  uri: string
+  path: string
+  startLine: number
+  endLine: number
+  languageId: string
+  text: string
+  originalCharCount?: number
+  truncated?: boolean
+  createdAt: number
 }
 
 /**
@@ -109,6 +166,31 @@ export interface ChatStoreState {
   inputValue: Ref<string>
   /** 工作区筛选模式 */
   workspaceFilter: Ref<WorkspaceFilter>
+  /** 当前对话的固定提示词/技能 */
+  pinnedPrompt: Ref<PinnedPromptState>
+
+  /** 本条消息引用（发送后自动清空） */
+  selectionReferences: Ref<SelectionReference[]>
+
+  /** 本条消息级上下文注入覆写（仅下一条消息生效） */
+  messageContextOverrides: Ref<ContextInjectionOverrides>
+
+  /** Plan Runner（多步任务执行器） */
+  planRunner: Ref<PlanRunnerData | null>
+
+  /** 本轮对话是否发生过文件改动（用于在结束后提示运行校验预设） */
+  postEditValidationPending: Ref<boolean>
+
+  /** Context Inspector 弹窗是否显示 */
+  contextInspectorVisible: Ref<boolean>
+  /** Context Inspector 弹窗是否加载中 */
+  contextInspectorLoading: Ref<boolean>
+  /** Context Inspector 当前数据 */
+  contextInspectorData: Ref<ContextInspectorData | null>
+  /** Context Inspector 错误信息 */
+  contextInspectorError: Ref<string | null>
+  /** Context Inspector 数据来源 */
+  contextInspectorSource: Ref<'preview' | 'message'>
 }
 
 /**

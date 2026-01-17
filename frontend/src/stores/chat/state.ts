@@ -3,15 +3,18 @@
  */
 
 import { ref } from 'vue'
-import type { Message, ErrorInfo } from '../../types'
+import type { Message, ErrorInfo, ContextInspectorData, ContextInjectionOverrides } from '../../types'
 import type { CheckpointRecord } from '../../types'
 import type {
   Conversation,
   WorkspaceFilter,
   RetryStatus,
   ConfigInfo,
-  ChatStoreState
+  ChatStoreState,
+  PlanRunnerData
 } from './types'
+import type { PinnedPromptState } from './types'
+import type { SelectionReference } from './types'
 
 /**
  * 创建 Chat Store 状态
@@ -81,6 +84,28 @@ export function createChatState(): ChatStoreState {
   /** 工作区筛选模式（默认当前工作区） */
   const workspaceFilter = ref<WorkspaceFilter>('current')
 
+  /** 当前对话的固定提示词/技能 */
+  const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
+
+  /** 本条消息引用（发送后自动清空） */
+  const selectionReferences = ref<SelectionReference[]>([])
+
+  /** 本条消息级上下文注入覆写（仅下一条消息生效） */
+  const messageContextOverrides = ref<ContextInjectionOverrides>({})
+
+  /** Plan Runner（多步任务执行器） */
+  const planRunner = ref<PlanRunnerData | null>(null)
+
+  /** 本轮对话是否发生过文件改动（用于结束后提示运行校验预设） */
+  const postEditValidationPending = ref(false)
+
+  /** Context Inspector */
+  const contextInspectorVisible = ref(false)
+  const contextInspectorLoading = ref(false)
+  const contextInspectorData = ref<ContextInspectorData | null>(null)
+  const contextInspectorError = ref<string | null>(null)
+  const contextInspectorSource = ref<'preview' | 'message'>('preview')
+
   return {
     conversations,
     currentConversationId,
@@ -101,6 +126,16 @@ export function createChatState(): ChatStoreState {
     deletingConversationIds,
     currentWorkspaceUri,
     inputValue,
-    workspaceFilter
+    workspaceFilter,
+    pinnedPrompt,
+    selectionReferences,
+    messageContextOverrides,
+    planRunner,
+    postEditValidationPending,
+    contextInspectorVisible,
+    contextInspectorLoading,
+    contextInspectorData,
+    contextInspectorError,
+    contextInspectorSource
   }
 }

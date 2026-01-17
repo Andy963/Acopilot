@@ -1,5 +1,5 @@
 /**
- * LimCode - OpenAI 格式转换器
+ * Acopilot - OpenAI 格式转换器
  *
  * 将统一格式转换为 OpenAI API 格式（兼容 DeepSeek 等）
  *
@@ -46,6 +46,13 @@ import type {
     ChannelError,
     ErrorType
 } from '../types';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    formatUnsupportedAttachment,
+    isImageMimeType,
+    isTextMimeType
+} from './inlineDataUtils';
 
 /**
  * OpenAI 格式转换器
@@ -135,8 +142,8 @@ export class OpenAIFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
         
-        // 决定是否使用流式（完全由配置决定）
-        const useStream = config.options?.stream ?? config.preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
         
         // 始终将 stream 添加到请求体（明确发送 true 或 false）
         body.stream = useStream;
@@ -176,7 +183,22 @@ export class OpenAIFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body（如果启用）
-        const finalBody = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        let finalBody: any = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+
+        // custom body 可能覆盖 stream 字段，导致“走流式但 body.stream=false”或反之；这里强制对齐。
+        finalBody.stream = useStream;
+        if (useStream) {
+            const so = finalBody.stream_options && typeof finalBody.stream_options === 'object' && !Array.isArray(finalBody.stream_options)
+                ? finalBody.stream_options
+                : {};
+            so.include_usage = true;
+            finalBody.stream_options = so;
+        } else if (finalBody.stream_options) {
+            delete finalBody.stream_options;
+        }
         
         // 构建请求选项
         return {
@@ -337,14 +359,43 @@ export class OpenAIFormatter extends BaseFormatter {
         // 添加多媒体部分
         for (const part of mediaParts) {
             if (part.inlineData) {
-                // Base64 内联数据 -> data URI
-                const dataUri = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                contentArray.push({
-                    type: 'image_url',
-                    image_url: {
-                        url: dataUri
-                    }
-                });
+                const mimeType = part.inlineData.mimeType;
+
+                if (isImageMimeType(mimeType)) {
+                    // 图片：Base64 内联数据 -> data URI
+                    const dataUri = `data:${mimeType};base64,${part.inlineData.data}`;
+                    contentArray.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: dataUri
+                        }
+                    });
+                } else if (isTextMimeType(mimeType)) {
+                    // 文本类附件：解码后作为普通文本发送
+                    const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                    contentArray.push({
+                        type: 'text',
+                        text: decoded !== null
+                            ? formatTextAttachment({
+                                mimeType,
+                                text: decoded,
+                                displayName: part.inlineData.displayName
+                            })
+                            : formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                    });
+                } else {
+                    // 非图片且非文本的附件：避免错误，发送占位提示
+                    contentArray.push({
+                        type: 'text',
+                        text: formatUnsupportedAttachment({
+                            mimeType,
+                            displayName: part.inlineData.displayName
+                        })
+                    });
+                }
             } else if (part.fileData) {
                 // 文件引用 -> URL
                 contentArray.push({
@@ -774,6 +825,15 @@ export class OpenAIFormatter extends BaseFormatter {
      * 3. 结束标记: data: [DONE]（在 ChannelManager 中处理）
      */
     parseStreamChunk(chunk: any): StreamChunk {
+        // parseStreamBuffer 会把 data: [DONE] 转成内部 sentinel，用于兼容某些网关不发送最终 JSON chunk 的情况
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
+            return {
+                delta: [],
+                done: true,
+                finishReason: 'done'
+            };
+        }
+
         // OpenAI 流式响应格式
         const choice = chunk.choices?.[0];
         const parts: ContentPart[] = [];

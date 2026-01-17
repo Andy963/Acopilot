@@ -1,5 +1,5 @@
 /**
- * LimCode - 配置存储适配器接口
+ * Acopilot - 配置存储适配器接口
  * 
  * 定义配置存储的抽象接口，支持不同的存储实现
  */
@@ -95,14 +95,14 @@ export class MemoryStorageAdapter implements ConfigStorageAdapter {
  * 
  * const storage = new MementoStorageAdapter(
  *     context.globalState,
- *     'limcode.configs'
+ *     'acopilot.configs'
  * );
  * ```
  */
 export class MementoStorageAdapter implements ConfigStorageAdapter {
     constructor(
         private memento: any,  // vscode.Memento
-        private key: string = 'limcode.configs'
+        private key: string = 'acopilot.configs'
     ) {}
     
     private async getAll(): Promise<Record<string, ChannelConfig>> {

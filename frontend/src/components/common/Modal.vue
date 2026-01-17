@@ -101,7 +101,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  /* Must be higher than InputArea (z-index: 2000) and its popovers (up to 10000). */
+  z-index: 20000;
   padding: 20px;
 }
 
@@ -155,6 +156,8 @@ onUnmounted(() => {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  /* Allow flex item to shrink so footer stays visible and body scrolls */
+  min-height: 0;
 }
 
 .modal-footer {

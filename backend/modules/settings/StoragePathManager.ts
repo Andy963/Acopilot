@@ -1,5 +1,5 @@
 /**
- * LimCode - 存储路径管理器
+ * Acopilot - 存储路径管理器
  *
  * 负责管理自定义数据存储路径和数据迁移
  * 支持将大文件（对话历史、检查点、依赖等）存储到用户自定义目录
@@ -130,7 +130,7 @@ export class StoragePathManager {
             }
             
             // 检查是否可写
-            const testFile = path.join(targetPath, '.limcode-test');
+            const testFile = path.join(targetPath, '.acopilot-test');
             await fs.writeFile(testFile, 'test');
             await fs.unlink(testFile);
             

@@ -1,5 +1,5 @@
 /**
- * LimCode - OpenAI Responses 格式转换器
+ * Acopilot - OpenAI Responses 格式转换器
  *
  * 将统一格式转换为 OpenAI Responses API 格式
  * 详情参考: https://api.openai.com/v1/responses
@@ -17,6 +17,13 @@ import type {
     StreamChunk,
     HttpRequestOptions
 } from '../types';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    formatUnsupportedAttachment,
+    isImageMimeType,
+    isTextMimeType
+} from './inlineDataUtils';
 
 /**
  * OpenAI Responses 格式转换器
@@ -55,6 +62,14 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             include: ["reasoning.encrypted_content"] // 始终包含加密思考内容
         };
 
+        // OpenAI Responses continuation / prompt cache
+        if (request.previousResponseId) {
+            body.previous_response_id = request.previousResponseId;
+        }
+        if (request.promptCacheKey) {
+            body.prompt_cache_key = request.promptCacheKey;
+        }
+
         // 添加工具
         if (tools && tools.length > 0) {
             body.tools = this.convertTools(tools);
@@ -64,8 +79,8 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
 
-        // 决定是否使用流式
-        const useStream = config.options?.stream ?? config.preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
         
         // 始终将 stream 添加到请求体
         body.stream = useStream;
@@ -93,7 +108,13 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body
-        const finalBody = applyCustomBody(body, config.customBody, config.customBodyEnabled);
+        let finalBody: any = applyCustomBody(body, config.customBody, config.customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+
+        // custom body 可能覆盖 stream 字段，导致请求与解析模式不一致；这里强制对齐。
+        finalBody.stream = useStream;
 
         return {
             url,
@@ -205,9 +226,38 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
                         const toolContentParts = part.functionResponse.parts
                             .map(p => {
                                 if (p.inlineData) {
+                                    const mimeType = p.inlineData.mimeType;
+
+                                    if (isImageMimeType(mimeType)) {
+                                        return {
+                                            type: 'input_image',
+                                            image_url: `data:${mimeType};base64,${p.inlineData.data}`
+                                        };
+                                    }
+
+                                    if (isTextMimeType(mimeType)) {
+                                        const decoded = decodeBase64ToUtf8(p.inlineData.data);
+                                        return {
+                                            type: 'input_text',
+                                            text: decoded !== null
+                                                ? formatTextAttachment({
+                                                    mimeType,
+                                                    text: decoded,
+                                                    displayName: p.inlineData.displayName
+                                                })
+                                                : formatUnsupportedAttachment({
+                                                    mimeType,
+                                                    displayName: p.inlineData.displayName
+                                                })
+                                        };
+                                    }
+
                                     return {
-                                        type: 'input_image',
-                                        image_url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`
+                                        type: 'input_text',
+                                        text: formatUnsupportedAttachment({
+                                            mimeType,
+                                            displayName: p.inlineData.displayName
+                                        })
                                     };
                                 }
                                 return null;
@@ -232,10 +282,37 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
                         text: part.text
                     });
                 } else if (part.inlineData) {
-                    messageParts.push({
-                        type: 'input_image',
-                        image_url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                    });
+                    const mimeType = part.inlineData.mimeType;
+
+                    if (isImageMimeType(mimeType)) {
+                        messageParts.push({
+                            type: 'input_image',
+                            image_url: `data:${mimeType};base64,${part.inlineData.data}`
+                        });
+                    } else if (isTextMimeType(mimeType)) {
+                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                        messageParts.push({
+                            type: role === 'assistant' ? 'output_text' : 'input_text',
+                            text: decoded !== null
+                                ? formatTextAttachment({
+                                    mimeType,
+                                    text: decoded,
+                                    displayName: part.inlineData.displayName
+                                })
+                                : formatUnsupportedAttachment({
+                                    mimeType,
+                                    displayName: part.inlineData.displayName
+                                })
+                        });
+                    } else {
+                        messageParts.push({
+                            type: role === 'assistant' ? 'output_text' : 'input_text',
+                            text: formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                        });
+                    }
                 } else if (part.fileData) {
                     messageParts.push({
                         type: 'input_file',
@@ -359,10 +436,22 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
      * Responses API 使用 SSE 发送事件，每个 chunk 是一个完整的 JSON 事件
      */
     parseStreamChunk(chunk: any): StreamChunk {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
+            return {
+                delta: [],
+                done: true,
+                finishReason: 'done'
+            };
+        }
+
         const parts: ContentPart[] = [];
         let done = false;
         let usage: any;
         let finishReason: string | undefined;
+        const responseId =
+            (typeof (chunk as any)?.response_id === 'string' ? (chunk as any).response_id : undefined) ??
+            (typeof (chunk as any)?.responseId === 'string' ? (chunk as any).responseId : undefined) ??
+            (typeof chunk?.response?.id === 'string' ? chunk.response.id : undefined);
 
         // 根据事件类型处理
         switch (chunk.type) {
@@ -471,7 +560,8 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             done,
             usage,
             finishReason,
-            modelVersion: chunk.response?.model
+            modelVersion: chunk.response?.model,
+            responseId
         };
     }
 

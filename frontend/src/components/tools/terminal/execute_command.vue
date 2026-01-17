@@ -14,8 +14,14 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTerminalStore } from '../../../stores/terminalStore'
 import CustomScrollbar from '../../common/CustomScrollbar.vue'
 import { useI18n } from '../../../composables/useI18n'
+import { sendToExtension } from '../../../utils/vscode'
 
 const { t } = useI18n()
+
+type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
+
+const packageManagerCache = new Map<string, PackageManager | null>()
+const packageManagerPromiseCache = new Map<string, Promise<PackageManager | null>>()
 
 const props = defineProps<{
   args: Record<string, unknown>
@@ -209,6 +215,313 @@ const defaultExpanded = computed(() => {
   return false
 })
 
+// ========== 错误定位（打开报错文件/跳转到行列）==========
+
+interface FileLocation {
+  path: string
+  line: number
+  column: number
+}
+
+function stripAnsi(input: string): string {
+  // eslint-disable-next-line no-control-regex
+  return input.replace(/\u001b\[[0-9;]*m/g, '')
+}
+
+function normalizePathToken(p: string): string {
+  return p.trim().replace(/^[`"'(]+/, '').replace(/[`"'),;]+$/, '')
+}
+
+function looksLikeFilePath(p: string): boolean {
+  if (!p) return false
+  if (p.includes('://')) return false
+  return p.includes('/') || p.includes('\\') || p.includes('.')
+}
+
+function parseFirstFileLocation(text: string): FileLocation | null {
+  if (!text) return null
+  const lines = stripAnsi(text).split(/\r?\n/)
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) continue
+
+    // tsc: path(line,col)
+    let m = line.match(/(.+?)\((\d+),(\d+)\)/)
+    if (m) {
+      const p = normalizePathToken(m[1])
+      if (looksLikeFilePath(p)) return { path: p, line: Number(m[2]), column: Number(m[3]) }
+    }
+
+    // Windows: C:\path\to\file:line:col
+    m = line.match(/([A-Za-z]:\\.+?):(\d+):(\d+)/)
+    if (m) {
+      const p = normalizePathToken(m[1])
+      if (looksLikeFilePath(p)) return { path: p, line: Number(m[2]), column: Number(m[3]) }
+    }
+
+    // Common: path:line:col
+    m = line.match(/([^\s:()]+):(\d+):(\d+)/)
+    if (m) {
+      const p = normalizePathToken(m[1])
+      if (looksLikeFilePath(p)) return { path: p, line: Number(m[2]), column: Number(m[3]) }
+    }
+  }
+
+  return null
+}
+
+const hasFailure = computed(() => {
+  const result = props.result as Record<string, any> | undefined
+  const resultError = result?.error as string | undefined
+
+  if (props.error || resultError) return true
+  if (exitCode.value !== undefined && exitCode.value !== 0) return true
+
+  return false
+})
+
+const diagnosticText = computed(() => {
+  if (output.value) return output.value
+  if (props.error) return props.error
+  const result = props.result as Record<string, any> | undefined
+  const resultError = result?.error as string | undefined
+  return resultError || ''
+})
+
+const firstErrorLocation = computed(() => parseFirstFileLocation(diagnosticText.value))
+
+// ========== 建议下一条命令（基于错误类型）==========
+
+function inferPackageManagerFromCommand(cmd: string): PackageManager | null {
+  const lower = String(cmd || '').toLowerCase()
+  if (/\bpnpm\b/.test(lower)) return 'pnpm'
+  if (/\byarn\b/.test(lower)) return 'yarn'
+  if (/\bbunx?\b/.test(lower)) return 'bun'
+  if (/\bnpm\b/.test(lower) || /\bnpx\b/.test(lower)) return 'npm'
+  return null
+}
+
+function joinPath(base: string, file: string): string {
+  const b = String(base || '').trim().replace(/\\/g, '/').replace(/\/+$/, '')
+  if (!b) return file
+  return `${b}/${file}`
+}
+
+async function workspaceFileExists(filePath: string): Promise<boolean> {
+  try {
+    const resp = await sendToExtension<{ success: boolean; exists: boolean }>(
+      'patch.getWorkspaceFileState',
+      { path: filePath }
+    )
+    return Boolean(resp?.success && resp.exists)
+  } catch {
+    return false
+  }
+}
+
+async function detectPackageManager(cmd: string, cwdPath: string): Promise<PackageManager | null> {
+  const fromCmd = inferPackageManagerFromCommand(cmd)
+  if (fromCmd) return fromCmd
+
+  const cacheKey = `${cwdPath || ''}`
+  if (packageManagerCache.has(cacheKey)) {
+    return packageManagerCache.get(cacheKey) || null
+  }
+  if (packageManagerPromiseCache.has(cacheKey)) {
+    return await packageManagerPromiseCache.get(cacheKey)!
+  }
+
+  const promise = (async (): Promise<PackageManager | null> => {
+    const searchDirs = [cwdPath, ''].map(s => String(s || '').trim()).filter((v, i, arr) => arr.indexOf(v) === i)
+
+    const candidates: Array<{ pm: PackageManager; files: string[] }> = [
+      { pm: 'pnpm', files: ['pnpm-lock.yaml', 'pnpm-workspace.yaml'] },
+      { pm: 'yarn', files: ['yarn.lock'] },
+      { pm: 'npm', files: ['package-lock.json'] },
+      { pm: 'bun', files: ['bun.lockb', 'bun.lock'] }
+    ]
+
+    for (const dir of searchDirs) {
+      for (const c of candidates) {
+        const checks = await Promise.all(c.files.map(f => workspaceFileExists(joinPath(dir, f))))
+        if (checks.some(Boolean)) {
+          packageManagerCache.set(cacheKey, c.pm)
+          return c.pm
+        }
+      }
+    }
+
+    packageManagerCache.set(cacheKey, null)
+    return null
+  })()
+
+  packageManagerPromiseCache.set(cacheKey, promise)
+  const result = await promise.finally(() => {
+    packageManagerPromiseCache.delete(cacheKey)
+  })
+  return result
+}
+
+function extractMissingCommand(text: string): string | null {
+  const raw = stripAnsi(String(text || ''))
+
+  // zsh: command not found: pnpm
+  let m = raw.match(/command not found:\s*([A-Za-z0-9._-]+)/i)
+  if (m?.[1]) return m[1]
+
+  // bash: pnpm: command not found
+  m = raw.match(/(?:^|\n|:)\s*([A-Za-z0-9._-]+):\s*command not found\b/i)
+  if (m?.[1]) return m[1]
+
+  // Windows: 'pnpm' is not recognized as an internal or external command
+  m = raw.match(/'([^']+)'\s+is not recognized as an internal or external command/i)
+  if (m?.[1]) return m[1]
+
+  return null
+}
+
+function wrapExec(pm: PackageManager, original: string): string {
+  const cmd = String(original || '').trim()
+  if (!cmd) return cmd
+  if (pm === 'pnpm') return `pnpm exec ${cmd}`
+  if (pm === 'npm') return `npm exec -- ${cmd}`
+  if (pm === 'yarn') return `yarn ${cmd}`
+  return `bunx ${cmd}`
+}
+
+function escapeRegExp(input: string): string {
+  return String(input || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function uniq(list: string[]): string[] {
+  return Array.from(new Set(list.map(s => String(s || '').trim()).filter(Boolean)))
+}
+
+function buildNextCommandSuggestions(rawCmd: string, text: string, pm: PackageManager | null): string[] {
+  const cmd = String(rawCmd || '').trim()
+  const lower = stripAnsi(String(text || '')).toLowerCase()
+  const suggestions: string[] = []
+
+  const missing = extractMissingCommand(text)
+  const effectivePm = pm || inferPackageManagerFromCommand(cmd)
+
+  if (missing) {
+    const missingLower = missing.toLowerCase()
+    if (missingLower === 'pnpm' || missingLower === 'yarn') {
+      suggestions.push('corepack enable')
+    }
+
+    if (effectivePm && ['tsc', 'eslint', 'jest', 'vitest', 'prettier', 'turbo', 'nx'].includes(missingLower)) {
+      const startsWithMissing = new RegExp(`^${escapeRegExp(missingLower)}(\\s|$)`, 'i').test(cmd)
+      if (startsWithMissing) {
+        suggestions.push(wrapExec(effectivePm, cmd))
+      }
+    }
+  }
+
+  const looksLikeMissingNodeDeps =
+    lower.includes('cannot find module') ||
+    lower.includes('err_module_not_found') ||
+    lower.includes('module_not_found') ||
+    lower.includes('cannot find package') ||
+    (lower.includes('node_modules') && lower.includes('enoent'))
+
+  if (looksLikeMissingNodeDeps) {
+    const pmCmd = effectivePm || 'npm'
+    suggestions.push(`${pmCmd} install`)
+  }
+
+  const looksLikeMissingScript =
+    lower.includes('missing script:') ||
+    lower.includes('err_pnpm_no_script') ||
+    lower.includes('no script named') ||
+    lower.includes('missing script')
+
+  if (looksLikeMissingScript) {
+    const pmCmd = effectivePm || 'npm'
+    suggestions.push(`${pmCmd} run`)
+  }
+
+  return uniq(suggestions).slice(0, 3)
+}
+
+const detectedPackageManager = ref<PackageManager | null>(null)
+const detectingPackageManager = ref(false)
+
+async function refreshPackageManager() {
+  if (detectingPackageManager.value) return
+  detectingPackageManager.value = true
+  try {
+    detectedPackageManager.value = await detectPackageManager(command.value, cwd.value)
+  } finally {
+    detectingPackageManager.value = false
+  }
+}
+
+onMounted(() => {
+  refreshPackageManager()
+})
+
+watch([command, cwd], () => {
+  refreshPackageManager()
+})
+
+const nextCommandSuggestions = computed(() => {
+  if (!hasFailure.value || isRunning.value) return []
+  return buildNextCommandSuggestions(command.value, diagnosticText.value, detectedPackageManager.value)
+})
+
+const hasNextSuggestions = computed(() => nextCommandSuggestions.value.length > 0)
+
+const copiedSuggestion = ref<string>('')
+async function copySuggestionCommand(cmd: string) {
+  if (!cmd) return
+  try {
+    await navigator.clipboard.writeText(cmd)
+    copiedSuggestion.value = cmd
+    setTimeout(() => {
+      if (copiedSuggestion.value === cmd) copiedSuggestion.value = ''
+    }, 1000)
+  } catch (err) {
+    console.error('复制建议命令失败:', err)
+  }
+}
+
+const canOpenFirstError = computed(() =>
+  hasFailure.value && !isRunning.value && !!firstErrorLocation.value
+)
+
+const openFirstErrorTitle = computed(() => {
+  const loc = firstErrorLocation.value
+  if (!loc) return ''
+  return t('components.tools.terminal.executeCommandPanel.jumpToErrorTooltip', {
+    path: loc.path,
+    line: loc.line,
+    column: loc.column
+  })
+})
+
+const opening = ref(false)
+
+async function openFirstError() {
+  const loc = firstErrorLocation.value
+  if (!loc || opening.value) return
+
+  opening.value = true
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', {
+      path: loc.path,
+      line: loc.line,
+      column: loc.column
+    })
+  } catch (err) {
+    console.warn('Failed to open error location:', err)
+  } finally {
+    opening.value = false
+  }
+}
+
 const expanded = ref(false)
 const userToggled = ref(false)
 
@@ -368,6 +681,16 @@ watch(isRunning, (running) => {
         </button>
 
         <button
+          v-if="canOpenFirstError"
+          class="icon-btn"
+          :disabled="opening"
+          :title="openFirstErrorTitle"
+          @click.stop="openFirstError"
+        >
+          <span class="codicon codicon-go-to-file"></span>
+        </button>
+
+        <button
           v-if="output"
           class="icon-btn"
           :class="{ success: copied }"
@@ -389,6 +712,26 @@ watch(isRunning, (running) => {
 
     <!-- 终端输出块 -->
     <div v-if="expanded" class="panel-body">
+      <div v-if="hasNextSuggestions" class="next-commands">
+        <div class="next-commands-title">
+          <i class="codicon codicon-lightbulb"></i>
+          <span>{{ t('components.tools.terminal.executeCommandPanel.nextCommandsTitle') }}</span>
+        </div>
+        <div class="next-commands-list">
+          <div v-for="c in nextCommandSuggestions" :key="c" class="next-command-row">
+            <code class="next-command-code">{{ c }}</code>
+            <button
+              class="icon-btn"
+              :class="{ success: copiedSuggestion === c }"
+              :title="copiedSuggestion === c ? t('common.copied') : t('common.copy')"
+              @click.stop="copySuggestionCommand(c)"
+            >
+              <span :class="['codicon', copiedSuggestion === c ? 'codicon-check' : 'codicon-copy']"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="error || resultData.error" class="output-content error">
         <pre class="output-code"><code>{{ error || resultData.error }}</code></pre>
       </div>
@@ -578,6 +921,49 @@ watch(isRunning, (running) => {
 /* 输出块 */
 .panel-body {
   border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+}
+
+.next-commands {
+  border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  background: rgba(127, 127, 127, 0.04);
+}
+
+.next-commands-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.next-commands-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.next-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.next-command-row:first-child {
+  border-top: none;
+}
+
+.next-command-code {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .output-content {

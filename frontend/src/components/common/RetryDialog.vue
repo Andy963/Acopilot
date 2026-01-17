@@ -96,18 +96,35 @@ function handleRestoreAndRetry() {
             <button class="dialog-btn cancel" @click="handleCancel">
               {{ t('components.common.retryDialog.cancel') }}
             </button>
-            <!-- 有检查点时显示回档选项 -->
-            <button
-              v-if="latestCheckpoint"
-              class="dialog-btn restore"
-              @click="handleRestoreAndRetry"
-            >
-              <i class="codicon codicon-discard"></i>
-              {{ formatCheckpointDesc(latestCheckpoint) }}
-            </button>
-            <button class="dialog-btn confirm" @click="handleRetry">
-              {{ t('components.common.retryDialog.retry') }}
-            </button>
+
+            <div class="dialog-footer-actions">
+              <!-- 有检查点：提供“直接重试”和“回档并重试” -->
+              <button
+                v-if="latestCheckpoint"
+                class="dialog-btn secondary"
+                @click="handleRetry"
+              >
+                {{ t('components.common.retryDialog.directRetry') }}
+              </button>
+              <button
+                v-if="latestCheckpoint"
+                class="dialog-btn primary"
+                :title="formatCheckpointDesc(latestCheckpoint)"
+                @click="handleRestoreAndRetry"
+              >
+                <i class="codicon codicon-discard"></i>
+                {{ t('components.common.retryDialog.restoreAndRetry') }}
+              </button>
+
+              <!-- 无检查点：仅显示重试 -->
+              <button
+                v-else
+                class="dialog-btn primary"
+                @click="handleRetry"
+              >
+                {{ t('components.common.retryDialog.retry') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -126,7 +143,7 @@ function handleRestoreAndRetry() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 20000;
 }
 
 .dialog {
@@ -195,55 +212,71 @@ function handleRestoreAndRetry() {
 
 .dialog-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   border-top: 1px solid var(--vscode-panel-border);
   flex-wrap: wrap;
 }
 
+.dialog-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .dialog-btn {
-  padding: 6px 14px;
-  border-radius: 4px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   transition: background-color 0.15s, opacity 0.15s;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .dialog-btn.cancel {
   background: transparent;
+  border: none;
   color: var(--vscode-foreground);
-  border: 1px solid var(--vscode-panel-border);
+  opacity: 0.8;
+  padding: 0 6px;
 }
 
 .dialog-btn.cancel:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  opacity: 1;
+  text-decoration: underline;
 }
 
-.dialog-btn.restore {
-  background: var(--vscode-editorInfo-foreground);
-  color: white;
-}
-
-.dialog-btn.restore:hover {
-  opacity: 0.9;
-}
-
-.dialog-btn.restore .codicon {
-  font-size: 12px;
-}
-
-.dialog-btn.confirm {
+.dialog-btn.primary {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
 }
 
-.dialog-btn.confirm:hover {
+.dialog-btn.primary:hover {
   background: var(--vscode-button-hoverBackground);
+}
+
+.dialog-btn.secondary {
+  background: var(--vscode-button-secondaryBackground, var(--vscode-toolbar-hoverBackground));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  border-color: var(--vscode-panel-border);
+}
+
+.dialog-btn.secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+}
+
+.dialog-btn .codicon {
+  font-size: 14px;
 }
 
 /* 动画 */

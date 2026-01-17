@@ -1,5 +1,5 @@
 /**
- * LimCode Backend - i18n 类型定义
+ * Acopilot Backend - i18n 类型定义
  * 与前端共享相同的语言配置
  */
 

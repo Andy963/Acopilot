@@ -1,5 +1,5 @@
 /**
- * LimCode - 对话历史管理器
+ * Acopilot - 对话历史管理器
  *
  * 核心职责:
  * - 管理 Gemini 格式的对话历史
@@ -26,6 +26,7 @@ import {
 } from './types';
 import type { IStorageAdapter } from './storage';
 import { cleanFunctionResponseForAPI } from './helpers';
+import { isInternalMarkerMimeType } from './internalMarkers';
 
 /**
  * 多模态能力（用于过滤历史中的多模态数据）
@@ -805,6 +806,11 @@ export class ConversationManager {
             if (!part.inlineData) {
                 return part;
             }
+
+            // Internal marker payloads should never be forwarded to any provider.
+            if (isInternalMarkerMimeType(part.inlineData.mimeType)) {
+                return null;
+            }
             
             // 获取多模态能力配置
             const capability = opts.multimodalCapability;
@@ -876,8 +882,11 @@ export class ConversationManager {
                 return part;
             }
             
-            // 移除 rejected 字段
-            const { rejected, ...cleanedFunctionCall } = part.functionCall;
+            // 移除 rejected 字段；Gemini 不支持 functionCall.id（仅内部关联用）
+            const { rejected, id, ...restFunctionCall } = part.functionCall as any;
+            const cleanedFunctionCall = channelType === 'gemini'
+                ? restFunctionCall
+                : { ...restFunctionCall, ...(id ? { id } : {}) };
             return {
                 ...part,
                 functionCall: cleanedFunctionCall
@@ -918,11 +927,19 @@ export class ConversationManager {
             const cleanedResponse = cleanFunctionResponseForAPI(
                 part.functionResponse.response as Record<string, unknown>
             );
-            
+
+            // Gemini API 不支持 functionResponse.id / functionResponse.parts（仅内部或部分渠道使用）。
+            // - id: 仅用于 Anthropic 关联 tool_use/tool_result
+            // - parts: 内部用于携带多模态工具结果；Gemini 通过 message.parts 直接承载即可
+            const { id, parts, ...restFunctionResponse } = part.functionResponse as any;
+            const finalFunctionResponse = channelType === 'gemini'
+                ? restFunctionResponse
+                : { ...restFunctionResponse, ...(id ? { id } : {}), ...(parts ? { parts } : {}) };
+
             return {
                 ...part,
                 functionResponse: {
-                    ...part.functionResponse,
+                    ...finalFunctionResponse,
                     response: cleanedResponse
                 }
             };
@@ -937,6 +954,21 @@ export class ConversationManager {
             const isFunctionResponse = !!message.isFunctionResponse;
             
             let parts = message.parts;
+
+            // Gemini: 将 functionResponse.parts（多模态工具结果）提升为 message.parts，避免发送不被支持的嵌套结构。
+            if (channelType === 'gemini') {
+                parts = parts.flatMap((part) => {
+                    if (!part.functionResponse?.parts || part.functionResponse.parts.length === 0) {
+                        return [part];
+                    }
+
+                    const { parts: nestedParts, ...restFunctionResponse } = part.functionResponse as any;
+                    return [
+                        { ...part, functionResponse: restFunctionResponse },
+                        ...nestedParts
+                    ];
+                });
+            }
             
             // 处理思考内容 (Thought Text/Reasoning Content)
             // 注意：思考发送不依赖于 includeThoughts（渠道是否支持思考）

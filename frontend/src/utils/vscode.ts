@@ -165,3 +165,110 @@ export async function loadDiffContent(diffContentId: string): Promise<{
     return null
   }
 }
+
+/**
+ * 获取工作区文件状态（hash/dirty/行数等）
+ */
+export async function getWorkspaceFileState(path: string): Promise<{
+  success: boolean
+  exists?: boolean
+  isDirty?: boolean
+  hash?: string
+  lineCount?: number
+  charCount?: number
+} | null> {
+  try {
+    return await sendToExtension('patch.getWorkspaceFileState', { path })
+  } catch (err) {
+    console.error('Failed to get workspace file state:', err)
+    return null
+  }
+}
+
+/**
+ * 覆盖写入工作区文件内容（可选保存）
+ */
+export async function applyWorkspaceFileContent(
+  path: string,
+  content: string,
+  save: boolean = false
+): Promise<{ success: boolean } | null> {
+  try {
+    return await sendToExtension('patch.applyWorkspaceFileContent', { path, content, save })
+  } catch (err) {
+    console.error('Failed to apply workspace file content:', err)
+    return null
+  }
+}
+
+/**
+ * 在工作区文件中应用单个 diff block（from -> to，可选 startLine）
+ */
+export async function applyWorkspaceFileDiffBlock(input: {
+  path: string
+  from: string
+  to: string
+  startLine?: number
+  save?: boolean
+}): Promise<{ success: boolean; error?: string; matchCount?: number; matchedLine?: number; hash?: string } | null> {
+  try {
+    return await sendToExtension('patch.applyWorkspaceFileDiffBlock', input)
+  } catch (err) {
+    console.error('Failed to apply workspace file diff block:', err)
+    return null
+  }
+}
+
+/**
+ * 保存工作区文件
+ */
+export async function saveWorkspaceFile(path: string): Promise<{ success: boolean } | null> {
+  try {
+    return await sendToExtension('patch.saveWorkspaceFile', { path })
+  } catch (err) {
+    console.error('Failed to save workspace file:', err)
+    return null
+  }
+}
+
+/**
+ * 删除工作区文件（优先放入回收站）
+ */
+export async function deleteWorkspaceFile(path: string): Promise<{ success: boolean; deleted?: boolean } | null> {
+  try {
+    return await sendToExtension('patch.deleteWorkspaceFile', { path })
+  } catch (err) {
+    console.error('Failed to delete workspace file:', err)
+    return null
+  }
+}
+
+/**
+ * 获取指定文件的 git 状态（porcelain）
+ */
+export async function getGitStatusForPaths(paths: string[]): Promise<{ success: boolean; statuses: any } | null> {
+  try {
+    return await sendToExtension('git.getStatusForPaths', { paths })
+  } catch (err) {
+    console.error('Failed to get git status:', err)
+    return null
+  }
+}
+
+export async function stageGitFile(path: string): Promise<{ success: boolean } | null> {
+  try {
+    return await sendToExtension('git.stageFile', { path })
+  } catch (err) {
+    console.error('Failed to stage git file:', err)
+    return null
+  }
+}
+
+export async function unstageGitFile(path: string): Promise<{ success: boolean } | null> {
+  try {
+    return await sendToExtension('git.unstageFile', { path })
+  } catch (err) {
+    console.error('Failed to unstage git file:', err)
+    return null
+  }
+}

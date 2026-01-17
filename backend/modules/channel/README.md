@@ -78,7 +78,7 @@ const configId2 = await configManager.createConfig({
 ### 非流式生成
 
 ```typescript
-import { ChannelManager } from 'limcode';
+import { ChannelManager } from 'acopilot';
 
 const channelManager = new ChannelManager(configManager);
 

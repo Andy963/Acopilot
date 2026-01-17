@@ -623,9 +623,10 @@ function updateThinkingConfig(field: string, value: any) {
   transform: translateY(-50%);
   height: 16px;
   width: 16px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-checkbox-background, var(--vscode-input-background, rgba(127, 127, 127, 0.08)));
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-panel-border));
   border-radius: 3px;
+  box-sizing: border-box;
   transition: all 0.15s;
 }
 
@@ -646,7 +647,7 @@ function updateThinkingConfig(field: string, value: any) {
   top: 2px;
   width: 4px;
   height: 8px;
-  border: solid var(--vscode-button-foreground);
+  border: solid var(--vscode-checkbox-foreground, var(--vscode-button-foreground));
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }

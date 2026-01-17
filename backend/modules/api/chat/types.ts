@@ -1,10 +1,10 @@
 /**
- * LimCode - 对话 API 类型定义
+ * Acopilot - 对话 API 类型定义
  * 
  * 定义对话相关的请求和响应类型
  */
 
-import type { Content } from '../../conversation/types';
+import type { Content, ContextInjectedInfo, ContextInjectionOverrides, SelectionReference } from '../../conversation/types';
 import type { StreamChunk } from '../../channel/types';
 import type { CheckpointRecord } from '../../checkpoint';
 
@@ -51,6 +51,20 @@ export interface ChatRequestData {
     
     /** 附件列表（可选） */
     attachments?: AttachmentData[];
+
+    /**
+     * 本条消息引用（可选）
+     *
+     * 仅对本次请求生效，并会被持久化到该条 user 消息上以支持重试/复现。
+     */
+    selectionReferences?: SelectionReference[];
+
+    /**
+     * 本条消息级上下文注入覆写（可选）
+     *
+     * 仅对本次请求生效，并会被持久化到该条 user 消息上以支持重试/复现。
+     */
+    contextOverrides?: ContextInjectionOverrides;
     
     /** 取消信号 */
     abortSignal?: AbortSignal;
@@ -147,6 +161,86 @@ export interface ChatStreamCheckpointsData {
     checkpoints: CheckpointRecord[];
     /** 标记这是检查点数据 */
     checkpointOnly: true;
+}
+
+// ==================== Context Inspector ====================
+
+/**
+ * Context Inspector 模块预览
+ */
+export interface ContextInspectorModule {
+    /** 模块标题（来自 "====" 段落标题） */
+    title: string;
+    /** 内容预览（可能被截断） */
+    contentPreview: string;
+    /** 原始字符数 */
+    charCount: number;
+    /** 是否被截断 */
+    truncated: boolean;
+}
+
+/**
+ * Context Inspector 工具信息
+ */
+export interface ContextInspectorTools {
+    /** 工具模式 */
+    toolMode: 'function_call' | 'xml' | 'json';
+    /** 工具总数 */
+    total: number;
+    /** MCP 工具数量（名称以 mcp__ 开头） */
+    mcp: number;
+    /** 工具定义预览（仅 xml/json 模式可能有，可能被截断） */
+    definitionPreview?: string;
+    /** 工具定义原始字符数 */
+    definitionCharCount?: number;
+    /** 工具定义是否被截断 */
+    definitionTruncated?: boolean;
+}
+
+/**
+ * Context Inspector 裁剪信息
+ */
+export interface ContextInspectorTrim {
+    /** 原始历史消息数量 */
+    fullHistoryCount: number;
+    /** 裁剪后用于发送的历史消息数量 */
+    trimmedHistoryCount: number;
+    /** 裁剪起始索引（在完整历史中的索引） */
+    trimStartIndex: number;
+    /** 最后一个总结消息索引（不存在则为 -1） */
+    lastSummaryIndex: number;
+    /** 有效起始索引（lastSummaryIndex>=0 时等于 lastSummaryIndex，否则为 0） */
+    effectiveStartIndex: number;
+}
+
+/**
+ * Context Inspector 预览数据
+ */
+export interface ContextInspectorData {
+    /** 生成时间戳（毫秒） */
+    generatedAt: number;
+    /** 对话 ID（可选：未创建对话时为空） */
+    conversationId?: string;
+    /** 配置 ID */
+    configId: string;
+    /** 渠道类型 */
+    providerType: string;
+    /** 模型名称 */
+    model: string;
+    /** 工具信息 */
+    tools: ContextInspectorTools;
+    /** 系统指令完整预览（可能被截断） */
+    systemInstructionPreview: string;
+    /** 系统指令原始字符数 */
+    systemInstructionCharCount: number;
+    /** 系统指令是否被截断 */
+    systemInstructionTruncated: boolean;
+    /** 解析出的模块列表（基于 "====" 分段） */
+    modules: ContextInspectorModule[];
+    /** 注入明细（Pinned Files / Skill / Attachments 等） */
+    injected?: ContextInjectedInfo;
+    /** 裁剪信息（无对话时为空） */
+    trim?: ContextInspectorTrim;
 }
 
 // ==================== 重试消息 ====================

@@ -2,6 +2,8 @@
  * 工具管理消息处理器
  */
 
+import * as path from 'path';
+import * as vscode from 'vscode';
 import { t } from '../../backend/i18n';
 import { checkAllShellsAvailability, killTerminalProcess, getTerminalOutput, cancelImageGeneration, TaskManager } from '../../backend/tools';
 import type { HandlerContext, MessageHandler } from '../types';
@@ -249,6 +251,53 @@ export const terminalGetOutput: MessageHandler = async (data, requestId, ctx) =>
   }
 };
 
+function resolveRunInTerminalCwd(raw: unknown): string | undefined {
+  const workspaces = vscode.workspace.workspaceFolders;
+  if (!workspaces || workspaces.length === 0) return undefined;
+
+  const cwd = typeof raw === 'string' ? raw.trim() : '';
+  if (!cwd) return workspaces[0].uri.fsPath;
+
+  if (path.isAbsolute(cwd)) return cwd;
+
+  const normalized = cwd.replace(/\\/g, '/').replace(/^\/+/, '');
+  const segments = normalized.split('/').filter(Boolean);
+  const workspaceName = segments[0] || '';
+  const rest = segments.slice(1).join(path.sep);
+
+  if (workspaces.length > 1 && workspaceName) {
+    const matched = workspaces.find(ws => ws.name === workspaceName);
+    if (matched) {
+      return rest ? path.join(matched.uri.fsPath, rest) : matched.uri.fsPath;
+    }
+  }
+
+  return path.join(workspaces[0].uri.fsPath, normalized);
+}
+
+export const terminalRunInTerminal: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const command = typeof data?.command === 'string' ? data.command : '';
+    if (!command.trim()) {
+      ctx.sendError(requestId, 'RUN_IN_TERMINAL_ERROR', 'command is required');
+      return;
+    }
+
+    const cwd = resolveRunInTerminalCwd(data?.cwd);
+    const terminal = vscode.window.createTerminal({
+      name: 'Acopilot',
+      cwd
+    });
+
+    terminal.show(true);
+    terminal.sendText(command, true);
+
+    ctx.sendResponse(requestId, { success: true });
+  } catch (error: any) {
+    ctx.sendError(requestId, 'RUN_IN_TERMINAL_ERROR', error.message || 'Failed to run in terminal');
+  }
+};
+
 // ========== 图像生成 ==========
 
 export const imageGenerationCancel: MessageHandler = async (data, requestId, ctx) => {
@@ -341,6 +390,7 @@ export function registerToolHandlers(registry: Map<string, MessageHandler>): voi
   // 终端管理
   registry.set('terminal.kill', terminalKill);
   registry.set('terminal.getOutput', terminalGetOutput);
+  registry.set('terminal.runInTerminal', terminalRunInTerminal);
   
   // 图像生成
   registry.set('imageGeneration.cancel', imageGenerationCancel);

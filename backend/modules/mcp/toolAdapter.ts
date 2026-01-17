@@ -1,5 +1,5 @@
 /**
- * LimCode - MCP 工具适配器
+ * Acopilot - MCP 工具适配器
  *
  * 将 MCP 工具转换为内置工具格式，支持 XML/JSON/Function Call
  */
