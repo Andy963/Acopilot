@@ -1,5 +1,5 @@
 /**
- * LimCode - 前后端通信 API 类型定义
+ * Acopilot - 前后端通信 API 类型定义
  *
  * 定义 Extension 和 Webview UI 之间的消息协议
  */

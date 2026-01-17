@@ -10,6 +10,7 @@ import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
 import { createAndPersistConversation } from './conversationActions'
 import { clearCheckpointsFromIndex } from './checkpointActions'
+import { persistPinnedPromptForConversation } from './pinnedPromptActions'
 
 /**
  * 取消流式的回调类型
@@ -29,6 +30,9 @@ export async function sendMessage(
   
   state.error.value = null
   if (state.isWaitingForResponse.value) return
+
+  // 新一轮对话开始前，隐藏“改动后校验”提示（上一轮的提示不应阻塞后续对话）
+  state.postEditValidationPending.value = false
   
   state.isLoading.value = true
   state.isStreaming.value = true
@@ -39,6 +43,22 @@ export async function sendMessage(
       const newId = await createAndPersistConversation(state, messageText)
       if (!newId) {
         throw new Error('Failed to create conversation')
+      }
+
+      // 对话创建后，将当前选择的固定提示词/技能持久化（用于首条消息生效）
+      await persistPinnedPromptForConversation(state, newId)
+
+      // 对话创建后，若存在 Plan Runner 草稿，也一并持久化（用于重启后恢复）
+      if (state.planRunner.value) {
+        try {
+          await sendToExtension('conversation.setCustomMetadata', {
+            conversationId: newId,
+            key: 'planRunner',
+            value: JSON.parse(JSON.stringify(state.planRunner.value))
+          })
+        } catch (err) {
+          console.warn('Failed to persist plan runner state:', err)
+        }
       }
     }
     
@@ -86,13 +106,30 @@ export async function sendMessage(
           thumbnail: att.thumbnail
         }))
       : undefined
+
+    const contextOverrides = state.messageContextOverrides.value
+    const hasContextOverrides = contextOverrides && Object.keys(contextOverrides).length > 0
+
+    const selectionReferences = state.selectionReferences.value
+    const hasSelectionReferences = Array.isArray(selectionReferences) && selectionReferences.length > 0
+
+    const selectionReferencesPayload = hasSelectionReferences
+      ? selectionReferences.map((r) => ({ ...r }))
+      : undefined
+    const contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
     
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
       configId: state.configId.value,
       message: messageText,
-      attachments: attachmentData
+      attachments: attachmentData,
+      selectionReferences: selectionReferencesPayload,
+      contextOverrides: contextOverridesPayload
     })
+
+    // 仅本条消息生效：发送后清空（避免影响下一条消息）
+    state.messageContextOverrides.value = {}
+    state.selectionReferences.value = []
     
   } catch (err: any) {
     if (state.isStreaming.value) {

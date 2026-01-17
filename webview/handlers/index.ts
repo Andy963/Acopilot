@@ -15,7 +15,11 @@ import { registerStoragePathHandlers } from './StoragePathHandlers';
 import { registerContextHandlers } from './ContextHandlers';
 import { registerFileHandlers } from './FileHandlers';
 import { registerDiffHandlers } from './DiffHandlers';
+import { registerPatchHandlers } from './PatchHandlers';
+import { registerGitHandlers } from './GitHandlers';
 import { registerChatHandlers } from './ChatHandlers';
+import { registerIssueHandlers } from './IssueHandlers';
+import { registerValidationHandlers } from './ValidationHandlers';
 
 // 重新导出各个模块
 export * from './ConversationHandlers';
@@ -29,7 +33,11 @@ export * from './StoragePathHandlers';
 export * from './ContextHandlers';
 export * from './FileHandlers';
 export * from './DiffHandlers';
+export * from './PatchHandlers';
+export * from './GitHandlers';
 export * from './ChatHandlers';
+export * from './IssueHandlers';
+export * from './ValidationHandlers';
 
 /**
  * 创建并注册所有消息处理器
@@ -49,7 +57,11 @@ export function createMessageHandlerRegistry(): Map<string, MessageHandler> {
   registerContextHandlers(registry);
   registerFileHandlers(registry);
   registerDiffHandlers(registry);
+  registerPatchHandlers(registry);
+  registerGitHandlers(registry);
   registerChatHandlers(registry);
+  registerIssueHandlers(registry);
+  registerValidationHandlers(registry);
   
   return registry;
 }

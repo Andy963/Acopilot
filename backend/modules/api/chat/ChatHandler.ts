@@ -1,5 +1,5 @@
 /**
- * LimCode - 对话处理器
+ * Acopilot - 对话处理器
  *
  * 负责处理对话请求，协调各个模块
  */
@@ -16,13 +16,15 @@ import type { McpManager } from '../../mcp/McpManager';
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
 import { TokenCountService, type TokenCountResult } from '../../channel/TokenCountService';
-import type { Content, ContentPart, ChannelTokenCounts } from '../../conversation/types';
+import type { Content, ContentPart, ChannelTokenCounts, ContextInjectionOverrides, SelectionReference } from '../../conversation/types';
 import type { GetHistoryOptions } from '../../conversation/ConversationManager';
 import type { BaseChannelConfig } from '../../config/configs/base';
 import type { StreamChunk, GenerateResponse } from '../../channel/types';
 import { ChannelError, ErrorType } from '../../channel/types';
 import { getDiffManager } from '../../../tools/file/diffManager';
 import { getMultimodalCapability, type MultimodalCapability, type ChannelType as UtilChannelType, type ToolMode as UtilToolMode } from '../../../tools/utils';
+import { convertToolsToJSON } from '../../../tools/jsonFormatter';
+import { convertToolsToXML } from '../../../tools/xmlFormatter';
 import type {
     ChatRequestData,
     ChatSuccessData,
@@ -44,7 +46,11 @@ import type {
     AttachmentData,
     SummarizeContextRequestData,
     SummarizeContextSuccessData,
-    SummarizeContextErrorData
+    SummarizeContextErrorData,
+    ContextInspectorData,
+    ContextInspectorModule,
+    ContextInspectorTrim,
+    ContextInspectorTools
 } from './types';
 import {
     generateToolCallId,
@@ -54,6 +60,9 @@ import {
 } from './utils';
 import { ToolCallParserService, MessageBuilderService, TokenEstimationService, ContextTrimService, ToolExecutionService, SummarizeService, ToolIterationLoopService, CheckpointService, OrphanedToolCallService, DiffInterruptService, ChatFlowService } from './services';
 import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
+import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
+import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './services/selectionReferences';
+import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
 
 /** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
 const DEFAULT_MAX_TOOL_ITERATIONS = 20;
@@ -218,6 +227,78 @@ export class ChatHandler {
     private getMaxToolIterations(): number {
         return this.settingsManager?.getMaxToolIterations() ?? DEFAULT_MAX_TOOL_ITERATIONS;
     }
+
+    private static truncatePreview(text: string, maxChars: number): { preview: string; truncated: boolean; charCount: number } {
+        const safeText = text || '';
+        const charCount = safeText.length;
+        if (charCount <= maxChars) {
+            return { preview: safeText, truncated: false, charCount };
+        }
+        return { preview: safeText.slice(0, maxChars), truncated: true, charCount };
+    }
+
+    private static parseSections(text: string): Array<{ title: string; content: string }> {
+        const marker = '====\n\n';
+        const sections: Array<{ title: string; content: string }> = [];
+        let index = 0;
+
+        while (index < text.length) {
+            const markerPos = text.indexOf(marker, index);
+            if (markerPos === -1) {
+                const tail = text.slice(index).trim();
+                if (tail) {
+                    sections.push({ title: 'TEXT', content: tail });
+                }
+                break;
+            }
+
+            if (markerPos > index) {
+                const prefix = text.slice(index, markerPos).trim();
+                if (prefix) {
+                    sections.push({ title: 'TEXT', content: prefix });
+                }
+            }
+
+            const titleStart = markerPos + marker.length;
+            const titleEnd = text.indexOf('\n\n', titleStart);
+            if (titleEnd === -1) {
+                const rest = text.slice(markerPos).trim();
+                if (rest) {
+                    sections.push({ title: 'TEXT', content: rest });
+                }
+                break;
+            }
+
+            const title = text.slice(titleStart, titleEnd).trim() || 'SECTION';
+            const contentStart = titleEnd + 2;
+            const nextMarkerPos = text.indexOf(marker, contentStart);
+            const rawContent = nextMarkerPos === -1
+                ? text.slice(contentStart)
+                : text.slice(contentStart, nextMarkerPos);
+
+            sections.push({ title, content: rawContent.trim() });
+            index = nextMarkerPos === -1 ? text.length : nextMarkerPos;
+        }
+
+        return sections;
+    }
+
+    private static buildModules(systemInstruction: string, maxCharsPerSection: number): ContextInspectorModule[] {
+        const sections = ChatHandler.parseSections(systemInstruction);
+        return sections.map((s) => {
+            const { preview, truncated, charCount } = ChatHandler.truncatePreview(s.content, maxCharsPerSection);
+            return {
+                title: s.title,
+                contentPreview: preview,
+                charCount,
+                truncated,
+            };
+        });
+    }
+
+    private static countMcpTools(tools: Array<{ name: string }>): number {
+        return tools.filter((t) => typeof t.name === 'string' && t.name.startsWith('mcp__')).length;
+    }
     
     /**
      * 处理非流式对话请求
@@ -362,6 +443,158 @@ export class ChatHandler {
         request: SummarizeContextRequestData
     ): Promise<SummarizeContextSuccessData | SummarizeContextErrorData> {
         return this.summarizeService.handleSummarizeContext(request);
+    }
+
+    /**
+     * 获取 Context Inspector 预览数据（不发起模型请求）
+     */
+    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown; selectionReferences?: SelectionReference[]; contextOverrides?: ContextInjectionOverrides }): Promise<ContextInspectorData> {
+        const conversationId = request.conversationId?.trim();
+        const configId = request.configId;
+        const contextOverrides = request.contextOverrides;
+        const selectionReferences = request.selectionReferences;
+        const toolsEnabled = contextOverrides?.includeTools !== false;
+        const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+
+        // 1. 验证配置
+        const config = await this.configManager.getConfig(configId);
+        if (!config) {
+            throw new Error(t('modules.api.chat.errors.configNotFound', { configId }));
+        }
+        if (!config.enabled) {
+            throw new Error(t('modules.api.chat.errors.configDisabled', { configId }));
+        }
+
+        // 2. 动态系统提示词（包含 pinned prompt）
+        const baseSystemPrompt = this.promptManager.getSystemPrompt(true, contextOverrides);
+        const pinnedPromptBlock = (conversationId && pinnedPromptEnabled)
+            ? await getPinnedPromptBlock(this.conversationManager, conversationId)
+            : '';
+        const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
+        const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt, selectionReferencesBlock]
+            .filter(Boolean)
+            .join('\n\n');
+
+        // 3. 合成系统指令（与 formatter 行为一致）
+        let systemInstruction = (config.systemInstruction as string | undefined) || '';
+        if (dynamicSystemPrompt) {
+            systemInstruction = systemInstruction
+                ? `${systemInstruction}\n\n${dynamicSystemPrompt}`
+                : dynamicSystemPrompt;
+        }
+
+        // 4. 工具预览（与实际过滤逻辑一致）
+        const toolMode = ((config.toolMode || 'function_call') as ContextInspectorTools['toolMode']);
+        const declarations = toolsEnabled
+            ? this.channelManager.getToolDeclarationsForPreview(config as any)
+            : [];
+        const mcpCount = ChatHandler.countMcpTools(declarations);
+
+        let toolsDefinition = '';
+        if (toolMode === 'xml') {
+            toolsDefinition = convertToolsToXML(declarations);
+        } else if (toolMode === 'json') {
+            toolsDefinition = convertToolsToJSON(declarations);
+        }
+
+        // 5. 占位符替换（与 formatter 行为一致）
+        const mcpToolsDefinition = '';
+        if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
+            systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
+            systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
+        } else if (toolsDefinition) {
+            systemInstruction = systemInstruction
+                ? `${systemInstruction}\n\n${toolsDefinition}`
+                : toolsDefinition;
+        }
+
+        // 6. 生成预览（截断避免 UI 卡顿）
+        const systemInstructionPreviewLimit = 80000;
+        const modulePreviewLimit = 12000;
+        const toolDefinitionPreviewLimit = 40000;
+
+        const { preview: systemInstructionPreview, truncated: systemInstructionTruncated, charCount: systemInstructionCharCount } =
+            ChatHandler.truncatePreview(systemInstruction, systemInstructionPreviewLimit);
+
+        const modules = ChatHandler.buildModules(systemInstruction, modulePreviewLimit);
+
+        const toolDefPreview = toolsDefinition
+            ? ChatHandler.truncatePreview(toolsDefinition, toolDefinitionPreviewLimit)
+            : null;
+
+        const tools: ContextInspectorTools = {
+            toolMode,
+            total: declarations.length,
+            mcp: mcpCount,
+            definitionPreview: toolDefPreview?.preview,
+            definitionCharCount: toolDefPreview?.charCount,
+            definitionTruncated: toolDefPreview?.truncated,
+        };
+
+        // 7. 裁剪信息（仅当对话存在时）
+        let trim: ContextInspectorTrim | undefined;
+        if (conversationId) {
+            await this.conversationManager.getHistory(conversationId);
+
+            const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
+            const trimInfo = await this.contextTrimService.getHistoryWithContextTrimInfo(
+                conversationId,
+                config,
+                historyOptions,
+                contextOverrides,
+                selectionReferences
+            );
+
+            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+            let lastSummaryIndex = -1;
+            for (let i = fullHistory.length - 1; i >= 0; i--) {
+                if ((fullHistory[i] as any).isSummary === true) {
+                    lastSummaryIndex = i;
+                    break;
+                }
+            }
+            const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
+
+            trim = {
+                fullHistoryCount: fullHistory.length,
+                trimmedHistoryCount: trimInfo.history.length,
+                trimStartIndex: trimInfo.trimStartIndex,
+                lastSummaryIndex,
+                effectiveStartIndex,
+            };
+        }
+
+        const injected = {
+            pinnedFiles: contextOverrides?.includePinnedFiles === false
+                ? undefined
+                : buildPinnedFilesInjectedInfo(this.settingsManager),
+            pinnedPrompt: conversationId
+                ? (pinnedPromptEnabled ? await getPinnedPromptInjectedInfo(this.conversationManager, conversationId) : { mode: 'none' as const })
+                : undefined,
+            attachments: buildPreviewAttachmentsInjectedInfo(request.attachments),
+            pinnedSelections: getSelectionReferencesInjectedInfo(selectionReferences),
+        };
+        const hasInjected = Boolean(
+            injected.pinnedFiles ||
+            injected.attachments ||
+            injected.pinnedSelections ||
+            (injected.pinnedPrompt && injected.pinnedPrompt.mode !== 'none')
+        );
+
+        return {
+            generatedAt: Date.now(),
+            conversationId: conversationId || undefined,
+            configId,
+            providerType: config.type,
+            model: (config as any).model || '',
+            tools,
+            systemInstructionPreview,
+            systemInstructionCharCount,
+            systemInstructionTruncated,
+            modules,
+            injected: hasInjected ? injected : undefined,
+            trim,
+        };
     }
     
 /**

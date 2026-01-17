@@ -1,5 +1,5 @@
 /**
- * LimCode - 基础配置类型
+ * Acopilot - 基础配置类型
  *
  * 所有渠道配置的基础接口和通用类型
  */
@@ -491,7 +491,13 @@ export function applyCustomBody(originalBody: any, customBody?: CustomBodyConfig
         // 复杂模式：解析完整 JSON 并深度合并
         try {
             const customData = JSON.parse(customBody.json);
-            result = deepMerge(result, customData);
+            // 仅接受对象类型的 custom body（根必须为 object）。
+            // 避免用户误填 array/primitive 导致覆盖整个请求体并破坏必填字段（如 Gemini 的 contents）。
+            if (customData && typeof customData === 'object' && !Array.isArray(customData)) {
+                result = deepMerge(result, customData);
+            } else {
+                console.warn('Custom body JSON must be an object; ignoring non-object root.');
+            }
         } catch (error) {
             console.warn('Failed to parse custom body JSON:', error);
         }

@@ -1,5 +1,5 @@
 /**
- * LimCode Backend - 日本語言語パック
+ * Acopilot Backend - 日本語言語パック
  */
 
 import type { BackendLanguageMessages } from '../types';

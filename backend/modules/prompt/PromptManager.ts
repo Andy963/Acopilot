@@ -1,5 +1,5 @@
 /**
- * LimCode - 系统提示词管理器
+ * Acopilot - 系统提示词管理器
  *
  * 负责组装和管理系统提示词，包括工作区文件树等动态内容
  *
@@ -13,6 +13,7 @@ import * as path from 'path'
 import type { PromptConfig, PromptContext } from './types'
 import { getWorkspaceFileTree, getWorkspaceRoot, getWorkspacesDescription, getAllWorkspaces } from './fileTree'
 import { getGlobalSettingsManager } from '../../core/settingsContext'
+import type { ContextInjectionOverrides } from '../conversation/types'
 
 /**
  * 系统提示词管理器
@@ -59,8 +60,13 @@ export class PromptManager {
     /**
      * 获取系统提示词（使用缓存）
      */
-    getSystemPrompt(forceRefresh: boolean = false): string {
+    getSystemPrompt(forceRefresh: boolean = false, overrides?: ContextInjectionOverrides): string {
         const now = Date.now()
+
+        // 有本次消息级覆写时不使用缓存（覆写不会持久化到全局设置）
+        if (overrides) {
+            return this.generatePrompt(overrides)
+        }
         
         // 检查缓存是否有效
         if (!forceRefresh && 
@@ -84,8 +90,8 @@ export class PromptManager {
      * - 用户删除首条消息后重新发送
      * - 用户编辑首条消息后重试
      */
-    refreshAndGetPrompt(): string {
-        return this.getSystemPrompt(true)
+    refreshAndGetPrompt(overrides?: ContextInjectionOverrides): string {
+        return this.getSystemPrompt(true, overrides)
     }
     
     /**
@@ -94,13 +100,18 @@ export class PromptManager {
      * 始终使用模板模式生成提示词
      * 用户可以通过设置自定义模板内容
      */
-    private generatePrompt(): string {
+    private generatePrompt(overrides?: ContextInjectionOverrides): string {
         const settingsManager = getGlobalSettingsManager()
         const promptConfig = settingsManager?.getSystemPromptConfig()
         
         // 始终使用模板化生成
         const template = promptConfig?.template || ''
-        return this.generateFromTemplate(template, promptConfig?.customPrefix || '', promptConfig?.customSuffix || '')
+        return this.generateFromTemplate(
+            template,
+            promptConfig?.customPrefix || '',
+            promptConfig?.customSuffix || '',
+            overrides
+        )
     }
     
     /**
@@ -116,34 +127,43 @@ export class PromptManager {
      * - {{$TOOLS}} - 工具定义（由外部填充）
      * - {{$MCP_TOOLS}} - MCP 工具定义（由外部填充）
      */
-    private generateFromTemplate(template: string, customPrefix: string, customSuffix: string): string {
-        const contextConfig = getGlobalSettingsManager()?.getContextAwarenessConfig()
+    private generateFromTemplate(
+        template: string,
+        customPrefix: string,
+        customSuffix: string,
+        overrides?: ContextInjectionOverrides
+    ): string {
+        const settingsManager = getGlobalSettingsManager()
+        const contextConfig = settingsManager?.getContextAwarenessConfig()
+        const ignorePatterns = contextConfig?.ignorePatterns ?? []
         
         // 生成各模块内容
         const modules: Record<string, string> = {
             'ENVIRONMENT': this.wrapSection('ENVIRONMENT', this.generateEnvironmentSection()),
-            'WORKSPACE_FILES': (contextConfig?.includeWorkspaceFiles ?? this.config.includeWorkspaceFiles)
+            'WORKSPACE_FILES': (overrides?.includeWorkspaceFiles ?? contextConfig?.includeWorkspaceFiles ?? this.config.includeWorkspaceFiles)
                 ? this.wrapSection('WORKSPACE FILES', this.generateFileTreeSection(
                     contextConfig?.maxFileDepth ?? this.config.maxDepth ?? 10,
-                    contextConfig?.ignorePatterns ?? []
+                    ignorePatterns
                 ))
                 : '',
-            'OPEN_TABS': contextConfig?.includeOpenTabs
+            'OPEN_TABS': (overrides?.includeOpenTabs ?? contextConfig?.includeOpenTabs)
                 ? this.wrapSection('OPEN TABS', this.generateOpenTabsSection(
-                    contextConfig.maxOpenTabs,
-                    contextConfig.ignorePatterns || []
+                    contextConfig?.maxOpenTabs ?? 20,
+                    ignorePatterns
                 ))
                 : '',
-            'ACTIVE_EDITOR': contextConfig?.includeActiveEditor
+            'ACTIVE_EDITOR': (overrides?.includeActiveEditor ?? contextConfig?.includeActiveEditor)
                 ? this.wrapSection('ACTIVE EDITOR', this.generateActiveEditorSection(
-                    contextConfig.ignorePatterns || []
+                    ignorePatterns
                 ))
                 : '',
-            'DIAGNOSTICS': this.wrapSection('DIAGNOSTICS', this.generateDiagnosticsSection()),
-            'PINNED_FILES': this.wrapSection(
-                getGlobalSettingsManager()?.getPinnedFilesConfig()?.sectionTitle || 'PINNED FILES CONTENT',
-                this.generatePinnedFilesSection()
-            ),
+            'DIAGNOSTICS': this.wrapSection('DIAGNOSTICS', this.generateDiagnosticsSection(overrides?.includeDiagnostics)),
+            'PINNED_FILES': (overrides?.includePinnedFiles === false)
+                ? ''
+                : this.wrapSection(
+                    settingsManager?.getPinnedFilesConfig()?.sectionTitle || 'PINNED FILES CONTENT',
+                    this.generatePinnedFilesSection()
+                ),
             // 工具定义由外部在发送前填充，这里返回占位符
             'TOOLS': '{{$TOOLS}}',
             'MCP_TOOLS': '{{$MCP_TOOLS}}'
@@ -332,16 +352,17 @@ export class PromptManager {
      * 从 VSCode 获取工作区的诊断信息（错误、警告等）
      * 根据配置过滤严重程度和文件范围
      */
-    private generateDiagnosticsSection(): string {
+    private generateDiagnosticsSection(enabledOverride?: boolean): string {
         const settingsManager = getGlobalSettingsManager()
         if (!settingsManager) {
             return ''
         }
         
         const diagnosticsConfig = settingsManager.getDiagnosticsConfig()
+        const diagnosticsEnabled = enabledOverride ?? diagnosticsConfig.enabled
         
         // 如果功能未启用，返回空
-        if (!diagnosticsConfig.enabled) {
+        if (!diagnosticsEnabled) {
             return ''
         }
         

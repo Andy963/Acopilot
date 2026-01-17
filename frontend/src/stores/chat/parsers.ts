@@ -7,6 +7,8 @@
 import type { Message, Content, Attachment } from '../../types'
 import { generateId } from '../../utils/format'
 
+const OPENAI_RESPONSES_STATEFUL_MARKER_MIME = 'application/x-acopilot-openai-responses-stateful-marker'
+
 /**
  * 解析 XML 工具调用
  */
@@ -125,6 +127,8 @@ export function contentToMessage(content: Content, id?: string): Message {
       finishReason: content.finishReason,
       // 存储完整的 usageMetadata（仅 model 消息有值）
       usageMetadata: content.usageMetadata,
+      // Context Inspector 快照（仅助手消息有值）
+      contextSnapshot: content.contextSnapshot,
       // 计时信息（从后端获取）
       thinkingDuration: content.thinkingDuration,
       responseDuration: content.responseDuration,
@@ -167,6 +171,9 @@ export function contentToMessageEnhanced(content: Content, id?: string): Message
     
     // 从 inlineData 提取附件
     if (part.inlineData) {
+      if (part.inlineData.mimeType === OPENAI_RESPONSES_STATEFUL_MARKER_MIME) {
+        continue
+      }
       const attType = getAttachmentTypeFromMime(part.inlineData.mimeType)
       const ext = getExtensionFromMime(part.inlineData.mimeType)
       
@@ -218,6 +225,7 @@ export function contentToMessageEnhanced(content: Content, id?: string): Message
       modelVersion: content.modelVersion,
       finishReason: content.finishReason,
       usageMetadata: content.usageMetadata,
+      contextSnapshot: content.contextSnapshot,
       // 从后端加载的思考持续时间
       thinkingDuration: content.thinkingDuration,
       // 从后端加载的计时信息

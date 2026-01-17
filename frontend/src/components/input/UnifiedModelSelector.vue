@@ -142,7 +142,12 @@ onUnmounted(() => {
     >
       <span v-if="selectedOption" class="selected-value">
         <span class="selected-primary">{{ selectedOption.modelName }}</span>
-        <span class="selected-secondary">via {{ selectedOption.providerLabel }}</span>
+        <span
+          class="selected-secondary"
+          :title="`${selectedOption.channelName} · ${selectedOption.providerLabel}`"
+        >
+          via {{ selectedOption.channelName }}
+        </span>
       </span>
       <span v-else class="placeholder">{{ placeholder || t('components.input.modelSelector.placeholder') }}</span>
       <span :class="['select-arrow', isOpen ? 'arrow-up' : 'arrow-down']">▼</span>
@@ -177,7 +182,7 @@ onUnmounted(() => {
                 <div class="option-content">
                   <span class="option-primary">{{ option.modelName }}</span>
                   <span class="option-secondary">
-                    via {{ option.providerLabel }}<span class="secondary-sep">·</span>{{ option.channelName }}
+                    via {{ option.channelName }}<span class="secondary-sep">·</span>{{ option.providerLabel }}
                   </span>
                 </div>
                 <span v-if="option.key === modelValue" class="check-icon">✓</span>
@@ -249,7 +254,11 @@ onUnmounted(() => {
 }
 
 .selected-secondary {
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   opacity: 0.8;
 }

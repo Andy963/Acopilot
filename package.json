@@ -1,8 +1,8 @@
 {
-  "name": "limcode",
-  "displayName": "limcode",
-  "description": "Lim Code 是一个AI编程助手插件，支持多模态和复杂功能。",
-  "version": "1.0.39",
+  "name": "acopilot",
+  "displayName": "Acopilot",
+  "description": "Acopilot 是一个AI编程助手插件，支持多模态和复杂功能。",
+  "version": "1.0.55",
   "publisher": "Andy963",
   "icon": "resources/icon.png",
   "engines": {
@@ -23,59 +23,80 @@
   "contributes": {
     "commands": [
       {
-        "command": "limcode.openChat",
-        "title": "LimCode: 打开聊天面板"
+        "command": "acopilot.openChat",
+        "title": "Acopilot: 打开聊天面板"
       },
       {
-        "command": "limcode.newChat",
+        "command": "acopilot.addSelectionToChat",
+        "title": "Add Selection to Acopilot Chat"
+      },
+      {
+        "command": "acopilot.addFileToChat",
+        "title": "Add File to Acopilot Chat"
+      },
+      {
+        "command": "acopilot.newChat",
         "title": "新建对话",
         "icon": "$(add)"
       },
       {
-        "command": "limcode.showHistory",
+        "command": "acopilot.showHistory",
         "title": "对话历史",
-        "icon": "$(history)"
+        "icon": "$(arrow-left)"
       },
       {
-        "command": "limcode.showSettings",
+        "command": "acopilot.showSettings",
         "title": "设置",
         "icon": "$(settings-gear)"
       }
     ],
     "menus": {
+      "editor/context": [
+        {
+          "command": "acopilot.addSelectionToChat",
+          "when": "editorTextFocus && editorHasSelection",
+          "group": "navigation@9"
+        },
+        {
+          "command": "acopilot.addFileToChat",
+          "when": "editorTextFocus",
+          "group": "navigation@10"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "acopilot.addFileToChat",
+          "group": "navigation@9"
+        }
+      ],
       "view/title": [
         {
-          "command": "limcode.newChat",
-          "when": "view == limcode.chatView",
+          "command": "acopilot.newChat",
+          "when": "view == acopilot.chatView",
           "group": "navigation@1"
         },
         {
-          "command": "limcode.showHistory",
-          "when": "view == limcode.chatView",
+          "command": "acopilot.showSettings",
+          "when": "view == acopilot.chatView",
           "group": "navigation@2"
-        },
-        {
-          "command": "limcode.showSettings",
-          "when": "view == limcode.chatView",
-          "group": "navigation@3"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "limcode",
-          "title": "Lim Code",
+          "id": "acopilot",
+          "title": "Acopilot",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "limcode": [
+      "acopilot": [
         {
           "type": "webview",
-          "id": "limcode.chatView",
-          "name": "Lim Code",
+          "id": "acopilot.chatView",
+          "name": "Acopilot",
           "icon": "resources/icon.svg"
         }
       ]
@@ -112,13 +133,12 @@
     "dev",
     "keybindings",
     "mcp",
-    "lim code",
-    "limcode"
+    "acopilot"
   ],
   "author": "Andy963",
-  "license": "ISC",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Andy963/Lim-Code"
+    "url": "https://github.com/Andy963/Acopilot"
   }
 }

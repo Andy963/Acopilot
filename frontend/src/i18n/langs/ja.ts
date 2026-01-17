@@ -1,5 +1,5 @@
 /**
- * LimCode - 日本語言語パック
+ * Acopilot - 日本語言語パック
  * コンポーネントディレクトリ構造に従って翻訳を編成
  */
 
@@ -31,6 +31,8 @@ const ja: LanguageMessages = {
         no: 'いいえ',
         ok: 'OK',
         copy: 'コピー',
+        copied: 'コピーしました',
+        runInTerminal: 'ターミナルで実行',
         paste: '貼り付け',
         reset: 'リセット',
         default: 'デフォルト',
@@ -70,6 +72,9 @@ const ja: LanguageMessages = {
         create: '作成',
         update: '更新',
         apply: '適用',
+        undo: '元に戻す',
+        stage: 'ステージ',
+        unstage: 'ステージ解除',
         install: 'インストール',
         uninstall: 'アンインストール',
         start: '開始',
@@ -81,6 +86,7 @@ const ja: LanguageMessages = {
         pending: '保留中',
         completed: '完了',
         failed: '失敗',
+        truncated: '切り詰め',
         unknown: '不明'
     },
 
@@ -112,6 +118,8 @@ const ja: LanguageMessages = {
                 checkpointHint: 'このメッセージの前にバックアップが検出されました。削除前にそのバックアップポイントに復元して、ファイルの変更を回復することができます。',
                 cancel: 'キャンセル',
                 delete: '削除',
+                directDelete: '直接削除',
+                restoreAndDelete: '復元して削除',
                 restoreToUserMessage: 'ユーザーメッセージ前に復元',
                 restoreToAssistantMessage: 'アシスタントメッセージ前に復元',
                 restoreToToolBatch: 'バッチツール実行前に復元',
@@ -135,6 +143,8 @@ const ja: LanguageMessages = {
                 checkpointHint: 'このメッセージの前にツール実行のバックアップが検出されました。ツール実行前に復元してから再試行できます。',
                 cancel: 'キャンセル',
                 retry: '再試行',
+                directRetry: '直接再試行',
+                restoreAndRetry: '復元して再試行',
                 restoreToUserMessage: 'ユーザーメッセージ前に復元',
                 restoreToAssistantMessage: 'アシスタントメッセージ前に復元',
                 restoreToToolBatch: 'バッチツール実行前に復元',
@@ -161,6 +171,37 @@ const ja: LanguageMessages = {
                 copyCode: 'コードをコピー',
                 copied: 'コピーしました',
                 imageLoadFailed: '画像の読み込みに失敗しました'
+            },
+            contextInspectorModal: {
+                title: 'コンテキストインスペクター',
+                titleUsed: '使用されたコンテキスト',
+                noData: 'コンテキストデータがありません',
+                copyDebug: 'デバッグ情報をコピー',
+                injected: {
+                    title: '注入詳細',
+                    pinnedFiles: 'ピン留めファイル',
+                    pinnedPrompt: 'ピン留めプロンプト',
+                    pinnedSelections: '参照',
+                    attachments: '添付ファイル',
+                    missing: '見つかりません',
+                    pinnedPromptCustom: 'カスタム（{count} 文字）'
+                },
+                trim: {
+                    title: 'コンテキストのトリム',
+                    fullHistory: '履歴メッセージ数',
+                    trimmedHistory: '送信メッセージ数',
+                    trimStartIndex: 'トリム開始インデックス',
+                    lastSummaryIndex: '最後の要約インデックス'
+                },
+                tools: {
+                    title: 'ツール定義'
+                },
+                modules: {
+                    title: 'システムプロンプトのセクション'
+                },
+                raw: {
+                    title: 'システム指示 (Raw)'
+                }
             }
         },
 
@@ -194,7 +235,7 @@ const ja: LanguageMessages = {
         },
 
         home: {
-            welcome: 'LimCode へようこそ',
+            welcome: 'Acopilot へようこそ',
             welcomeMessage: 'より効率的にコードを書くための AI コーディングアシスタント',
             welcomeHint: '下の入力欄にメッセージを入力して会話を開始',
             quickStart: 'クイックスタート',
@@ -209,7 +250,8 @@ const ja: LanguageMessages = {
             send: 'メッセージを送信',
             stopGenerating: '生成を停止',
             attachFile: 'ファイルを添付',
-            pinnedFiles: 'ピン留めファイル',
+            pinnedFiles: 'ピン留め',
+            createPlan: 'Plan & Run',
             summarizeContext: 'コンテキストを要約',
             selectChannel: 'チャンネルを選択',
             selectModel: 'モデルを選択',
@@ -230,13 +272,56 @@ const ja: LanguageMessages = {
                 addInSettings: '設定でモデルを追加してください'
             },
             pinnedFilesPanel: {
-                title: 'ピン留めファイル',
-                description: 'ピン留めされたファイルの内容は毎回の会話で AI に送信されます',
+                title: 'ピン留め',
+                description: 'ピン留めファイルは毎回の会話で送信；Skill/カスタムプロンプトは現在の会話にのみ適用',
                 loading: '読み込み中...',
                 empty: 'ピン留めファイルがありません',
                 notExists: '存在しません',
                 dragHint: 'Shift を押しながらワークスペース内のテキストファイルをここにドラッグして追加',
-                dropHint: 'ファイルを追加するにはマウスを離してください'
+                dropHint: 'ファイルを追加するにはマウスを離してください',
+                tabs: {
+                    files: 'ファイル',
+                    refs: '参照',
+                    skill: 'Skill',
+                    custom: 'カスタム'
+                },
+                refs: {
+                    empty: '参照がありません',
+                    open: '開く',
+                    clear: '参照をクリア',
+                    truncated: '切り詰め'
+                },
+                skill: {
+                    selectLabel: 'Skill を選択',
+                    loading: '読み込み中...',
+                    empty: 'Skill がありません',
+                    pickOne: 'Skill を選択してください',
+                    manageHint: '設定 > システムプロンプト で Skills を管理'
+                },
+                custom: {
+                    label: 'カスタムプロンプト',
+                    placeholder: '現在の会話にのみ適用されるプロンプトを入力...',
+                    save: '保存',
+                    clear: 'クリア',
+                    hint: '保存後、この会話のシステムプロンプトに追加されます'
+                }
+            },
+            messageContextOverrides: {
+                title: '今回のコンテキスト',
+                description: '次のメッセージにのみ適用（送信後に自動でデフォルトに戻ります）',
+                reset: 'リセット',
+                inherit: 'デフォルト',
+                on: 'ON',
+                off: 'OFF',
+                items: {
+                    pinnedPrompt: 'ピン留めプロンプト',
+                    pinnedFiles: 'ピン留めファイル',
+                    workspaceFiles: 'ワークスペースファイル',
+                    openTabs: '開いているタブ',
+                    activeEditor: 'アクティブエディタ',
+                    diagnostics: '診断',
+                    tools: 'ツール'
+                }
             },
             filePicker: {
                 title: 'ファイルを選択',
@@ -272,7 +357,8 @@ const ja: LanguageMessages = {
             stats: {
                 responseDuration: '応答時間',
                 tokenRate: 'トークン速度',
-                finishReason: '終了理由'
+                finishReason: '終了理由',
+                contextUsed: '使用したコンテキスト'
             },
             thought: {
                 thinking: '考え中...',
@@ -329,6 +415,50 @@ const ja: LanguageMessages = {
             attachment: {
                 clickToPreview: 'クリックしてプレビュー',
                 removeAttachment: '添付ファイルを削除'
+            }
+        },
+
+        planRunner: {
+            status: {
+                idle: '未開始',
+                running: '実行中',
+                paused: '一時停止',
+                completed: '完了',
+                cancelled: 'キャンセル'
+            },
+            actions: {
+                start: '開始',
+                resume: '再開',
+                pause: '一時停止',
+                cancel: 'キャンセル',
+                clear: 'クリア',
+                rerunStep: 'このステップを再実行'
+            },
+            current: '現在',
+            goalLabel: '目標',
+            acceptanceCriteriaLabel: '受け入れ基準',
+            attachmentsLabel: '添付',
+            modal: {
+                title: 'Plan & Run',
+                planTitle: 'プランタイトル',
+                planTitlePlaceholder: '例：xxx を修正してテストを追加',
+                goal: '目標/背景（任意）',
+                goalPlaceholder: '任意：制約、コンテキスト…',
+                acceptanceCriteria: '受け入れ基準（任意）',
+                acceptanceCriteriaPlaceholder: '任意：完了/合格の判定基準…',
+                steps: 'ステップ',
+                addStep: 'ステップを追加',
+                stepTitle: 'ステップタイトル',
+                stepInstruction: 'このステップで送信する指示/プロンプト…',
+                attachImage: '画像を添付',
+                removeStep: 'ステップを削除',
+                removeAttachment: '添付を削除',
+                stash: '下書きを保存',
+                stashed: '保存しました',
+                draftLoaded: '保存した下書きを読み込みました（次回も編集を続けられます）',
+                hint: '必要：プランタイトル + 少なくとも 1 つの完全なステップ（タイトル + 指示）。',
+                save: '保存',
+                saveAndStart: '保存して開始'
             }
         },
 
@@ -513,7 +643,23 @@ const ja: LanguageMessages = {
                     },
                     enabled: {
                         label: 'この設定を有効化'
-                    }
+                    },
+                    sections: {
+                        identityCredentials: '認証情報',
+                        capabilities: '機能',
+                        advancedConfig: '詳細設定'
+                    },
+                    status: {
+                        defaultConfig: 'デフォルト設定',
+                        toolsConfigured: '{count} ツール読み込み済み',
+                        localEstimate: 'ローカル推定',
+                        fieldsConfigured: '{count} フィールド定義済み',
+                        headersConfigured: '{count} Header',
+                        maxRetries: '最大 {count} 回',
+                        thresholdValue: '閾値'
+                    },
+                    multimodalSummary: '画像 (PNG/JPG)、PDF。',
+                    viewCompatibility: '互換性マトリクスを見る'
                 }
             },
             tools: {
@@ -724,7 +870,7 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'LimCode - Vibe Coding アシスタント',
+                    name: 'Acopilot - Vibe Coding アシスタント',
                     version: 'バージョン',
                     repository: 'リポジトリ',
                     developer: '開発者'
@@ -1068,7 +1214,50 @@ const ja: LanguageMessages = {
                     }
                 },
                 exampleOutput: '出力例：',
-                requiresConfigLabel: '必要な設定：'
+                requiresConfigLabel: '必要な設定：',
+                skills: {
+                    title: 'Skills',
+                    add: 'Skill を追加',
+                    description: '再利用可能なプロンプト（Skill）を管理します。入力ボックス横のピン留めパネルから選択して使用できます。',
+                    empty: 'Skill がありません',
+                    saveSuccess: '保存しました',
+                    saveFailed: '保存に失敗しました',
+                    installFromUrl: {
+                        button: 'URL からインストール',
+                        modal: {
+                            title: 'URL から Skill をインストール',
+                            url: 'GitHub URL',
+                            urlPlaceholder: 'https://github.com/owner/repo または https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            hint: 'このプロジェクトの .codex/skills/ にインストールし、Skills リストに自動的にインポートします'
+                        },
+                        validation: {
+                            urlRequired: 'GitHub URL を入力してください',
+                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills が必要です）'
+                        },
+                        installFailed: 'インストールに失敗しました'
+                    },
+                    modal: {
+                        addTitle: 'Skill を追加',
+                        editTitle: 'Skill を編集',
+                        id: 'ID',
+                        idPlaceholder: '例：issue_killer',
+                        name: '名前',
+                        namePlaceholder: '例：Issue Killer',
+                        description: '説明',
+                        descriptionPlaceholder: '任意、短い説明',
+                        prompt: 'プロンプト',
+                        promptPlaceholder: 'この Skill のプロンプト内容を入力...'
+                    },
+                    validation: {
+                        idRequired: 'ID を入力してください',
+                        promptRequired: 'プロンプトを入力してください',
+                        idDuplicate: 'ID は既に存在します'
+                    },
+                    delete: {
+                        title: 'Skill を削除',
+                        message: 'この Skill を削除しますか？この操作は元に戻せません。'
+                    }
+                }
             },
             summarizeSettings: {
                 description: 'コンテキスト要約機能は会話履歴を圧縮してトークン使用量を削減できます。会話が長くなりすぎた場合、手動または自動で要約をトリガーして、古い会話内容を要約に圧縮できます。',
@@ -1176,7 +1365,7 @@ const ja: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'アプリケーション情報',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: 'バージョン：{version}',
                     repository: 'リポジトリ',
                     developer: '開発者'
@@ -1243,6 +1432,27 @@ const ja: LanguageMessages = {
                         maxOutputLines: '最大出力行数',
                         maxOutputLinesHint: 'AI に送信されるターミナル出力の最後の N 行、出力過多を避けるため',
                         unlimitedLines: '無制限',
+                        risk: {
+                            title: 'コマンド安全ポリシー',
+                            enabled: 'コマンドリスクポリシーを有効化',
+                            autoExecuteUpTo: {
+                                label: '自動実行の上限',
+                                hint: 'このリスクレベルを超えるコマンドは、execute_command が自動実行でも確認が必要です',
+                                low: '低リスクのみ',
+                                medium: '中リスクまで'
+                            },
+                            confirmOn: '以下は常に確認を要求',
+                            categories: {
+                                destructive: '破壊的操作（rm/del/リダイレクト）',
+                                gitHistory: 'Git の破壊的操作（reset/clean/push --force）',
+                                privilege: '権限昇格（sudo）',
+                                network: 'ネットワークダウンロード/インストール'
+                            },
+                            allowPatterns: '許可リスト（正規表現、1 行 1 件）',
+                            allowPatternsHint: '許可リストに一致するコマンドは確認をスキップ（大文字小文字を区別しない正規表現）',
+                            denyPatterns: '拒否リスト（正規表現、1 行 1 件）',
+                            denyPatternsHint: '拒否リストに一致するコマンドはブロック（大文字小文字を区別しない正規表現）'
+                        },
                         tips: {
                             onlyEnabledUsed: '• 有効で利用可能なシェルのみが AI で使用されます',
                             statusMeaning: '• ✓ は利用可能、✗ は利用不可を意味します',
@@ -1289,6 +1499,8 @@ const ja: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                mcpNote: 'MCP ツールは MCP サーバーから提供され、この画面では無効化できません',
+                mcpDisableTooltip: 'MCP サーバー提供のため無効化できません',
                 maxIterations: {
                     label: 'ターンあたりの最大ツール呼び出し回数',
                     hint: 'AI の無限ツール呼び出しループを防止、-1 で無制限',
@@ -1299,6 +1511,30 @@ const ja: LanguageMessages = {
                     enableAll: 'すべて有効化',
                     disableAll: 'すべて無効化'
                 },
+                badges: {
+                    enabled: '有効',
+                    autoExec: '自動'
+                },
+                columns: {
+                    enabled: '有効',
+                    auto: '自動',
+                    config: '設定'
+                },
+                exec: {
+                    autoEnabled: '有効'
+                },
+                dangerConfirm: {
+                    title: '自動実行を有効にしますか？',
+                    message: '危険なツール {tool} に対して自動実行を有効にしようとしています。取り消せない変更が発生する可能性があります。続行しますか？',
+                    confirm: '有効にする',
+                    cancel: 'キャンセル'
+                },
+                enableAllDangerous: {
+                    title: '自動実行を有効化',
+                    message: '危険なツール（delete_file / execute_command）が検出されました。これらも自動実行にしますか？',
+                    confirm: '危険なツールも含める',
+                    cancel: '危険なツールを除外'
+                },
                 loading: 'ツールリストを読み込み中...',
                 empty: '利用可能なツールがありません',
                 categories: {
@@ -1307,6 +1543,7 @@ const ja: LanguageMessages = {
                     terminal: 'ターミナル',
                     lsp: 'コードインテリジェンス',
                     media: 'メディア処理',
+                    mcp: 'MCP',
                     other: 'その他'
                 },
                 dependency: {
@@ -1745,6 +1982,8 @@ const ja: LanguageMessages = {
                     },
                     terminate: '終了',
                     terminateTooltip: 'プロセスを終了',
+                    jumpToErrorTooltip: '{path} を開いて {line}:{column} にジャンプ',
+                    nextCommandsTitle: '次の推奨コマンド',
                     copyOutput: '出力をコピー',
                     copied: 'コピーしました',
                     output: '出力',

@@ -1,5 +1,5 @@
 /**
- * LimCode - 流式响应解析工具
+ * Acopilot - 流式响应解析工具
  *
  * 纯函数实现（不依赖 VSCode），用于解析不同提供商的流式返回格式。
  *
@@ -102,12 +102,26 @@ function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; 
 
         const lines = block.split('\n');
         const dataLines: string[] = [];
+        let eventName: string | undefined;
 
         for (const rawLine of lines) {
             if (!rawLine) continue;
 
             // 忽略 SSE 注释行（以 ":" 开头）
             if (rawLine.startsWith(':')) {
+                continue;
+            }
+
+            // 记录事件名：部分提供商会把事件类型放在 event: 行，而不是 JSON 的 type 字段中
+            if (rawLine.startsWith('event:')) {
+                let value = rawLine.slice(6);
+                if (value.startsWith(' ')) {
+                    value = value.slice(1);
+                }
+                const name = value.trim();
+                if (name) {
+                    eventName = name;
+                }
                 continue;
             }
 
@@ -129,12 +143,29 @@ function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; 
         }
 
         const data = dataLines.join('\n').trim();
-        if (!data || data === '[DONE]') {
+        if (!data) {
+            continue;
+        }
+
+        // OpenAI / 部分 OpenAI-兼容网关使用 data: [DONE] 作为结束标记（可能不会再补一个带 finish_reason 的 JSON chunk）。
+        // 为了让上层 StreamAccumulator/StreamResponseProcessor 能正确判断完成，这里透传一个内部 sentinel。
+        if (data === '[DONE]') {
+            chunks.push({ __acopilot_sse_done: true });
             continue;
         }
 
         try {
-            chunks.push(JSON.parse(data));
+            const parsed = JSON.parse(data);
+            if (
+                eventName &&
+                parsed &&
+                typeof parsed === 'object' &&
+                !Array.isArray(parsed) &&
+                typeof (parsed as any).type !== 'string'
+            ) {
+                (parsed as any).type = eventName;
+            }
+            chunks.push(parsed);
         } catch {
             // 若解析失败：该事件块不是 JSON（或格式异常），直接忽略
         }
@@ -142,4 +173,3 @@ function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; 
 
     return { chunks, remaining: remaining || '' };
 }
-

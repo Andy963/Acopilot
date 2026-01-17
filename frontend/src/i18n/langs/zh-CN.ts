@@ -1,5 +1,5 @@
 /**
- * LimCode - 简体中文语言包
+ * Acopilot - 简体中文语言包
  * 按组件目录结构组织翻译
  */
 
@@ -31,6 +31,8 @@ const zhCN: LanguageMessages = {
         no: '否',
         ok: '确定',
         copy: '复制',
+        copied: '已复制',
+        runInTerminal: '在终端运行',
         paste: '粘贴',
         reset: '重置',
         default: '默认',
@@ -70,6 +72,9 @@ const zhCN: LanguageMessages = {
         create: '创建',
         update: '更新',
         apply: '应用',
+        undo: '撤销',
+        stage: '暂存',
+        unstage: '取消暂存',
         install: '安装',
         uninstall: '卸载',
         start: '启动',
@@ -81,6 +86,7 @@ const zhCN: LanguageMessages = {
         pending: '等待中',
         completed: '已完成',
         failed: '失败',
+        truncated: '已截断',
         unknown: '未知'
     },
 
@@ -112,6 +118,8 @@ const zhCN: LanguageMessages = {
                 checkpointHint: '检测到此消息前有备份，您可以选择回档到该备份点后再删除，以恢复文件变更。',
                 cancel: '取消',
                 delete: '删除',
+                directDelete: '直接删除',
+                restoreAndDelete: '回档并删除',
                 restoreToUserMessage: '回档到用户消息前',
                 restoreToAssistantMessage: '回档到助手消息前',
                 restoreToToolBatch: '回档到批量工具执行前',
@@ -135,6 +143,8 @@ const zhCN: LanguageMessages = {
                 checkpointHint: '检测到此消息前有工具执行的备份，您可以选择回档到工具执行前再重试。',
                 cancel: '取消',
                 retry: '重试',
+                directRetry: '直接重试',
+                restoreAndRetry: '回档并重试',
                 restoreToUserMessage: '回档到用户消息前',
                 restoreToAssistantMessage: '回档到助手消息前',
                 restoreToToolBatch: '回档到批量工具执行前',
@@ -161,6 +171,37 @@ const zhCN: LanguageMessages = {
                 copyCode: '复制代码',
                 copied: '已复制',
                 imageLoadFailed: '图片加载失败'
+            },
+            contextInspectorModal: {
+                title: '上下文检查器',
+                titleUsed: '本条回复使用的上下文',
+                noData: '暂无上下文数据',
+                copyDebug: '复制调试信息',
+                injected: {
+                    title: '注入明细',
+                    pinnedFiles: '固定文件',
+                    pinnedPrompt: '固定提示词',
+                    pinnedSelections: '引用',
+                    attachments: '附件',
+                    missing: '缺失',
+                    pinnedPromptCustom: '自定义（{count} 字符）'
+                },
+                trim: {
+                    title: '上下文裁剪',
+                    fullHistory: '历史消息数',
+                    trimmedHistory: '发送消息数',
+                    trimStartIndex: '裁剪起点索引',
+                    lastSummaryIndex: '最后总结索引'
+                },
+                tools: {
+                    title: '工具定义预览'
+                },
+                modules: {
+                    title: '系统提示词分段'
+                },
+                raw: {
+                    title: '系统指令（Raw）'
+                }
             }
         },
 
@@ -194,7 +235,7 @@ const zhCN: LanguageMessages = {
         },
 
         home: {
-            welcome: '欢迎使用 LimCode',
+            welcome: '欢迎使用 Acopilot',
             welcomeMessage: 'AI 编程助手，帮助您更高效地编写代码',
             welcomeHint: '在下方输入框中输入消息开始对话',
             quickStart: '快速开始',
@@ -209,7 +250,8 @@ const zhCN: LanguageMessages = {
             send: '发送消息',
             stopGenerating: '停止生成',
             attachFile: '添加附件',
-            pinnedFiles: '固定文件',
+            pinnedFiles: '固定内容',
+            createPlan: 'Plan & Run',
             summarizeContext: '总结上下文',
             selectChannel: '选择渠道',
             selectModel: '选择模型',
@@ -230,13 +272,56 @@ const zhCN: LanguageMessages = {
                 addInSettings: '请在设置中添加模型'
             },
             pinnedFilesPanel: {
-                title: '固定文件',
-                description: '固定的文件内容会在每次对话时发送给 AI',
+                title: '固定内容',
+                description: '固定文件会在每次对话发送；Skill/自定义提示词仅对当前对话生效',
                 loading: '加载中...',
                 empty: '暂无固定文件',
                 notExists: '不存在',
                 dragHint: '按住 Shift 拖拽工作区内的文本文件到此处添加',
-                dropHint: '释放鼠标添加文件'
+                dropHint: '释放鼠标添加文件',
+                tabs: {
+                    files: '文件',
+                    refs: '引用',
+                    skill: 'Skill',
+                    custom: '自定义'
+                },
+                refs: {
+                    empty: '暂无引用',
+                    open: '打开',
+                    clear: '清空引用',
+                    truncated: '已截断'
+                },
+                skill: {
+                    selectLabel: '选择 Skill',
+                    loading: '加载中...',
+                    empty: '暂无 Skill',
+                    pickOne: '请选择一个 Skill',
+                    manageHint: '在 设置 > 系统提示词 中管理 Skills'
+                },
+                custom: {
+                    label: '自定义提示词',
+                    placeholder: '输入仅对当前对话生效的提示词...',
+                    save: '保存',
+                    clear: '清空',
+                    hint: '保存后会作为系统提示词额外注入当前对话'
+                }
+            },
+            messageContextOverrides: {
+                title: '本条上下文',
+                description: '仅对下一条消息生效（发送后自动恢复默认）',
+                reset: '重置',
+                inherit: '默认',
+                on: '开',
+                off: '关',
+                items: {
+                    pinnedPrompt: '固定提示词/Skill',
+                    pinnedFiles: '固定文件',
+                    workspaceFiles: '工作区文件树',
+                    openTabs: '打开的标签页',
+                    activeEditor: '当前编辑器',
+                    diagnostics: '诊断信息',
+                    tools: '工具'
+                }
             },
             filePicker: {
                 title: '选择文件',
@@ -263,6 +348,50 @@ const zhCN: LanguageMessages = {
             }
         },
 
+        planRunner: {
+            status: {
+                idle: '未开始',
+                running: '运行中',
+                paused: '已暂停',
+                completed: '已完成',
+                cancelled: '已取消'
+            },
+            actions: {
+                start: '开始',
+                resume: '继续',
+                pause: '暂停',
+                cancel: '取消',
+                clear: '清空',
+                rerunStep: '重执行该步'
+            },
+            current: '当前',
+            goalLabel: '目标',
+            acceptanceCriteriaLabel: '验收',
+            attachmentsLabel: '附件',
+            modal: {
+                title: 'Plan & Run',
+                planTitle: '计划标题',
+                planTitlePlaceholder: '例如：修复 xxx 并补充测试',
+                goal: '目标/背景（可选）',
+                goalPlaceholder: '可选：补充上下文、约束…',
+                acceptanceCriteria: '验收标准（可选）',
+                acceptanceCriteriaPlaceholder: '可选：如何判断完成/通过…',
+                steps: '步骤',
+                addStep: '添加步骤',
+                stepTitle: '步骤标题',
+                stepInstruction: '该步骤要发送给模型的指令/提示词…',
+                attachImage: '添加图片',
+                removeStep: '删除步骤',
+                removeAttachment: '移除附件',
+                stash: '暂存',
+                stashed: '已暂存',
+                draftLoaded: '已加载暂存草稿（下次打开可继续编辑）',
+                hint: '至少需要：计划标题 + 1 个完整步骤（标题+指令）。',
+                save: '保存计划',
+                saveAndStart: '保存并开始'
+            }
+        },
+
         message: {
             roles: {
                 user: '用户',
@@ -272,7 +401,8 @@ const zhCN: LanguageMessages = {
             stats: {
                 responseDuration: '响应时间',
                 tokenRate: 'Token 速率',
-                finishReason: '结束原因'
+                finishReason: '结束原因',
+                contextUsed: '使用的上下文'
             },
             thought: {
                 thinking: '正在思考...',
@@ -513,7 +643,23 @@ const zhCN: LanguageMessages = {
                     },
                     enabled: {
                         label: '启用此配置'
-                    }
+                    },
+                    sections: {
+                        identityCredentials: '身份与凭据',
+                        capabilities: '功能能力',
+                        advancedConfig: '逻辑配置广场'
+                    },
+                    status: {
+                        defaultConfig: '默认配置',
+                        toolsConfigured: '已加载 {count} 个工具',
+                        localEstimate: '本地估算',
+                        fieldsConfigured: '已定义 {count} 个字段',
+                        headersConfigured: '{count} 个 Header',
+                        maxRetries: '最多 {count} 次',
+                        thresholdValue: '阈值'
+                    },
+                    multimodalSummary: '文档图片 (PNG/JPG)，PDF。',
+                    viewCompatibility: '查看兼容性矩阵'
                 }
             },
             tools: {
@@ -724,7 +870,7 @@ const zhCN: LanguageMessages = {
                 },
                 appInfo: {
                     title: '应用信息',
-                    name: 'LimCode - Vibe Coding 助手',
+                    name: 'Acopilot - Vibe Coding 助手',
                     version: '版本',
                     repository: '项目仓库',
                     developer: '开发者'
@@ -1068,7 +1214,50 @@ const zhCN: LanguageMessages = {
                     }
                 },
                 exampleOutput: '示例输出：',
-                requiresConfigLabel: '依赖配置：'
+                requiresConfigLabel: '依赖配置：',
+                skills: {
+                    title: 'Skills',
+                    add: '添加 Skill',
+                    description: '管理可复用的提示词（Skill）。可在对话输入框旁的固定内容面板中选择使用。',
+                    empty: '暂无 Skill',
+                    saveSuccess: '保存成功',
+                    saveFailed: '保存失败',
+                    installFromUrl: {
+                        button: '从 URL 安装',
+                        modal: {
+                            title: '从 URL 安装 Skill',
+                            url: 'GitHub URL',
+                            urlPlaceholder: 'https://github.com/owner/repo 或 https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            hint: '会下载安装到当前项目的 .codex/skills/ 目录，并自动导入到 Skills 列表'
+                        },
+                        validation: {
+                            urlRequired: '请输入 GitHub URL',
+                            noSkillsFound: '未找到可安装的 Codex skill（需要包含 .codex/skills）'
+                        },
+                        installFailed: '安装失败'
+                    },
+                    modal: {
+                        addTitle: '添加 Skill',
+                        editTitle: '编辑 Skill',
+                        id: 'ID',
+                        idPlaceholder: '例如：issue_killer',
+                        name: '名称',
+                        namePlaceholder: '例如：Issue Killer',
+                        description: '描述',
+                        descriptionPlaceholder: '可选，简短说明用途',
+                        prompt: '提示词内容',
+                        promptPlaceholder: '输入该 Skill 的提示词内容...'
+                    },
+                    validation: {
+                        idRequired: '请输入 ID',
+                        promptRequired: '请输入提示词内容',
+                        idDuplicate: 'ID 已存在'
+                    },
+                    delete: {
+                        title: '删除 Skill',
+                        message: '确定要删除这个 Skill 吗？此操作不可恢复。'
+                    }
+                }
             },
             summarizeSettings: {
                 description: '上下文总结功能可以压缩对话历史，减少 Token 使用量。当对话过长时，可以手动或自动触发总结，将旧的对话内容压缩为摘要。',
@@ -1176,7 +1365,7 @@ const zhCN: LanguageMessages = {
                 },
                 appInfo: {
                     title: '应用信息',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: '版本：{version}',
                     repository: '项目仓库',
                     developer: '开发者'
@@ -1243,6 +1432,27 @@ const zhCN: LanguageMessages = {
                         maxOutputLines: '最大输出行数',
                         maxOutputLinesHint: '发送给 AI 的终端输出的最后 N 行，避免输出过大',
                         unlimitedLines: '无限制',
+                        risk: {
+                            title: '命令安全策略',
+                            enabled: '启用命令风险策略',
+                            autoExecuteUpTo: {
+                                label: '自动执行阈值',
+                                hint: '超过此风险等级的命令将强制要求确认（即使 execute_command 设置为自动执行）',
+                                low: '仅低风险',
+                                medium: '允许到中风险'
+                            },
+                            confirmOn: '以下类型始终需要确认',
+                            categories: {
+                                destructive: '破坏性操作（rm/del/重定向）',
+                                gitHistory: 'Git 破坏性操作（reset/clean/push --force）',
+                                privilege: '提权命令（sudo）',
+                                network: '网络下载/安装'
+                            },
+                            allowPatterns: '允许列表（正则，每行一条）',
+                            allowPatternsHint: '命中允许列表的命令将跳过确认（不区分大小写正则）',
+                            denyPatterns: '拒绝列表（正则，每行一条）',
+                            denyPatternsHint: '命中拒绝列表的命令将被拦截（不区分大小写正则）'
+                        },
                         tips: {
                             onlyEnabledUsed: '• 只有启用且可用的 Shell 才会被 AI 使用',
                             statusMeaning: '• ✓ 表示可用，✗ 表示不可用',
@@ -1289,6 +1499,8 @@ const zhCN: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                mcpNote: 'MCP 工具由 MCP 服务提供，无法在此禁用',
+                mcpDisableTooltip: '由 MCP 服务提供，无法在此禁用',
                 maxIterations: {
                     label: '单回合最大工具调用次数',
                     hint: '防止 AI 无限循环调用工具，-1 表示无限制',
@@ -1299,6 +1511,30 @@ const zhCN: LanguageMessages = {
                     enableAll: '全部启用',
                     disableAll: '全部禁用'
                 },
+                badges: {
+                    enabled: '启用',
+                    autoExec: '自动'
+                },
+                columns: {
+                    enabled: '启用',
+                    auto: '自动',
+                    config: '配置'
+                },
+                exec: {
+                    autoEnabled: '启用'
+                },
+                dangerConfirm: {
+                    title: '确认开启自动执行',
+                    message: '你正在为危险工具 {tool} 开启自动执行，这可能导致不可恢复的修改。是否继续？',
+                    confirm: '继续开启',
+                    cancel: '取消'
+                },
+                enableAllDangerous: {
+                    title: '批量开启自动执行',
+                    message: '检测到危险工具（delete_file / execute_command）。是否也将它们设为自动执行？',
+                    confirm: '包含危险工具',
+                    cancel: '跳过危险工具'
+                },
                 loading: '加载工具列表...',
                 empty: '暂无可用工具',
                 categories: {
@@ -1307,6 +1543,7 @@ const zhCN: LanguageMessages = {
                     terminal: '终端',
                     lsp: '代码智能',
                     media: '媒体处理',
+                    mcp: 'MCP',
                     other: '其他'
                 },
                 dependency: {
@@ -1977,6 +2214,8 @@ const zhCN: LanguageMessages = {
                     },
                     terminate: '终止',
                     terminateTooltip: '终止进程',
+                    jumpToErrorTooltip: '打开 {path} 并跳转到 {line}:{column}',
+                    nextCommandsTitle: '建议下一条命令',
                     copyOutput: '复制输出',
                     copied: '已复制',
                     output: '输出',

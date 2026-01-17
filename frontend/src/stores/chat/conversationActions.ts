@@ -8,6 +8,8 @@ import type { ChatStoreState, Conversation, CheckpointRecord } from './types'
 import { sendToExtension } from '../../utils/vscode'
 import { contentToMessageEnhanced } from './parsers'
 import type { Content } from '../../types'
+import { generateConversationTitleFromText } from '../../utils/conversationTitle'
+import { createDefaultPinnedPrompt, loadPinnedPrompt } from './pinnedPromptActions'
 
 /**
  * 取消流式并拒绝工具的回调类型
@@ -32,6 +34,10 @@ export async function createNewConversation(
   state.allMessages.value = []  // 清空消息
   state.checkpoints.value = []  // 清空检查点
   state.error.value = null
+  state.planRunner.value = null
+  state.postEditValidationPending.value = false
+  state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.selectionReferences.value = []
   
   // 清除所有加载和流式状态
   state.isLoading.value = false
@@ -49,8 +55,8 @@ export async function createAndPersistConversation(
 ): Promise<string | null> {
   const id = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   
-  // 使用第一句话的前30个字符作为标题
-  const title = firstMessage.slice(0, 30) + (firstMessage.length > 30 ? '...' : '')
+  // 使用首条用户消息生成默认标题（避免截断 emoji 等代理对）
+  const title = generateConversationTitleFromText(firstMessage)
   
   try {
     // 创建对话时传递工作区 URI
@@ -153,6 +159,7 @@ export async function loadHistory(state: ChatStoreState): Promise<void> {
     state.allMessages.value = history.map(content =>
       contentToMessageEnhanced(content)
     )
+    state.postEditValidationPending.value = false
   } catch (err: any) {
     state.error.value = {
       code: err.code || 'LOAD_ERROR',
@@ -211,10 +218,17 @@ export async function switchConversation(
   state.allMessages.value = []
   state.checkpoints.value = []
   state.error.value = null
+  state.planRunner.value = null
+  state.postEditValidationPending.value = false
   state.isLoading.value = false
   state.isStreaming.value = false
   state.streamingMessageId.value = null
   state.isWaitingForResponse.value = false
+  state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.selectionReferences.value = []
+
+  // 切换对话时加载固定提示词/技能
+  await loadPinnedPrompt(state, id)
   
   // 如果是已持久化的对话，从后端加载历史和检查点
   if (conv.isPersisted) {

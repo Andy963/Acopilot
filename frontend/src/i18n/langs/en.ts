@@ -1,5 +1,5 @@
 /**
- * LimCode - English Language Pack
+ * Acopilot - English Language Pack
  * Organized by component directory structure
  */
 
@@ -31,6 +31,8 @@ const en: LanguageMessages = {
         no: 'No',
         ok: 'OK',
         copy: 'Copy',
+        copied: 'Copied',
+        runInTerminal: 'Run in Terminal',
         paste: 'Paste',
         reset: 'Reset',
         default: 'Default',
@@ -70,6 +72,9 @@ const en: LanguageMessages = {
         create: 'Create',
         update: 'Update',
         apply: 'Apply',
+        undo: 'Undo',
+        stage: 'Stage',
+        unstage: 'Unstage',
         install: 'Install',
         uninstall: 'Uninstall',
         start: 'Start',
@@ -81,6 +86,7 @@ const en: LanguageMessages = {
         pending: 'Pending',
         completed: 'Completed',
         failed: 'Failed',
+        truncated: 'Truncated',
         unknown: 'Unknown'
     },
 
@@ -112,6 +118,8 @@ const en: LanguageMessages = {
                 checkpointHint: 'A backup was detected before this message. You can choose to restore to that backup point before deleting to recover file changes.',
                 cancel: 'Cancel',
                 delete: 'Delete',
+                directDelete: 'Delete directly',
+                restoreAndDelete: 'Restore and delete',
                 restoreToUserMessage: 'Restore to before user message',
                 restoreToAssistantMessage: 'Restore to before assistant message',
                 restoreToToolBatch: 'Restore to before batch tool execution',
@@ -135,6 +143,8 @@ const en: LanguageMessages = {
                 checkpointHint: 'A tool execution backup was detected before this message. You can choose to restore to before tool execution and then retry.',
                 cancel: 'Cancel',
                 retry: 'Retry',
+                directRetry: 'Retry directly',
+                restoreAndRetry: 'Restore and retry',
                 restoreToUserMessage: 'Restore to before user message',
                 restoreToAssistantMessage: 'Restore to before assistant message',
                 restoreToToolBatch: 'Restore to before batch tool execution',
@@ -161,6 +171,37 @@ const en: LanguageMessages = {
                 copyCode: 'Copy code',
                 copied: 'Copied',
                 imageLoadFailed: 'Failed to load image'
+            },
+            contextInspectorModal: {
+                title: 'Context Inspector',
+                titleUsed: 'Context Used',
+                noData: 'No context data',
+                copyDebug: 'Copy debug info',
+                injected: {
+                    title: 'Injected Context',
+                    pinnedFiles: 'Pinned Files',
+                    pinnedPrompt: 'Pinned Prompt',
+                    pinnedSelections: 'References',
+                    attachments: 'Attachments',
+                    missing: 'missing',
+                    pinnedPromptCustom: 'Custom ({count} chars)'
+                },
+                trim: {
+                    title: 'Context Trim',
+                    fullHistory: 'History messages',
+                    trimmedHistory: 'Sent messages',
+                    trimStartIndex: 'Trim start index',
+                    lastSummaryIndex: 'Last summary index'
+                },
+                tools: {
+                    title: 'Tool Definitions'
+                },
+                modules: {
+                    title: 'System Prompt Sections'
+                },
+                raw: {
+                    title: 'System Instruction (Raw)'
+                }
             }
         },
 
@@ -194,7 +235,7 @@ const en: LanguageMessages = {
         },
 
         home: {
-            welcome: 'Welcome to LimCode',
+            welcome: 'Welcome to Acopilot',
             welcomeMessage: 'AI coding assistant helping you write code more efficiently',
             welcomeHint: 'Type a message in the input box below to start a conversation',
             quickStart: 'Quick Start',
@@ -209,7 +250,8 @@ const en: LanguageMessages = {
             send: 'Send message',
             stopGenerating: 'Stop generating',
             attachFile: 'Attach file',
-            pinnedFiles: 'Pinned files',
+            pinnedFiles: 'Pinned',
+            createPlan: 'Plan & Run',
             summarizeContext: 'Summarize context',
             selectChannel: 'Select channel',
             selectModel: 'Select model',
@@ -230,13 +272,56 @@ const en: LanguageMessages = {
                 addInSettings: 'Please add models in settings'
             },
             pinnedFilesPanel: {
-                title: 'Pinned Files',
-                description: 'Pinned file contents will be sent to AI in every conversation',
+                title: 'Pinned',
+                description: 'Pinned files are sent in every chat; Skill/custom prompt only applies to the current conversation',
                 loading: 'Loading...',
                 empty: 'No pinned files',
                 notExists: 'Does not exist',
                 dragHint: 'Hold Shift and drag text files from workspace here to add',
-                dropHint: 'Release to add file'
+                dropHint: 'Release to add file',
+                tabs: {
+                    files: 'Files',
+                    refs: 'References',
+                    skill: 'Skill',
+                    custom: 'Custom'
+                },
+                refs: {
+                    empty: 'No references',
+                    open: 'Open',
+                    clear: 'Clear references',
+                    truncated: 'Truncated'
+                },
+                skill: {
+                    selectLabel: 'Select Skill',
+                    loading: 'Loading...',
+                    empty: 'No skills',
+                    pickOne: 'Pick a skill',
+                    manageHint: 'Manage skills in Settings > System Prompt'
+                },
+                custom: {
+                    label: 'Custom Prompt',
+                    placeholder: 'Enter a prompt that only applies to the current conversation...',
+                    save: 'Save',
+                    clear: 'Clear',
+                    hint: 'After saving, it will be injected into the system prompt for this conversation'
+                }
+            },
+            messageContextOverrides: {
+                title: 'This message',
+                description: 'Applies to the next message only (auto-reset after send)',
+                reset: 'Reset',
+                inherit: 'Default',
+                on: 'On',
+                off: 'Off',
+                items: {
+                    pinnedPrompt: 'Pinned Prompt',
+                    pinnedFiles: 'Pinned Files',
+                    workspaceFiles: 'Workspace Files',
+                    openTabs: 'Open Tabs',
+                    activeEditor: 'Active Editor',
+                    diagnostics: 'Diagnostics',
+                    tools: 'Tools'
+                }
             },
             filePicker: {
                 title: 'Select File',
@@ -263,6 +348,50 @@ const en: LanguageMessages = {
             }
         },
 
+        planRunner: {
+            status: {
+                idle: 'Idle',
+                running: 'Running',
+                paused: 'Paused',
+                completed: 'Completed',
+                cancelled: 'Cancelled'
+            },
+            actions: {
+                start: 'Start',
+                resume: 'Resume',
+                pause: 'Pause',
+                cancel: 'Cancel',
+                clear: 'Clear',
+                rerunStep: 'Rerun step'
+            },
+            current: 'Current',
+            goalLabel: 'Goal',
+            acceptanceCriteriaLabel: 'Acceptance',
+            attachmentsLabel: 'Attachments',
+            modal: {
+                title: 'Plan & Run',
+                planTitle: 'Plan title',
+                planTitlePlaceholder: 'e.g. Fix xxx and add tests',
+                goal: 'Goal / context (optional)',
+                goalPlaceholder: 'Optional: constraints, context…',
+                acceptanceCriteria: 'Acceptance criteria (optional)',
+                acceptanceCriteriaPlaceholder: 'Optional: how to verify completion…',
+                steps: 'Steps',
+                addStep: 'Add step',
+                stepTitle: 'Step title',
+                stepInstruction: 'Instruction/prompt to send for this step…',
+                attachImage: 'Attach image',
+                removeStep: 'Remove step',
+                removeAttachment: 'Remove attachment',
+                stash: 'Save draft',
+                stashed: 'Draft saved',
+                draftLoaded: 'Loaded saved draft (you can continue editing next time)',
+                hint: 'Need: plan title + at least 1 complete step (title + instruction).',
+                save: 'Save plan',
+                saveAndStart: 'Save & start'
+            }
+        },
+
         message: {
             roles: {
                 user: 'User',
@@ -272,7 +401,8 @@ const en: LanguageMessages = {
             stats: {
                 responseDuration: 'Response Duration',
                 tokenRate: 'Token Rate',
-                finishReason: 'Finish Reason'
+                finishReason: 'Finish Reason',
+                contextUsed: 'Context Used'
             },
             thought: {
                 thinking: 'Thinking...',
@@ -513,7 +643,23 @@ const en: LanguageMessages = {
                     },
                     enabled: {
                         label: 'Enable this configuration'
-                    }
+                    },
+                    sections: {
+                        identityCredentials: 'Identity & Credentials',
+                        capabilities: 'Capabilities',
+                        advancedConfig: 'Advanced Configuration'
+                    },
+                    status: {
+                        defaultConfig: 'Default config',
+                        toolsConfigured: '{count} tools loaded',
+                        localEstimate: 'Local estimate',
+                        fieldsConfigured: '{count} fields defined',
+                        headersConfigured: '{count} Header(s)',
+                        maxRetries: 'Max {count} times',
+                        thresholdValue: 'threshold'
+                    },
+                    multimodalSummary: 'Images (PNG/JPG), PDF.',
+                    viewCompatibility: 'View compatibility matrix'
                 }
             },
             tools: {
@@ -724,7 +870,7 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'LimCode - Vibe Coding Assistant',
+                    name: 'Acopilot - Vibe Coding Assistant',
                     version: 'Version',
                     repository: 'Repository',
                     developer: 'Developer'
@@ -1068,7 +1214,50 @@ const en: LanguageMessages = {
                     }
                 },
                 exampleOutput: 'Example Output:',
-                requiresConfigLabel: 'Requires Config:'
+                requiresConfigLabel: 'Requires Config:',
+                skills: {
+                    title: 'Skills',
+                    add: 'Add Skill',
+                    description: 'Manage reusable prompts (skills). You can select them from the pinned panel next to the input box.',
+                    empty: 'No skills',
+                    saveSuccess: 'Saved successfully',
+                    saveFailed: 'Save failed',
+                    installFromUrl: {
+                        button: 'Install from URL',
+                        modal: {
+                            title: 'Install Skill from URL',
+                            url: 'GitHub URL',
+                            urlPlaceholder: 'https://github.com/owner/repo or https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            hint: 'Will be installed to .codex/skills/ in this project and automatically imported into the Skills list'
+                        },
+                        validation: {
+                            urlRequired: 'Please enter a GitHub URL',
+                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills)'
+                        },
+                        installFailed: 'Install failed'
+                    },
+                    modal: {
+                        addTitle: 'Add Skill',
+                        editTitle: 'Edit Skill',
+                        id: 'ID',
+                        idPlaceholder: 'e.g. issue_killer',
+                        name: 'Name',
+                        namePlaceholder: 'e.g. Issue Killer',
+                        description: 'Description',
+                        descriptionPlaceholder: 'Optional, short description',
+                        prompt: 'Prompt',
+                        promptPlaceholder: 'Enter the prompt content for this skill...'
+                    },
+                    validation: {
+                        idRequired: 'ID is required',
+                        promptRequired: 'Prompt is required',
+                        idDuplicate: 'ID already exists'
+                    },
+                    delete: {
+                        title: 'Delete Skill',
+                        message: 'Are you sure you want to delete this skill? This action cannot be undone.'
+                    }
+                }
             },
             summarizeSettings: {
                 description: 'Context summarization can compress conversation history to reduce Token usage. When conversations get too long, you can manually or automatically trigger summarization to compress old conversation content into a summary.',
@@ -1176,7 +1365,7 @@ const en: LanguageMessages = {
                 },
                 appInfo: {
                     title: 'Application Info',
-                    name: 'lim-code',
+                    name: 'acopilot',
                     version: 'Version: {version}',
                     repository: 'Repository',
                     developer: 'Developer'
@@ -1243,6 +1432,27 @@ const en: LanguageMessages = {
                         maxOutputLines: 'Max Output Lines',
                         maxOutputLinesHint: 'Last N lines of terminal output sent to AI, to avoid excessive output',
                         unlimitedLines: 'Unlimited',
+                        risk: {
+                            title: 'Command Safety',
+                            enabled: 'Enable command risk policy',
+                            autoExecuteUpTo: {
+                                label: 'Auto execute up to',
+                                hint: 'Commands above this risk level will require confirmation even if Execute Command is set to auto execute',
+                                low: 'Low risk only',
+                                medium: 'Up to medium risk'
+                            },
+                            confirmOn: 'Always require confirmation for',
+                            categories: {
+                                destructive: 'Destructive actions (rm/del/redirect)',
+                                gitHistory: 'Git destructive actions (reset/clean/push --force)',
+                                privilege: 'Privilege escalation (sudo)',
+                                network: 'Network download/install'
+                            },
+                            allowPatterns: 'Allowlist patterns (regex, one per line)',
+                            allowPatternsHint: 'Commands matching allowlist bypass confirmation (case-insensitive regex)',
+                            denyPatterns: 'Denylist patterns (regex, one per line)',
+                            denyPatternsHint: 'Commands matching denylist are blocked (case-insensitive regex)'
+                        },
                         tips: {
                             onlyEnabledUsed: '• Only enabled and available shells will be used by AI',
                             statusMeaning: '• ✓ means available, ✗ means unavailable',
@@ -1289,6 +1499,8 @@ const en: LanguageMessages = {
                 }
             },
             toolsSettings: {
+                mcpNote: 'MCP tools are provided by MCP servers and cannot be disabled here',
+                mcpDisableTooltip: 'Provided by MCP server, cannot be disabled here',
                 maxIterations: {
                     label: 'Max Tool Calls Per Turn',
                     hint: 'Prevents AI from infinite tool call loops, -1 for unlimited',
@@ -1299,6 +1511,30 @@ const en: LanguageMessages = {
                     enableAll: 'Enable All',
                     disableAll: 'Disable All'
                 },
+                badges: {
+                    enabled: 'Enabled',
+                    autoExec: 'Auto'
+                },
+                columns: {
+                    enabled: 'Enabled',
+                    auto: 'Auto',
+                    config: 'Config'
+                },
+                exec: {
+                    autoEnabled: 'Enabled'
+                },
+                dangerConfirm: {
+                    title: 'Enable Auto Execute?',
+                    message: 'You are enabling auto execution for a dangerous tool: {tool}. This may cause irreversible changes. Continue?',
+                    confirm: 'Enable',
+                    cancel: 'Cancel'
+                },
+                enableAllDangerous: {
+                    title: 'Enable Auto Execute',
+                    message: 'Dangerous tools detected (delete_file / execute_command). Also enable auto execution for them?',
+                    confirm: 'Include dangerous tools',
+                    cancel: 'Skip dangerous tools'
+                },
                 loading: 'Loading tools list...',
                 empty: 'No tools available',
                 categories: {
@@ -1307,6 +1543,7 @@ const en: LanguageMessages = {
                     terminal: 'Terminal',
                     lsp: 'Code Intelligence',
                     media: 'Media Processing',
+                    mcp: 'MCP',
                     other: 'Other'
                 },
                 dependency: {
@@ -1745,6 +1982,8 @@ const en: LanguageMessages = {
                     },
                     terminate: 'Terminate',
                     terminateTooltip: 'Terminate Process',
+                    jumpToErrorTooltip: 'Open {path} and jump to {line}:{column}',
+                    nextCommandsTitle: 'Suggested next commands',
                     copyOutput: 'Copy Output',
                     copied: 'Copied',
                     output: 'Output',

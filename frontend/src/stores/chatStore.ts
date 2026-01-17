@@ -26,7 +26,7 @@
  */
 
 import { defineStore } from 'pinia'
-import type { Attachment, StreamChunk } from '../types'
+import type { Attachment, StreamChunk, ContextInspectorData, ContextInjectionOverrides } from '../types'
 import { sendToExtension, onMessageFromExtension } from '../utils/vscode'
 
 // 导入模块
@@ -90,6 +90,33 @@ import {
   clearMessages as clearMessagesFn
 } from './chat/messageActions'
 
+import type { PinnedPromptState } from './chat/types'
+import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
+import type { SelectionReference } from './chat/types'
+import {
+  addSelectionReference as addSelectionReferenceFn,
+  removeSelectionReference as removeSelectionReferenceFn,
+  clearSelectionReferences as clearSelectionReferencesFn
+} from './chat/selectionReferenceActions'
+import {
+  closeContextInspector as closeContextInspectorFn,
+  openContextInspectorPreview as openContextInspectorPreviewFn,
+  openContextInspectorWithData as openContextInspectorWithDataFn
+} from './chat/contextInspectorActions'
+import {
+  loadPlanRunnerState as loadPlanRunnerStateFn,
+  createPlanRunner as createPlanRunnerFn,
+  clearPlanRunner as clearPlanRunnerFn,
+  startPlanRunner as startPlanRunnerFn,
+  resumePlanRunner as resumePlanRunnerFn,
+  pausePlanRunner as pausePlanRunnerFn,
+  cancelPlanRunner as cancelPlanRunnerFn,
+  rerunPlanRunnerFromStep as rerunPlanRunnerFromStepFn,
+  type PlanRunnerCreateInput
+} from './chat/planRunnerActions'
+
+import { runPostEditValidationCommand as runPostEditValidationCommandFn, type ValidationCommandPreset } from './chat/validationActions'
+
 // 重新导出类型
 export type { Conversation, WorkspaceFilter } from './chat/types'
 
@@ -132,7 +159,10 @@ export const useChatStore = defineStore('chat', () => {
   
   const createNewConversation = () => createNewConvAction(state, cancelStreamAndRejectTools)
   const loadConversations = () => loadConvsAction(state)
-  const switchConversation = (id: string) => switchConvAction(state, id, cancelStreamAndRejectTools)
+  const switchConversation = async (id: string) => {
+    await switchConvAction(state, id, cancelStreamAndRejectTools)
+    await loadPlanRunnerState()
+  }
   const deleteConversation = (id: string) => deleteConvAction(
     state,
     id,
@@ -146,6 +176,24 @@ export const useChatStore = defineStore('chat', () => {
   const setWorkspaceFilter = (filter: 'current' | 'all') => setWorkspaceFilterAction(state, filter)
   const setInputValue = (value: string) => setInputValueAction(state, value)
   const clearInputValue = () => clearInputValueAction(state)
+  const setPinnedPrompt = (pinnedPrompt: PinnedPromptState) => setPinnedPromptFn(state, pinnedPrompt)
+  const addSelectionReference = (selection: Partial<SelectionReference>) => addSelectionReferenceFn(state, selection)
+  const removeSelectionReference = (id: string) => removeSelectionReferenceFn(state, id)
+  const clearSelectionReferences = () => clearSelectionReferencesFn(state)
+
+  const setMessageContextOverride = (key: keyof ContextInjectionOverrides, value: boolean | undefined): void => {
+    const next: ContextInjectionOverrides = { ...(state.messageContextOverrides.value || {}) }
+    if (value === undefined) {
+      delete (next as any)[key]
+    } else {
+      (next as any)[key] = value
+    }
+    state.messageContextOverrides.value = next
+  }
+
+  const clearMessageContextOverrides = (): void => {
+    state.messageContextOverrides.value = {}
+  }
   
   // ============ 检查点操作 ============
   
@@ -160,6 +208,28 @@ export const useChatStore = defineStore('chat', () => {
   const restoreAndEdit = (messageIndex: number, newContent: string, attachments: Attachment[] | undefined, checkpointId: string) =>
     restoreAndEditFn(state, messageIndex, newContent, attachments, checkpointId, computed.currentModelName.value, cancelStream)
   const summarizeContext = () => summarizeContextFn(state, () => loadHistory(state))
+
+  // ============ Context Inspector ============
+
+  const openContextInspectorPreview = (attachments?: Attachment[]) => openContextInspectorPreviewFn(state, attachments)
+  const openContextInspectorWithData = (data: ContextInspectorData) => openContextInspectorWithDataFn(state, data)
+  const closeContextInspector = () => closeContextInspectorFn(state)
+
+  // ============ Plan Runner ============
+
+  const loadPlanRunnerState = () => loadPlanRunnerStateFn(state)
+  const createPlanRunner = (input: PlanRunnerCreateInput) => createPlanRunnerFn(state, input)
+  const clearPlanRunner = () => clearPlanRunnerFn(state)
+  const startPlanRunner = () => startPlanRunnerFn(state, computed)
+  const resumePlanRunner = () => resumePlanRunnerFn(state, computed)
+  const pausePlanRunner = () => pausePlanRunnerFn(state)
+  const cancelPlanRunner = () => cancelPlanRunnerFn(state, computed)
+  const rerunPlanRunnerFromStep = (stepIndex: number) => rerunPlanRunnerFromStepFn(state, computed, stepIndex)
+
+  // ============ 改动后校验 ============
+
+  const runPostEditValidationCommand = (preset: ValidationCommandPreset) =>
+    runPostEditValidationCommandFn(state, preset)
 
   // ============ 流式处理 ============
   
@@ -217,6 +287,15 @@ export const useChatStore = defineStore('chat', () => {
     isWaitingForResponse: state.isWaitingForResponse,
     retryStatus: state.retryStatus,
     error: state.error,
+    planRunner: state.planRunner,
+    postEditValidationPending: state.postEditValidationPending,
+
+    // Context Inspector
+    contextInspectorVisible: state.contextInspectorVisible,
+    contextInspectorLoading: state.contextInspectorLoading,
+    contextInspectorData: state.contextInspectorData,
+    contextInspectorError: state.contextInspectorError,
+    contextInspectorSource: state.contextInspectorSource,
     
     // 计算属性
     currentConversation: computed.currentConversation,
@@ -251,6 +330,24 @@ export const useChatStore = defineStore('chat', () => {
     deleteMessage,
     deleteSingleMessage,
     clearMessages,
+
+    // Context Inspector
+    openContextInspectorPreview,
+    openContextInspectorWithData,
+    closeContextInspector,
+
+    // Plan Runner
+    loadPlanRunnerState,
+    createPlanRunner,
+    clearPlanRunner,
+    startPlanRunner,
+    resumePlanRunner,
+    pausePlanRunner,
+    cancelPlanRunner,
+    rerunPlanRunnerFromStep,
+
+    // 改动后校验
+    runPostEditValidationCommand,
     
     // 配置管理
     setConfigId,
@@ -286,6 +383,21 @@ export const useChatStore = defineStore('chat', () => {
     inputValue: state.inputValue,
     setInputValue,
     clearInputValue,
+
+    // 固定提示词/技能
+    pinnedPrompt: state.pinnedPrompt,
+    setPinnedPrompt,
+
+    // 本条消息引用（选中代码片段）
+    selectionReferences: state.selectionReferences,
+    addSelectionReference,
+    removeSelectionReference,
+    clearSelectionReferences,
+
+    // 本条消息级上下文覆写
+    messageContextOverrides: state.messageContextOverrides,
+    setMessageContextOverride,
+    clearMessageContextOverrides,
     
     // 上下文总结
     summarizeContext,

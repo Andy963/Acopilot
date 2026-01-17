@@ -8,9 +8,10 @@
  * - 每个 diff 块独立显示
  */
 
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import CustomScrollbar from '../../common/CustomScrollbar.vue'
 import { useI18n } from '@/composables'
+import { applyWorkspaceFileDiffBlock, getGitStatusForPaths, saveWorkspaceFile, stageGitFile, unstageGitFile } from '@/utils/vscode'
 
 const props = defineProps<{
   args: Record<string, unknown>
@@ -22,6 +23,21 @@ const { t } = useI18n()
 
 // 展开状态
 const expanded = ref<Set<number>>(new Set())
+
+// hunk 级应用/撤销状态（默认：后端已应用成功的 diff 视为 applied）
+const appliedHunks = ref<Set<number>>(new Set())
+const hunkBusy = ref<Set<number>>(new Set())
+const hunkErrors = ref<Map<number, string>>(new Map())
+
+// Git 状态（仅展示本次改动文件）
+interface GitFileStatus {
+  xy: string
+  staged: boolean
+  unstaged: boolean
+  untracked: boolean
+}
+const gitStatus = ref<GitFileStatus | null>(null)
+const gitLoading = ref(false)
 
 // 复制状态
 const copiedDiffs = ref<Set<number>>(new Set())
@@ -73,6 +89,158 @@ const diffList = computed((): DiffBlock[] => {
     }
   })
 })
+
+watch(diffList, (list) => {
+  const next = new Set<number>()
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].success !== false) next.add(i)
+  }
+  appliedHunks.value = next
+  hunkErrors.value = new Map()
+}, { immediate: true })
+
+function isHunkApplied(index: number): boolean {
+  return appliedHunks.value.has(index)
+}
+
+function isHunkLoading(index: number): boolean {
+  return hunkBusy.value.has(index)
+}
+
+function getHunkError(index: number): string | null {
+  return hunkErrors.value.get(index) || null
+}
+
+function setHunkError(index: number, message: string | null) {
+  const next = new Map(hunkErrors.value)
+  if (!message) next.delete(index)
+  else next.set(index, message)
+  hunkErrors.value = next
+}
+
+function setHunkBusy(index: number, busy: boolean) {
+  const next = new Set(hunkBusy.value)
+  if (busy) next.add(index)
+  else next.delete(index)
+  hunkBusy.value = next
+}
+
+async function refreshGitStatus() {
+  gitStatus.value = null
+  if (!filePath.value) return
+
+  gitLoading.value = true
+  try {
+    const resp = await getGitStatusForPaths([filePath.value])
+    const entry = resp?.statuses?.[filePath.value] as any
+    if (entry && !entry.error && (entry.staged || entry.unstaged || entry.untracked)) {
+      gitStatus.value = entry as GitFileStatus
+    }
+  } finally {
+    gitLoading.value = false
+  }
+}
+
+onMounted(() => {
+  refreshGitStatus()
+})
+
+watch(filePath, () => {
+  refreshGitStatus()
+})
+
+async function handleStageCurrentFile() {
+  if (!filePath.value || gitLoading.value) return
+  gitLoading.value = true
+  try {
+    await saveWorkspaceFile(filePath.value)
+    await stageGitFile(filePath.value)
+  } finally {
+    await refreshGitStatus()
+  }
+}
+
+async function handleUnstageCurrentFile() {
+  if (!filePath.value || gitLoading.value) return
+  gitLoading.value = true
+  try {
+    await unstageGitFile(filePath.value)
+  } finally {
+    await refreshGitStatus()
+  }
+}
+
+async function handleSaveCurrentFile() {
+  if (!filePath.value || gitLoading.value) return
+  gitLoading.value = true
+  try {
+    await saveWorkspaceFile(filePath.value)
+  } finally {
+    await refreshGitStatus()
+  }
+}
+
+async function applyHunk(diff: DiffBlock, index: number) {
+  if (!filePath.value) return
+  if (isHunkLoading(index)) return
+
+  setHunkBusy(index, true)
+  setHunkError(index, null)
+  try {
+    const resp = await applyWorkspaceFileDiffBlock({
+      path: filePath.value,
+      from: diff.search,
+      to: diff.replace,
+      startLine: diff.start_line,
+      save: false
+    })
+
+    if (resp?.success) {
+      const next = new Set(appliedHunks.value)
+      next.add(index)
+      appliedHunks.value = next
+      await refreshGitStatus()
+      return
+    }
+
+    setHunkError(index, resp?.error || t('common.failed'))
+  } catch (err: any) {
+    setHunkError(index, err?.message || t('common.failed'))
+  } finally {
+    setHunkBusy(index, false)
+  }
+}
+
+async function undoHunk(diff: DiffBlock, index: number) {
+  if (!filePath.value) return
+  if (isHunkLoading(index)) return
+
+  setHunkBusy(index, true)
+  setHunkError(index, null)
+  try {
+    const resp = await applyWorkspaceFileDiffBlock({
+      path: filePath.value,
+      from: diff.replace,
+      to: diff.search,
+      startLine: diff.start_line,
+      save: false
+    })
+
+    if (resp?.success) {
+      const next = new Set(appliedHunks.value)
+      next.delete(index)
+      appliedHunks.value = next
+      await refreshGitStatus()
+      return
+    }
+
+    setHunkError(index, resp?.error || t('common.failed'))
+  } catch (err: any) {
+    setHunkError(index, err?.message || t('common.failed'))
+  } finally {
+    setHunkBusy(index, false)
+  }
+}
 
 // 获取结果信息
 const resultData = computed(() => {
@@ -364,6 +532,38 @@ onBeforeUnmount(() => {
     <div class="file-path-bar">
       <span class="codicon codicon-file-code"></span>
       <span class="path">{{ filePath }}</span>
+      <span v-if="gitStatus" class="git-status" :title="gitStatus.xy">
+        <span class="codicon codicon-source-control"></span>
+        <code>{{ gitStatus.xy }}</code>
+      </span>
+      <div class="git-actions">
+        <button
+          class="action-btn"
+          :disabled="gitLoading"
+          :title="t('common.save')"
+          @click.stop="handleSaveCurrentFile"
+        >
+          <span class="codicon codicon-save"></span>
+        </button>
+        <button
+          v-if="gitStatus && (gitStatus.untracked || gitStatus.unstaged)"
+          class="action-btn"
+          :disabled="gitLoading"
+          :title="t('common.stage')"
+          @click.stop="handleStageCurrentFile"
+        >
+          <span class="codicon codicon-git-branch-staged-changes"></span>
+        </button>
+        <button
+          v-if="gitStatus && gitStatus.staged"
+          class="action-btn"
+          :disabled="gitLoading"
+          :title="t('common.unstage')"
+          @click.stop="handleUnstageCurrentFile"
+        >
+          <span class="codicon codicon-git-branch-changes"></span>
+        </button>
+      </div>
     </div>
     
     <!-- 结果状态 -->
@@ -429,6 +629,21 @@ onBeforeUnmount(() => {
           <div class="diff-actions">
             <button
               class="action-btn"
+              :disabled="isHunkLoading(index)"
+              :title="isHunkApplied(index) ? t('common.undo') : t('common.apply')"
+              @click.stop="isHunkApplied(index) ? undoHunk(diff, index) : applyHunk(diff, index)"
+            >
+              <span
+                :class="[
+                  'codicon',
+                  isHunkLoading(index)
+                    ? 'codicon-loading codicon-modifier-spin'
+                    : (isHunkApplied(index) ? 'codicon-discard' : 'codicon-diff-added')
+                ]"
+              ></span>
+            </button>
+            <button
+              class="action-btn"
               :class="{ 'copied': isCopied(index) }"
               :title="isCopied(index) ? t('components.tools.file.applyDiffPanel.copied') : t('components.tools.file.applyDiffPanel.copyNew')"
               @click.stop="copyReplace(diff, index)"
@@ -436,6 +651,11 @@ onBeforeUnmount(() => {
               <span :class="['codicon', isCopied(index) ? 'codicon-check' : 'codicon-copy']"></span>
             </button>
           </div>
+        </div>
+
+        <div v-if="getHunkError(index)" class="diff-op-error">
+          <span class="codicon codicon-warning"></span>
+          <span class="diff-op-error-text">{{ getHunkError(index) }}</span>
         </div>
         
         <!-- Diff 内容 -->
@@ -577,9 +797,47 @@ onBeforeUnmount(() => {
 }
 
 .file-path-bar .path {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.git-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.git-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-op-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 100, 100, 0.35);
+  background: rgba(255, 100, 100, 0.08);
+  border-radius: var(--apply-diff-radius-sm);
+  color: var(--vscode-errorForeground);
+  font-size: 11px;
+}
+
+.diff-op-error-text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 结果状态 */

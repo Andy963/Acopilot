@@ -1,5 +1,5 @@
 /**
- * LimCode - Anthropic 格式转换器
+ * Acopilot - Anthropic 格式转换器
  *
  * 将统一格式转换为 Anthropic Claude API 格式
  *
@@ -46,6 +46,13 @@ import type {
     StreamChunk,
     HttpRequestOptions
 } from '../types';
+import {
+    decodeBase64ToUtf8,
+    formatTextAttachment,
+    formatUnsupportedAttachment,
+    isImageMimeType,
+    isTextMimeType
+} from './inlineDataUtils';
 
 /**
  * Anthropic 格式转换器
@@ -138,8 +145,8 @@ export class AnthropicFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
         
-        // 决定是否使用流式（始终发送 stream 字段）
-        const useStream = (config.options as any)?.stream ?? (config as any).preferStream ?? false;
+        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
+        const useStream = request.streamOverride ?? (config.options as any)?.stream ?? (config as any).preferStream ?? false;
         body.stream = useStream;
         
         // 构建 URL
@@ -177,7 +184,13 @@ export class AnthropicFormatter extends BaseFormatter {
         }
         
         // 应用自定义 body（如果启用）
-        const finalBody = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        let finalBody: any = applyCustomBody(body, (config as any).customBody, (config as any).customBodyEnabled);
+        if (!finalBody || typeof finalBody !== 'object' || Array.isArray(finalBody)) {
+            finalBody = body;
+        }
+
+        // custom body 可能覆盖 stream 字段，导致请求与解析模式不一致；这里强制对齐。
+        finalBody.stream = useStream;
         
         // 构建请求选项
         return {
@@ -354,15 +367,44 @@ export class AnthropicFormatter extends BaseFormatter {
         // 添加多媒体部分（图片通常放在文本前面）
         for (const part of mediaParts) {
             if (part.inlineData) {
-                // Base64 内联数据
-                contentArray.push({
-                    type: 'image',
-                    source: {
-                        type: 'base64',
-                        media_type: part.inlineData.mimeType,
-                        data: part.inlineData.data
-                    }
-                });
+                const mimeType = part.inlineData.mimeType;
+
+                if (isImageMimeType(mimeType)) {
+                    // 图片：Base64 内联数据
+                    contentArray.push({
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: mimeType,
+                            data: part.inlineData.data
+                        }
+                    });
+                } else if (isTextMimeType(mimeType)) {
+                    // 文本类附件：解码后作为普通文本发送
+                    const decoded = decodeBase64ToUtf8(part.inlineData.data);
+                    contentArray.push({
+                        type: 'text',
+                        text: decoded !== null
+                            ? formatTextAttachment({
+                                mimeType,
+                                text: decoded,
+                                displayName: part.inlineData.displayName
+                            })
+                            : formatUnsupportedAttachment({
+                                mimeType,
+                                displayName: part.inlineData.displayName
+                            })
+                    });
+                } else {
+                    // 非图片且非文本的附件：避免错误，发送占位提示
+                    contentArray.push({
+                        type: 'text',
+                        text: formatUnsupportedAttachment({
+                            mimeType,
+                            displayName: part.inlineData.displayName
+                        })
+                    });
+                }
             } else if (part.fileData) {
                 // 文件引用 -> URL 格式
                 contentArray.push({
@@ -747,6 +789,14 @@ export class AnthropicFormatter extends BaseFormatter {
      * - content_block_delta: { type: "signature_delta", signature: "..." }
      */
     parseStreamChunk(chunk: any): StreamChunk {
+        if (chunk && typeof chunk === 'object' && (chunk as any).__acopilot_sse_done === true) {
+            return {
+                delta: [],
+                done: true,
+                finishReason: 'done'
+            };
+        }
+
         const parts: ContentPart[] = [];
         let done = false;
         let usage: any;

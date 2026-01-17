@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { sendToExtension } from '@/utils/vscode'
+import { Modal, ConfirmDialog } from '@/components/common'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
@@ -22,6 +23,15 @@ interface SystemPromptConfig {
   template: string
   customPrefix: string
   customSuffix: string
+  skills?: SkillDefinition[]
+}
+
+// Skill 定义
+interface SkillDefinition {
+  id: string
+  name: string
+  description?: string
+  prompt: string
 }
 
 // 可用的提示词变量列表
@@ -165,7 +175,7 @@ GUIDELINES
 - Use the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files.
 - **IMPORTANT: Avoid duplicate tool calls.** Each tool should only be called once with the same parameters. Never repeat the same tool call multiple times.
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
-- When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
+- When you need to make changes, use apply_diff for targeted modifications or write_file for creating new files.
 - If the task is simple and doesn't require tools, just respond directly without calling any tools.
 - Always maintain code readability and maintainability.
 - Do not omit any code.`
@@ -209,6 +219,204 @@ const channelOptions: { value: ChannelType; label: string }[] = [
 // 展开的模块
 const expandedModule = ref<string | null>(null)
 
+// ========== Skills 管理 ==========
+
+const skills = ref<SkillDefinition[]>([])
+const isSavingSkills = ref(false)
+const skillsMessage = ref('')
+
+const showSkillModal = ref(false)
+const isEditingSkill = ref(false)
+const editingSkillOriginalId = ref<string | null>(null)
+const skillFormError = ref('')
+const skillForm = reactive<SkillDefinition>({
+  id: '',
+  name: '',
+  description: '',
+  prompt: ''
+})
+
+const showDeleteSkillConfirm = ref(false)
+const pendingDeleteSkillId = ref<string | null>(null)
+
+// Install from URL
+const showInstallSkillModal = ref(false)
+const installUrl = ref('')
+const isInstallingSkill = ref(false)
+const installSkillError = ref('')
+
+function normalizeSkills(raw: unknown): SkillDefinition[] {
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .filter((s): s is any => s && typeof s === 'object')
+    .map((s: any) => ({
+      id: String(s.id || '').trim(),
+      name: String(s.name || '').trim(),
+      description: typeof s.description === 'string' ? s.description : '',
+      prompt: String(s.prompt || '')
+    }))
+    .filter(s => s.id)
+}
+
+async function persistSkills(nextSkills: SkillDefinition[]) {
+  isSavingSkills.value = true
+  skillsMessage.value = ''
+
+  try {
+    await sendToExtension('updateSystemPromptConfig', {
+      config: { skills: nextSkills }
+    })
+    skills.value = nextSkills
+    skillsMessage.value = t('components.settings.promptSettings.skills.saveSuccess')
+    setTimeout(() => { skillsMessage.value = '' }, 2000)
+  } catch (error) {
+    console.error('Failed to save skills:', error)
+    skillsMessage.value = t('components.settings.promptSettings.skills.saveFailed')
+  } finally {
+    isSavingSkills.value = false
+  }
+}
+
+function openAddSkill() {
+  isEditingSkill.value = false
+  editingSkillOriginalId.value = null
+  skillFormError.value = ''
+  skillForm.id = ''
+  skillForm.name = ''
+  skillForm.description = ''
+  skillForm.prompt = ''
+  showSkillModal.value = true
+}
+
+function openEditSkill(skill: SkillDefinition) {
+  isEditingSkill.value = true
+  editingSkillOriginalId.value = skill.id
+  skillFormError.value = ''
+  skillForm.id = skill.id
+  skillForm.name = skill.name
+  skillForm.description = skill.description || ''
+  skillForm.prompt = skill.prompt
+  showSkillModal.value = true
+}
+
+async function confirmSkillModal() {
+  const id = skillForm.id.trim()
+  const name = skillForm.name.trim()
+  const prompt = skillForm.prompt.trim()
+
+  if (!id) {
+    skillFormError.value = t('components.settings.promptSettings.skills.validation.idRequired')
+    return
+  }
+  if (!prompt) {
+    skillFormError.value = t('components.settings.promptSettings.skills.validation.promptRequired')
+    return
+  }
+
+  const nextSkills = [...skills.value]
+
+  // 唯一性校验
+  const duplicate = nextSkills.find(s => s.id === id && s.id !== editingSkillOriginalId.value)
+  if (duplicate) {
+    skillFormError.value = t('components.settings.promptSettings.skills.validation.idDuplicate')
+    return
+  }
+
+  const nextSkill: SkillDefinition = {
+    id,
+    name: name || id,
+    description: skillForm.description?.trim() || '',
+    prompt: skillForm.prompt
+  }
+
+  if (isEditingSkill.value && editingSkillOriginalId.value) {
+    const index = nextSkills.findIndex(s => s.id === editingSkillOriginalId.value)
+    if (index !== -1) {
+      nextSkills[index] = nextSkill
+    } else {
+      nextSkills.push(nextSkill)
+    }
+  } else {
+    nextSkills.push(nextSkill)
+  }
+
+  // 排序（按 name，再按 id）
+  nextSkills.sort((a, b) => {
+    const nameCmp = (a.name || a.id).localeCompare(b.name || b.id)
+    if (nameCmp !== 0) return nameCmp
+    return a.id.localeCompare(b.id)
+  })
+
+  showSkillModal.value = false
+  await persistSkills(nextSkills)
+}
+
+function requestDeleteSkill(id: string) {
+  pendingDeleteSkillId.value = id
+  showDeleteSkillConfirm.value = true
+}
+
+async function confirmDeleteSkill() {
+  if (!pendingDeleteSkillId.value) return
+  const id = pendingDeleteSkillId.value
+  pendingDeleteSkillId.value = null
+
+  const nextSkills = skills.value.filter(s => s.id !== id)
+  await persistSkills(nextSkills)
+}
+
+function openInstallSkill() {
+  installUrl.value = ''
+  installSkillError.value = ''
+  showInstallSkillModal.value = true
+}
+
+async function confirmInstallSkill() {
+  const url = installUrl.value.trim()
+  if (!url) {
+    installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.urlRequired')
+    return
+  }
+
+  isInstallingSkill.value = true
+  installSkillError.value = ''
+
+  try {
+    const result = await sendToExtension<{ skills?: SkillDefinition[] }>('installSkillFromUrl', { url })
+    const installed = Array.isArray(result?.skills) ? result.skills : []
+
+    if (installed.length === 0) {
+      installSkillError.value = t('components.settings.promptSettings.skills.installFromUrl.validation.noSkillsFound')
+      return
+    }
+
+    const nextSkills = [...skills.value]
+    for (const skill of installed) {
+      if (!skill?.id) continue
+      const idx = nextSkills.findIndex(s => s.id === skill.id)
+      if (idx !== -1) {
+        nextSkills[idx] = skill
+      } else {
+        nextSkills.push(skill)
+      }
+    }
+
+    nextSkills.sort((a, b) => {
+      const nameCmp = (a.name || a.id).localeCompare(b.name || b.id)
+      if (nameCmp !== 0) return nameCmp
+      return a.id.localeCompare(b.id)
+    })
+
+    showInstallSkillModal.value = false
+    await persistSkills(nextSkills)
+  } catch (error: any) {
+    installSkillError.value = error.message || t('components.settings.promptSettings.skills.installFromUrl.installFailed')
+  } finally {
+    isInstallingSkill.value = false
+  }
+}
+
 // 加载配置
 async function loadConfig() {
   isLoading.value = true
@@ -218,6 +426,7 @@ async function loadConfig() {
       config.template = result.template || DEFAULT_TEMPLATE
       config.customPrefix = result.customPrefix || ''
       config.customSuffix = result.customSuffix || ''
+      skills.value = normalizeSkills(result.skills)
       originalConfig.value = { ...config }
     }
   } catch (error) {
@@ -290,10 +499,9 @@ async function countTokens() {
 
 // 格式化 token 数量显示
 function formatTokenCount(count: number): string {
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}k`
-  }
-  return count.toString()
+  if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
+  if (count >= 1_000) return `${Math.round(count / 1_000)}k`
+  return String(count)
 }
 
 // 重置为默认模板
@@ -477,8 +685,155 @@ watch(selectedChannel, () => {
           </div>
         </div>
       </div>
+
+      <!-- Skills 管理 -->
+      <div class="skills-section">
+        <div class="skills-header">
+          <h5 class="reference-title">
+            <i class="codicon codicon-wand"></i>
+            {{ t('components.settings.promptSettings.skills.title') }}
+          </h5>
+          <div class="skills-header-actions">
+            <button class="reset-btn" @click="openInstallSkill" :disabled="isSavingSkills || isInstallingSkill">
+              <i class="codicon codicon-cloud-download"></i>
+              {{ t('components.settings.promptSettings.skills.installFromUrl.button') }}
+            </button>
+            <button class="reset-btn" @click="openAddSkill" :disabled="isSavingSkills">
+              <i class="codicon codicon-add"></i>
+              {{ t('components.settings.promptSettings.skills.add') }}
+            </button>
+          </div>
+        </div>
+
+        <p class="section-description">
+          {{ t('components.settings.promptSettings.skills.description') }}
+        </p>
+
+        <div v-if="skills.length === 0" class="skills-empty">
+          <i class="codicon codicon-info"></i>
+          <span>{{ t('components.settings.promptSettings.skills.empty') }}</span>
+        </div>
+
+        <div v-else class="skills-list">
+          <div v-for="skill in skills" :key="skill.id" class="skill-item">
+            <div class="skill-main">
+              <div class="skill-name">{{ skill.name || skill.id }}</div>
+              <div class="skill-meta">
+                <code class="skill-id" :title="skill.id">{{ skill.id }}</code>
+                <span v-if="skill.description" class="skill-desc" :title="skill.description">{{ skill.description }}</span>
+              </div>
+            </div>
+            <div class="skill-actions">
+              <button class="skill-action" @click="openEditSkill(skill)" :disabled="isSavingSkills">
+                <i class="codicon codicon-edit"></i>
+                {{ t('common.edit') }}
+              </button>
+              <button class="skill-action danger" @click="requestDeleteSkill(skill.id)" :disabled="isSavingSkills">
+                <i class="codicon codicon-trash"></i>
+                {{ t('common.delete') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="skillsMessage" class="skills-message" :class="{ success: skillsMessage === t('components.settings.promptSettings.skills.saveSuccess') }">
+          {{ skillsMessage }}
+        </div>
+      </div>
     </template>
   </div>
+
+  <!-- Skill 编辑/新增弹窗 -->
+  <Modal
+    v-model="showSkillModal"
+    :title="isEditingSkill ? t('components.settings.promptSettings.skills.modal.editTitle') : t('components.settings.promptSettings.skills.modal.addTitle')"
+    width="680px"
+  >
+    <div class="skill-form">
+      <div class="skill-form-row">
+        <label class="skill-form-label">{{ t('components.settings.promptSettings.skills.modal.id') }}</label>
+        <input v-model="skillForm.id" class="skill-form-input" :placeholder="t('components.settings.promptSettings.skills.modal.idPlaceholder')" />
+      </div>
+
+      <div class="skill-form-row">
+        <label class="skill-form-label">{{ t('components.settings.promptSettings.skills.modal.name') }}</label>
+        <input v-model="skillForm.name" class="skill-form-input" :placeholder="t('components.settings.promptSettings.skills.modal.namePlaceholder')" />
+      </div>
+
+      <div class="skill-form-row">
+        <label class="skill-form-label">{{ t('components.settings.promptSettings.skills.modal.description') }}</label>
+        <input v-model="skillForm.description" class="skill-form-input" :placeholder="t('components.settings.promptSettings.skills.modal.descriptionPlaceholder')" />
+      </div>
+
+      <div class="skill-form-row">
+        <label class="skill-form-label">{{ t('components.settings.promptSettings.skills.modal.prompt') }}</label>
+        <textarea
+          v-model="skillForm.prompt"
+          class="skill-form-textarea"
+          rows="10"
+          :placeholder="t('components.settings.promptSettings.skills.modal.promptPlaceholder')"
+        ></textarea>
+      </div>
+
+      <div v-if="skillFormError" class="skill-form-error">
+        <i class="codicon codicon-warning"></i>
+        <span>{{ skillFormError }}</span>
+      </div>
+    </div>
+
+    <template #footer>
+      <button class="dialog-btn cancel" @click="showSkillModal = false">{{ t('common.cancel') }}</button>
+      <button class="dialog-btn confirm" @click="confirmSkillModal" :disabled="isSavingSkills">{{ t('common.save') }}</button>
+    </template>
+  </Modal>
+
+  <!-- 删除 Skill 确认 -->
+  <ConfirmDialog
+    v-model="showDeleteSkillConfirm"
+    :title="t('components.settings.promptSettings.skills.delete.title')"
+    :message="t('components.settings.promptSettings.skills.delete.message')"
+    :confirm-text="t('common.delete')"
+    :cancel-text="t('common.cancel')"
+    :is-danger="true"
+    @confirm="confirmDeleteSkill"
+    @cancel="pendingDeleteSkillId = null"
+  />
+
+  <!-- 从 URL 安装 Skill -->
+  <Modal
+    v-model="showInstallSkillModal"
+    :title="t('components.settings.promptSettings.skills.installFromUrl.modal.title')"
+    width="680px"
+  >
+    <div class="skill-form">
+      <div class="skill-form-row">
+        <label class="skill-form-label">{{ t('components.settings.promptSettings.skills.installFromUrl.modal.url') }}</label>
+        <input
+          v-model="installUrl"
+          class="skill-form-input"
+          :placeholder="t('components.settings.promptSettings.skills.installFromUrl.modal.urlPlaceholder')"
+        />
+        <div class="skill-install-hint">
+          {{ t('components.settings.promptSettings.skills.installFromUrl.modal.hint') }}
+        </div>
+      </div>
+
+      <div v-if="installSkillError" class="skill-form-error">
+        <i class="codicon codicon-warning"></i>
+        <span>{{ installSkillError }}</span>
+      </div>
+    </div>
+
+    <template #footer>
+      <button class="dialog-btn cancel" @click="showInstallSkillModal = false" :disabled="isInstallingSkill">
+        {{ t('common.cancel') }}
+      </button>
+      <button class="dialog-btn confirm" @click="confirmInstallSkill" :disabled="isInstallingSkill">
+        <i v-if="isInstallingSkill" class="codicon codicon-loading codicon-modifier-spin"></i>
+        <span v-else>{{ t('common.install') }}</span>
+      </button>
+    </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -511,6 +866,226 @@ watch(selectedChannel, () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.skills-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.skills-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-install-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.skills-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--vscode-list-hoverBackground);
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.skill-item:hover {
+  border-color: var(--vscode-panel-border);
+}
+
+.skill-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.skill-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.skill-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.skill-id {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--vscode-textBlockQuote-background);
+  color: var(--vscode-descriptionForeground);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-desc {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.skill-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.skill-action:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.skill-action.danger {
+  border-color: rgba(241, 76, 76, 0.35);
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.skill-action.danger:hover {
+  background: rgba(241, 76, 76, 0.08);
+}
+
+.skills-message {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.skills-message.success {
+  color: var(--vscode-testing-iconPassed, #89d185);
+}
+
+.skill-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-form-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.skill-form-input,
+.skill-form-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+}
+
+.skill-form-textarea {
+  font-family: var(--vscode-editor-font-family);
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.skill-form-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.dialog-btn {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.dialog-btn.cancel {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.dialog-btn.cancel:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.dialog-btn.confirm {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.dialog-btn.confirm:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.dialog-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .section-label {

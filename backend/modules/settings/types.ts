@@ -1,8 +1,10 @@
 /**
- * LimCode - 全局设置类型定义
+ * Acopilot - 全局设置类型定义
  * 
  * 定义全局设置的类型和接口
  */
+
+import { DEFAULT_EXECUTE_COMMAND_RISK_POLICY, type ExecuteCommandRiskPolicy } from '../../core/commandRisk';
 
 /**
  * 工具启用状态配置
@@ -129,6 +131,46 @@ export interface ShellConfig {
 }
 
 /**
+ * 改动后校验预设
+ *
+ * 用于在文件修改类工具执行完成后，引导用户运行 build/test/lint 等命令，
+ * 并将执行结果回写到对话中。
+ */
+export interface PostEditValidationPreset {
+    /** 唯一 ID */
+    id: string;
+
+    /** 显示名称 */
+    label: string;
+
+    /** 要执行的命令 */
+    command: string;
+
+    /** 可选：工作目录（相对工作区根目录，或 multi-root 格式） */
+    cwd?: string;
+
+    /** 可选：shell 类型（default/bash/zsh/powershell 等） */
+    shell?: string;
+
+    /** 可选：超时（毫秒） */
+    timeout?: number;
+
+    /** 可选：预设类型 */
+    kind?: 'build' | 'test' | 'lint' | 'custom';
+
+    /** 是否启用 */
+    enabled?: boolean;
+}
+
+/**
+ * 改动后校验配置
+ */
+export interface PostEditValidationConfig {
+    enabled: boolean;
+    presets: PostEditValidationPreset[];
+}
+
+/**
  * Execute Command 工具配置
  */
 export interface ExecuteCommandToolConfig {
@@ -160,6 +202,18 @@ export interface ExecuteCommandToolConfig {
      * 默认: 50
      */
     maxOutputLines: number;
+
+    /**
+     * 命令风险策略（用于对部分高风险命令强制要求确认/拦截）
+     */
+    riskPolicy?: ExecuteCommandRiskPolicy;
+
+    /**
+     * 改动后校验配置
+     *
+     * 前端可在检测到“文件修改类工具已执行完成”后，展示校验预设入口。
+     */
+    postEditValidation?: PostEditValidationConfig;
     
     [key: string]: unknown;
 }
@@ -485,6 +539,28 @@ export interface PromptModule {
 }
 
 /**
+ * Skill 定义
+ *
+ * 用于在 UI 中管理的“技能”条目，本质上是一段可复用的提示词（Prompt）。
+ * 这些技能可在对话中被选择并作为额外系统指令注入。
+ */
+export interface SkillDefinition {
+    /** 唯一标识 */
+    id: string;
+
+    /** 展示名称 */
+    name: string;
+
+    /** 简短描述（可选） */
+    description?: string;
+
+    /** 该技能对应的提示词内容 */
+    prompt: string;
+
+    [key: string]: unknown;
+}
+
+/**
  * 系统提示词配置
  *
  * 允许用户自定义系统提示词模板
@@ -518,6 +594,13 @@ export interface SystemPromptConfig {
      * 在模板中使用 {{CUSTOM_SUFFIX}} 引用
      */
     customSuffix: string;
+
+    /**
+     * Skill 列表
+     *
+     * 用于在 UI 中管理，并可在对话中选择使用。
+     */
+    skills?: SkillDefinition[];
     
     [key: string]: unknown;
 }
@@ -847,7 +930,7 @@ export interface StoragePathConfig {
      * 自定义数据存储根目录
      *
      * 如果为空或未设置，使用默认的 globalStorageUri
-     * 例如: "D:\\LimCodeData" 或 "/home/user/limcode-data"
+     * 例如: "D:\\AcopilotData" 或 "/home/user/acopilot-data"
      */
     customDataPath?: string;
     
@@ -1166,7 +1249,12 @@ export function getDefaultExecuteCommandConfig(): ExecuteCommandToolConfig {
         shells,
         defaultTimeout: 60000,
         autoExecute: false,
-        maxOutputLines: 50
+        maxOutputLines: 50,
+        riskPolicy: DEFAULT_EXECUTE_COMMAND_RISK_POLICY,
+        postEditValidation: {
+            enabled: true,
+            presets: []
+        }
     };
 }
 
@@ -1198,7 +1286,7 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     enabled: true,
     beforeTools: [
         'apply_diff',
-        'write_to_file',
+        'write_file',
         'delete_file',
         'create_directory',
         'execute_command',
@@ -1206,7 +1294,7 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     ],
     afterTools: [
         'apply_diff',
-        'write_to_file',
+        'write_file',
         'delete_file',
         'create_directory',
         'execute_command',
@@ -1457,7 +1545,7 @@ GUIDELINES
 - Use the provided tools to complete tasks. Tools can help you read files, search code, execute commands, and modify files.
 - **IMPORTANT: Avoid duplicate tool calls.** Each tool should only be called once with the same parameters. Never repeat the same tool call multiple times.
 - When you need to understand the codebase, use read_file to examine specific files or search_in_files to find relevant code patterns.
-- When you need to make changes, use apply_diff for targeted modifications or write_to_file for creating new files.
+- When you need to make changes, use apply_diff for targeted modifications or write_file for creating new files.
 - If the task is simple and doesn't require tools, just respond directly without calling any tools.
 - Always maintain code readability and maintainability.
 - Do not omit any code.`;
@@ -1468,7 +1556,8 @@ GUIDELINES
 export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
     template: DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     customPrefix: '',
-    customSuffix: ''
+    customSuffix: '',
+    skills: []
 };
 
 /**

@@ -9,12 +9,14 @@ import InputBox from './InputBox.vue'
 import FilePickerPanel from './FilePickerPanel.vue'
 import SendButton from './SendButton.vue'
 import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
+import CreateTaskModal from '../task/CreateTaskModal.vue'
+import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { IconButton, Tooltip } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
 import { formatFileSize } from '../../utils/file'
 import { formatModelName, formatNumber } from '../../utils/format'
-import type { Attachment } from '../../types'
+import type { Attachment, ContextInjectionOverrides } from '../../types'
 import { useI18n } from '../../i18n'
 
 const { t } = useI18n()
@@ -27,6 +29,13 @@ interface PinnedFileItem {
   enabled: boolean
   addedAt: number
   exists?: boolean  // 文件是否存在
+}
+
+interface SkillDefinition {
+  id: string
+  name: string
+  description?: string
+  prompt: string
 }
 
 const props = defineProps<{
@@ -221,6 +230,7 @@ function handleSend() {
   
   emit('send', content, attachments)
   chatStore.clearInputValue()  // 使用 store 方法清空
+  showContextOverridesPanel.value = false
 }
 
 // 处理取消
@@ -263,10 +273,29 @@ const isSummarizing = ref(false)
 const pinnedFiles = ref<PinnedFileItem[]>([])
 // 是否显示固定文件面板
 const showPinnedFilesPanel = ref(false)
+// 是否显示“本条消息上下文”开关面板
+const showContextOverridesPanel = ref(false)
 // 是否正在加载固定文件
 const isLoadingPinnedFiles = ref(false)
 // 拖拽状态
 const isDraggingOver = ref(false)
+
+// Create Task Modal
+const showCreateTaskModal = ref(false)
+
+// Create Plan Modal
+const showCreatePlanModal = ref(false)
+
+// 固定提示词/技能面板 Tab
+type PinPanelTab = 'files' | 'skill' | 'custom'
+const pinPanelTab = ref<PinPanelTab>('files')
+
+// Skills
+const skills = ref<SkillDefinition[]>([])
+const isLoadingSkills = ref(false)
+const selectedSkillId = ref('')
+const customPromptDraft = ref('')
+const isSavingPinnedPrompt = ref(false)
 
 // @ 文件选择器状态
 const showFilePicker = ref(false)
@@ -410,6 +439,106 @@ async function loadPinnedFiles() {
   }
 }
 
+function normalizeSkills(raw: unknown): SkillDefinition[] {
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .filter((s): s is any => s && typeof s === 'object')
+    .map((s: any) => ({
+      id: String(s.id || '').trim(),
+      name: String(s.name || '').trim(),
+      description: typeof s.description === 'string' ? s.description : '',
+      prompt: String(s.prompt || '')
+    }))
+    .filter(s => s.id && s.prompt.trim())
+}
+
+async function loadSkills() {
+  isLoadingSkills.value = true
+  try {
+    const result = await sendToExtension<any>('getSystemPromptConfig', {})
+    skills.value = normalizeSkills(result?.skills)
+  } catch (error) {
+    console.error('Failed to load skills:', error)
+    skills.value = []
+  } finally {
+    isLoadingSkills.value = false
+  }
+}
+
+const selectedSkill = computed(() => {
+  return skills.value.find(s => s.id === selectedSkillId.value) || null
+})
+
+const hasPinnedPrompt = computed(() => {
+  return Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none')
+})
+
+const selectionReferences = computed(() => {
+  return Array.isArray(chatStore.selectionReferences) ? chatStore.selectionReferences : []
+})
+
+const selectionReferencesCount = computed(() => selectionReferences.value.length)
+
+async function openSelectionReference(selection: any) {
+  const path = String(selection?.path || '').trim()
+  const line = Number(selection?.startLine)
+  if (!path || !Number.isFinite(line) || line <= 0) return
+
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', {
+      path,
+      line,
+      column: 1
+    })
+  } catch (error) {
+    console.error('Failed to open selection reference:', error)
+  }
+}
+
+async function removeSelectionReference(id: string) {
+  await chatStore.removeSelectionReference(id)
+}
+
+function syncPinnedPromptDraftFromStore() {
+  selectedSkillId.value = String(chatStore.pinnedPrompt?.skillId || '').trim()
+  customPromptDraft.value = String(chatStore.pinnedPrompt?.customPrompt || '')
+}
+
+async function applySkillSelection() {
+  const skillId = selectedSkillId.value.trim()
+  await chatStore.setPinnedPrompt({
+    mode: skillId ? 'skill' : 'none',
+    skillId: skillId || undefined,
+    customPrompt: chatStore.pinnedPrompt?.customPrompt
+  })
+}
+
+async function saveCustomPrompt() {
+  const text = customPromptDraft.value
+  const enabled = Boolean(text && text.trim())
+
+  isSavingPinnedPrompt.value = true
+  try {
+    await chatStore.setPinnedPrompt({
+      mode: enabled ? 'custom' : 'none',
+      skillId: chatStore.pinnedPrompt?.skillId,
+      customPrompt: text
+    })
+  } finally {
+    isSavingPinnedPrompt.value = false
+  }
+}
+
+async function clearCustomPrompt() {
+  customPromptDraft.value = ''
+  await chatStore.setPinnedPrompt({
+    mode: 'none',
+    skillId: chatStore.pinnedPrompt?.skillId,
+    customPrompt: ''
+  })
+}
+
 // 检查固定文件是否存在
 async function checkPinnedFilesExistence() {
   if (pinnedFiles.value.length === 0) return
@@ -436,6 +565,7 @@ async function checkPinnedFilesExistence() {
 
 // 处理拖拽进入
 function handleDragEnter(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   // 检查是否按住 Shift 键
   if (!e.shiftKey) return
   
@@ -446,6 +576,7 @@ function handleDragEnter(e: DragEvent) {
 
 // 处理拖拽悬停
 function handleDragOver(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   // 检查是否按住 Shift 键
   if (!e.shiftKey) {
     isDraggingOver.value = false
@@ -459,6 +590,7 @@ function handleDragOver(e: DragEvent) {
 
 // 处理拖拽离开
 function handleDragLeave(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   e.preventDefault()
   e.stopPropagation()
   
@@ -492,6 +624,7 @@ function getErrorMessageByCode(errorCode?: string, defaultError?: string): strin
 
 // 处理拖拽放置
 async function handleDrop(e: DragEvent) {
+  if (pinPanelTab.value !== 'files') return
   e.preventDefault()
   e.stopPropagation()
   isDraggingOver.value = false
@@ -694,9 +827,54 @@ async function handleTogglePinnedFile(id: string, enabled: boolean) {
 async function togglePinnedFilesPanel() {
   showPinnedFilesPanel.value = !showPinnedFilesPanel.value
   if (showPinnedFilesPanel.value) {
+    showContextOverridesPanel.value = false
+    syncPinnedPromptDraftFromStore()
+    pinPanelTab.value = chatStore.pinnedPrompt?.mode === 'skill'
+      ? 'skill'
+      : chatStore.pinnedPrompt?.mode === 'custom'
+        ? 'custom'
+        : 'files'
+
     // 打开时重新加载并检查文件存在性
     await loadPinnedFiles()
     await checkPinnedFilesExistence()
+    await loadSkills()
+  }
+}
+
+type ContextOverrideKey = keyof ContextInjectionOverrides
+
+const messageContextOverridesCount = computed(() => Object.keys(chatStore.messageContextOverrides || {}).length)
+const hasMessageContextOverrides = computed(() => messageContextOverridesCount.value > 0)
+
+const messageContextOverrideItems = computed((): Array<{ key: ContextOverrideKey; label: string }> => [
+  { key: 'includePinnedPrompt', label: t('components.input.messageContextOverrides.items.pinnedPrompt') },
+  { key: 'includePinnedFiles', label: t('components.input.messageContextOverrides.items.pinnedFiles') },
+  { key: 'includeWorkspaceFiles', label: t('components.input.messageContextOverrides.items.workspaceFiles') },
+  { key: 'includeOpenTabs', label: t('components.input.messageContextOverrides.items.openTabs') },
+  { key: 'includeActiveEditor', label: t('components.input.messageContextOverrides.items.activeEditor') },
+  { key: 'includeDiagnostics', label: t('components.input.messageContextOverrides.items.diagnostics') },
+  { key: 'includeTools', label: t('components.input.messageContextOverrides.items.tools') }
+])
+
+function getMessageContextOverrideValue(key: ContextOverrideKey): boolean | undefined {
+  const overrides = chatStore.messageContextOverrides
+  const v = overrides ? (overrides as any)[key] : undefined
+  return typeof v === 'boolean' ? v : undefined
+}
+
+function setMessageContextOverride(key: ContextOverrideKey, value: boolean | undefined) {
+  chatStore.setMessageContextOverride(key, value)
+}
+
+function clearMessageContextOverrides() {
+  chatStore.clearMessageContextOverrides()
+}
+
+function toggleContextOverridesPanel() {
+  showContextOverridesPanel.value = !showContextOverridesPanel.value
+  if (showContextOverridesPanel.value) {
+    showPinnedFilesPanel.value = false
   }
 }
 
@@ -724,10 +902,73 @@ watch(() => chatStore.configId, () => {
 watch(() => chatStore.currentConfig, () => {
   loadConfigs()
 }, { deep: true })
+
+watch(pinPanelTab, (tab) => {
+  if (tab !== 'files') {
+    isDraggingOver.value = false
+  }
+})
 </script>
 
 <template>
   <div class="input-area">
+    <CreateTaskModal v-model="showCreateTaskModal" />
+    <CreatePlanModal v-model="showCreatePlanModal" />
+
+    <!-- 本条消息上下文开关面板（弹出） -->
+    <div v-if="showContextOverridesPanel" class="context-overrides-panel">
+      <div class="context-overrides-header">
+        <span class="context-overrides-title">
+          <i class="codicon codicon-filter"></i>
+          {{ t('components.input.messageContextOverrides.title') }}
+        </span>
+        <div class="context-overrides-header-actions">
+          <button
+            class="context-overrides-reset"
+            :disabled="!hasMessageContextOverrides"
+            @click="clearMessageContextOverrides"
+          >
+            {{ t('components.input.messageContextOverrides.reset') }}
+          </button>
+          <IconButton
+            icon="codicon-close"
+            size="small"
+            @click="showContextOverridesPanel = false"
+          />
+        </div>
+      </div>
+      <div class="context-overrides-description">
+        {{ t('components.input.messageContextOverrides.description') }}
+      </div>
+      <div class="context-overrides-content">
+        <div v-for="item in messageContextOverrideItems" :key="item.key" class="context-overrides-row">
+          <span class="context-overrides-label">{{ item.label }}</span>
+          <div class="context-overrides-segment">
+            <button
+              class="segment-btn"
+              :class="{ active: getMessageContextOverrideValue(item.key) === undefined }"
+              @click="setMessageContextOverride(item.key, undefined)"
+            >
+              {{ t('components.input.messageContextOverrides.inherit') }}
+            </button>
+            <button
+              class="segment-btn"
+              :class="{ active: getMessageContextOverrideValue(item.key) === true }"
+              @click="setMessageContextOverride(item.key, true)"
+            >
+              {{ t('components.input.messageContextOverrides.on') }}
+            </button>
+            <button
+              class="segment-btn"
+              :class="{ active: getMessageContextOverrideValue(item.key) === false }"
+              @click="setMessageContextOverride(item.key, false)"
+            >
+              {{ t('components.input.messageContextOverrides.off') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 固定文件面板（弹出） -->
     <div
       v-if="showPinnedFilesPanel"
@@ -752,7 +993,34 @@ watch(() => chatStore.currentConfig, () => {
       <div class="pinned-files-description">
         {{ t('components.input.pinnedFilesPanel.description') }}
       </div>
-      <div class="pinned-files-content">
+
+      <!-- Tabs -->
+      <div class="pinned-panel-tabs">
+        <button
+          class="pinned-tab"
+          :class="{ active: pinPanelTab === 'files' }"
+          @click="pinPanelTab = 'files'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.files') }}
+        </button>
+        <button
+          class="pinned-tab"
+          :class="{ active: pinPanelTab === 'skill' }"
+          @click="pinPanelTab = 'skill'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.skill') }}
+        </button>
+        <button
+          class="pinned-tab"
+          :class="{ active: pinPanelTab === 'custom' }"
+          @click="pinPanelTab = 'custom'"
+        >
+          {{ t('components.input.pinnedFilesPanel.tabs.custom') }}
+        </button>
+      </div>
+
+      <!-- 内容区域 -->
+      <div v-if="pinPanelTab === 'files'" class="pinned-files-content">
         <div v-if="isLoadingPinnedFiles" class="pinned-files-loading">
           <i class="codicon codicon-loading codicon-modifier-spin"></i>
           <span>{{ t('components.input.pinnedFilesPanel.loading') }}</span>
@@ -789,15 +1057,91 @@ watch(() => chatStore.currentConfig, () => {
           </div>
         </div>
       </div>
+
+      <!-- Skill -->
+      <div v-else-if="pinPanelTab === 'skill'" class="pinned-skill-content">
+        <div class="pinned-skill-row">
+          <label class="pinned-skill-label">{{ t('components.input.pinnedFilesPanel.skill.selectLabel') }}</label>
+          <select
+            v-model="selectedSkillId"
+            class="pinned-skill-select"
+            :disabled="isLoadingSkills"
+            @change="applySkillSelection"
+          >
+            <option value="">{{ t('common.none') }}</option>
+            <option v-for="skill in skills" :key="skill.id" :value="skill.id">
+              {{ skill.name || skill.id }}
+            </option>
+          </select>
+          <button class="pinned-skill-refresh" :disabled="isLoadingSkills" @click="loadSkills" :title="t('common.refresh')">
+            <i class="codicon" :class="isLoadingSkills ? 'codicon-loading codicon-modifier-spin' : 'codicon-refresh'"></i>
+          </button>
+        </div>
+
+        <div v-if="isLoadingSkills" class="pinned-files-loading">
+          <i class="codicon codicon-loading codicon-modifier-spin"></i>
+          <span>{{ t('components.input.pinnedFilesPanel.skill.loading') }}</span>
+        </div>
+        <div v-else-if="skills.length === 0" class="pinned-files-empty">
+          <i class="codicon codicon-info"></i>
+          <span>{{ t('components.input.pinnedFilesPanel.skill.empty') }}</span>
+        </div>
+
+        <div v-else class="pinned-skill-preview">
+          <div v-if="selectedSkill" class="pinned-skill-preview-inner">
+            <div class="pinned-skill-preview-title">
+              <i v-if="chatStore.pinnedPrompt?.mode === 'skill' && chatStore.pinnedPrompt?.skillId === selectedSkill.id" class="codicon codicon-check"></i>
+              <span>{{ selectedSkill.name || selectedSkill.id }}</span>
+            </div>
+            <div v-if="selectedSkill.description" class="pinned-skill-preview-desc" :title="selectedSkill.description">
+              {{ selectedSkill.description }}
+            </div>
+            <textarea class="pinned-skill-preview-text" readonly :value="selectedSkill.prompt"></textarea>
+          </div>
+          <div v-else class="pinned-skill-hint">
+            <i class="codicon codicon-info"></i>
+            <span>{{ t('components.input.pinnedFilesPanel.skill.pickOne') }}</span>
+          </div>
+        </div>
+
+        <div class="pinned-skill-footer-hint">
+          {{ t('components.input.pinnedFilesPanel.skill.manageHint') }}
+        </div>
+      </div>
+
+      <!-- Custom Prompt -->
+      <div v-else class="pinned-custom-content">
+        <div class="pinned-custom-row">
+          <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.label') }}</label>
+        </div>
+        <textarea
+          v-model="customPromptDraft"
+          class="pinned-custom-textarea"
+          rows="7"
+          :placeholder="t('components.input.pinnedFilesPanel.custom.placeholder')"
+        ></textarea>
+        <div class="pinned-custom-actions">
+          <button class="pinned-custom-save" @click="saveCustomPrompt" :disabled="isSavingPinnedPrompt">
+            <i v-if="isSavingPinnedPrompt" class="codicon codicon-loading codicon-modifier-spin"></i>
+            <span v-else>{{ t('components.input.pinnedFilesPanel.custom.save') }}</span>
+          </button>
+          <button class="pinned-custom-clear" @click="clearCustomPrompt" :disabled="isSavingPinnedPrompt">
+            {{ t('components.input.pinnedFilesPanel.custom.clear') }}
+          </button>
+        </div>
+        <div class="pinned-custom-hint">
+          {{ t('components.input.pinnedFilesPanel.custom.hint') }}
+        </div>
+      </div>
       <!-- 拖拽提示 -->
-      <div class="pinned-files-footer">
+      <div v-if="pinPanelTab === 'files'" class="pinned-files-footer">
         <div class="drag-hint">
           <i class="codicon codicon-info"></i>
           <span>{{ t('components.input.pinnedFilesPanel.dragHint') }}</span>
         </div>
       </div>
       <!-- 拖拽遮罩 -->
-      <div v-if="isDraggingOver" class="drag-overlay">
+      <div v-if="pinPanelTab === 'files' && isDraggingOver" class="drag-overlay">
         <i class="codicon codicon-cloud-upload"></i>
         <span>{{ t('components.input.pinnedFilesPanel.dropHint') }}</span>
       </div>
@@ -821,7 +1165,7 @@ watch(() => chatStore.currentConfig, () => {
             <IconButton
               icon="codicon-pin"
               size="small"
-              :class="{ 'has-files': enabledPinnedFilesCount > 0 }"
+              :class="{ 'has-files': enabledPinnedFilesCount > 0, 'has-prompt': hasPinnedPrompt }"
               class="pinned-files-button"
               @click="togglePinnedFilesPanel"
             />
@@ -831,8 +1175,46 @@ watch(() => chatStore.currentConfig, () => {
           </div>
         </Tooltip>
 
-        <!-- 附件列表：放在顶部工具栏右侧（同一行） -->
-        <div v-if="hasAttachments" class="attachments-list">
+        <Tooltip content="Create Task" placement="top">
+          <IconButton
+            icon="codicon-add"
+            size="small"
+            class="create-task-button"
+            @click="showCreateTaskModal = true"
+          />
+        </Tooltip>
+
+        <Tooltip :content="t('components.input.createPlan')" placement="top">
+          <IconButton
+            icon="codicon-list-ordered"
+            size="small"
+            class="create-task-button"
+            @click="showCreatePlanModal = true"
+          />
+        </Tooltip>
+
+        <!-- 附件/引用列表：放在顶部工具栏右侧（同一行） -->
+        <div v-if="hasAttachments || selectionReferencesCount > 0" class="attachments-list">
+          <!-- 本条消息引用（类似 Copilot 的 reference pills） -->
+          <div
+            v-for="r in selectionReferences"
+            :key="r.id"
+            class="attachment-item reference-chip"
+            :title="`${r.path}#L${r.startLine}-L${r.endLine}`"
+            @click="openSelectionReference(r)"
+          >
+            <i class="codicon codicon-references attachment-icon reference-chip-icon"></i>
+            <code class="reference-chip-text">{{ r.path }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
+            <span v-if="r.truncated" class="reference-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
+            <IconButton
+              icon="codicon-close"
+              size="small"
+              :disabled="uploading"
+              @click.stop="removeSelectionReference(r.id)"
+              :title="t('components.input.remove')"
+            />
+          </div>
+
           <div
             v-for="attachment in attachments"
             :key="attachment.id"
@@ -937,8 +1319,24 @@ watch(() => chatStore.currentConfig, () => {
         </div>
 
         <div class="composer-footer-actions">
+          <!-- 本条消息上下文开关 -->
+          <Tooltip :content="t('components.input.messageContextOverrides.title')" placement="top">
+            <div class="context-overrides-button-wrapper">
+              <IconButton
+                icon="codicon-filter"
+                size="small"
+                class="context-overrides-button"
+                :class="{ active: showContextOverridesPanel, 'has-overrides': hasMessageContextOverrides }"
+                @click="toggleContextOverridesPanel"
+              />
+              <span v-if="hasMessageContextOverrides" class="context-overrides-badge">
+                {{ messageContextOverridesCount }}
+              </span>
+            </div>
+          </Tooltip>
+
           <!-- Token 使用量圆环 -->
-          <div class="token-ring-wrapper">
+          <div class="token-ring-wrapper" @click="chatStore.openContextInspectorPreview(props.attachments)">
             <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
               <!-- 背景圆环 -->
               <circle
@@ -1095,6 +1493,33 @@ watch(() => chatStore.currentConfig, () => {
   flex-wrap: nowrap;
 }
 
+.reference-truncated {
+  font-size: 11px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.attachment-item.reference-chip {
+  max-width: 360px;
+  cursor: pointer;
+}
+
+.attachment-icon.reference-chip-icon {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.reference-chip-text {
+  flex: 0 1 auto;
+  font-size: 12px;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+  min-width: 0;
+}
+
 .attachment-item {
   display: inline-flex;
   align-items: center;
@@ -1227,7 +1652,7 @@ watch(() => chatStore.currentConfig, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: default;
+  cursor: pointer;
 }
 
 .token-ring {
@@ -1309,6 +1734,10 @@ watch(() => chatStore.currentConfig, () => {
   color: var(--vscode-textLink-foreground);
 }
 
+.pinned-files-button.has-prompt :deep(i.codicon) {
+  color: var(--vscode-textLink-foreground);
+}
+
 .pinned-files-badge {
   position: absolute;
   top: -4px;
@@ -1325,6 +1754,46 @@ watch(() => chatStore.currentConfig, () => {
   border-radius: 7px;
 }
 
+/* 本条消息上下文开关按钮 */
+.context-overrides-button-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.context-overrides-button.has-overrides :deep(i.codicon) {
+  color: var(--vscode-textLink-foreground);
+}
+
+.context-overrides-button.active {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-overrides-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  text-align: center;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+  border-radius: 7px;
+}
+
+/* Create Task 按钮 */
+.create-task-button {
+  color: var(--vscode-textLink-foreground);
+  opacity: 1;
+}
+
+.create-task-button:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
 /* 固定文件面板 */
 .pinned-files-panel {
   position: absolute;
@@ -1337,9 +1806,123 @@ watch(() => chatStore.currentConfig, () => {
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  max-height: 300px;
+  max-height: 360px;
   display: flex;
   flex-direction: column;
+}
+
+/* 本条消息上下文开关面板 */
+.context-overrides-panel {
+  position: absolute;
+  bottom: 100%;
+  right: 8px;
+  width: min(360px, calc(100% - 16px));
+  margin-bottom: 8px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 110;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.context-overrides-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.context-overrides-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.context-overrides-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-overrides-reset {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.context-overrides-reset:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-overrides-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-overrides-description {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.context-overrides-content {
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.context-overrides-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.context-overrides-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  flex: 1;
+  min-width: 0;
+}
+
+.context-overrides-segment {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.segment-btn {
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.segment-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.segment-btn.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
 .pinned-files-header {
@@ -1370,11 +1953,227 @@ watch(() => chatStore.currentConfig, () => {
   border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+.pinned-panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-tab {
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pinned-tab:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-tab.active {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
 .pinned-files-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 8px;
+}
+
+.pinned-skill-content,
+.pinned-custom-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.pinned-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pinned-skill-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  flex-shrink: 0;
+}
+
+.pinned-skill-select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+  outline: none;
+}
+
+.pinned-skill-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-skill-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.pinned-skill-refresh:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-skill-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pinned-skill-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pinned-skill-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pinned-skill-preview-desc {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-skill-preview-text {
+  width: 100%;
+  min-height: 120px;
+  max-height: 160px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family), monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.pinned-skill-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.pinned-skill-footer-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.pinned-custom-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.pinned-custom-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family), monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+}
+
+.pinned-custom-textarea:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-custom-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pinned-custom-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+}
+
+.pinned-custom-save:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.pinned-custom-clear {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.pinned-custom-clear:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-custom-save:disabled,
+.pinned-custom-clear:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pinned-custom-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .pinned-files-loading,

@@ -1,5 +1,5 @@
 /**
- * LimCode - 代理 Fetch 实现
+ * Acopilot - 代理 Fetch 实现
  *
  * 支持通过 HTTP 代理发起 HTTPS 请求（CONNECT 隧道方式）
  */
@@ -12,7 +12,7 @@ import { URL } from 'url';
 import { ChannelError, ErrorType } from './types';
 
 // User-Agent 标识
-const USER_AGENT = 'LimCode';
+const USER_AGENT = 'Acopilot';
 
 /**
  * Fetch 选项
@@ -436,7 +436,12 @@ export async function* proxyStreamFetch(
             throw new ChannelError(
                 ErrorType.API_ERROR,
                 t('modules.channel.errors.apiError', { status: response.status }),
-                errorBody
+                {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    url,
+                    body: errorBody
+                }
             );
         }
         
@@ -678,7 +683,11 @@ export async function* proxyStreamFetch(
                                 reject(new ChannelError(
                                     ErrorType.API_ERROR,
                                     t('modules.channel.errors.apiError', { status: statusCode }),
-                                    parsedError
+                                    {
+                                        status: statusCode,
+                                        url,
+                                        body: parsedError
+                                    }
                                 ));
                                 return;
                             }

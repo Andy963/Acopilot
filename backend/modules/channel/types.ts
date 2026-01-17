@@ -1,5 +1,5 @@
 /**
- * LimCode - 渠道调用模块类型定义
+ * Acopilot - 渠道调用模块类型定义
  * 
  * 定义渠道调用相关的类型和接口
  */
@@ -18,6 +18,16 @@ export interface GenerateRequest {
     
     /** 对话历史（统一的 Content 格式） */
     history: Content[];
+
+    /**
+     * 强制流式开关（可选）
+     *
+     * 如果提供，将覆盖 config.options.stream / config.preferStream 的决策。
+     * 用于：
+     * - 强制某次请求以流式方式发送（或关闭流式）
+     * - 对某些网关仅支持 stream=true 的情况做自动兜底
+     */
+    streamOverride?: boolean;
     
     /** 取消信号 */
     abortSignal?: AbortSignal;
@@ -61,6 +71,20 @@ export interface GenerateRequest {
      * 用于替换系统提示词模板中的 {{$MCP_TOOLS}} 占位符。
      */
     mcpToolsContent?: string;
+
+    /**
+     * OpenAI Responses API: previous_response_id（可选）
+     *
+     * 用于让 Responses API 在服务端延续上一轮的上下文，从而避免重复发送完整历史。
+     */
+    previousResponseId?: string;
+
+    /**
+     * OpenAI Responses API: prompt_cache_key（可选）
+     *
+     * 用于提升 prompt cache 命中率，降低重复输入的 token 成本。
+     */
+    promptCacheKey?: string;
 }
 
 /**
@@ -136,6 +160,11 @@ export interface StreamChunk {
     
     /** 模型版本（仅最后一个块包含） */
     modelVersion?: string;
+
+    /**
+     * 供应商响应 ID（如 OpenAI Responses 的 response.id，仅最后一个块包含）
+     */
+    responseId?: string;
     
     /**
      * 思考开始时间戳（毫秒）

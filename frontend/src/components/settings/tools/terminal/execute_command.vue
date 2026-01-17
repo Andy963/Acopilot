@@ -35,6 +35,31 @@ interface ExecuteCommandConfig {
   shells: ShellConfig[]
   defaultTimeout: number
   maxOutputLines: number
+  postEditValidation?: {
+    enabled: boolean
+    presets: Array<{
+      id: string
+      label: string
+      command: string
+      cwd?: string
+      shell?: string
+      timeout?: number
+      kind?: 'build' | 'test' | 'lint' | 'custom'
+      enabled?: boolean
+    }>
+  }
+  riskPolicy?: {
+    enabled: boolean
+    autoExecuteUpTo: 'low' | 'medium' | 'high' | 'critical'
+    confirmOn: {
+      destructive: boolean
+      gitHistory: boolean
+      privilege: boolean
+      network: boolean
+    }
+    allowPatterns: string[]
+    denyPatterns: string[]
+  }
 }
 
 // 配置状态
@@ -63,6 +88,50 @@ const maxOutputLinesOptions = computed<SelectOption[]>(() => [
   { value: '-1', label: t('components.settings.toolSettings.terminal.executeCommand.unlimitedLines') }
 ])
 
+const riskAutoExecuteOptions = computed<SelectOption[]>(() => [
+  { value: 'low', label: t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.low') },
+  { value: 'medium', label: t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.medium') }
+])
+
+function ensureRiskPolicy() {
+  if (!config.value) return
+  if (!config.value.riskPolicy) {
+    config.value.riskPolicy = {
+      enabled: true,
+      autoExecuteUpTo: 'low',
+      confirmOn: {
+        destructive: true,
+        gitHistory: true,
+        privilege: true,
+        network: true
+      },
+      allowPatterns: [],
+      denyPatterns: []
+    }
+  }
+}
+
+function ensurePostEditValidation() {
+  if (!config.value) return
+  if (!config.value.postEditValidation) {
+    config.value.postEditValidation = { enabled: true, presets: [] }
+    return
+  }
+  if (config.value.postEditValidation.enabled === undefined) {
+    config.value.postEditValidation.enabled = true
+  }
+  if (!Array.isArray(config.value.postEditValidation.presets)) {
+    config.value.postEditValidation.presets = []
+  }
+}
+
+const validationKindOptions = computed<SelectOption[]>(() => [
+  { value: 'build', label: 'build' },
+  { value: 'test', label: 'test' },
+  { value: 'lint', label: 'lint' },
+  { value: 'custom', label: 'custom' }
+])
+
 // 加载配置
 async function loadConfig() {
   isLoading.value = true
@@ -75,6 +144,8 @@ async function loadConfig() {
     )
     if (response?.config) {
       config.value = response.config
+      ensureRiskPolicy()
+      ensurePostEditValidation()
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('components.settings.toolSettings.common.error')
@@ -87,6 +158,8 @@ async function loadConfig() {
 // 保存配置
 async function saveConfig() {
   if (!config.value) return
+  ensureRiskPolicy()
+  ensurePostEditValidation()
   
   isSaving.value = true
   error.value = null
@@ -151,6 +224,99 @@ async function updateMaxOutputLines(lines: number) {
   
   config.value.maxOutputLines = lines
   await saveConfig()
+}
+
+function updateRiskEnabled(enabled: boolean) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.enabled = enabled
+  }
+  saveConfig()
+}
+
+function updateAutoExecuteUpTo(value: string) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.autoExecuteUpTo = value as any
+  }
+  saveConfig()
+}
+
+function updateConfirmOn(key: 'destructive' | 'gitHistory' | 'privilege' | 'network', value: boolean) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.confirmOn[key] = value
+  }
+  saveConfig()
+}
+
+function parsePatterns(text: string): string[] {
+  return (text || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+function patternsToText(patterns: string[] | undefined): string {
+  return (patterns || []).join('\n')
+}
+
+function updateAllowPatterns(text: string) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.allowPatterns = parsePatterns(text)
+  }
+  saveConfig()
+}
+
+function updateDenyPatterns(text: string) {
+  if (!config.value) return
+  ensureRiskPolicy()
+  if (config.value.riskPolicy) {
+    config.value.riskPolicy.denyPatterns = parsePatterns(text)
+  }
+  saveConfig()
+}
+
+function updatePostEditValidationEnabled(enabled: boolean) {
+  if (!config.value) return
+  ensurePostEditValidation()
+  if (config.value.postEditValidation) {
+    config.value.postEditValidation.enabled = enabled
+  }
+  saveConfig()
+}
+
+function addValidationPreset() {
+  if (!config.value) return
+  ensurePostEditValidation()
+  const id = `preset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  config.value.postEditValidation!.presets.push({
+    id,
+    label: '',
+    command: '',
+    kind: 'custom',
+    enabled: true
+  })
+  saveConfig()
+}
+
+function removeValidationPreset(id: string) {
+  if (!config.value?.postEditValidation) return
+  config.value.postEditValidation.presets = config.value.postEditValidation.presets.filter(p => p.id !== id)
+  saveConfig()
+}
+
+function updateValidationPresetEnabled(id: string, enabled: boolean) {
+  if (!config.value?.postEditValidation) return
+  const preset = config.value.postEditValidation.presets.find(p => p.id === id)
+  if (!preset) return
+  preset.enabled = enabled
+  saveConfig()
 }
 
 
@@ -301,6 +467,162 @@ onMounted(() => {
             @update:model-value="(val: string) => updateMaxOutputLines(Number(val))"
           />
           <span class="output-lines-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.maxOutputLinesHint') }}</span>
+        </div>
+      </div>
+
+      <!-- 命令风险策略 -->
+      <div class="config-section">
+        <div class="section-header">
+          <i class="codicon codicon-shield"></i>
+          <span>{{ t('components.settings.toolSettings.terminal.executeCommand.risk.title') }}</span>
+        </div>
+
+        <div class="risk-config">
+          <CustomCheckbox
+            :model-value="config.riskPolicy?.enabled ?? true"
+            :label="t('components.settings.toolSettings.terminal.executeCommand.risk.enabled')"
+            @update:model-value="updateRiskEnabled"
+          />
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.label') }}</label>
+            <CustomSelect
+              :model-value="config.riskPolicy?.autoExecuteUpTo ?? 'low'"
+              :options="riskAutoExecuteOptions"
+              :disabled="!(config.riskPolicy?.enabled ?? true)"
+              @update:model-value="updateAutoExecuteUpTo"
+            />
+            <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.autoExecuteUpTo.hint') }}</div>
+          </div>
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.confirmOn') }}</label>
+            <div class="risk-checkboxes">
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.destructive ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.destructive')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('destructive', v)"
+              />
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.gitHistory ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.gitHistory')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('gitHistory', v)"
+              />
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.privilege ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.privilege')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('privilege', v)"
+              />
+              <CustomCheckbox
+                :model-value="config.riskPolicy?.confirmOn?.network ?? true"
+                :label="t('components.settings.toolSettings.terminal.executeCommand.risk.categories.network')"
+                :disabled="!(config.riskPolicy?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateConfirmOn('network', v)"
+              />
+            </div>
+          </div>
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.allowPatterns') }}</label>
+            <textarea
+              class="risk-textarea"
+              :disabled="!(config.riskPolicy?.enabled ?? true)"
+              :value="patternsToText(config.riskPolicy?.allowPatterns)"
+              @input="(e: any) => updateAllowPatterns(e.target.value)"
+            ></textarea>
+            <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.allowPatternsHint') }}</div>
+          </div>
+
+          <div class="risk-row" :class="{ disabled: !(config.riskPolicy?.enabled ?? true) }">
+            <label class="risk-label">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.denyPatterns') }}</label>
+            <textarea
+              class="risk-textarea"
+              :disabled="!(config.riskPolicy?.enabled ?? true)"
+              :value="patternsToText(config.riskPolicy?.denyPatterns)"
+              @input="(e: any) => updateDenyPatterns(e.target.value)"
+            ></textarea>
+            <div class="risk-hint">{{ t('components.settings.toolSettings.terminal.executeCommand.risk.denyPatternsHint') }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 改动后校验预设 -->
+      <div class="config-section">
+        <div class="section-header">
+          <i class="codicon codicon-checklist"></i>
+          <span>改动后校验</span>
+        </div>
+
+        <div class="validation-config">
+          <CustomCheckbox
+            :model-value="config.postEditValidation?.enabled ?? true"
+            label="启用改动后校验提示"
+            @update:model-value="updatePostEditValidationEnabled"
+          />
+
+          <div class="validation-presets" :class="{ disabled: !(config.postEditValidation?.enabled ?? true) }">
+            <div
+              v-for="p in (config.postEditValidation?.presets || [])"
+              :key="p.id"
+              class="validation-preset"
+            >
+              <CustomCheckbox
+                :model-value="p.enabled ?? true"
+                label="启用"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                @update:model-value="(v: boolean) => updateValidationPresetEnabled(p.id, v)"
+              />
+
+              <CustomSelect
+                class="validation-kind"
+                :model-value="p.kind || 'custom'"
+                :options="validationKindOptions"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                @update:model-value="(val: string) => { p.kind = val as any; saveConfig() }"
+              />
+
+              <input
+                v-model="p.label"
+                class="validation-input"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                placeholder="名称（如 build/test/lint）"
+                @blur="saveConfig"
+              />
+
+              <input
+                v-model="p.command"
+                class="validation-input validation-command"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                placeholder="命令（如 pnpm test / npm run lint）"
+                @blur="saveConfig"
+              />
+
+              <button
+                class="validation-remove"
+                :disabled="!(config.postEditValidation?.enabled ?? true)"
+                title="删除预设"
+                @click="removeValidationPreset(p.id)"
+              >
+                <i class="codicon codicon-trash"></i>
+              </button>
+            </div>
+
+            <button
+              class="validation-add"
+              :disabled="!(config.postEditValidation?.enabled ?? true)"
+              @click="addValidationPreset"
+            >
+              <i class="codicon codicon-add"></i>
+              添加预设
+            </button>
+          </div>
+
+          <div class="validation-tip">
+            提示：当文件修改类工具执行完成后，聊天页会展示校验入口；点击后将以 <code>execute_command</code> 工具消息写回对话。
+          </div>
         </div>
       </div>
       
@@ -623,5 +945,138 @@ onMounted(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 风险策略 */
+.risk-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.risk-row.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.risk-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.risk-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.risk-checkboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.risk-textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* 改动后校验 */
+.validation-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.validation-presets.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.validation-preset {
+  display: grid;
+  grid-template-columns: auto 110px 1fr 2fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.04);
+}
+
+.validation-kind {
+  min-width: 110px;
+}
+
+.validation-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+}
+
+.validation-command {
+  font-family: var(--vscode-editor-font-family);
+}
+
+.validation-remove {
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.validation-remove:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-errorForeground);
+}
+
+.validation-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.validation-add:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.validation-tip {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+.validation-tip code {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
 }
 </style>

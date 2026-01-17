@@ -1,5 +1,5 @@
 /**
- * LimCode - 工具执行服务
+ * Acopilot - 工具执行服务
  *
  * 负责执行工具调用、处理 MCP 工具、管理工具确认逻辑
  */
@@ -14,6 +14,11 @@ import type { BaseChannelConfig } from '../../../config/configs/base';
 import { getMultimodalCapability, type ChannelType as UtilChannelType, type ToolMode as UtilToolMode } from '../../../../tools/utils';
 import type { FunctionCallInfo, ToolExecutionResult } from '../utils';
 import type { CheckpointService } from './CheckpointService';
+import {
+    assessExecuteCommandRisk,
+    shouldConfirmExecuteCommand,
+    type ExecuteCommandRiskPolicy
+} from '../../../../core/commandRisk';
 
 /**
  * 工具执行完整结果
@@ -159,11 +164,35 @@ export class ToolExecutionService {
             let response: Record<string, unknown>;
 
             try {
+                // execute_command：根据风险策略可直接拦截（denyPatterns）
+                if (call.name === 'execute_command' && this.settingsManager) {
+                    const command = (call.args?.command as string | undefined) || '';
+                    const execConfig = this.settingsManager.getExecuteCommandConfig();
+                    const policy = (execConfig.riskPolicy || {}) as Partial<ExecuteCommandRiskPolicy>;
+                    const assessment = assessExecuteCommandRisk(command, policy);
+
+                    if (assessment.matchedDenyPattern) {
+                        response = {
+                            success: false,
+                            error: `Command blocked by policy (denyPatterns): ${assessment.matchedDenyPattern}`,
+                            blocked: true,
+                            risk: assessment
+                        };
+                    } else {
+                        // 检查是否是 MCP 工具（格式：mcp__{serverId}__{toolName}）
+                        if (call.name.startsWith('mcp__') && this.mcpManager) {
+                            response = await this.executeMcpTool(call);
+                        } else {
+                            response = await this.executeBuiltinTool(call, config, abortSignal);
+                        }
+                    }
+                } else {
                 // 检查是否是 MCP 工具（格式：mcp__{serverId}__{toolName}）
                 if (call.name.startsWith('mcp__') && this.mcpManager) {
                     response = await this.executeMcpTool(call);
                 } else {
                     response = await this.executeBuiltinTool(call, config, abortSignal);
+                }
                 }
             } catch (error) {
                 const err = error as Error;
@@ -460,7 +489,7 @@ export class ToolExecutionService {
      * @param toolName 工具名称
      * @returns 是否需要确认
      */
-    toolNeedsConfirmation(toolName: string): boolean {
+    toolNeedsConfirmation(toolName: string, args?: Record<string, unknown>): boolean {
         if (!this.settingsManager) {
             return false;
         }
@@ -468,7 +497,21 @@ export class ToolExecutionService {
         // 使用统一的自动执行配置
         // isToolAutoExec 返回 true 表示自动执行，不需要确认
         // isToolAutoExec 返回 false 表示需要确认
-        return !this.settingsManager.isToolAutoExec(toolName);
+        const requiresToolConfirm = !this.settingsManager.isToolAutoExec(toolName);
+        if (requiresToolConfirm) {
+            return true;
+        }
+
+        if (toolName !== 'execute_command') {
+            return false;
+        }
+
+        const command = (args?.command as string | undefined) || '';
+        const execConfig = this.settingsManager.getExecuteCommandConfig();
+        const policy = (execConfig.riskPolicy || {}) as Partial<ExecuteCommandRiskPolicy>;
+
+        const { confirm } = shouldConfirmExecuteCommand(command, policy);
+        return confirm;
     }
 
     /**
@@ -478,6 +521,20 @@ export class ToolExecutionService {
      * @returns 需要确认的函数调用列表
      */
     getToolsNeedingConfirmation(calls: FunctionCallInfo[]): FunctionCallInfo[] {
-        return calls.filter(call => this.toolNeedsConfirmation(call.name));
+        return calls.filter(call => {
+            if (call.name === 'execute_command' && this.settingsManager) {
+                const command = (call.args?.command as string | undefined) || '';
+                const execConfig = this.settingsManager.getExecuteCommandConfig();
+                const policy = (execConfig.riskPolicy || {}) as Partial<ExecuteCommandRiskPolicy>;
+
+                // denyPatterns 命中：无需确认，直接拦截（执行阶段会返回错误）
+                const assessment = assessExecuteCommandRisk(command, policy);
+                if (assessment.matchedDenyPattern) {
+                    return false;
+                }
+            }
+
+            return this.toolNeedsConfirmation(call.name, call.args);
+        });
     }
 }

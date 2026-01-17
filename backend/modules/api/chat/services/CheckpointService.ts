@@ -1,5 +1,5 @@
 /**
- * LimCode - 检查点服务
+ * Acopilot - 检查点服务
  *
  * 封装与 CheckpointManager / SettingsManager 相关的通用检查点逻辑，
  * 统一管理：

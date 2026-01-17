@@ -1,5 +1,5 @@
 /**
- * LimCode - 渠道管理器
+ * Acopilot - 渠道管理器
  *
  * 核心渠道调用管理器，协调配置和格式转换器
  */
@@ -9,6 +9,7 @@ import type { ConfigManager } from '../config/ConfigManager';
 import type { ToolRegistry } from '../../tools/ToolRegistry';
 import type { SettingsManager } from '../settings/SettingsManager';
 import type { McpManager } from '../mcp/McpManager';
+import type { ToolDeclaration } from '../../tools/types';
 import { formatterRegistry } from './formatters';
 import { createReadFileTool } from '../../tools/file/read_file';
 import { createGenerateImageTool, createRemoveBackgroundTool, createCropImageTool, createResizeImageTool, createRotateImageTool } from '../../tools/media';
@@ -68,6 +69,25 @@ export class ChannelManager {
     setMcpManager(mcpManager: McpManager): void {
         this.mcpManager = mcpManager;
     }
+
+    /**
+     * 获取当前配置下可用的工具声明（用于 UI 预览/调试）
+     *
+     * 注意：该结果与实际请求时工具过滤逻辑保持一致（包含 Settings 过滤、动态参数、MCP 工具等）。
+     */
+    getToolDeclarationsForPreview(config: {
+        type: string;
+        toolMode?: 'function_call' | 'xml' | 'json';
+        multimodalToolsEnabled?: boolean;
+    }): ToolDeclaration[] {
+        const declarations = this.getFilteredTools(
+            (config as any).multimodalToolsEnabled,
+            config.type as any,
+            (config as any).toolMode,
+        ) as ToolDeclaration[] | undefined;
+
+        return declarations || [];
+    }
     
     /**
      * 生成内容（自动选择流式或非流式）
@@ -102,13 +122,22 @@ export class ChannelManager {
         // 2. 决定是否使用流式
         // 优先级：config.options.stream > config.preferStream > 默认值（false）
         const optionsStream = (config as any).options?.stream;
-        const useStream = optionsStream ?? config.preferStream ?? false;
+        const useStream = request.streamOverride ?? optionsStream ?? config.preferStream ?? false;
         
         // 3. 根据 stream 决定调用哪个方法
         if (useStream) {
-            return this.generateStream(request);
-        } else {
-            return this.generateNonStream(request);
+            return this.generateStream({ ...request, streamOverride: true });
+        }
+
+        try {
+            return await this.generateNonStream({ ...request, streamOverride: false });
+        } catch (error) {
+            const errorDetails = error instanceof ChannelError ? error.details : undefined;
+            // 某些网关仅支持 stream=true：非流式失败时自动回退到流式，避免“完全不可用”。
+            if (request.streamOverride === undefined && this.isStreamRequiredError(error, errorDetails)) {
+                return this.generateStream({ ...request, streamOverride: true });
+            }
+            throw error;
         }
     }
     
@@ -146,22 +175,118 @@ export class ChannelManager {
         });
     }
     
+    private isApiErrorDetailsWrapper(details: unknown): details is { status: number; body?: unknown } {
+        return !!details &&
+            typeof details === 'object' &&
+            !Array.isArray(details) &&
+            typeof (details as any).status === 'number' &&
+            Object.prototype.hasOwnProperty.call(details as any, 'body');
+    }
+
+    private unwrapApiErrorBody(details: unknown): unknown {
+        return this.isApiErrorDetailsWrapper(details) ? (details as any).body : details;
+    }
+
+    private getHttpStatusFromErrorDetails(details: unknown, depth = 0): number | undefined {
+        if (!details || depth > 2) return undefined;
+
+        if (typeof details === 'object' && !Array.isArray(details)) {
+            const anyDetails = details as any;
+
+            if (typeof anyDetails.status === 'number') return anyDetails.status;
+            if (typeof anyDetails.code === 'number') return anyDetails.code;
+
+            const err = anyDetails.error;
+            if (err && typeof err === 'object') {
+                if (typeof err.status === 'number') return err.status;
+                if (typeof err.code === 'number') return err.code;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(anyDetails, 'body')) {
+                return this.getHttpStatusFromErrorDetails(anyDetails.body, depth + 1);
+            }
+        }
+
+        return undefined;
+    }
+
     /**
      * 判断错误是否可重试
      */
     private isRetryableError(error: any): boolean {
-        // API 错误（非 200 状态码）可重试
         if (error instanceof ChannelError) {
             // 用户取消错误不应重试
             if (error.type === ErrorType.CANCELLED_ERROR) {
                 return false;
             }
-            return error.type === ErrorType.API_ERROR ||
-                   error.type === ErrorType.NETWORK_ERROR ||
-                   error.type === ErrorType.TIMEOUT_ERROR;
+
+            // API 错误：仅对“可能是瞬态问题”的状态码重试（参考 copilot 的行为）
+            if (error.type === ErrorType.API_ERROR) {
+                const status = this.getHttpStatusFromErrorDetails(error.details);
+                if (typeof status === 'number') {
+                    // 429: rate limit；5xx: 服务端错误；408: timeout
+                    return status === 429 || status === 408 || (status >= 500 && status <= 599);
+                }
+                // 没有明确状态码（如部分 provider 在流内返回 error 字段），保持兼容：允许重试
+                return true;
+            }
+
+            return error.type === ErrorType.NETWORK_ERROR || error.type === ErrorType.TIMEOUT_ERROR;
         }
         // 网络错误可重试
         return true;
+    }
+
+    private isRateLimitError(error: unknown, errorDetails?: any): boolean {
+        if (!(error instanceof ChannelError)) return false;
+        if (error.type !== ErrorType.API_ERROR) return false;
+
+        const details = errorDetails ?? error.details;
+        const status = this.getHttpStatusFromErrorDetails(details);
+        if (status === 429) return true;
+
+        const body = this.unwrapApiErrorBody(details) as any;
+        const code = body?.error?.code ?? body?.code;
+        if (code === 429) return true;
+
+        const upstreamStatus = body?.error?.status ?? body?.status;
+        if (upstreamStatus === 429) return true;
+        if (typeof upstreamStatus === 'string' && upstreamStatus.toUpperCase() === 'RESOURCE_EXHAUSTED') return true;
+
+        const message = body?.error?.message ?? body?.message;
+        const messageText = [
+            typeof message === 'string' ? message : '',
+            typeof body === 'string' ? body : '',
+            error.message
+        ].filter(Boolean).join(' ');
+
+        const haystack = messageText.toLowerCase();
+        if (haystack.includes('429')) return true;
+
+        return haystack.includes('rate limit') ||
+            haystack.includes('too many requests') ||
+            haystack.includes('resource_exhausted') ||
+            haystack.includes('quota');
+    }
+
+    private isStreamRequiredError(error: unknown, errorDetails?: any): boolean {
+        if (!(error instanceof ChannelError)) return false;
+        if (error.type !== ErrorType.API_ERROR) return false;
+
+        const details = errorDetails ?? error.details;
+        const body = this.unwrapApiErrorBody(details) as any;
+        const msg =
+            (body?.error && typeof body.error.message === 'string' ? body.error.message : undefined) ??
+            (typeof body?.message === 'string' ? body.message : undefined) ??
+            (typeof body === 'string' ? body : undefined) ??
+            error.message;
+
+        const haystack = String(msg || '').toLowerCase();
+        if (!haystack.includes('stream')) return false;
+
+        return haystack.includes('set to true') ||
+            (haystack.includes('must') && haystack.includes('true')) ||
+            (haystack.includes('required') && haystack.includes('true'));
     }
     
     /**
@@ -171,8 +296,9 @@ export class ChannelManager {
      * @returns 生成响应
      */
     private async generateNonStream(request: GenerateRequest): Promise<GenerateResponse> {
+        const nonStreamRequest: GenerateRequest = { ...request, streamOverride: false };
         // 检查是否已取消
-        if (request.abortSignal?.aborted) {
+        if (nonStreamRequest.abortSignal?.aborted) {
             throw new ChannelError(
                 ErrorType.CANCELLED_ERROR,
                 t('modules.channel.errors.requestCancelled')
@@ -180,11 +306,11 @@ export class ChannelManager {
         }
         
         // 1. 获取配置（此时已在 generate 中验证过）
-        let config = (await this.configManager.getConfig(request.configId))!;
+        let config = (await this.configManager.getConfig(nonStreamRequest.configId))!;
         
         // 2. 如果有 modelOverride，创建临时配置覆盖 model
-        if (request.modelOverride) {
-            config = { ...config, model: request.modelOverride };
+        if (nonStreamRequest.modelOverride) {
+            config = { ...config, model: nonStreamRequest.modelOverride };
         }
         
         // 3. 获取格式转换器
@@ -200,13 +326,13 @@ export class ChannelManager {
         if (!formatter.validateConfig(config)) {
             throw new ChannelError(
                 ErrorType.VALIDATION_ERROR,
-                t('modules.channel.errors.configValidationFailed', { configId: request.configId })
+                t('modules.channel.errors.configValidationFailed', { configId: nonStreamRequest.configId })
             );
         }
         
         // 5. 获取过滤后的工具声明（除非请求指定跳过工具）
         // 传递配置信息以便动态生成工具描述
-        const tools = request.skipTools ? undefined : this.getFilteredTools(
+        const tools = nonStreamRequest.skipTools ? undefined : this.getFilteredTools(
             (config as any).multimodalToolsEnabled,
             config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
             (config as any).toolMode
@@ -215,7 +341,7 @@ export class ChannelManager {
         // 6. 构建请求
         let httpRequest: HttpRequestOptions;
         try {
-            httpRequest = formatter.buildRequest(request, config, tools);
+            httpRequest = formatter.buildRequest(nonStreamRequest, config, tools);
         } catch (error) {
             throw new ChannelError(
                 ErrorType.VALIDATION_ERROR,
@@ -226,7 +352,7 @@ export class ChannelManager {
         
         // 7. 获取重试配置
         // 如果请求指定 skipRetry，则禁用重试
-        const retryEnabled = request.skipRetry ? false : ((config as any).retryEnabled ?? true);  // 默认启用重试
+        const retryEnabled = nonStreamRequest.skipRetry ? false : ((config as any).retryEnabled ?? true);  // 默认启用重试
         const maxRetries = (config as any).retryCount ?? 3;         // 默认3次
         const retryInterval = (config as any).retryInterval ?? 3000;  // 默认3秒
         
@@ -234,7 +360,7 @@ export class ChannelManager {
         let lastError: any;
         for (let attempt = 1; attempt <= (retryEnabled ? maxRetries : 1); attempt++) {
             // 在每次重试前检查是否已取消
-            if (request.abortSignal?.aborted) {
+            if (nonStreamRequest.abortSignal?.aborted) {
                 throw new ChannelError(
                     ErrorType.CANCELLED_ERROR,
                     t('modules.channel.errors.requestCancelled')
@@ -242,14 +368,19 @@ export class ChannelManager {
             }
             
             try {
-                const httpResponse = await this.executeRequest(httpRequest, request.abortSignal);
+                const httpResponse = await this.executeRequest(httpRequest, nonStreamRequest.abortSignal);
                 
                 // 检查 HTTP 状态
                 if (httpResponse.status !== 200) {
                     throw new ChannelError(
                         ErrorType.API_ERROR,
                         t('modules.channel.errors.apiError', { status: httpResponse.status }),
-                        httpResponse.body
+                        {
+                            status: httpResponse.status,
+                            headers: httpResponse.headers,
+                            url: httpRequest.url,
+                            body: httpResponse.body
+                        }
                     );
                 }
                 
@@ -278,6 +409,11 @@ export class ChannelManager {
                 // 获取错误详情
                 const errorMessage = error instanceof Error ? error.message : '未知错误';
                 const errorDetails = error instanceof ChannelError ? error.details : undefined;
+
+                // 非流式被强制要求 stream=true：不重试，交由上层回退到流式
+                if (this.isStreamRequiredError(error, errorDetails)) {
+                    break;
+                }
                 
                 // 检查是否可重试
                 if (!retryEnabled || !this.isRetryableError(error) || attempt >= maxRetries) {
@@ -295,7 +431,7 @@ export class ChannelManager {
                 }
                 
                 // 在调用重试回调之前再次检查是否已取消
-                if (request.abortSignal?.aborted) {
+                if (nonStreamRequest.abortSignal?.aborted) {
                     throw new ChannelError(
                         ErrorType.CANCELLED_ERROR,
                         t('modules.channel.errors.requestCancelled')
@@ -305,7 +441,10 @@ export class ChannelManager {
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
                     // 计算指数退避时间：retryInterval * 2^(attempt-1)
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
                     
                     this.retryStatusCallback({
                         type: 'retrying',
@@ -317,11 +456,14 @@ export class ChannelManager {
                     });
                     
                     // 等待后重试（支持取消）
-                    await this.delay(currentInterval, request.abortSignal);
+                    await this.delay(currentInterval, nonStreamRequest.abortSignal);
                 } else {
                     // 如果没有回调，也要等待
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
-                    await this.delay(currentInterval, request.abortSignal);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
+                    await this.delay(currentInterval, nonStreamRequest.abortSignal);
                 }
             }
         }
@@ -344,25 +486,26 @@ export class ChannelManager {
      * @returns 异步生成器，产生流式响应块
      */
     async *generateStream(request: GenerateRequest): AsyncGenerator<StreamChunk> {
+        const streamRequest: GenerateRequest = { ...request, streamOverride: true };
         // 1. 获取配置
-        let config = await this.configManager.getConfig(request.configId);
+        let config = await this.configManager.getConfig(streamRequest.configId);
         if (!config) {
             throw new ChannelError(
                 ErrorType.CONFIG_ERROR,
-                t('modules.channel.errors.configNotFound', { configId: request.configId })
+                t('modules.channel.errors.configNotFound', { configId: streamRequest.configId })
             );
         }
         
         if (!config.enabled) {
             throw new ChannelError(
                 ErrorType.CONFIG_ERROR,
-                t('modules.channel.errors.configDisabled', { configId: request.configId })
+                t('modules.channel.errors.configDisabled', { configId: streamRequest.configId })
             );
         }
         
         // 2. 如果有 modelOverride，创建临时配置覆盖 model
-        if (request.modelOverride) {
-            config = { ...config, model: request.modelOverride };
+        if (streamRequest.modelOverride) {
+            config = { ...config, model: streamRequest.modelOverride };
         }
         
         // 3. 获取格式转换器
@@ -376,18 +519,18 @@ export class ChannelManager {
         
         // 4. 获取过滤后的工具声明（除非请求指定跳过工具）
         // 传递配置信息以便动态生成工具描述
-        const tools = request.skipTools ? undefined : this.getFilteredTools(
+        const tools = streamRequest.skipTools ? undefined : this.getFilteredTools(
             (config as any).multimodalToolsEnabled,
             config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
             (config as any).toolMode
         );
         
         // 5. 构建请求
-        const httpRequest = formatter.buildRequest(request, config, tools);
+        const httpRequest = formatter.buildRequest(streamRequest, config, tools);
         
         // 6. 获取重试配置
         // 如果请求指定 skipRetry，则禁用重试
-        const retryEnabled = request.skipRetry ? false : ((config as any).retryEnabled ?? true);  // 默认启用重试
+        const retryEnabled = streamRequest.skipRetry ? false : ((config as any).retryEnabled ?? true);  // 默认启用重试
         const maxRetries = (config as any).retryCount ?? 3;         // 默认3次
         const retryInterval = (config as any).retryInterval ?? 3000;  // 默认3秒
         
@@ -395,7 +538,7 @@ export class ChannelManager {
         let lastError: any;
         for (let attempt = 1; attempt <= (retryEnabled ? maxRetries : 1); attempt++) {
             try {
-                const stream = await this.executeStreamRequest(httpRequest, request.abortSignal);
+                const stream = await this.executeStreamRequest(httpRequest, streamRequest.abortSignal);
                 
                 // 如果是重试成功，通知前端
                 if (attempt > 1 && this.retryStatusCallback) {
@@ -445,7 +588,7 @@ export class ChannelManager {
                 }
                 
                 // 在调用重试回调之前检查是否已取消
-                if (request.abortSignal?.aborted) {
+                if (streamRequest.abortSignal?.aborted) {
                     throw new ChannelError(
                         ErrorType.CANCELLED_ERROR,
                         t('modules.channel.errors.requestCancelled')
@@ -455,7 +598,10 @@ export class ChannelManager {
                 // 通知前端正在重试
                 if (this.retryStatusCallback) {
                     // 计算指数退避时间：retryInterval * 2^(attempt-1)
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
                     
                     this.retryStatusCallback({
                         type: 'retrying',
@@ -467,11 +613,14 @@ export class ChannelManager {
                     });
                     
                     // 等待后重试（支持取消）
-                    await this.delay(currentInterval, request.abortSignal);
+                    await this.delay(currentInterval, streamRequest.abortSignal);
                 } else {
                     // 如果没有回调，也要等待
-                    const currentInterval = retryInterval * Math.pow(2, attempt - 1);
-                    await this.delay(currentInterval, request.abortSignal);
+                    let currentInterval = retryInterval * Math.pow(2, attempt - 1);
+                    if (config.type === 'gemini' && this.isRateLimitError(error, errorDetails)) {
+                        currentInterval += Math.floor(Math.random() * 500); // jitter
+                    }
+                    await this.delay(currentInterval, streamRequest.abortSignal);
                 }
             }
         }
@@ -663,7 +812,12 @@ export class ChannelManager {
                     throw new ChannelError(
                         ErrorType.API_ERROR,
                         t('modules.channel.errors.apiError', { status: response.status }),
-                        errorBody
+                        {
+                            status: response.status,
+                            headers: Object.fromEntries(response.headers.entries()),
+                            url,
+                            body: errorBody
+                        }
                     );
                 }
                 

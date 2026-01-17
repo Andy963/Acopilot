@@ -1,5 +1,5 @@
 /**
- * LimCode - i18n 类型定义
+ * Acopilot - i18n 类型定义
  * 按组件目录结构组织翻译
  */
 
@@ -48,6 +48,7 @@ export interface LanguageMessages {
         no: string;
         ok: string;
         copy: string;
+        copied: string;
         paste: string;
         reset: string;
         default: string;
@@ -87,6 +88,9 @@ export interface LanguageMessages {
         create: string;
         update: string;
         apply: string;
+        undo: string;
+        stage: string;
+        unstage: string;
         install: string;
         uninstall: string;
         start: string;
@@ -98,6 +102,7 @@ export interface LanguageMessages {
         pending: string;
         completed: string;
         failed: string;
+        truncated: string;
         unknown: string;
     };
 
@@ -132,6 +137,8 @@ export interface LanguageMessages {
                 checkpointHint: string;
                 cancel: string;
                 delete: string;
+                directDelete: string;
+                restoreAndDelete: string;
                 restoreToUserMessage: string;
                 restoreToAssistantMessage: string;
                 restoreToToolBatch: string;
@@ -155,6 +162,8 @@ export interface LanguageMessages {
                 checkpointHint: string;
                 cancel: string;
                 retry: string;
+                directRetry: string;
+                restoreAndRetry: string;
                 restoreToUserMessage: string;
                 restoreToAssistantMessage: string;
                 restoreToToolBatch: string;
@@ -181,6 +190,37 @@ export interface LanguageMessages {
                 copyCode: string;
                 copied: string;
                 imageLoadFailed: string;
+            };
+            contextInspectorModal: {
+                title: string;
+                titleUsed: string;
+                noData: string;
+                copyDebug: string;
+                injected: {
+                    title: string;
+                    pinnedFiles: string;
+                    pinnedPrompt: string;
+                    pinnedSelections: string;
+                    attachments: string;
+                    missing: string;
+                    pinnedPromptCustom: string;
+                };
+                trim: {
+                    title: string;
+                    fullHistory: string;
+                    trimmedHistory: string;
+                    trimStartIndex: string;
+                    lastSummaryIndex: string;
+                };
+                tools: {
+                    title: string;
+                };
+                modules: {
+                    title: string;
+                };
+                raw: {
+                    title: string;
+                };
             };
         };
 
@@ -237,6 +277,7 @@ export interface LanguageMessages {
                 responseDuration: string;
                 tokenRate: string;
                 finishReason: string;
+                contextUsed: string;
             };
             thought: {
                 thinking: string;
@@ -304,6 +345,7 @@ export interface LanguageMessages {
             stopGenerating: string;
             attachFile: string;
             pinnedFiles: string;
+            createPlan: string;
             summarizeContext: string;
             selectChannel: string;
             selectModel: string;
@@ -331,6 +373,49 @@ export interface LanguageMessages {
                 notExists: string;
                 dragHint: string;
                 dropHint: string;
+                tabs: {
+                    files: string;
+                    refs: string;
+                    skill: string;
+                    custom: string;
+                };
+                refs: {
+                    empty: string;
+                    open: string;
+                    clear: string;
+                    truncated: string;
+                };
+                skill: {
+                    selectLabel: string;
+                    loading: string;
+                    empty: string;
+                    pickOne: string;
+                    manageHint: string;
+                };
+                custom: {
+                    label: string;
+                    placeholder: string;
+                    save: string;
+                    clear: string;
+                    hint: string;
+                };
+            };
+            messageContextOverrides: {
+                title: string;
+                description: string;
+                reset: string;
+                inherit: string;
+                on: string;
+                off: string;
+                items: {
+                    pinnedPrompt: string;
+                    pinnedFiles: string;
+                    workspaceFiles: string;
+                    openTabs: string;
+                    activeEditor: string;
+                    diagnostics: string;
+                    tools: string;
+                };
             };
             filePicker: {
                 title: string;
@@ -354,6 +439,51 @@ export interface LanguageMessages {
                 cannotGetFilePath: string;
                 fileNotMatchOrNotInWorkspace: string;
                 removeFailed: string;
+            };
+        };
+
+        /** planRunner 目录 */
+        planRunner: {
+            status: {
+                idle: string;
+                running: string;
+                paused: string;
+                completed: string;
+                cancelled: string;
+            };
+            actions: {
+                start: string;
+                resume: string;
+                pause: string;
+                cancel: string;
+                clear: string;
+                rerunStep: string;
+            };
+            current: string;
+            goalLabel: string;
+            acceptanceCriteriaLabel: string;
+            attachmentsLabel: string;
+            modal: {
+                title: string;
+                planTitle: string;
+                planTitlePlaceholder: string;
+                goal: string;
+                goalPlaceholder: string;
+                acceptanceCriteria: string;
+                acceptanceCriteriaPlaceholder: string;
+                steps: string;
+                addStep: string;
+                stepTitle: string;
+                stepInstruction: string;
+                attachImage: string;
+                removeStep: string;
+                removeAttachment: string;
+                stash: string;
+                stashed: string;
+                draftLoaded: string;
+                hint: string;
+                save: string;
+                saveAndStart: string;
             };
         };
 
@@ -442,6 +572,27 @@ export interface LanguageMessages {
                         maxOutputLines: string;
                         maxOutputLinesHint: string;
                         unlimitedLines: string;
+                        risk: {
+                            title: string;
+                            enabled: string;
+                            autoExecuteUpTo: {
+                                label: string;
+                                hint: string;
+                                low: string;
+                                medium: string;
+                            };
+                            confirmOn: string;
+                            categories: {
+                                destructive: string;
+                                gitHistory: string;
+                                privilege: string;
+                                network: string;
+                            };
+                            allowPatterns: string;
+                            allowPatternsHint: string;
+                            denyPatterns: string;
+                            denyPatternsHint: string;
+                        };
                         tips: {
                             onlyEnabledUsed: string;
                             statusMeaning: string;
@@ -657,6 +808,22 @@ export interface LanguageMessages {
                     enabled: {
                         label: string;
                     };
+                    sections: {
+                        identityCredentials: string;
+                        capabilities: string;
+                        advancedConfig: string;
+                    };
+                    status: {
+                        defaultConfig: string;
+                        toolsConfigured: string;
+                        localEstimate: string;
+                        fieldsConfigured: string;
+                        headersConfigured: string;
+                        maxRetries: string;
+                        thresholdValue: string;
+                    };
+                    multimodalSummary: string;
+                    viewCompatibility: string;
                 };
             };
             tools: {
@@ -1212,6 +1379,49 @@ export interface LanguageMessages {
                 };
                 exampleOutput: string;
                 requiresConfigLabel: string;
+                skills: {
+                    title: string;
+                    add: string;
+                    description: string;
+                    empty: string;
+                    saveSuccess: string;
+                    saveFailed: string;
+                    installFromUrl: {
+                        button: string;
+                        modal: {
+                            title: string;
+                            url: string;
+                            urlPlaceholder: string;
+                            hint: string;
+                        };
+                        validation: {
+                            urlRequired: string;
+                            noSkillsFound: string;
+                        };
+                        installFailed: string;
+                    };
+                    modal: {
+                        addTitle: string;
+                        editTitle: string;
+                        id: string;
+                        idPlaceholder: string;
+                        name: string;
+                        namePlaceholder: string;
+                        description: string;
+                        descriptionPlaceholder: string;
+                        prompt: string;
+                        promptPlaceholder: string;
+                    };
+                    validation: {
+                        idRequired: string;
+                        promptRequired: string;
+                        idDuplicate: string;
+                    };
+                    delete: {
+                        title: string;
+                        message: string;
+                    };
+                };
             };
             summarizeSettings: {
                 description: string;
@@ -1326,6 +1536,8 @@ export interface LanguageMessages {
                 };
             };
             toolsSettings: {
+                mcpNote: string;
+                mcpDisableTooltip: string;
                 maxIterations: {
                     label: string;
                     hint: string;
@@ -1336,6 +1548,30 @@ export interface LanguageMessages {
                     enableAll: string;
                     disableAll: string;
                 };
+                badges: {
+                    enabled: string;
+                    autoExec: string;
+                };
+                columns: {
+                    enabled: string;
+                    auto: string;
+                    config: string;
+                };
+                exec: {
+                    autoEnabled: string;
+                };
+                dangerConfirm: {
+                    title: string;
+                    message: string;
+                    confirm: string;
+                    cancel: string;
+                };
+                enableAllDangerous: {
+                    title: string;
+                    message: string;
+                    confirm: string;
+                    cancel: string;
+                };
                 loading: string;
                 empty: string;
                 categories: {
@@ -1344,6 +1580,7 @@ export interface LanguageMessages {
                     terminal: string;
                     lsp: string;
                     media: string;
+                    mcp: string;
                     other: string;
                 };
                 dependency: {
@@ -1813,6 +2050,8 @@ export interface LanguageMessages {
                     };
                     terminate: string;
                     terminateTooltip: string;
+                    jumpToErrorTooltip: string;
+                    nextCommandsTitle: string;
                     copyOutput: string;
                     copied: string;
                     output: string;
