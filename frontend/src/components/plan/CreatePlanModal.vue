@@ -41,6 +41,7 @@ const title = ref('')
 const goal = ref('')
 const acceptanceCriteria = ref('')
 const steps = ref<StepDraft[]>([])
+const stepsContainerRef = ref<HTMLElement | null>(null)
 const draftSaving = ref(false)
 const draftSaved = ref(false)
 const loadedFromDraft = ref(false)
@@ -199,6 +200,19 @@ watch(visible, (v) => {
 
 function addStep() {
   steps.value.push(createEmptyStep())
+
+  // 自动滚动到新步骤并聚焦标题，避免添加多步时反复回到顶部
+  requestAnimationFrame(() => {
+    const container = stepsContainerRef.value
+    if (!container) return
+
+    const lastStep = container.querySelector('.step:last-child') as HTMLElement | null
+    if (!lastStep) return
+
+    lastStep.scrollIntoView({ block: 'nearest' })
+    const titleInput = lastStep.querySelector('input.step-title') as HTMLInputElement | null
+    titleInput?.focus()
+  })
 }
 
 function removeStep(id: string) {
@@ -388,14 +402,14 @@ async function handleSaveAndStart() {
 
       <div class="form-row">
         <div class="form-label-row">
-          <label class="form-label">{{ t('components.planRunner.modal.steps') }}</label>
+        <label class="form-label">{{ t('components.planRunner.modal.steps') }}</label>
           <button class="btn" @click="addStep">
             <i class="codicon codicon-add"></i>
             {{ t('components.planRunner.modal.addStep') }}
           </button>
         </div>
 
-        <div class="steps">
+        <div ref="stepsContainerRef" class="steps">
           <div v-for="(s, idx) in steps" :key="s.id" class="step">
             <div class="step-header">
               <span class="step-index">{{ idx + 1 }}.</span>
@@ -500,6 +514,11 @@ async function handleSaveAndStart() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 6px 0;
+  background: var(--vscode-editor-background);
 }
 
 .form-label {

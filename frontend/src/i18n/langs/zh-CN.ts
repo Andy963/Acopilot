@@ -32,6 +32,7 @@ const zhCN: LanguageMessages = {
         ok: '确定',
         copy: '复制',
         copied: '已复制',
+        runInTerminal: '在终端运行',
         paste: '粘贴',
         reset: '重置',
         default: '默认',
