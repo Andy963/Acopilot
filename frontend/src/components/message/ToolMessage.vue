@@ -874,25 +874,28 @@ function renderToolContent(tool: ToolUsage) {
 
 .exec-command-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .exec-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 10px;
+  gap: 6px;
+  padding: 4px 10px;
+  height: 28px;
+  border-radius: 8px;
   border: 1px solid rgba(128, 128, 128, 0.25);
   background: rgba(128, 128, 128, 0.08);
   color: var(--vscode-foreground);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: background-color var(--transition-fast, 0.1s), border-color var(--transition-fast, 0.1s);
-  flex: 1;
-  min-width: 140px;
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .exec-action-btn:hover:not(:disabled) {
