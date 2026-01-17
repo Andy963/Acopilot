@@ -69,6 +69,8 @@ async function handleOpenDiffPreview(
     await handleSearchInFilesPreview(result, ctx);
   } else if (toolName === 'write_file') {
     await handleWriteFilePreview(args, result, ctx);
+  } else if (toolName === 'execute_command') {
+    await handleExecuteCommandPreview(data.filePaths, result, ctx);
   } else {
     throw new Error(t('webview.errors.unsupportedToolType', { toolName }));
   }
@@ -219,6 +221,51 @@ async function handleWriteFilePreview(
     }
     
     await openDiffView(file.path, originalContent, newContent, diffTitle, ctx);
+  }
+}
+
+/**
+ * 处理 execute_command 预览
+ *
+ * execute_command 的 diff 内容已被保存到 DiffStorageManager（diffContentId），这里按需加载并打开 vscode.diff。
+ */
+async function handleExecuteCommandPreview(
+  filePaths: string[],
+  result: Record<string, unknown> | undefined,
+  ctx: HandlerContext
+): Promise<void> {
+  const resultData = result?.data as Record<string, unknown> | undefined;
+  const changedFiles = resultData?.changedFiles as Array<{
+    path: string;
+    diffContentId?: string | null;
+  }> | undefined;
+
+  if (!Array.isArray(changedFiles) || changedFiles.length === 0) {
+    throw new Error(t('webview.errors.invalidDiffData'));
+  }
+
+  const byPath = new Map<string, string>();
+  for (const f of changedFiles) {
+    if (!f?.path || !f.diffContentId) continue;
+    byPath.set(f.path, String(f.diffContentId));
+  }
+
+  const targets = Array.isArray(filePaths) ? filePaths : [];
+  for (const p of targets) {
+    const diffContentId = byPath.get(p);
+    if (!diffContentId) {
+      continue;
+    }
+
+    try {
+      const loadedContent = await ctx.diffStorageManager.loadGlobalDiff(diffContentId);
+      if (loadedContent) {
+        const diffTitle = t('webview.messages.fullFileDiffPreview', { filePath: p });
+        await openDiffView(p, loadedContent.originalContent, loadedContent.newContent, diffTitle, ctx);
+      }
+    } catch (e) {
+      console.warn('Failed to load diff content for execute_command:', e);
+    }
   }
 }
 

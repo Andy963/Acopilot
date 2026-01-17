@@ -9,6 +9,7 @@
 import * as cp from 'child_process';
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
 import { StringDecoder } from 'string_decoder';
@@ -21,11 +22,337 @@ import { getGlobalSettingsManager } from '../../core/settingsContext';
 import { getDefaultExecuteCommandConfig } from '../../modules/settings';
 import type { ShellConfig } from '../../modules/settings';
 import { TaskManager, type TaskEvent } from '../taskManager';
-import { getAllWorkspaces, parseWorkspacePath } from '../utils';
+import { getAllWorkspaces, isBinaryFile, parseWorkspacePath, toRelativePath } from '../utils';
 import { t } from '../../i18n';
+import { getDiffStorageManager } from '../../modules/conversation/DiffStorageManager';
 
 /** 终端任务类型常量 */
 const TASK_TYPE_TERMINAL = 'terminal';
+
+// ======= execute_command 文件变更检测（git）=======
+const EXECUTE_COMMAND_MAX_CHANGED_FILES = 20;
+const EXECUTE_COMMAND_MAX_FILE_BYTES = 200 * 1024;
+const EXECUTE_COMMAND_EXCLUDED_PREFIXES = [
+    '.git/',
+    'node_modules/',
+    'dist/',
+    'build/',
+    'out/',
+    '.next/',
+    '.turbo/',
+    '.pnpm-store/'
+];
+
+type ExecuteCommandFileAction = 'created' | 'modified' | 'deleted' | 'renamed';
+
+export interface ExecuteCommandChangedFile {
+    path: string;
+    action: ExecuteCommandFileAction;
+    fromPath?: string;
+    diffContentId?: string | null;
+    skippedReason?: string | null;
+}
+
+export interface ExecuteCommandChangesSummary {
+    totalFiles: number;
+    diffAvailableFiles: number;
+    skippedFiles: number;
+    truncatedFiles?: number;
+    unsupportedReason?: string;
+}
+
+type ParsedGitStatusEntry = {
+    status: string;
+    repoPath: string;
+    fromRepoPath?: string;
+};
+
+function normalizeRepoPath(p: string): string {
+    return String(p || '').replace(/\\/g, '/').replace(/^\.\/+/, '');
+}
+
+function isExcludedRepoPath(repoPath: string): boolean {
+    const normalized = normalizeRepoPath(repoPath);
+    return EXECUTE_COMMAND_EXCLUDED_PREFIXES.some(prefix => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix));
+}
+
+function mapGitStatusToAction(status: string): ExecuteCommandFileAction {
+    const x = status[0] || ' ';
+    const y = status[1] || ' ';
+
+    // Renames
+    if (x === 'R' || y === 'R') return 'renamed';
+
+    // Copies (treat as created for UI)
+    if (x === 'C' || y === 'C') return 'created';
+
+    // Deletions
+    if (x === 'D' || y === 'D') return 'deleted';
+
+    // Creations (untracked or added)
+    if (x === 'A' || y === 'A' || x === '?' || y === '?') return 'created';
+
+    return 'modified';
+}
+
+async function execFileBuffer(
+    file: string,
+    args: string[],
+    options: cp.ExecFileOptions
+): Promise<Buffer> {
+    return await new Promise((resolve, reject) => {
+        cp.execFile(file, args, { ...options, encoding: 'buffer' }, (err, stdout) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(stdout as unknown as Buffer);
+        });
+    });
+}
+
+async function execFileText(
+    file: string,
+    args: string[],
+    options: cp.ExecFileOptions
+): Promise<string> {
+    return await new Promise((resolve, reject) => {
+        cp.execFile(file, args, { ...options, encoding: 'utf8' }, (err, stdout) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(String(stdout || ''));
+        });
+    });
+}
+
+async function getGitRepoRoot(cwd: string): Promise<string | null> {
+    try {
+        const out = await execFileText('git', ['rev-parse', '--show-toplevel'], { cwd });
+        const cleaned = out.replace(/\r?\n/g, '').trim();
+        return cleaned || null;
+    } catch {
+        return null;
+    }
+}
+
+function parseGitStatusPorcelainZ(buf: Buffer): ParsedGitStatusEntry[] {
+    const text = buf.toString('utf8');
+    if (!text) return [];
+
+    const parts = text.split('\0').filter(Boolean);
+    const out: ParsedGitStatusEntry[] = [];
+
+    for (let i = 0; i < parts.length; i++) {
+        const entry = parts[i];
+        if (entry.length < 4) continue;
+
+        const status = entry.slice(0, 2);
+        const repoPath = entry.slice(3);
+
+        // Rename/Copy uses two paths: "R  from\0to\0"
+        const x = status[0] || ' ';
+        const y = status[1] || ' ';
+        if (x === 'R' || y === 'R' || x === 'C' || y === 'C') {
+            const toPath = parts[i + 1];
+            if (toPath) {
+                out.push({ status, repoPath: toPath, fromRepoPath: repoPath });
+                i += 1;
+                continue;
+            }
+        }
+
+        out.push({ status, repoPath });
+    }
+
+    return out;
+}
+
+async function getGitHeadBlobSize(repoRoot: string, repoPath: string): Promise<number | null> {
+    const normalized = normalizeRepoPath(repoPath);
+    if (!normalized) return null;
+
+    try {
+        const out = await execFileText('git', ['cat-file', '-s', `HEAD:${normalized}`], { cwd: repoRoot });
+        const size = Number(String(out || '').trim());
+        return Number.isFinite(size) && size >= 0 ? size : null;
+    } catch {
+        return null;
+    }
+}
+
+async function readGitHeadFile(repoRoot: string, repoPath: string): Promise<string | null> {
+    const normalized = normalizeRepoPath(repoPath);
+    if (!normalized) return null;
+
+    try {
+        // `git show` may fail for new/untracked files
+        const out = await execFileText('git', ['show', `HEAD:${normalized}`], { cwd: repoRoot });
+        return out ?? '';
+    } catch {
+        return null;
+    }
+}
+
+async function readWorkspaceFileText(absolutePath: string): Promise<string | null> {
+    try {
+        return await fs.promises.readFile(absolutePath, 'utf8');
+    } catch {
+        return null;
+    }
+}
+
+async function collectExecuteCommandChangedFiles(
+    workingDir: string
+): Promise<{ changedFiles: ExecuteCommandChangedFile[]; summary: ExecuteCommandChangesSummary }> {
+    const repoRoot = await getGitRepoRoot(workingDir);
+    if (!repoRoot) {
+        return {
+            changedFiles: [],
+            summary: {
+                totalFiles: 0,
+                diffAvailableFiles: 0,
+                skippedFiles: 0,
+                unsupportedReason: 'not a git repository'
+            }
+        };
+    }
+
+    let statusBuf: Buffer;
+    try {
+        statusBuf = await execFileBuffer('git', ['status', '--porcelain=v1', '-z'], { cwd: repoRoot });
+    } catch {
+        return {
+            changedFiles: [],
+            summary: {
+                totalFiles: 0,
+                diffAvailableFiles: 0,
+                skippedFiles: 0,
+                unsupportedReason: 'failed to read git status'
+            }
+        };
+    }
+
+    const entries = parseGitStatusPorcelainZ(statusBuf)
+        .map(e => ({
+            ...e,
+            repoPath: normalizeRepoPath(e.repoPath),
+            fromRepoPath: e.fromRepoPath ? normalizeRepoPath(e.fromRepoPath) : undefined
+        }))
+        .filter(e => e.repoPath && !isExcludedRepoPath(e.repoPath));
+
+    // Stable ordering (avoid jitter between runs)
+    entries.sort((a, b) => {
+        if (a.repoPath !== b.repoPath) return a.repoPath < b.repoPath ? -1 : 1;
+        return a.status.localeCompare(b.status);
+    });
+
+    const totalFiles = entries.length;
+    const truncatedFiles = totalFiles > EXECUTE_COMMAND_MAX_CHANGED_FILES
+        ? totalFiles - EXECUTE_COMMAND_MAX_CHANGED_FILES
+        : 0;
+    const listed = entries.slice(0, EXECUTE_COMMAND_MAX_CHANGED_FILES);
+
+    const diffStorageManager = getDiffStorageManager();
+
+    const changedFiles: ExecuteCommandChangedFile[] = [];
+    let diffAvailableFiles = 0;
+    let skippedFiles = 0;
+
+    for (const entry of listed) {
+        const repoPath = entry.repoPath;
+        const fromRepoPath = entry.fromRepoPath;
+        const action = mapGitStatusToAction(entry.status);
+
+        const absPath = path.join(repoRoot, repoPath);
+        const relativePathForUi = toRelativePath(absPath, true);
+        const fromPathForUi = fromRepoPath ? toRelativePath(path.join(repoRoot, fromRepoPath), true) : undefined;
+
+        const file: ExecuteCommandChangedFile = {
+            path: relativePathForUi,
+            action,
+            fromPath: fromPathForUi || undefined,
+            diffContentId: null,
+            skippedReason: null
+        };
+
+        // Skip diff generation if DiffStorageManager isn't ready
+        if (!diffStorageManager) {
+            file.skippedReason = 'diff storage not available';
+            skippedFiles += 1;
+            changedFiles.push(file);
+            continue;
+        }
+
+        // Skip binary files
+        if (isBinaryFile(repoPath)) {
+            file.skippedReason = 'binary file';
+            skippedFiles += 1;
+            changedFiles.push(file);
+            continue;
+        }
+
+        // Size guards (avoid loading too large contents)
+        const afterStat = await fs.promises.stat(absPath).catch(() => null);
+        const afterSize = afterStat?.isFile() ? afterStat.size : null;
+
+        // Deleted files may not exist on disk; check HEAD blob size
+        const headRepoPath = action === 'renamed' && fromRepoPath ? fromRepoPath : repoPath;
+        const headSize = await getGitHeadBlobSize(repoRoot, headRepoPath);
+
+        const maxBytes = EXECUTE_COMMAND_MAX_FILE_BYTES;
+        if ((afterSize !== null && afterSize > maxBytes) || (headSize !== null && headSize > maxBytes)) {
+            file.skippedReason = 'file too large';
+            skippedFiles += 1;
+            changedFiles.push(file);
+            continue;
+        }
+
+        const originalContent =
+            action === 'created'
+                ? ''
+                : (await readGitHeadFile(repoRoot, headRepoPath)) ?? '';
+        const newContent =
+            action === 'deleted'
+                ? ''
+                : (await readWorkspaceFileText(absPath)) ?? '';
+
+        // If both sides are empty, treat as invalid/unreadable
+        if (!originalContent && !newContent) {
+            file.skippedReason = 'cannot read file content';
+            skippedFiles += 1;
+            changedFiles.push(file);
+            continue;
+        }
+
+        try {
+            const diffRef = await diffStorageManager.saveGlobalDiff({
+                originalContent,
+                newContent,
+                filePath: relativePathForUi
+            });
+            file.diffContentId = diffRef.diffId;
+            diffAvailableFiles += 1;
+        } catch (e) {
+            file.skippedReason = 'failed to save diff';
+            skippedFiles += 1;
+        }
+
+        changedFiles.push(file);
+    }
+
+    const summary: ExecuteCommandChangesSummary = {
+        totalFiles,
+        diffAvailableFiles,
+        skippedFiles
+    };
+    if (truncatedFiles > 0) {
+        summary.truncatedFiles = truncatedFiles;
+    }
+
+    return { changedFiles, summary };
+}
 
 /**
  * Shell 类型定义
@@ -810,7 +1137,7 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                     }
 
                     // 进程结束
-                    proc.on('close', (code) => {
+                    proc.on('close', async (code) => {
                         if (timeoutHandle) {
                             clearTimeout(timeoutHandle);
                         }
@@ -873,6 +1200,23 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         const truncatedNote = wasTruncated
                             ? `(Output truncated: showing last ${lastOutput.length} of ${terminalProcess.output.length} lines)`
                             : undefined;
+
+                        // 尝试生成文件变更摘要（git 工作区），仅供 UI 展示（不会发送给模型）
+                        let changedFiles: ExecuteCommandChangedFile[] | undefined;
+                        let changesSummary: ExecuteCommandChangesSummary | undefined;
+                        try {
+                            const changes = await collectExecuteCommandChangedFiles(workingDir);
+                            changedFiles = changes.changedFiles;
+                            changesSummary = changes.summary;
+                        } catch (e) {
+                            changedFiles = [];
+                            changesSummary = {
+                                totalFiles: 0,
+                                diffAvailableFiles: 0,
+                                skippedFiles: 0,
+                                unsupportedReason: 'failed to collect file changes'
+                            };
+                        }
                         
                         resolve({
                             success: isExternalAbort ? false : success,
@@ -887,7 +1231,9 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                                 duration,
                                 // AI 只需要 output 和 exitCode
                                 output: lastOutput.join('\n'),
-                                truncatedNote
+                                truncatedNote,
+                                changedFiles,
+                                changesSummary
                             },
                             error,
                             cancelled: isExternalAbort

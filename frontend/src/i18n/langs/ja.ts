@@ -1998,7 +1998,28 @@ const ja: LanguageMessages = {
                     autoScroll: '自動スクロール',
                     waitingOutput: '出力を待機中...',
                     noOutput: '出力なし',
-                    executing: 'コマンド実行中...'
+                    executing: 'コマンド実行中...',
+                    fileChanges: {
+                        title: 'ファイル変更',
+                        diffAvailable: '{count} 件の diff を表示可能',
+                        skipped: '{count} 件をスキップ',
+                        truncated: 'さらに {count} 件は未表示',
+                        unsupported: '利用不可',
+                        notSupported: 'Git リポジトリではない、または git status の取得に失敗しました。ファイル変更検出をスキップしました。',
+                        noChanges: 'ファイル変更なし',
+                        diffUnavailable: 'Diff を表示できません',
+                        expandDiff: 'Diff を切り替え',
+                        viewInVSCode: 'VS Code で表示',
+                        openFile: 'ファイルを開く',
+                        loadingDiff: 'Diff を読み込み中...',
+                        expandRemaining: '残り {count} 行を展開',
+                        actions: {
+                            created: '追加',
+                            modified: '変更',
+                            deleted: '削除',
+                            renamed: '名前変更'
+                        }
+                    }
                 }
             },
             lsp: {

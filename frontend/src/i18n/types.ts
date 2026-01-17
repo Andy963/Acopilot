@@ -2066,6 +2066,27 @@ export interface LanguageMessages {
                     waitingOutput: string;
                     noOutput: string;
                     executing: string;
+                    fileChanges: {
+                        title: string;
+                        diffAvailable: string;
+                        skipped: string;
+                        truncated: string;
+                        unsupported: string;
+                        notSupported: string;
+                        noChanges: string;
+                        diffUnavailable: string;
+                        expandDiff: string;
+                        viewInVSCode: string;
+                        openFile: string;
+                        loadingDiff: string;
+                        expandRemaining: string;
+                        actions: {
+                            created: string;
+                            modified: string;
+                            deleted: string;
+                            renamed: string;
+                        };
+                    };
                 };
             };
             /** 媒体工具 */
