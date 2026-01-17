@@ -192,6 +192,7 @@ async function loadFromDraftOrExistingPlan() {
 watch(visible, (v) => {
   if (v) {
     draftSaved.value = false
+    resetForm()
     loadFromDraftOrExistingPlan()
   }
 })
