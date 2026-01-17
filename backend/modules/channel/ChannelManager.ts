@@ -175,19 +175,63 @@ export class ChannelManager {
         });
     }
     
+    private isApiErrorDetailsWrapper(details: unknown): details is { status: number; body?: unknown } {
+        return !!details &&
+            typeof details === 'object' &&
+            !Array.isArray(details) &&
+            typeof (details as any).status === 'number' &&
+            Object.prototype.hasOwnProperty.call(details as any, 'body');
+    }
+
+    private unwrapApiErrorBody(details: unknown): unknown {
+        return this.isApiErrorDetailsWrapper(details) ? (details as any).body : details;
+    }
+
+    private getHttpStatusFromErrorDetails(details: unknown, depth = 0): number | undefined {
+        if (!details || depth > 2) return undefined;
+
+        if (typeof details === 'object' && !Array.isArray(details)) {
+            const anyDetails = details as any;
+
+            if (typeof anyDetails.status === 'number') return anyDetails.status;
+            if (typeof anyDetails.code === 'number') return anyDetails.code;
+
+            const err = anyDetails.error;
+            if (err && typeof err === 'object') {
+                if (typeof err.status === 'number') return err.status;
+                if (typeof err.code === 'number') return err.code;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(anyDetails, 'body')) {
+                return this.getHttpStatusFromErrorDetails(anyDetails.body, depth + 1);
+            }
+        }
+
+        return undefined;
+    }
+
     /**
      * 判断错误是否可重试
      */
     private isRetryableError(error: any): boolean {
-        // API 错误（非 200 状态码）可重试
         if (error instanceof ChannelError) {
             // 用户取消错误不应重试
             if (error.type === ErrorType.CANCELLED_ERROR) {
                 return false;
             }
-            return error.type === ErrorType.API_ERROR ||
-                   error.type === ErrorType.NETWORK_ERROR ||
-                   error.type === ErrorType.TIMEOUT_ERROR;
+
+            // API 错误：仅对“可能是瞬态问题”的状态码重试（参考 copilot 的行为）
+            if (error.type === ErrorType.API_ERROR) {
+                const status = this.getHttpStatusFromErrorDetails(error.details);
+                if (typeof status === 'number') {
+                    // 429: rate limit；5xx: 服务端错误；408: timeout
+                    return status === 429 || status === 408 || (status >= 500 && status <= 599);
+                }
+                // 没有明确状态码（如部分 provider 在流内返回 error 字段），保持兼容：允许重试
+                return true;
+            }
+
+            return error.type === ErrorType.NETWORK_ERROR || error.type === ErrorType.TIMEOUT_ERROR;
         }
         // 网络错误可重试
         return true;
@@ -198,17 +242,21 @@ export class ChannelManager {
         if (error.type !== ErrorType.API_ERROR) return false;
 
         const details = errorDetails ?? error.details;
-        const code = (details as any)?.error?.code ?? (details as any)?.code;
+        const status = this.getHttpStatusFromErrorDetails(details);
+        if (status === 429) return true;
+
+        const body = this.unwrapApiErrorBody(details) as any;
+        const code = body?.error?.code ?? body?.code;
         if (code === 429) return true;
 
-        const status = (details as any)?.error?.status ?? (details as any)?.status;
-        if (status === 429) return true;
-        if (typeof status === 'string' && status.toUpperCase() === 'RESOURCE_EXHAUSTED') return true;
+        const upstreamStatus = body?.error?.status ?? body?.status;
+        if (upstreamStatus === 429) return true;
+        if (typeof upstreamStatus === 'string' && upstreamStatus.toUpperCase() === 'RESOURCE_EXHAUSTED') return true;
 
-        const message = (details as any)?.error?.message ?? (details as any)?.message;
+        const message = body?.error?.message ?? body?.message;
         const messageText = [
             typeof message === 'string' ? message : '',
-            typeof details === 'string' ? details : '',
+            typeof body === 'string' ? body : '',
             error.message
         ].filter(Boolean).join(' ');
 
@@ -226,10 +274,11 @@ export class ChannelManager {
         if (error.type !== ErrorType.API_ERROR) return false;
 
         const details = errorDetails ?? error.details;
+        const body = this.unwrapApiErrorBody(details) as any;
         const msg =
-            (details?.error && typeof details.error.message === 'string' ? details.error.message : undefined) ??
-            (typeof details?.message === 'string' ? details.message : undefined) ??
-            (typeof details === 'string' ? details : undefined) ??
+            (body?.error && typeof body.error.message === 'string' ? body.error.message : undefined) ??
+            (typeof body?.message === 'string' ? body.message : undefined) ??
+            (typeof body === 'string' ? body : undefined) ??
             error.message;
 
         const haystack = String(msg || '').toLowerCase();
@@ -326,7 +375,12 @@ export class ChannelManager {
                     throw new ChannelError(
                         ErrorType.API_ERROR,
                         t('modules.channel.errors.apiError', { status: httpResponse.status }),
-                        httpResponse.body
+                        {
+                            status: httpResponse.status,
+                            headers: httpResponse.headers,
+                            url: httpRequest.url,
+                            body: httpResponse.body
+                        }
                     );
                 }
                 
@@ -758,7 +812,12 @@ export class ChannelManager {
                     throw new ChannelError(
                         ErrorType.API_ERROR,
                         t('modules.channel.errors.apiError', { status: response.status }),
-                        errorBody
+                        {
+                            status: response.status,
+                            headers: Object.fromEntries(response.headers.entries()),
+                            url,
+                            body: errorBody
+                        }
                     );
                 }
                 

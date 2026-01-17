@@ -436,7 +436,12 @@ export async function* proxyStreamFetch(
             throw new ChannelError(
                 ErrorType.API_ERROR,
                 t('modules.channel.errors.apiError', { status: response.status }),
-                errorBody
+                {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    url,
+                    body: errorBody
+                }
             );
         }
         
@@ -678,7 +683,11 @@ export async function* proxyStreamFetch(
                                 reject(new ChannelError(
                                     ErrorType.API_ERROR,
                                     t('modules.channel.errors.apiError', { status: statusCode }),
-                                    parsedError
+                                    {
+                                        status: statusCode,
+                                        url,
+                                        body: parsedError
+                                    }
                                 ));
                                 return;
                             }
