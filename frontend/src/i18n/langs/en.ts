@@ -1250,13 +1250,13 @@ const en: LanguageMessages = {
                         modal: {
                             title: 'Install Skill from URL',
                             url: 'GitHub URL',
-                            urlPlaceholder: 'https://github.com/owner/repo or https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            urlPlaceholder: 'https://github.com/owner/repo or https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill> (or .codex/<skill>)',
                             hint: 'Will be installed to .codex/skills/ in this project and automatically imported into the Skills list'
                         },
                         validation: {
                             urlRequired: 'Please enter a GitHub URL',
-                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills)',
-                            noValidSkillsFound: 'No valid Codex skills found (missing SKILL.md)'
+                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills or .codex/<skill>)',
+                            noValidSkillsFound: 'No valid Codex skills found (no SKILL.md detected; this repo may not be a Skill pack)'
                         },
                         notifications: {
                             installSuccess: 'Installed {count} skill(s)',

@@ -1250,13 +1250,13 @@ const ja: LanguageMessages = {
                         modal: {
                             title: 'URL から Skill をインストール',
                             url: 'GitHub URL',
-                            urlPlaceholder: 'https://github.com/owner/repo または https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            urlPlaceholder: 'https://github.com/owner/repo または https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>（または .codex/<skill>）',
                             hint: 'このプロジェクトの .codex/skills/ にインストールし、Skills リストに自動的にインポートします'
                         },
                         validation: {
                             urlRequired: 'GitHub URL を入力してください',
-                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills が必要です）',
-                            noValidSkillsFound: '有効な Codex skill が見つかりません（SKILL.md がありません）'
+                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills または .codex/<skill> が必要です）',
+                            noValidSkillsFound: '有効な Codex skill が見つかりません（SKILL.md が見つからないため、このリポジトリは Skill ではない可能性があります）'
                         },
                         notifications: {
                             installSuccess: '{count} 件の Skill をインストールしました',
