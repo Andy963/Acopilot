@@ -448,6 +448,10 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         let done = false;
         let usage: any;
         let finishReason: string | undefined;
+        const responseId =
+            (typeof (chunk as any)?.response_id === 'string' ? (chunk as any).response_id : undefined) ??
+            (typeof (chunk as any)?.responseId === 'string' ? (chunk as any).responseId : undefined) ??
+            (typeof chunk?.response?.id === 'string' ? chunk.response.id : undefined);
 
         // 根据事件类型处理
         switch (chunk.type) {
@@ -557,7 +561,7 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             usage,
             finishReason,
             modelVersion: chunk.response?.model,
-            responseId: chunk.response?.id
+            responseId
         };
     }
 

@@ -81,10 +81,19 @@ function createOpenAIResponsesPromptCacheKey(conversationId: string, configId: s
 }
 
 function getApiErrorText(error: ChannelError): string {
-    const details = error.details as any;
+    const rawDetails = error.details as any;
+    const details = (rawDetails &&
+        typeof rawDetails === 'object' &&
+        !Array.isArray(rawDetails) &&
+        typeof rawDetails.status === 'number' &&
+        Object.prototype.hasOwnProperty.call(rawDetails, 'body'))
+        ? rawDetails.body
+        : rawDetails;
+
     const msg =
         (details?.error && typeof details.error.message === 'string' ? details.error.message : undefined) ??
-        (typeof details?.message === 'string' ? details.message : undefined);
+        (typeof details?.message === 'string' ? details.message : undefined) ??
+        (typeof (details as any)?.detail === 'string' ? (details as any).detail : undefined);
 
     if (typeof msg === 'string' && msg.trim()) {
         return msg;
@@ -721,19 +730,31 @@ export class ToolIterationLoopService {
 
                         // 如果流式未收到完成标记但自然结束，认为是异常中断（常见表现：回复一半就断且无报错）
                         if (!processor.isCompleted()) {
-                            if (finalContent.parts.length > 0) {
-                                await this.conversationManager.addContent(conversationId, finalContent);
-                            }
-                            throw new ChannelError(
-                                ErrorType.NETWORK_ERROR,
-                                t('modules.api.chat.errors.streamEndedUnexpectedly'),
-                                {
-                                    providerType: config.type,
-                                    chunkCount: finalContent.chunkCount,
-                                    responseDuration: finalContent.responseDuration,
-                                    hasUsageMetadata: !!finalContent.usageMetadata
+                            // 一些 OpenAI-兼容网关（尤其是 /responses）会直接关闭连接而不发送完成事件（response.completed / [DONE]）。
+                            // Copilot 的实现对这种情况会直接当作完成处理；这里也采用相同策略，避免频繁误报并导致二次请求失败。
+                            const canTreatAsCompleted =
+                                config.type === 'openai-responses' &&
+                                finalContent.parts.length > 0;
+
+                            if (canTreatAsCompleted) {
+                                if (!finalContent.finishReason) {
+                                    finalContent.finishReason = 'stream_closed';
                                 }
-                            );
+                            } else {
+                                if (finalContent.parts.length > 0) {
+                                    await this.conversationManager.addContent(conversationId, finalContent);
+                                }
+                                throw new ChannelError(
+                                    ErrorType.NETWORK_ERROR,
+                                    t('modules.api.chat.errors.streamEndedUnexpectedly'),
+                                    {
+                                        providerType: config.type,
+                                        chunkCount: finalContent.chunkCount,
+                                        responseDuration: finalContent.responseDuration,
+                                        hasUsageMetadata: !!finalContent.usageMetadata
+                                    }
+                                );
+                            }
                         }
                     } else {
                         // 非流式响应处理
