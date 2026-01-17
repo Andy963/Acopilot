@@ -19,6 +19,7 @@ const props = defineProps<{
   minRows?: number
   maxRows?: number
   variant?: 'standalone' | 'embedded'
+  historyNavigationActive?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   'close-at-picker': []
   'at-query-change': [query: string]
   'at-picker-keydown': [key: string]  // 专门用于文件选择器的键盘事件
+  'history-keydown': [key: 'ArrowUp' | 'ArrowDown']
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement>()
@@ -251,6 +253,16 @@ function handleKeydown(e: KeyboardEvent) {
       emit('close-at-picker')
       return
     }
+  }
+
+  // 输入历史导航（类似 shell history）
+  if (
+    (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+    (props.historyNavigationActive || props.value.trim().length === 0)
+  ) {
+    e.preventDefault()
+    emit('history-keydown', e.key as 'ArrowUp' | 'ArrowDown')
+    return
   }
   
   // Enter 发送（Shift+Enter 换行）
