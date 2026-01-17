@@ -402,7 +402,8 @@ const en: LanguageMessages = {
                 responseDuration: 'Response Duration',
                 tokenRate: 'Token Rate',
                 finishReason: 'Finish Reason',
-                contextUsed: 'Context Used'
+                contextUsed: 'Context Used',
+                cacheHit: 'Cached input tokens: {tokens} ({percent}%)'
             },
             thought: {
                 thinking: 'Thinking...',

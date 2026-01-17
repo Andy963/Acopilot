@@ -358,7 +358,8 @@ const ja: LanguageMessages = {
                 responseDuration: '応答時間',
                 tokenRate: 'トークン速度',
                 finishReason: '終了理由',
-                contextUsed: '使用したコンテキスト'
+                contextUsed: '使用したコンテキスト',
+                cacheHit: 'キャッシュ命中：{tokens}（{percent}%）'
             },
             thought: {
                 thinking: '考え中...',
