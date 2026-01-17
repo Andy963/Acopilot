@@ -1998,7 +1998,28 @@ const en: LanguageMessages = {
                     autoScroll: 'Auto Scroll',
                     waitingOutput: 'Waiting for output...',
                     noOutput: 'No output',
-                    executing: 'Command executing...'
+                    executing: 'Command executing...',
+                    fileChanges: {
+                        title: 'File Changes',
+                        diffAvailable: '{count} diff available',
+                        skipped: '{count} skipped',
+                        truncated: '{count} more not shown',
+                        unsupported: 'Unavailable',
+                        notSupported: 'Not a Git repo or failed to read git status. File change detection was skipped.',
+                        noChanges: 'No file changes',
+                        diffUnavailable: 'Diff unavailable',
+                        expandDiff: 'Toggle Diff',
+                        viewInVSCode: 'View in VS Code',
+                        openFile: 'Open File',
+                        loadingDiff: 'Loading diff...',
+                        expandRemaining: 'Expand remaining {count} lines',
+                        actions: {
+                            created: 'Created',
+                            modified: 'Modified',
+                            deleted: 'Deleted',
+                            renamed: 'Renamed'
+                        }
+                    }
                 }
             },
             lsp: {

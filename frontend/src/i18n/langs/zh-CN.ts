@@ -2230,7 +2230,28 @@ const zhCN: LanguageMessages = {
                     autoScroll: '自动滚动',
                     waitingOutput: '等待输出...',
                     noOutput: '没有输出',
-                    executing: '命令执行中...'
+                    executing: '命令执行中...',
+                    fileChanges: {
+                        title: '文件变更',
+                        diffAvailable: '可查看 {count} 个',
+                        skipped: '跳过 {count} 个',
+                        truncated: '还有 {count} 个未展示',
+                        unsupported: '不可用',
+                        notSupported: '当前目录不是 Git 仓库或无法读取 git 状态，已跳过文件变更检测。',
+                        noChanges: '无文件变更',
+                        diffUnavailable: 'Diff 不可用',
+                        expandDiff: '展开 Diff',
+                        viewInVSCode: '在 VS Code 中查看',
+                        openFile: '打开文件',
+                        loadingDiff: '加载 Diff...',
+                        expandRemaining: '展开剩余 {count} 行',
+                        actions: {
+                            created: '新增',
+                            modified: '修改',
+                            deleted: '删除',
+                            renamed: '重命名'
+                        }
+                    }
                 }
             }
         }
