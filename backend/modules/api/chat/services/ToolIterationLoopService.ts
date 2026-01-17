@@ -680,9 +680,14 @@ export class ToolIterationLoopService {
             let requestPreviousResponseId = previousResponseId;
             let requestPromptCacheKey = promptCacheKey;
             let fallbackCount = 0;
+            let openaiResponsesStreamNoDoneRetryCount = 0;
+            let shouldPersistOpenAIResponsesContinuation = true;
 
             while (true) {
                 const requestStartTime = Date.now();
+
+                // 每次请求默认允许更新 continuation（仅当明确收到完成标记时才会真正启用）
+                shouldPersistOpenAIResponsesContinuation = true;
 
                 const response = await this.channelManager.generate({
                     configId,
@@ -737,9 +742,26 @@ export class ToolIterationLoopService {
                                 finalContent.parts.length > 0;
 
                             if (canTreatAsCompleted) {
+                                // 未收到完成标记：不要把这次的 responseId 写回 continuation，否则下一轮 previous_response_id 可能导致 0 token/ECONNRESET 等问题。
+                                shouldPersistOpenAIResponsesContinuation = false;
                                 if (!finalContent.finishReason) {
                                     finalContent.finishReason = 'stream_closed';
                                 }
+                            } else if (
+                                config.type === 'openai-responses' &&
+                                finalContent.parts.length === 0 &&
+                                openaiResponsesStreamNoDoneRetryCount < 1 &&
+                                !abortSignal?.aborted
+                            ) {
+                                // 少量网关会在输出开始前就关闭连接（无 done 标记且无任何内容）；对用户来说等同于“偶发空响应”。
+                                // 这里做一次轻量重试：清空 previous_response_id 并回退到全量历史，避免卡死在无效 continuation 上。
+                                openaiResponsesStreamNoDoneRetryCount++;
+                                shouldPersistOpenAIResponsesContinuation = false;
+                                openaiResponseId = undefined;
+                                await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+                                requestHistory = historyForFullRetry;
+                                requestPreviousResponseId = undefined;
+                                continue;
                             } else {
                                 if (finalContent.parts.length > 0) {
                                     await this.conversationManager.addContent(conversationId, finalContent);
@@ -845,7 +867,7 @@ export class ToolIterationLoopService {
                 if (config.type === 'openai-responses') {
                     appendOpenAIResponsesStatefulMarker(finalContent, {
                         configId,
-                        previousResponseId: openaiResponseId,
+                        previousResponseId: shouldPersistOpenAIResponsesContinuation ? openaiResponseId : undefined,
                         promptCacheKey: requestPromptCacheKey
                     });
                 }
@@ -854,7 +876,7 @@ export class ToolIterationLoopService {
 
             // 9.1 OpenAI Responses: 保存 continuation 状态（下次只发增量消息）
             if (config.type === 'openai-responses') {
-                if (openaiResponsesFeatures?.disablePreviousResponseId) {
+                if (openaiResponsesFeatures?.disablePreviousResponseId || !shouldPersistOpenAIResponsesContinuation) {
                     await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
                 } else if (openaiResponseId) {
                     const syncedHistory = await this.conversationManager.getHistoryRef(conversationId);
