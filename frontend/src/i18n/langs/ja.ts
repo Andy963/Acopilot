@@ -177,6 +177,14 @@ const ja: LanguageMessages = {
                 titleUsed: '使用されたコンテキスト',
                 noData: 'コンテキストデータがありません',
                 copyDebug: 'デバッグ情報をコピー',
+                summary: {
+                    config: '設定',
+                    toolMode: 'ツールモード',
+                    tools: 'ツール',
+                    mcp: 'MCP',
+                    systemInstruction: 'システム指示',
+                    generatedAt: '生成日時'
+                },
                 injected: {
                     title: '注入詳細',
                     pinnedFiles: 'ピン留めファイル',
@@ -197,7 +205,20 @@ const ja: LanguageMessages = {
                     title: 'ツール定義'
                 },
                 modules: {
-                    title: 'システムプロンプトのセクション'
+                    title: 'システムプロンプトのセクション',
+                    labels: {
+                        text: 'テキスト',
+                        environment: '環境',
+                        workspaceFiles: 'ワークスペースファイル',
+                        pinnedFiles: 'ピン留めファイル',
+                        tools: 'ツール',
+                        mcpTools: 'MCP ツール',
+                        guidelines: 'ガイドライン',
+                        openTabs: '開いているタブ',
+                        activeEditor: 'アクティブエディタ',
+                        diagnostics: '診断',
+                        selectionReferences: '選択範囲の参照'
+                    }
                 },
                 raw: {
                     title: 'システム指示 (Raw)'
@@ -358,7 +379,8 @@ const ja: LanguageMessages = {
                 responseDuration: '応答時間',
                 tokenRate: 'トークン速度',
                 finishReason: '終了理由',
-                contextUsed: '使用したコンテキスト'
+                contextUsed: '使用したコンテキスト',
+                cacheHit: 'キャッシュ命中：{tokens}（{percent}%）'
             },
             thought: {
                 thinking: '考え中...',
@@ -396,6 +418,7 @@ const ja: LanguageMessages = {
             error: {
                 title: 'リクエストに失敗しました',
                 retry: '再試行',
+                copy: 'エラー詳細をコピー',
                 dismiss: '閉じる'
             },
             tool: {
@@ -410,6 +433,8 @@ const ja: LanguageMessages = {
                 rejected: '拒否済み',
                 viewDiff: '差分を表示',
                 viewDiffInVSCode: 'VSCode で差分を表示',
+                saveAndContinue: '保存して続行',
+                acceptDiffFailed: '差分の保存に失敗しました',
                 openDiffFailed: 'diff プレビューを開くのに失敗しました'
             },
             attachment: {
@@ -432,6 +457,7 @@ const ja: LanguageMessages = {
                 pause: '一時停止',
                 cancel: 'キャンセル',
                 clear: 'クリア',
+                runStep: 'このステップを実行',
                 rerunStep: 'このステップを再実行'
             },
             current: '現在',
@@ -967,6 +993,12 @@ const ja: LanguageMessages = {
                 description: '画像生成ツールにより、AI は画像生成モデルを呼び出して画像を作成できます。生成された画像はワークスペースに保存され、マルチモーダル形式で AI に返されて表示されます。',
                 api: {
                     title: 'API 設定',
+                    provider: 'Provider',
+                    providerHint: '画像生成 API のプロバイダーを選択します。デフォルト URL と推奨モデルを自動入力します。',
+                    providerOptions: {
+                        gemini: 'Gemini',
+                        together: 'Together AI'
+                    },
                     url: 'API URL',
                     urlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
                     urlHint: '画像生成 API のベース URL',
@@ -976,6 +1008,9 @@ const ja: LanguageMessages = {
                     model: 'モデル名',
                     modelPlaceholder: 'gemini-3-pro-Image-preview',
                     modelHint: '例: gemini-3-pro-Image-preview',
+                    modelPreset: '推奨モデル',
+                    modelPresetPlaceholder: 'カスタム（手入力）',
+                    modelPresetHint: 'プリセットを選ぶとモデル名が自動入力されます。上の欄で手入力もできます。',
                     show: '表示',
                     hide: '非表示'
                 },
@@ -1227,12 +1262,18 @@ const ja: LanguageMessages = {
                         modal: {
                             title: 'URL から Skill をインストール',
                             url: 'GitHub URL',
-                            urlPlaceholder: 'https://github.com/owner/repo または https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            urlPlaceholder: 'https://github.com/owner/repo または https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>（または .codex/<skill>）',
                             hint: 'このプロジェクトの .codex/skills/ にインストールし、Skills リストに自動的にインポートします'
                         },
                         validation: {
                             urlRequired: 'GitHub URL を入力してください',
-                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills が必要です）'
+                            noSkillsFound: 'インストール可能な Codex skill が見つかりません（.codex/skills または .codex/<skill> が必要です）',
+                            noValidSkillsFound: '有効な Codex skill が見つかりません（SKILL.md が見つからないため、このリポジトリは Skill ではない可能性があります）'
+                        },
+                        notifications: {
+                            installSuccess: '{count} 件の Skill をインストールしました',
+                            noNewSkills: '既に存在するため新規追加はありません（{count} 件）',
+                            partialInvalid: '{count} 件の Skill が無効（SKILL.md がありません）なためスキップしました'
                         },
                         installFailed: 'インストールに失敗しました'
                     },
@@ -1991,7 +2032,28 @@ const ja: LanguageMessages = {
                     autoScroll: '自動スクロール',
                     waitingOutput: '出力を待機中...',
                     noOutput: '出力なし',
-                    executing: 'コマンド実行中...'
+                    executing: 'コマンド実行中...',
+                    fileChanges: {
+                        title: 'ファイル変更',
+                        diffAvailable: '{count} 件の diff を表示可能',
+                        skipped: '{count} 件をスキップ',
+                        truncated: 'さらに {count} 件は未表示',
+                        unsupported: '利用不可',
+                        notSupported: 'Git リポジトリではない、または git status の取得に失敗しました。ファイル変更検出をスキップしました。',
+                        noChanges: 'ファイル変更なし',
+                        diffUnavailable: 'Diff を表示できません',
+                        expandDiff: 'Diff を切り替え',
+                        viewInVSCode: 'VS Code で表示',
+                        openFile: 'ファイルを開く',
+                        loadingDiff: 'Diff を読み込み中...',
+                        expandRemaining: '残り {count} 行を展開',
+                        actions: {
+                            created: '追加',
+                            modified: '変更',
+                            deleted: '削除',
+                            renamed: '名前変更'
+                        }
+                    }
                 }
             },
             lsp: {

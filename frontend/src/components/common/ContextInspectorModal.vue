@@ -5,7 +5,7 @@ import type { ContextInspectorData, ContextInspectorModule } from '../../types'
 import { copyToClipboard } from '../../utils/format'
 import { useI18n } from '../../i18n'
 
-const { t } = useI18n()
+const { t, actualLanguage } = useI18n()
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -67,6 +67,48 @@ const providerSummary = computed(() => {
   if (!data) return ''
   return `${data.providerType} · ${data.model}`
 })
+
+function formatTimestamp(ts: number): string {
+  if (!Number.isFinite(ts)) return ''
+
+  const lang = actualLanguage.value
+  const locale = lang === 'en' ? 'en-US' : lang
+
+  const date = new Date(ts)
+  try {
+    const formatter = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: locale.startsWith('zh') ? false : undefined
+    })
+    return formatter.format(date)
+  } catch {
+    return date.toISOString()
+  }
+}
+
+const MODULE_TITLE_KEYS: Record<string, string> = {
+  'TEXT': 'components.common.contextInspectorModal.modules.labels.text',
+  'ENVIRONMENT': 'components.common.contextInspectorModal.modules.labels.environment',
+  'WORKSPACE FILES': 'components.common.contextInspectorModal.modules.labels.workspaceFiles',
+  'PINNED FILES': 'components.common.contextInspectorModal.modules.labels.pinnedFiles',
+  'TOOLS': 'components.common.contextInspectorModal.modules.labels.tools',
+  'MCP TOOLS': 'components.common.contextInspectorModal.modules.labels.mcpTools',
+  'GUIDELINES': 'components.common.contextInspectorModal.modules.labels.guidelines',
+  'OPEN TABS': 'components.common.contextInspectorModal.modules.labels.openTabs',
+  'ACTIVE EDITOR': 'components.common.contextInspectorModal.modules.labels.activeEditor',
+  'DIAGNOSTICS': 'components.common.contextInspectorModal.modules.labels.diagnostics',
+  'SELECTION REFERENCES': 'components.common.contextInspectorModal.modules.labels.selectionReferences'
+}
+
+function formatModuleTitle(rawTitle: string): string {
+  const key = MODULE_TITLE_KEYS[String(rawTitle || '').trim().toUpperCase()]
+  return key ? t(key) : rawTitle
+}
 
 function estimateTokensFromChars(chars: number): number {
   if (!Number.isFinite(chars) || chars <= 0) return 0
@@ -184,20 +226,20 @@ const pinnedSelectionsListText = computed(() => {
         <div class="summary">
           <div class="summary-row">
             <span class="summary-title">{{ providerSummary }}</span>
-            <span class="summary-muted">config: <code>{{ data.configId }}</code></span>
-            <span class="summary-muted">toolMode: <code>{{ data.tools.toolMode }}</code></span>
+            <span class="summary-muted">{{ t('components.common.contextInspectorModal.summary.config') }}: <code>{{ data.configId }}</code></span>
+            <span class="summary-muted">{{ t('components.common.contextInspectorModal.summary.toolMode') }}: <code>{{ data.tools.toolMode }}</code></span>
           </div>
           <div class="summary-row">
             <span class="summary-muted">
-              tools: <code>{{ data.tools.total }}</code>
-              <span v-if="data.tools.mcp"> · mcp: <code>{{ data.tools.mcp }}</code></span>
+              {{ t('components.common.contextInspectorModal.summary.tools') }}: <code>{{ data.tools.total }}</code>
+              <span v-if="data.tools.mcp"> · {{ t('components.common.contextInspectorModal.summary.mcp') }}: <code>{{ data.tools.mcp }}</code></span>
             </span>
             <span class="summary-muted">
-              systemInstruction: <code>{{ estimatedSystemTokens }}</code> tok · <code>{{ data.systemInstructionCharCount }}</code> ch
+              {{ t('components.common.contextInspectorModal.summary.systemInstruction') }}: <code>{{ estimatedSystemTokens }}</code> tok · <code>{{ data.systemInstructionCharCount }}</code> ch
               <span v-if="data.systemInstructionTruncated">({{ t('common.truncated') }})</span>
             </span>
             <span class="summary-muted">
-              generatedAt: <code>{{ new Date(data.generatedAt).toLocaleString() }}</code>
+              {{ t('components.common.contextInspectorModal.summary.generatedAt') }}: <code>{{ formatTimestamp(data.generatedAt) }}</code>
             </span>
           </div>
         </div>
@@ -294,7 +336,7 @@ const pinnedSelectionsListText = computed(() => {
             >
               <button class="module-header" @click="toggleModule(m)">
                 <i class="codicon" :class="isExpanded(m) ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
-                <span class="module-title">{{ m.title }}</span>
+                <span class="module-title" :title="m.title">{{ formatModuleTitle(m.title) }}</span>
                 <span class="module-meta">
                   <code>{{ m.tokens }}</code> tok · <code>{{ m.charCount }}</code> ch · {{ m.percent.toFixed(1) }}%
                   <span v-if="m.truncated">({{ t('common.truncated') }})</span>

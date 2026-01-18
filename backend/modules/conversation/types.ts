@@ -263,6 +263,13 @@ export interface TokenDetailsEntry {
 export interface UsageMetadata {
     /** 输入 prompt 的 token 数量 */
     promptTokenCount?: number;
+
+    /**
+     * 缓存命中的输入 token 数（OpenAI Responses: usage.input_tokens_details.cached_tokens）
+     *
+     * 仅在支持 prompt cache 的提供商上有值，其它渠道通常为 undefined。
+     */
+    cachedPromptTokenCount?: number;
     
     /** 候选输出内容的 token 数量 */
     candidatesTokenCount?: number;
@@ -614,6 +621,16 @@ export interface Content {
      * 由前端通过“Add Selection to Chat”添加，并持久化到历史中，便于重试/复现。
      */
     selectionReferences?: SelectionReference[];
+
+    /**
+     * Task Context（仅 user 消息有值）
+     *
+     * 由前端 Create Task / Issue 导入等功能提供，并持久化到历史中，便于重试/复现。
+     *
+     * 注意：发送给模型时会以“本轮 user message 前缀”的形式 request-only 注入，
+     * 不会写回 parts.text，避免历史文本膨胀或重复注入。
+     */
+    taskContext?: string;
 
     /**
      * 上下文注入覆写（仅 user 消息有值）

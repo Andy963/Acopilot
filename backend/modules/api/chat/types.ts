@@ -65,6 +65,17 @@ export interface ChatRequestData {
      * 仅对本次请求生效，并会被持久化到该条 user 消息上以支持重试/复现。
      */
     contextOverrides?: ContextInjectionOverrides;
+
+    /**
+     * Task Context（可选）
+     *
+     * 由前端 Create Task / Issue 导入等功能提供。
+     * 仅对本次请求生效，并会被持久化到该条 user 消息上以支持重试/复现。
+     *
+     * 发送模型请求时会作为“本轮 user message 的前缀”进行 request-only 注入，
+     * 避免污染用户消息文本与后续轮次历史。
+     */
+    taskContext?: string;
     
     /** 取消信号 */
     abortSignal?: AbortSignal;

@@ -473,48 +473,28 @@ function formatTokenCount(count: number | undefined): string {
   return String(count)
 }
 
-// 响应持续时间（从请求发送到响应结束，使用后端提供的数据）
-const responseDuration = computed(() => {
-  const duration = props.message.metadata?.responseDuration
-  if (duration && duration > 0) {
-    return formatDuration(duration)
+const cacheHitInfo = computed(() => {
+  const usage = usageMetadata.value
+  const cachedTokens = usage?.cachedPromptTokenCount ?? 0
+  const inputTokens = usage?.promptTokenCount ?? 0
+
+  if (cachedTokens <= 0) return null
+  if (inputTokens <= 0) return null
+
+  const percent = Math.max(0, Math.min(100, Math.round((cachedTokens / inputTokens) * 100)))
+  return {
+    cachedTokens,
+    percent,
+    cachedTokensText: formatTokenCount(cachedTokens)
   }
-  return null
 })
 
-// Token 速率计算
-// 如果模型返回了思考内容，则计算 (输出token + 思考token) / 流式持续时间
-// 如果没有思考内容，则只计算 输出token / 流式持续时间
-// 只有多于一个流式块时才显示速率
-const tokenRate = computed(() => {
-  const metadata = props.message.metadata
-  if (!metadata) return null
-  
-  const streamDuration = metadata.streamDuration
-  const chunkCount = metadata.chunkCount
-  
-  // 只有多于一个流式块时才计算速率
-  if (!streamDuration || streamDuration <= 0 || !chunkCount || chunkCount <= 1) {
-    return null
-  }
-  
-  const usage = metadata.usageMetadata
-  if (!usage) return null
-  
-  // 获取输出 token 数
-  const outputTokens = usage.candidatesTokenCount || 0
-  const thoughtTokens = usage.thoughtsTokenCount || 0
-  
-  // 如果有思考 token，则计算总的（输出 + 思考）；否则只计算输出
-  const totalTokens = thoughtTokens > 0 ? (outputTokens + thoughtTokens) : outputTokens
-  
-  if (totalTokens <= 0) return null
-  
-  // 计算速率（tokens/s）
-  const durationSeconds = streamDuration / 1000
-  const rate = totalTokens / durationSeconds
-  
-  return rate.toFixed(1)
+const cacheHitTitle = computed(() => {
+  if (!cacheHitInfo.value) return ''
+  return t('components.message.stats.cacheHit', {
+    tokens: cacheHitInfo.value.cachedTokensText,
+    percent: cacheHitInfo.value.percent
+  })
 })
 
 // 消息类名
@@ -641,6 +621,13 @@ function handleOpenContextUsed() {
         
         <!-- 显示模式 -->
         <div class="message-content">
+        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
+        <ContextUsedMessage
+          v-if="!isUser && !isTool && !isSummary && message.metadata?.contextSnapshot"
+          :snapshot="message.metadata.contextSnapshot"
+          @open-details="handleOpenContextUsed"
+        />
+
         <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
         <template v-if="displayBlocks.length > 0">
           <template v-for="(block, index) in displayBlocks" :key="index">
@@ -729,45 +716,33 @@ function handleOpenContextUsed() {
         <!-- 流式指示器 - 简洁下划线 -->
         <span v-if="isStreaming" class="streaming-indicator"></span>
 
-        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
-        <ContextUsedMessage
-          v-if="!isUser && !isTool && !isSummary && message.metadata?.contextSnapshot"
-          :snapshot="message.metadata.contextSnapshot"
-          @open-details="handleOpenContextUsed"
-        />
-
         <!-- 消息底部信息：工具栏统一放在下方 -->
         <div
-          v-if="formattedTime || showActions || (!isUser && (responseDuration || tokenRate || hasUsage))"
+          v-if="formattedTime || showActions || (!isUser && hasUsage)"
           class="message-footer"
           :class="{ 'user-footer': isUser }"
         >
           <div v-if="!isUser" class="message-footer-left">
             <span class="role-label">{{ roleDisplayName }}</span>
-
-	            <span v-if="responseDuration" class="response-duration" :title="t('components.message.stats.responseDuration')">
-	              <i class="codicon codicon-clock"></i>{{ responseDuration }}
-	            </span>
-	
-	            <span v-if="tokenRate" class="token-rate" :title="t('components.message.stats.tokenRate')">
-	              <i class="codicon codicon-zap"></i>
-	              <span class="token-rate-value">{{ tokenRate }}</span>
-	              <span class="token-rate-unit">t/s</span>
-	            </span>
 	
 	            <div v-if="hasUsage" class="token-usage">
 	              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
 	                {{ formatTokenCount(usageMetadata.totalTokenCount) }}
 	              </span>
-	              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
-	                <span class="token-arrow">↑</span>
-	                <span class="token-count">{{ formatTokenCount(usageMetadata.promptTokenCount) }}</span>
-	              </span>
 	              <span v-if="usageMetadata?.candidatesTokenCount" class="token-item token-candidates">
 	                <span class="token-arrow">↓</span>
 	                <span class="token-count">{{ formatTokenCount(usageMetadata.candidatesTokenCount) }}</span>
 	              </span>
+	              <span v-if="usageMetadata?.promptTokenCount" class="token-item token-prompt">
+	                <span class="token-arrow">↑</span>
+	                <span class="token-count">{{ formatTokenCount(usageMetadata.promptTokenCount) }}</span>
+	              </span>
 	            </div>
+
+              <span v-if="cacheHitInfo" class="cache-hit" :title="cacheHitTitle">
+                <i class="codicon codicon-database"></i>
+                <span class="cache-hit-value">{{ cacheHitInfo.cachedTokensText }}({{ cacheHitInfo.percent }}%)</span>
+              </span>
 	
 	            <span
               v-if="showFinishReason"
@@ -907,25 +882,8 @@ function handleOpenContextUsed() {
   line-height: 1;
 }
 
-/* 响应持续时间 */
-.response-duration {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.7;
-  line-height: 1;
-}
-
-.response-duration .codicon {
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
-  line-height: 1;
-}
-
-/* Token 速率 */
-.token-rate {
+/* OpenAI Responses prompt cache 命中展示 */
+.cache-hit {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -936,7 +894,7 @@ function handleOpenContextUsed() {
   line-height: 1;
 }
 
-.token-rate .codicon {
+.cache-hit .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
   line-height: 1;

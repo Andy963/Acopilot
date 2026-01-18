@@ -4,7 +4,7 @@
  * 支持 v-model 双向绑定
  */
 
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, useSlots } from 'vue'
 import CustomScrollbar from './CustomScrollbar.vue'
 
 export interface SelectOption {
@@ -40,9 +40,13 @@ const highlightedIndex = ref(-1)
 const containerRef = ref<HTMLElement>()
 const inputRef = ref<HTMLInputElement>()
 
+const slots = useSlots()
+
 const selectedOption = computed(() => {
   return props.options.find(opt => opt.value === props.modelValue)
 })
+
+const hasOptionActionsSlot = computed(() => typeof slots['option-actions'] === 'function')
 
 const filteredOptions = computed(() => {
   if (!searchQuery.value) {
@@ -82,6 +86,22 @@ function toggle() {
 function selectOption(option: SelectOption) {
   emit('update:modelValue', option.value)
   close()
+}
+
+function isInteractiveElement(el: Element | null): boolean {
+  if (!el) return false
+
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'button' || tag === 'a' || tag === 'input' || tag === 'select' || tag === 'textarea') {
+    return true
+  }
+
+  // Consider any element with explicit click/role handlers as interactive.
+  if ((el as HTMLElement).onclick || el.getAttribute('role') === 'button') {
+    return true
+  }
+
+  return false
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -181,13 +201,22 @@ onUnmounted(() => {
                   highlighted: index === highlightedIndex
                 }
               ]"
-              @click="selectOption(option)"
+              @click="(e: MouseEvent) => {
+                const target = e.target as Element | null
+                if (isInteractiveElement(target) || target?.closest('.option-actions')) return
+                selectOption(option)
+              }"
               @mouseenter="highlightedIndex = index"
             >
               <div class="option-content">
                 <span class="option-label">{{ option.label }}</span>
                 <span v-if="option.description" class="option-description">{{ option.description }}</span>
               </div>
+
+              <div v-if="hasOptionActionsSlot" class="option-actions" @click.stop>
+                <slot name="option-actions" :option="option" :selected="option.value === modelValue" />
+              </div>
+
               <span v-if="option.value === modelValue" class="check-icon">✓</span>
             </div>
 
@@ -374,6 +403,21 @@ onUnmounted(() => {
 .option-item.selected .option-description {
   color: var(--vscode-list-activeSelectionForeground);
   opacity: 0.8;
+}
+
+.option-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+  opacity: 0.55;
+  transition: opacity 0.12s ease;
+}
+
+.option-item:hover .option-actions,
+.option-item.highlighted .option-actions {
+  opacity: 1;
 }
 
 .check-icon {

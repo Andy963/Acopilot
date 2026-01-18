@@ -196,6 +196,14 @@ export interface LanguageMessages {
                 titleUsed: string;
                 noData: string;
                 copyDebug: string;
+                summary: {
+                    config: string;
+                    toolMode: string;
+                    tools: string;
+                    mcp: string;
+                    systemInstruction: string;
+                    generatedAt: string;
+                };
                 injected: {
                     title: string;
                     pinnedFiles: string;
@@ -217,6 +225,19 @@ export interface LanguageMessages {
                 };
                 modules: {
                     title: string;
+                    labels: {
+                        text: string;
+                        environment: string;
+                        workspaceFiles: string;
+                        pinnedFiles: string;
+                        tools: string;
+                        mcpTools: string;
+                        guidelines: string;
+                        openTabs: string;
+                        activeEditor: string;
+                        diagnostics: string;
+                        selectionReferences: string;
+                    };
                 };
                 raw: {
                     title: string;
@@ -315,6 +336,7 @@ export interface LanguageMessages {
             error: {
                 title: string;
                 retry: string;
+                copy: string;
                 dismiss: string;
             };
             tool: {
@@ -329,6 +351,8 @@ export interface LanguageMessages {
                 rejected: string;
                 viewDiff: string;
                 viewDiffInVSCode: string;
+                saveAndContinue: string;
+                acceptDiffFailed: string;
                 openDiffFailed: string;
             };
             attachment: {
@@ -457,6 +481,7 @@ export interface LanguageMessages {
                 pause: string;
                 cancel: string;
                 clear: string;
+                runStep: string;
                 rerunStep: string;
             };
             current: string;
@@ -1131,6 +1156,12 @@ export interface LanguageMessages {
                 description: string;
                 api: {
                     title: string;
+                    provider: string;
+                    providerHint: string;
+                    providerOptions: {
+                        gemini: string;
+                        together: string;
+                    };
                     url: string;
                     urlPlaceholder: string;
                     urlHint: string;
@@ -1140,6 +1171,9 @@ export interface LanguageMessages {
                     model: string;
                     modelPlaceholder: string;
                     modelHint: string;
+                    modelPreset: string;
+                    modelPresetPlaceholder: string;
+                    modelPresetHint: string;
                     show: string;
                     hide: string;
                 };
@@ -1397,6 +1431,12 @@ export interface LanguageMessages {
                         validation: {
                             urlRequired: string;
                             noSkillsFound: string;
+                            noValidSkillsFound: string;
+                        };
+                        notifications: {
+                            installSuccess: string;
+                            noNewSkills: string;
+                            partialInvalid: string;
                         };
                         installFailed: string;
                     };
@@ -2060,6 +2100,27 @@ export interface LanguageMessages {
                     waitingOutput: string;
                     noOutput: string;
                     executing: string;
+                    fileChanges: {
+                        title: string;
+                        diffAvailable: string;
+                        skipped: string;
+                        truncated: string;
+                        unsupported: string;
+                        notSupported: string;
+                        noChanges: string;
+                        diffUnavailable: string;
+                        expandDiff: string;
+                        viewInVSCode: string;
+                        openFile: string;
+                        loadingDiff: string;
+                        expandRemaining: string;
+                        actions: {
+                            created: string;
+                            modified: string;
+                            deleted: string;
+                            renamed: string;
+                        };
+                    };
                 };
             };
             /** 媒体工具 */

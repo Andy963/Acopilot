@@ -67,6 +67,59 @@ const inputValue = computed({
   set: (value: string) => chatStore.setInputValue(value)
 })
 
+// 输入历史（类似 shell history）
+const promptHistory = ref<string[]>([])
+const promptHistoryCursor = ref(0)
+const historyNavigationActive = ref(false)
+const MAX_PROMPT_HISTORY = 50
+
+function pushPromptToHistory(prompt: string): void {
+  const value = prompt.trim()
+  if (!value) return
+
+  const history = promptHistory.value
+  if (history[history.length - 1] === value) return
+
+  history.push(value)
+  if (history.length > MAX_PROMPT_HISTORY) {
+    history.splice(0, history.length - MAX_PROMPT_HISTORY)
+  }
+}
+
+function resetPromptHistoryNavigation(): void {
+  historyNavigationActive.value = false
+  promptHistoryCursor.value = promptHistory.value.length
+}
+
+function handlePromptHistoryKeydown(key: 'ArrowUp' | 'ArrowDown'): void {
+  const history = promptHistory.value
+  if (history.length === 0) return
+
+  if (!historyNavigationActive.value) {
+    promptHistoryCursor.value = history.length
+  }
+
+  if (key === 'ArrowUp') {
+    promptHistoryCursor.value = Math.max(0, promptHistoryCursor.value - 1)
+    historyNavigationActive.value = true
+    inputValue.value = history[promptHistoryCursor.value] || ''
+    return
+  }
+
+  // ArrowDown：只有在 history 模式下才生效
+  if (!historyNavigationActive.value) return
+
+  if (promptHistoryCursor.value >= history.length - 1) {
+    resetPromptHistoryNavigation()
+    inputValue.value = ''
+    return
+  }
+
+  promptHistoryCursor.value += 1
+  historyNavigationActive.value = true
+  inputValue.value = history[promptHistoryCursor.value] || ''
+}
+
 // 加载配置列表
 async function loadConfigs() {
   isLoadingConfigs.value = true
@@ -228,6 +281,8 @@ function handleSend() {
   const content = inputValue.value.trim()
   const attachments = props.attachments || []
   
+  pushPromptToHistory(content)
+  resetPromptHistoryNavigation()
   emit('send', content, attachments)
   chatStore.clearInputValue()  // 使用 store 方法清空
   showContextOverridesPanel.value = false
@@ -240,6 +295,7 @@ function handleCancel() {
 
 // 处理输入变化
 function handleInput(value: string) {
+  resetPromptHistoryNavigation()
   chatStore.setInputValue(value)  // 使用 store 方法更新
 }
 
@@ -1291,11 +1347,13 @@ watch(pinPanelTab, (tab) => {
             :disabled="false"
             :placeholder="placeholder"
             variant="embedded"
+            :history-navigation-active="historyNavigationActive"
             @update:value="handleInput"
             @send="handleSend"
             @composition-start="handleCompositionStart"
             @composition-end="handleCompositionEnd"
             @paste="handlePasteFiles"
+            @history-keydown="handlePromptHistoryKeydown"
             @trigger-at-picker="handleTriggerAtPicker"
             @close-at-picker="handleCloseAtPicker"
             @at-query-change="handleAtQueryChange"

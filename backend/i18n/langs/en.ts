@@ -410,6 +410,7 @@ Requirements:
             getConversationsWithCheckpointsFailed: 'Failed to get conversations with checkpoints',
             
             openDiffPreviewFailed: 'Failed to open diff preview',
+            acceptDiffFailed: 'Failed to accept diff',
             diffContentNotFound: 'Diff content not found or expired',
             loadDiffContentFailed: 'Failed to load diff content',
             invalidDiffData: 'Invalid diff data',

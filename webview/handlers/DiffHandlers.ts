@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import { t } from '../../backend/i18n';
+import { getDiffManager } from '../../backend/tools/file/diffManager';
 import type { HandlerContext, MessageHandler } from '../types';
 
 /**
@@ -44,6 +45,37 @@ export const loadDiffContent: MessageHandler = async (data, requestId, ctx) => {
 };
 
 /**
+ * 接受（保存）当前工具关联的待处理 Diff
+ *
+ * 用于“apply_diff / write_file”等需要用户确认的文件变更，避免因未展开面板而难以继续对话。
+ */
+export const acceptPendingDiff: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const toolId = String(data?.toolId || '').trim();
+    if (!toolId) {
+      throw new Error('toolId is required');
+    }
+
+    const diffManager = getDiffManager();
+    const pending = diffManager.getPendingDiffsByToolId(toolId);
+
+    let accepted = 0;
+    for (const d of pending) {
+      const ok = await diffManager.acceptDiff(d.id, true);
+      if (ok) accepted++;
+    }
+
+    ctx.sendResponse(requestId, {
+      success: true,
+      accepted,
+      total: pending.length,
+    });
+  } catch (error: any) {
+    ctx.sendError(requestId, 'ACCEPT_DIFF_ERROR', error.message || t('webview.errors.acceptDiffFailed'));
+  }
+};
+
+/**
  * 处理打开 Diff 预览的内部逻辑
  */
 async function handleOpenDiffPreview(
@@ -69,6 +101,8 @@ async function handleOpenDiffPreview(
     await handleSearchInFilesPreview(result, ctx);
   } else if (toolName === 'write_file') {
     await handleWriteFilePreview(args, result, ctx);
+  } else if (toolName === 'execute_command') {
+    await handleExecuteCommandPreview(data.filePaths, result, ctx);
   } else {
     throw new Error(t('webview.errors.unsupportedToolType', { toolName }));
   }
@@ -223,6 +257,51 @@ async function handleWriteFilePreview(
 }
 
 /**
+ * 处理 execute_command 预览
+ *
+ * execute_command 的 diff 内容已被保存到 DiffStorageManager（diffContentId），这里按需加载并打开 vscode.diff。
+ */
+async function handleExecuteCommandPreview(
+  filePaths: string[],
+  result: Record<string, unknown> | undefined,
+  ctx: HandlerContext
+): Promise<void> {
+  const resultData = result?.data as Record<string, unknown> | undefined;
+  const changedFiles = resultData?.changedFiles as Array<{
+    path: string;
+    diffContentId?: string | null;
+  }> | undefined;
+
+  if (!Array.isArray(changedFiles) || changedFiles.length === 0) {
+    throw new Error(t('webview.errors.invalidDiffData'));
+  }
+
+  const byPath = new Map<string, string>();
+  for (const f of changedFiles) {
+    if (!f?.path || !f.diffContentId) continue;
+    byPath.set(f.path, String(f.diffContentId));
+  }
+
+  const targets = Array.isArray(filePaths) ? filePaths : [];
+  for (const p of targets) {
+    const diffContentId = byPath.get(p);
+    if (!diffContentId) {
+      continue;
+    }
+
+    try {
+      const loadedContent = await ctx.diffStorageManager.loadGlobalDiff(diffContentId);
+      if (loadedContent) {
+        const diffTitle = t('webview.messages.fullFileDiffPreview', { filePath: p });
+        await openDiffView(p, loadedContent.originalContent, loadedContent.newContent, diffTitle, ctx);
+      }
+    } catch (e) {
+      console.warn('Failed to load diff content for execute_command:', e);
+    }
+  }
+}
+
+/**
  * 打开 Diff 视图
  */
 async function openDiffView(
@@ -249,4 +328,5 @@ async function openDiffView(
 export function registerDiffHandlers(registry: Map<string, MessageHandler>): void {
   registry.set('diff.openPreview', openDiffPreview);
   registry.set('diff.loadContent', loadDiffContent);
+  registry.set('diff.acceptPending', acceptPendingDiff);
 }

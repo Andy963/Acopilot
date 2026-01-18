@@ -26,7 +26,9 @@ registerTool('apply_diff', {
     if (!path) return '无文件'
     
     const diffCount = diffs?.length || 0
-    return `${path}\n${diffCount} 个更改`
+    const fileName = path.split(/[/\\]/).pop() || path
+    if (diffCount <= 0) return fileName
+    return `${fileName} · ${diffCount} 个更改`
   },
   
   // 使用自定义组件显示内容
