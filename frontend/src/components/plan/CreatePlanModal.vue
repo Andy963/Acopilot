@@ -26,7 +26,7 @@ const visible = computed({
 
 const chatStore = useChatStore()
 
-type StepDraft = { id: string; title: string; instruction: string; attachments: Attachment[] }
+type StepDraft = { id: string; title: string; instruction: string; acceptanceCriteria: string; attachments: Attachment[] }
 type PlanDraft = {
   title: string
   goal?: string
@@ -40,7 +40,6 @@ const PLAN_DRAFT_LOCALSTORAGE_KEY = 'acopilot.planRunnerDraft'
 
 const title = ref('')
 const goal = ref('')
-const acceptanceCriteria = ref('')
 const steps = ref<StepDraft[]>([])
 const stepsContainerRef = ref<HTMLElement | null>(null)
 const draftSaving = ref(false)
@@ -48,13 +47,12 @@ const draftSaved = ref(false)
 const loadedFromDraft = ref(false)
 
 function createEmptyStep(): StepDraft {
-  return { id: `step_${generateId()}`, title: '', instruction: '', attachments: [] }
+  return { id: `step_${generateId()}`, title: '', instruction: '', acceptanceCriteria: '', attachments: [] }
 }
 
 function resetForm() {
   title.value = ''
   goal.value = ''
-  acceptanceCriteria.value = ''
   steps.value = [createEmptyStep()]
 }
 
@@ -108,18 +106,18 @@ function normalizeDraft(raw: unknown): PlanDraft | null {
     const id = asString((s as any).id || `step_${generateId()}`)
     const title = asString((s as any).title || '')
     const instruction = asString((s as any).instruction || '')
+    const acceptanceCriteria = asString((s as any).acceptanceCriteria || '')
     const attachmentsRaw = (s as any).attachments
     const attachments = Array.isArray(attachmentsRaw)
       ? (attachmentsRaw.map(normalizeAttachment).filter(Boolean) as Attachment[])
       : []
 
-    normalizedSteps.push({ id, title, instruction, attachments })
+    normalizedSteps.push({ id, title, instruction, acceptanceCriteria, attachments })
   }
 
   return {
     title: asString((raw as any).title || ''),
     goal: typeof (raw as any).goal === 'string' ? (raw as any).goal : undefined,
-    acceptanceCriteria: typeof (raw as any).acceptanceCriteria === 'string' ? (raw as any).acceptanceCriteria : undefined,
     steps: normalizedSteps.length > 0 ? normalizedSteps : [createEmptyStep()],
     savedAt: typeof (raw as any).savedAt === 'number' ? (raw as any).savedAt : Date.now()
   }
@@ -156,11 +154,11 @@ function loadFromExistingPlan() {
 
   title.value = plan.title || ''
   goal.value = plan.goal || ''
-  acceptanceCriteria.value = plan.acceptanceCriteria || ''
   steps.value = (plan.steps || []).map(s => ({
     id: s.id || `step_${generateId()}`,
     title: s.title || '',
     instruction: s.instruction || '',
+    acceptanceCriteria: s.acceptanceCriteria || '',
     attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
   }))
 
@@ -178,18 +176,18 @@ async function loadFromDraftOrExistingPlan() {
 
   if (!conversationId) {
     const localDraft = loadDraftFromLocalStorage(localKey)
-    if (localDraft) {
-      title.value = localDraft.title || ''
-      goal.value = localDraft.goal || ''
-      acceptanceCriteria.value = localDraft.acceptanceCriteria || ''
-      steps.value = (localDraft.steps || []).map(s => ({
-        id: s.id || `step_${generateId()}`,
-        title: s.title || '',
-        instruction: s.instruction || '',
-        attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
-      }))
+      if (localDraft) {
+        title.value = localDraft.title || ''
+        goal.value = localDraft.goal || ''
+        steps.value = (localDraft.steps || []).map(s => ({
+          id: s.id || `step_${generateId()}`,
+          title: s.title || '',
+          instruction: s.instruction || '',
+          acceptanceCriteria: s.acceptanceCriteria || '',
+          attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
+        }))
 
-      if (steps.value.length === 0) {
+        if (steps.value.length === 0) {
         steps.value = [createEmptyStep()]
       }
 
@@ -227,11 +225,11 @@ async function loadFromDraftOrExistingPlan() {
 
       title.value = newestDraft.title || ''
       goal.value = newestDraft.goal || ''
-      acceptanceCriteria.value = newestDraft.acceptanceCriteria || ''
       steps.value = (newestDraft.steps || []).map(s => ({
         id: s.id || `step_${generateId()}`,
         title: s.title || '',
         instruction: s.instruction || '',
+        acceptanceCriteria: s.acceptanceCriteria || '',
         attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
       }))
 
@@ -248,11 +246,11 @@ async function loadFromDraftOrExistingPlan() {
     if (localDraft) {
       title.value = localDraft.title || ''
       goal.value = localDraft.goal || ''
-      acceptanceCriteria.value = localDraft.acceptanceCriteria || ''
       steps.value = (localDraft.steps || []).map(s => ({
         id: s.id || `step_${generateId()}`,
         title: s.title || '',
         instruction: s.instruction || '',
+        acceptanceCriteria: s.acceptanceCriteria || '',
         attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
       }))
 
@@ -434,11 +432,11 @@ function removeStepAttachment(stepId: string, attachmentId: string) {
 const normalizedInput = computed<PlanRunnerCreateInput>(() => ({
   title: title.value.trim(),
   goal: goal.value.trim() || undefined,
-  acceptanceCriteria: acceptanceCriteria.value.trim() || undefined,
   steps: steps.value
     .map(s => ({
       title: s.title.trim(),
       instruction: s.instruction.trim(),
+      acceptanceCriteria: s.acceptanceCriteria.trim() || undefined,
       attachments: s.attachments.length > 0 ? s.attachments : undefined
     }))
     .filter(s => s.title && s.instruction)
@@ -447,8 +445,8 @@ const normalizedInput = computed<PlanRunnerCreateInput>(() => ({
 const canSave = computed(() => normalizedInput.value.title.length > 0 && normalizedInput.value.steps.length > 0)
 
 const canStash = computed(() => {
-  if (title.value.trim() || goal.value.trim() || acceptanceCriteria.value.trim()) return true
-  return steps.value.some(s => s.title.trim() || s.instruction.trim() || s.attachments.length > 0)
+  if (title.value.trim() || goal.value.trim()) return true
+  return steps.value.some(s => s.title.trim() || s.instruction.trim() || s.acceptanceCriteria.trim() || s.attachments.length > 0)
 })
 
 async function persistDraft(value: PlanDraft | null) {
@@ -478,11 +476,11 @@ async function handleStash() {
     const draft: PlanDraft = {
       title: title.value,
       goal: goal.value || undefined,
-      acceptanceCriteria: acceptanceCriteria.value || undefined,
       steps: steps.value.map(s => ({
         id: s.id,
         title: s.title,
         instruction: s.instruction,
+        acceptanceCriteria: s.acceptanceCriteria,
         attachments: s.attachments
       })),
       savedAt: Date.now()
@@ -545,16 +543,6 @@ async function handleSaveAndStart() {
       </div>
 
       <div class="form-row">
-        <label class="form-label">{{ t('components.planRunner.modal.acceptanceCriteria') }}</label>
-        <textarea
-          v-model="acceptanceCriteria"
-          class="form-textarea"
-          rows="3"
-          :placeholder="t('components.planRunner.modal.acceptanceCriteriaPlaceholder')"
-        />
-      </div>
-
-      <div class="form-row">
         <div class="form-label-row">
         <label class="form-label">{{ t('components.planRunner.modal.steps') }}</label>
           <button class="btn" @click="addStep">
@@ -590,6 +578,16 @@ async function handleSaveAndStart() {
               rows="3"
               :placeholder="t('components.planRunner.modal.stepInstruction')"
             />
+
+            <div class="step-acceptance">
+              <div class="step-acceptance-label">{{ t('components.planRunner.modal.acceptanceCriteria') }}</div>
+              <textarea
+                v-model="s.acceptanceCriteria"
+                class="form-textarea step-acceptance-textarea"
+                rows="2"
+                :placeholder="t('components.planRunner.modal.acceptanceCriteriaPlaceholder')"
+              />
+            </div>
 
             <div v-if="s.attachments.length > 0" class="step-attachments">
               <div v-for="attachment in s.attachments" :key="attachment.id" class="step-attachment" :title="attachment.name">
@@ -736,6 +734,21 @@ async function handleSaveAndStart() {
 
 .step-instruction {
   min-height: 72px;
+}
+
+.step-acceptance {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-acceptance-label {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.step-acceptance-textarea {
+  min-height: 52px;
 }
 
 .step-attachments {
