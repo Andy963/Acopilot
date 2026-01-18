@@ -513,21 +513,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="apply-diff-panel">
-    <!-- 头部信息 -->
-    <div class="panel-header">
-      <div class="header-info">
-        <span class="codicon codicon-diff diff-icon"></span>
-        <span class="title">{{ t('components.tools.file.applyDiffPanel.title') }}</span>
-      </div>
-      <div class="header-stats">
-        <span class="stat">
-          <span class="codicon codicon-file"></span>
-          {{ getFileNameWithoutExt(filePath) }}<span v-if="getFileExtension(filePath)" class="file-ext">.{{ getFileExtension(filePath) }}</span>
-        </span>
-        <span class="stat">{{ diffList.length }} {{ t('components.tools.file.applyDiffPanel.changes') }}</span>
-      </div>
-    </div>
-    
     <!-- 文件路径 -->
     <div class="file-path-bar">
       <span class="codicon codicon-file-code"></span>
