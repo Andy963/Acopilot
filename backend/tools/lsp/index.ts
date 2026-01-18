@@ -10,6 +10,7 @@ import type { Tool } from '../types';
 export { registerGetSymbols } from './get_symbols';
 export { registerGotoDefinition } from './goto_definition';
 export { registerFindReferences } from './find_references';
+export { registerGetErrors } from './get_errors';
 
 /**
  * 获取所有 LSP 工具
@@ -19,11 +20,13 @@ export function getAllLspTools(): Tool[] {
     const { registerGetSymbols } = require('./get_symbols');
     const { registerGotoDefinition } = require('./goto_definition');
     const { registerFindReferences } = require('./find_references');
+    const { registerGetErrors } = require('./get_errors');
     
     return [
         registerGetSymbols(),
         registerGotoDefinition(),
         registerFindReferences(),
+        registerGetErrors(),
     ];
 }
 
@@ -35,10 +38,12 @@ export function getLspToolRegistrations() {
     const { registerGetSymbols } = require('./get_symbols');
     const { registerGotoDefinition } = require('./goto_definition');
     const { registerFindReferences } = require('./find_references');
+    const { registerGetErrors } = require('./get_errors');
     
     return [
         registerGetSymbols,
         registerGotoDefinition,
         registerFindReferences,
+        registerGetErrors,
     ];
 }
