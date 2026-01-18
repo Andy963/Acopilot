@@ -177,6 +177,14 @@ const zhCN: LanguageMessages = {
                 titleUsed: '本条回复使用的上下文',
                 noData: '暂无上下文数据',
                 copyDebug: '复制调试信息',
+                summary: {
+                    config: '配置',
+                    toolMode: '工具模式',
+                    tools: '工具',
+                    mcp: 'MCP',
+                    systemInstruction: '系统指令',
+                    generatedAt: '生成时间'
+                },
                 injected: {
                     title: '注入明细',
                     pinnedFiles: '固定文件',
@@ -197,7 +205,20 @@ const zhCN: LanguageMessages = {
                     title: '工具定义预览'
                 },
                 modules: {
-                    title: '系统提示词分段'
+                    title: '系统提示词分段',
+                    labels: {
+                        text: '文本',
+                        environment: '环境',
+                        workspaceFiles: '工作区文件',
+                        pinnedFiles: '固定文件',
+                        tools: '工具',
+                        mcpTools: 'MCP 工具',
+                        guidelines: '规范',
+                        openTabs: '打开的标签页',
+                        activeEditor: '当前编辑器',
+                        diagnostics: '诊断信息',
+                        selectionReferences: '选区引用'
+                    }
                 },
                 raw: {
                     title: '系统指令（Raw）'
@@ -362,6 +383,7 @@ const zhCN: LanguageMessages = {
                 pause: '暂停',
                 cancel: '取消',
                 clear: '清空',
+                runStep: '执行该步',
                 rerunStep: '重执行该步'
             },
             current: '当前',
@@ -402,7 +424,8 @@ const zhCN: LanguageMessages = {
                 responseDuration: '响应时间',
                 tokenRate: 'Token 速率',
                 finishReason: '结束原因',
-                contextUsed: '使用的上下文'
+                contextUsed: '使用的上下文',
+                cacheHit: '缓存命中：{tokens}（{percent}%）'
             },
             thought: {
                 thinking: '正在思考...',
@@ -440,6 +463,7 @@ const zhCN: LanguageMessages = {
             error: {
                 title: '请求失败',
                 retry: '重试',
+                copy: '复制错误信息',
                 dismiss: '关闭'
             },
             tool: {
@@ -454,6 +478,8 @@ const zhCN: LanguageMessages = {
                 rejected: '已拒绝',
                 viewDiff: '查看差异',
                 viewDiffInVSCode: '在 VSCode 中查看差异',
+                saveAndContinue: '保存并继续',
+                acceptDiffFailed: '保存差异失败',
                 openDiffFailed: '打开 diff 预览失败'
             },
             attachment: {
@@ -967,6 +993,12 @@ const zhCN: LanguageMessages = {
                 description: '图像生成工具允许 AI 调用图像生成模型来创建图片。生成的图片会保存到工作区并以多模态形式返回给 AI 查看。',
                 api: {
                     title: 'API 配置',
+                    provider: 'Provider',
+                    providerHint: '选择图像生成 API 的服务商，会自动填充默认 URL 与推荐模型。',
+                    providerOptions: {
+                        gemini: 'Gemini',
+                        together: 'Together AI'
+                    },
                     url: 'API URL',
                     urlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
                     urlHint: '图像生成 API 的基础 URL',
@@ -976,6 +1008,9 @@ const zhCN: LanguageMessages = {
                     model: '模型名称',
                     modelPlaceholder: 'gemini-3-pro-Image-preview',
                     modelHint: '例如：gemini-3-pro-Image-preview',
+                    modelPreset: '推荐模型',
+                    modelPresetPlaceholder: '自定义（手动输入）',
+                    modelPresetHint: '选择后会自动填充模型名称；也可直接在上方手动输入。',
                     show: '显示',
                     hide: '隐藏'
                 },
@@ -1227,12 +1262,18 @@ const zhCN: LanguageMessages = {
                         modal: {
                             title: '从 URL 安装 Skill',
                             url: 'GitHub URL',
-                            urlPlaceholder: 'https://github.com/owner/repo 或 https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            urlPlaceholder: 'https://github.com/owner/repo 或 https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>（或 .codex/<skill>）',
                             hint: '会下载安装到当前项目的 .codex/skills/ 目录，并自动导入到 Skills 列表'
                         },
                         validation: {
                             urlRequired: '请输入 GitHub URL',
-                            noSkillsFound: '未找到可安装的 Codex skill（需要包含 .codex/skills）'
+                            noSkillsFound: '未找到可安装的 Codex skill（需要包含 .codex/skills 或 .codex/<skill>）',
+                            noValidSkillsFound: '未找到有效的 Codex skill（未发现任何 SKILL.md，可能该仓库不是 Skill）'
+                        },
+                        notifications: {
+                            installSuccess: '已安装 {count} 个 Skill',
+                            noNewSkills: 'Skill 已存在，无新增（{count} 个）',
+                            partialInvalid: '有 {count} 个 Skill 无效（缺少 SKILL.md），已跳过'
                         },
                         installFailed: '安装失败'
                     },
@@ -2223,7 +2264,28 @@ const zhCN: LanguageMessages = {
                     autoScroll: '自动滚动',
                     waitingOutput: '等待输出...',
                     noOutput: '没有输出',
-                    executing: '命令执行中...'
+                    executing: '命令执行中...',
+                    fileChanges: {
+                        title: '文件变更',
+                        diffAvailable: '可查看 {count} 个',
+                        skipped: '跳过 {count} 个',
+                        truncated: '还有 {count} 个未展示',
+                        unsupported: '不可用',
+                        notSupported: '当前目录不是 Git 仓库或无法读取 git 状态，已跳过文件变更检测。',
+                        noChanges: '无文件变更',
+                        diffUnavailable: 'Diff 不可用',
+                        expandDiff: '展开 Diff',
+                        viewInVSCode: '在 VS Code 中查看',
+                        openFile: '打开文件',
+                        loadingDiff: '加载 Diff...',
+                        expandRemaining: '展开剩余 {count} 行',
+                        actions: {
+                            created: '新增',
+                            modified: '修改',
+                            deleted: '删除',
+                            renamed: '重命名'
+                        }
+                    }
                 }
             }
         }

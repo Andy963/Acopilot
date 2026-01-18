@@ -79,7 +79,7 @@ async function handleClear() {
   await chatStore.clearPlanRunner()
 }
 
-function canRerunStep(idx: number): boolean {
+function canRunStep(idx: number): boolean {
   if (!plan.value) return false
   if (plan.value.status === 'running') return false
   if (chatStore.isWaitingForResponse || chatStore.isStreaming) return false
@@ -88,9 +88,9 @@ function canRerunStep(idx: number): boolean {
   return true
 }
 
-async function handleRerunStep(idx: number) {
-  if (!canRerunStep(idx)) return
-  await chatStore.rerunPlanRunnerFromStep(idx)
+async function handleRunStep(idx: number) {
+  if (!canRunStep(idx)) return
+  await chatStore.runSinglePlanRunnerStep(idx)
 }
 </script>
 
@@ -168,11 +168,11 @@ async function handleRerunStep(idx: number) {
               <span v-if="step.error" class="step-error" :title="step.error">{{ step.error }}</span>
               <button
                 class="step-icon-btn"
-                :disabled="!canRerunStep(idx)"
-                :title="t('components.planRunner.actions.rerunStep')"
-                @click.stop="handleRerunStep(idx)"
+                :disabled="!canRunStep(idx)"
+                :title="t('components.planRunner.actions.runStep')"
+                @click.stop="handleRunStep(idx)"
               >
-                <i class="codicon codicon-refresh"></i>
+                <i class="codicon codicon-play"></i>
               </button>
             </div>
           </div>
@@ -190,6 +190,11 @@ async function handleRerunStep(idx: number) {
                 <span class="attachment-name">{{ att.name }}</span>
               </span>
             </div>
+          </div>
+
+          <div v-if="step.acceptanceCriteria" class="step-acceptance-row">
+            <span class="acceptance-label">{{ t('components.planRunner.acceptanceCriteriaLabel') }}:</span>
+            <span class="acceptance-text" :title="step.acceptanceCriteria">{{ step.acceptanceCriteria }}</span>
           </div>
         </div>
       </div>
@@ -313,6 +318,10 @@ async function handleRerunStep(idx: number) {
   opacity: 0.85;
 }
 
+.plan-step.success .step-icon {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
 .plan-step.error {
   background: rgba(255, 0, 0, 0.06);
 }
@@ -358,6 +367,29 @@ async function handleRerunStep(idx: number) {
   gap: 8px;
   padding-left: 44px;
   flex-wrap: wrap;
+}
+
+.step-acceptance-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 44px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: pre-wrap;
+}
+
+.acceptance-label {
+  flex-shrink: 0;
+}
+
+.acceptance-text {
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .attachments-label {

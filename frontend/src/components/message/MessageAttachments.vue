@@ -126,26 +126,34 @@ function handleRemove(attachmentId: string) {
 /* 附件列表 */
 .message-attachments {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs, 4px);
-  padding: var(--spacing-sm, 8px);
-  background: var(--vscode-list-hoverBackground);
-  border-radius: var(--radius-sm, 2px);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(127, 127, 127, 0.04);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
   margin-bottom: var(--spacing-sm, 8px);
 }
 
 .attachment-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-  background: var(--vscode-editor-background);
-  border-radius: var(--radius-sm, 2px);
-  transition: background-color var(--transition-fast, 0.1s);
+  gap: 6px;
+  padding: 4px 8px;
+  height: 28px;
+  background: rgba(127, 127, 127, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  transition: background-color var(--transition-fast, 0.1s), border-color var(--transition-fast, 0.1s);
+  flex: 0 0 auto;
+  max-width: 260px;
+  min-width: 0;
 }
 
 .attachment-item:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: rgba(127, 127, 127, 0.07);
+  border-color: rgba(128, 128, 128, 0.32);
 }
 
 .attachment-icon {
@@ -156,8 +164,8 @@ function handleRemove(attachmentId: string) {
 
 /* 图片预览 */
 .attachment-preview {
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   object-fit: cover;
   border-radius: 4px;
   flex-shrink: 0;
@@ -166,23 +174,22 @@ function handleRemove(attachmentId: string) {
 /* 可点击的预览 */
 .clickable {
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity 0.15s;
 }
 
 .clickable:hover {
-  opacity: 0.8;
-  transform: scale(1.05);
+  opacity: 0.85;
 }
 
 .attachment-item.has-preview {
-  padding: var(--spacing-xs, 4px);
+  padding: 4px 8px;
 }
 
 /* 媒体预览包装器（视频、音频） */
 .media-preview-wrapper {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   border-radius: 4px;
   overflow: hidden;
@@ -206,7 +213,7 @@ function handleRemove(attachmentId: string) {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  font-size: 10px;
+  font-size: 9px;
   color: white;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   pointer-events: none;
@@ -214,22 +221,23 @@ function handleRemove(attachmentId: string) {
 
 /* 居中图标（用于音频） */
 .media-center-icon {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--vscode-foreground);
   opacity: 0.8;
 }
 
 .attachment-name {
-  flex: 1;
-  font-size: 12px;
+  flex: 0 1 auto;
+  font-size: 11px;
   color: var(--vscode-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .attachment-size {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--vscode-descriptionForeground);
   flex-shrink: 0;
 }

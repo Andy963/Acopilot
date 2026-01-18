@@ -177,6 +177,14 @@ const en: LanguageMessages = {
                 titleUsed: 'Context Used',
                 noData: 'No context data',
                 copyDebug: 'Copy debug info',
+                summary: {
+                    config: 'Config',
+                    toolMode: 'Tool mode',
+                    tools: 'Tools',
+                    mcp: 'MCP',
+                    systemInstruction: 'System instruction',
+                    generatedAt: 'Generated at'
+                },
                 injected: {
                     title: 'Injected Context',
                     pinnedFiles: 'Pinned Files',
@@ -197,7 +205,20 @@ const en: LanguageMessages = {
                     title: 'Tool Definitions'
                 },
                 modules: {
-                    title: 'System Prompt Sections'
+                    title: 'System Prompt Sections',
+                    labels: {
+                        text: 'Text',
+                        environment: 'Environment',
+                        workspaceFiles: 'Workspace files',
+                        pinnedFiles: 'Pinned files',
+                        tools: 'Tools',
+                        mcpTools: 'MCP tools',
+                        guidelines: 'Guidelines',
+                        openTabs: 'Open tabs',
+                        activeEditor: 'Active editor',
+                        diagnostics: 'Diagnostics',
+                        selectionReferences: 'Selection references'
+                    }
                 },
                 raw: {
                     title: 'System Instruction (Raw)'
@@ -362,6 +383,7 @@ const en: LanguageMessages = {
                 pause: 'Pause',
                 cancel: 'Cancel',
                 clear: 'Clear',
+                runStep: 'Run step',
                 rerunStep: 'Rerun step'
             },
             current: 'Current',
@@ -402,7 +424,8 @@ const en: LanguageMessages = {
                 responseDuration: 'Response Duration',
                 tokenRate: 'Token Rate',
                 finishReason: 'Finish Reason',
-                contextUsed: 'Context Used'
+                contextUsed: 'Context Used',
+                cacheHit: 'Cached input tokens: {tokens} ({percent}%)'
             },
             thought: {
                 thinking: 'Thinking...',
@@ -440,6 +463,7 @@ const en: LanguageMessages = {
             error: {
                 title: 'Request Failed',
                 retry: 'Retry',
+                copy: 'Copy error details',
                 dismiss: 'Dismiss'
             },
             tool: {
@@ -454,6 +478,8 @@ const en: LanguageMessages = {
                 rejected: 'Rejected',
                 viewDiff: 'View Diff',
                 viewDiffInVSCode: 'View diff in VSCode',
+                saveAndContinue: 'Save & continue',
+                acceptDiffFailed: 'Failed to save diff',
                 openDiffFailed: 'Failed to open diff preview'
             },
             attachment: {
@@ -967,6 +993,12 @@ const en: LanguageMessages = {
                 description: 'The image generation tool allows AI to call the image generation model to create images. Generated images will be saved to the workspace and returned to AI for viewing in multimodal form.',
                 api: {
                     title: 'API Configuration',
+                    provider: 'Provider',
+                    providerHint: 'Select the image API provider. It will auto-fill a default URL and recommended models.',
+                    providerOptions: {
+                        gemini: 'Gemini',
+                        together: 'Together AI'
+                    },
                     url: 'API URL',
                     urlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
                     urlHint: 'Base URL for image generation API',
@@ -976,6 +1008,9 @@ const en: LanguageMessages = {
                     model: 'Model Name',
                     modelPlaceholder: 'gemini-3-pro-Image-preview',
                     modelHint: 'e.g.: gemini-3-pro-Image-preview',
+                    modelPreset: 'Recommended models',
+                    modelPresetPlaceholder: 'Custom (type manually)',
+                    modelPresetHint: 'Selecting a preset will fill the model name automatically. You can also type above.',
                     show: 'Show',
                     hide: 'Hide'
                 },
@@ -1227,12 +1262,18 @@ const en: LanguageMessages = {
                         modal: {
                             title: 'Install Skill from URL',
                             url: 'GitHub URL',
-                            urlPlaceholder: 'https://github.com/owner/repo or https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill>',
+                            urlPlaceholder: 'https://github.com/owner/repo or https://github.com/owner/repo/tree/<ref>/.codex/skills/<skill> (or .codex/<skill>)',
                             hint: 'Will be installed to .codex/skills/ in this project and automatically imported into the Skills list'
                         },
                         validation: {
                             urlRequired: 'Please enter a GitHub URL',
-                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills)'
+                            noSkillsFound: 'No Codex skills found to install (requires .codex/skills or .codex/<skill>)',
+                            noValidSkillsFound: 'No valid Codex skills found (no SKILL.md detected; this repo may not be a Skill pack)'
+                        },
+                        notifications: {
+                            installSuccess: 'Installed {count} skill(s)',
+                            noNewSkills: 'Skills already exist, no new installs ({count})',
+                            partialInvalid: '{count} skill(s) are invalid (missing SKILL.md) and were skipped'
                         },
                         installFailed: 'Install failed'
                     },
@@ -1991,7 +2032,28 @@ const en: LanguageMessages = {
                     autoScroll: 'Auto Scroll',
                     waitingOutput: 'Waiting for output...',
                     noOutput: 'No output',
-                    executing: 'Command executing...'
+                    executing: 'Command executing...',
+                    fileChanges: {
+                        title: 'File Changes',
+                        diffAvailable: '{count} diff available',
+                        skipped: '{count} skipped',
+                        truncated: '{count} more not shown',
+                        unsupported: 'Unavailable',
+                        notSupported: 'Not a Git repo or failed to read git status. File change detection was skipped.',
+                        noChanges: 'No file changes',
+                        diffUnavailable: 'Diff unavailable',
+                        expandDiff: 'Toggle Diff',
+                        viewInVSCode: 'View in VS Code',
+                        openFile: 'Open File',
+                        loadingDiff: 'Loading diff...',
+                        expandRemaining: 'Expand remaining {count} lines',
+                        actions: {
+                            created: 'Created',
+                            modified: 'Modified',
+                            deleted: 'Deleted',
+                            renamed: 'Renamed'
+                        }
+                    }
                 }
             },
             lsp: {

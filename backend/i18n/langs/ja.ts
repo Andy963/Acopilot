@@ -410,6 +410,7 @@ const ja: BackendLanguageMessages = {
             getConversationsWithCheckpointsFailed: 'チェックポイント付き会話の取得に失敗しました',
             
             openDiffPreviewFailed: 'diff プレビューを開くのに失敗しました',
+            acceptDiffFailed: 'diff の承認に失敗しました',
             diffContentNotFound: 'Diff 内容が見つからないか、期限切れです',
             loadDiffContentFailed: 'Diff 内容の読み込みに失敗しました',
             invalidDiffData: '無効な diff データ',

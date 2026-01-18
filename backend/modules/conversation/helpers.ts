@@ -325,6 +325,9 @@ export function cleanFunctionResponseForAPI(
             command: dataCommand,
             cwd: dataCwd,
             shell: dataShell,
+            // execute_command 的文件变更数据仅用于 UI 展示，避免发送给模型
+            changedFiles: dataChangedFiles,
+            changesSummary: dataChangesSummary,
             ...dataRest
         } = rest.data as Record<string, unknown>;
         

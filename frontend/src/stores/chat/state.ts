@@ -34,7 +34,7 @@ export function createChatState(): ChatStoreState {
   const allMessages = ref<Message[]>([])
   
   /** 配置ID */
-  const configId = ref('gemini-pro')
+  const configId = ref('')
   
   /** 当前配置详情（包含模型名称） */
   const currentConfig = ref<ConfigInfo | null>(null)

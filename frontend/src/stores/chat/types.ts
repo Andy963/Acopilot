@@ -18,6 +18,7 @@ export interface PlanRunnerStep {
   id: string
   title: string
   instruction: string
+  acceptanceCriteria?: string
   attachments?: Attachment[]
   status: PlanRunnerStepStatus
   startedAt?: number

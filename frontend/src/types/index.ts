@@ -64,6 +64,13 @@ export interface TokenDetailsEntry {
 export interface UsageMetadata {
   /** 输入 prompt 的 token 数量 */
   promptTokenCount?: number
+
+  /**
+   * 缓存命中的输入 token 数（OpenAI Responses: usage.input_tokens_details.cached_tokens）
+   *
+   * 仅在支持 prompt cache 的提供商上有值。
+   */
+  cachedPromptTokenCount?: number
   
   /** 候选输出内容的 token 数量 */
   candidatesTokenCount?: number

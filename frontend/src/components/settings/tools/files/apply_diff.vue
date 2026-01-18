@@ -129,7 +129,7 @@ onMounted(() => {
         </div>
         
         <div class="section-content">
-          <div class="config-item">
+          <div class="config-item config-item-vertical">
             <div class="item-info">
               <span class="item-label">{{ t('components.settings.toolSettings.files.applyDiff.delayTime') }}</span>
               <span class="item-description">{{ t('components.settings.toolSettings.files.applyDiff.delayTimeDesc') }}</span>
@@ -231,6 +231,17 @@ onMounted(() => {
   border-radius: 4px;
 }
 
+.config-item-vertical {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.config-item-vertical .item-info {
+  flex: 0 0 auto;
+}
+
 .item-info {
   display: flex;
   flex-direction: column;
@@ -252,7 +263,9 @@ onMounted(() => {
 /* 延迟选择器 */
 .delay-selector {
   display: flex;
-  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .delay-btn {

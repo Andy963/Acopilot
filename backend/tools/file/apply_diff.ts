@@ -10,6 +10,7 @@ import type { Tool, ToolResult } from '../types';
 import { getDiffManager } from './diffManager';
 import { resolveUriWithInfo, getAllWorkspaces } from '../utils';
 import { getDiffStorageManager } from '../../modules/conversation';
+import { applyReplaceBlock } from './replaceBlock';
 
 /**
  * 单个 diff 块
@@ -21,114 +22,6 @@ interface DiffBlock {
     replace: string;
     /** 搜索起始行号（1-based，可选） */
     start_line?: number;
-}
-
-/**
- * 规范化换行符为 LF
- */
-function normalizeLineEndings(text: string): string {
-    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-}
-
-/**
- * 应用单个 diff
- */
-function applyDiffToContent(
-    content: string,
-    search: string,
-    replace: string,
-    startLine?: number
-): { success: boolean; result: string; error?: string; matchCount: number; matchedLine?: number } {
-    const normalizedContent = normalizeLineEndings(content);
-    const normalizedSearch = normalizeLineEndings(search);
-    const normalizedReplace = normalizeLineEndings(replace);
-    
-    // 如果提供了起始行号，从该行开始搜索
-    if (startLine !== undefined && startLine > 0) {
-        const lines = normalizedContent.split('\n');
-        const startIndex = startLine - 1;
-        
-        if (startIndex >= lines.length) {
-            return {
-                success: false,
-                result: normalizedContent,
-                error: `Start line ${startLine} is out of range. File has ${lines.length} lines.`,
-                matchCount: 0
-            };
-        }
-        
-        // 计算从起始行开始的字符位置
-        let charOffset = 0;
-        for (let i = 0; i < startIndex; i++) {
-            charOffset += lines[i].length + 1;
-        }
-        
-        // 从起始位置开始查找
-        const contentFromStart = normalizedContent.substring(charOffset);
-        const matchIndex = contentFromStart.indexOf(normalizedSearch);
-        
-        if (matchIndex === -1) {
-            return {
-                success: false,
-                result: normalizedContent,
-                error: `No exact match found starting from line ${startLine}.`,
-                matchCount: 0
-            };
-        }
-        
-        // 计算实际匹配的行号
-        const textBeforeMatch = normalizedContent.substring(0, charOffset + matchIndex);
-        const actualMatchedLine = textBeforeMatch.split('\n').length;
-        
-        // 执行替换
-        const result =
-            normalizedContent.substring(0, charOffset + matchIndex) +
-            normalizedReplace +
-            normalizedContent.substring(charOffset + matchIndex + normalizedSearch.length);
-        
-        return {
-            success: true,
-            result,
-            matchCount: 1,
-            matchedLine: actualMatchedLine
-        };
-    }
-    
-    // 没有提供起始行号，计算匹配次数
-    const matches = normalizedContent.split(normalizedSearch).length - 1;
-    
-    if (matches === 0) {
-        return {
-            success: false,
-            result: normalizedContent,
-            error: 'No exact match found. Please verify the content matches exactly.',
-            matchCount: 0
-        };
-    }
-    
-    if (matches > 1) {
-        return {
-            success: false,
-            result: normalizedContent,
-            error: `Multiple matches found (${matches}). Please provide 'start_line' parameter to specify which match to use.`,
-            matchCount: matches
-        };
-    }
-    
-    // 计算实际匹配的行号
-    const matchIndex = normalizedContent.indexOf(normalizedSearch);
-    const textBeforeMatch = normalizedContent.substring(0, matchIndex);
-    const actualMatchedLine = textBeforeMatch.split('\n').length;
-    
-    // 精确替换
-    const result = normalizedContent.replace(normalizedSearch, normalizedReplace);
-    
-    return {
-        success: true,
-        result,
-        matchCount: 1,
-        matchedLine: actualMatchedLine
-    };
 }
 
 /**
@@ -205,7 +98,7 @@ Important:
                 required: ['path', 'diffs']
             }
         },
-        handler: async (args): Promise<ToolResult> => {
+        handler: async (args, toolContext): Promise<ToolResult> => {
             const filePath = args.path as string;
             const diffs = args.diffs as DiffBlock[] | undefined;
             
@@ -252,7 +145,9 @@ Important:
                         continue;
                     }
                     
-                    const result = applyDiffToContent(currentContent, diff.search, diff.replace, diff.start_line);
+                    const result = applyReplaceBlock(currentContent, diff.search, diff.replace, {
+                        startLine: diff.start_line
+                    });
                     
                     diffResults.push({
                         index: i,
@@ -301,7 +196,8 @@ Important:
                     filePath,
                     absolutePath,
                     originalContent,
-                    currentContent
+                    currentContent,
+                    typeof toolContext?.toolId === 'string' ? toolContext.toolId : undefined
                 );
                 
                 // 等待 diff 被处理（保存或拒绝）或用户中断

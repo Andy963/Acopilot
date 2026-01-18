@@ -11,7 +11,7 @@
 import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import CustomScrollbar from '../../common/CustomScrollbar.vue'
 import { useI18n } from '@/composables'
-import { applyWorkspaceFileDiffBlock, getGitStatusForPaths, saveWorkspaceFile, stageGitFile, unstageGitFile } from '@/utils/vscode'
+import { applyWorkspaceFileDiffBlock, getGitStatusForPaths, saveWorkspaceFile, sendToExtension, stageGitFile, unstageGitFile } from '@/utils/vscode'
 
 const props = defineProps<{
   args: Record<string, unknown>
@@ -38,6 +38,45 @@ interface GitFileStatus {
 }
 const gitStatus = ref<GitFileStatus | null>(null)
 const gitLoading = ref(false)
+
+// apply_diff 工具配置（用于自动保存 / 防止频繁手动点保存）
+const applyDiffAutoSave = ref(false)
+const applyDiffAutoSaveDelay = ref(3000)
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+async function loadApplyDiffToolConfig() {
+  try {
+    const resp = await sendToExtension<{ config?: { autoSave?: boolean; autoSaveDelay?: number } }>('tools.getToolConfig', {
+      toolName: 'apply_diff'
+    })
+
+    applyDiffAutoSave.value = resp?.config?.autoSave === true
+    applyDiffAutoSaveDelay.value =
+      typeof resp?.config?.autoSaveDelay === 'number' ? resp.config.autoSaveDelay : 3000
+  } catch (err) {
+    // 不影响主体功能：加载失败时回退为手动保存
+    applyDiffAutoSave.value = false
+    applyDiffAutoSaveDelay.value = 3000
+  }
+}
+
+function scheduleAutoSaveIfEnabled() {
+  if (!applyDiffAutoSave.value) return
+  if (!filePath.value) return
+
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer)
+    autoSaveTimer = null
+  }
+
+  autoSaveTimer = setTimeout(async () => {
+    try {
+      await saveWorkspaceFile(filePath.value)
+    } finally {
+      await refreshGitStatus()
+    }
+  }, Math.max(0, applyDiffAutoSaveDelay.value || 0))
+}
 
 // 复制状态
 const copiedDiffs = ref<Set<number>>(new Set())
@@ -143,6 +182,7 @@ async function refreshGitStatus() {
 
 onMounted(() => {
   refreshGitStatus()
+  loadApplyDiffToolConfig()
 })
 
 watch(filePath, () => {
@@ -200,6 +240,7 @@ async function applyHunk(diff: DiffBlock, index: number) {
       next.add(index)
       appliedHunks.value = next
       await refreshGitStatus()
+      scheduleAutoSaveIfEnabled()
       return
     }
 
@@ -231,6 +272,7 @@ async function undoHunk(diff: DiffBlock, index: number) {
       next.delete(index)
       appliedHunks.value = next
       await refreshGitStatus()
+      scheduleAutoSaveIfEnabled()
       return
     }
 
@@ -508,26 +550,15 @@ onBeforeUnmount(() => {
     clearTimeout(timeout)
   }
   copyTimeouts.clear()
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer)
+    autoSaveTimer = null
+  }
 })
 </script>
 
 <template>
   <div class="apply-diff-panel">
-    <!-- 头部信息 -->
-    <div class="panel-header">
-      <div class="header-info">
-        <span class="codicon codicon-diff diff-icon"></span>
-        <span class="title">{{ t('components.tools.file.applyDiffPanel.title') }}</span>
-      </div>
-      <div class="header-stats">
-        <span class="stat">
-          <span class="codicon codicon-file"></span>
-          {{ getFileNameWithoutExt(filePath) }}<span v-if="getFileExtension(filePath)" class="file-ext">.{{ getFileExtension(filePath) }}</span>
-        </span>
-        <span class="stat">{{ diffList.length }} {{ t('components.tools.file.applyDiffPanel.changes') }}</span>
-      </div>
-    </div>
-    
     <!-- 文件路径 -->
     <div class="file-path-bar">
       <span class="codicon codicon-file-code"></span>

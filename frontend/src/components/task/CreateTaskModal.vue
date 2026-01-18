@@ -39,6 +39,7 @@ interface TaskCardData {
   title?: string
   intentSummary: string
   prompt: string
+  taskContext?: string
 }
 
 const props = defineProps<{
@@ -66,6 +67,7 @@ const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const intentSummary = ref('')
 const suggestedPrompt = ref('')
+const taskContext = ref('')
 const promptExpanded = ref(true)
 
 let fetchTimer: ReturnType<typeof setTimeout> | null = null
@@ -80,6 +82,7 @@ function resetState() {
   analysisProgress.value = 0
   intentSummary.value = ''
   suggestedPrompt.value = ''
+  taskContext.value = ''
   promptExpanded.value = true
 }
 
@@ -111,6 +114,7 @@ watch(issueUrl, (val) => {
   analysisProgress.value = 0
   intentSummary.value = ''
   suggestedPrompt.value = ''
+  taskContext.value = ''
 
   if (!url) return
 
@@ -166,16 +170,21 @@ function runAnalyze(val: IssueInfo) {
       : `Analyze issue: ${val.url}`
 
     const lines: string[] = []
+    const contextLines: string[] = []
     if (repo && num) {
       lines.push(`Fix GitHub issue ${repo}#${num}${title ? `: ${title}` : ''}`)
+      contextLines.push(`${repo}#${num}${title ? `: ${title}` : ''}`)
     } else if (title) {
       lines.push(`Fix issue: ${title}`)
+      contextLines.push(title)
     } else {
       lines.push('Fix the issue described below')
     }
 
     if (val.url) lines.push(`Issue URL: ${val.url}`)
     if (labels.length > 0) lines.push(`Labels: ${labels.join(', ')}`)
+    if (val.url) contextLines.push(`Issue URL: ${val.url}`)
+    if (labels.length > 0) contextLines.push(`Labels: ${labels.join(', ')}`)
 
     if (body) {
       lines.push('')
@@ -184,12 +193,23 @@ function runAnalyze(val: IssueInfo) {
       lines.push(body)
       if (bodyTruncated) lines.push('\n[...truncated...]')
       lines.push('</issue_body>')
+
+      contextLines.push('')
+      contextLines.push('Issue description (verbatim):')
+      contextLines.push('<issue_body>')
+      contextLines.push(body)
+      if (bodyTruncated) contextLines.push('\n[...truncated...]')
+      contextLines.push('</issue_body>')
     }
 
     if (comments.length > 0) {
       lines.push('')
       lines.push(`Issue comments (first ${comments.length}${commentsTotal > comments.length ? ` of ${commentsTotal}` : ''}):`)
       lines.push('<issue_comments>')
+
+      contextLines.push('')
+      contextLines.push(`Issue comments (first ${comments.length}${commentsTotal > comments.length ? ` of ${commentsTotal}` : ''}):`)
+      contextLines.push('<issue_comments>')
       for (const c of comments) {
         const who = String(c?.user || '').trim() || 'unknown'
         const when = String(c?.createdAt || '').trim()
@@ -203,8 +223,14 @@ function runAnalyze(val: IssueInfo) {
         if (clipped) lines.push(clipped)
         if (truncated) lines.push('\n[...truncated...]')
         lines.push('---')
+
+        contextLines.push(header)
+        if (clipped) contextLines.push(clipped)
+        if (truncated) contextLines.push('\n[...truncated...]')
+        contextLines.push('---')
       }
       lines.push('</issue_comments>')
+      contextLines.push('</issue_comments>')
     }
 
     const imageUrls = Array.isArray(val.imageUrls) ? val.imageUrls.map(u => String(u || '').trim()).filter(Boolean) : []
@@ -217,6 +243,15 @@ function runAnalyze(val: IssueInfo) {
       if (imageUrls.length > 10) {
         lines.push('- ...')
       }
+
+      contextLines.push('')
+      contextLines.push(`Images referenced in issue/comments (${imageUrls.length}):`)
+      for (const u of imageUrls.slice(0, 10)) {
+        contextLines.push(`- ${u}`)
+      }
+      if (imageUrls.length > 10) {
+        contextLines.push('- ...')
+      }
     }
 
     lines.push('')
@@ -226,6 +261,7 @@ function runAnalyze(val: IssueInfo) {
     lines.push('- Add tests (or clear validation steps) to verify the fix.')
 
     suggestedPrompt.value = lines.join('\n')
+    taskContext.value = contextLines.join('\n').trim()
   }, 900)
 }
 
@@ -242,7 +278,8 @@ function buildTaskCard(): TaskCardData {
     number: issue.value?.number,
     title: issue.value?.title,
     intentSummary: intentSummary.value.trim(),
-    prompt: suggestedPrompt.value.trim()
+    prompt: suggestedPrompt.value.trim(),
+    taskContext: taskContext.value.trim() || undefined
   }
 }
 
@@ -303,6 +340,7 @@ async function handleStart() {
   visible.value = false
 
   const prompt = task.prompt
+  const taskContextText = String(task.taskContext || '').trim()
   if (!prompt) return
 
   try {
@@ -340,7 +378,14 @@ async function handleStart() {
       }
     }
 
-    await chatStore.sendMessage(prompt, attachments.length > 0 ? (attachments as any) : undefined)
+    const shouldAttachTaskContext =
+      Boolean(taskContextText) && !prompt.includes('<issue_body>') && !prompt.includes('<issue_comments>')
+
+    await chatStore.sendMessage(
+      prompt,
+      attachments.length > 0 ? (attachments as any) : undefined,
+      shouldAttachTaskContext ? { taskContext: taskContextText } : undefined
+    )
   } catch (err) {
     console.error('Failed to start task:', err)
   }

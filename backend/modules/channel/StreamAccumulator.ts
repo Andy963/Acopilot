@@ -142,6 +142,7 @@ export class StreamAccumulator {
         if (chunk.usage) {
             this.usageMetadata = {
                 promptTokenCount: chunk.usage.promptTokenCount,
+                cachedPromptTokenCount: chunk.usage.cachedPromptTokenCount,
                 candidatesTokenCount: chunk.usage.candidatesTokenCount,
                 totalTokenCount: chunk.usage.totalTokenCount,
                 thoughtsTokenCount: chunk.usage.thoughtsTokenCount,

@@ -439,6 +439,7 @@ export interface BackendLanguageMessages {
             
             /** Diff 预览相关 */
             openDiffPreviewFailed: string;
+            acceptDiffFailed: string;
             diffContentNotFound: string;
             loadDiffContentFailed: string;
             invalidDiffData: string;

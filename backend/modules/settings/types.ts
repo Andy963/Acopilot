@@ -1522,21 +1522,21 @@ export const DEFAULT_DIAGNOSTICS_CONFIG: DiagnosticsConfig = {
  */
 export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programming assistant, proficient in multiple programming languages and frameworks.
 
-{{$ENVIRONMENT}}
-
 {{$WORKSPACE_FILES}}
-
-{{$OPEN_TABS}}
-
-{{$ACTIVE_EDITOR}}
-
-{{$DIAGNOSTICS}}
 
 {{$PINNED_FILES}}
 
 {{$TOOLS}}
 
 {{$MCP_TOOLS}}
+
+{{$ENVIRONMENT}}
+
+{{$OPEN_TABS}}
+
+{{$ACTIVE_EDITOR}}
+
+{{$DIAGNOSTICS}}
 
 ====
 

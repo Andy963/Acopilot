@@ -240,20 +240,15 @@ export const readWorkspaceImage: MessageHandler = async (data, requestId, ctx) =
 export const openWorkspaceFile: MessageHandler = async (data, requestId, ctx) => {
   try {
     const { path: filePath } = data;
-    
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      throw new Error(t('webview.errors.noWorkspaceOpen'));
-    }
-    
-    const fileUri = vscode.Uri.joinPath(workspaceFolder.uri, filePath);
-    
+
+    const fileUri = await resolveWorkspaceFileUri(String(filePath || ''));
+
     try {
       await vscode.workspace.fs.stat(fileUri);
     } catch {
       throw new Error(t('webview.errors.fileNotExists'));
     }
-    
+
     await vscode.commands.executeCommand('vscode.open', fileUri);
     ctx.sendResponse(requestId, { success: true });
   } catch (error: any) {

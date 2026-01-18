@@ -15,6 +15,19 @@ interface SkillDefinition {
   prompt: string;
 }
 
+interface InstallSkillsSummary {
+  found: number;
+  installed: number;
+  skippedExisting: number;
+  invalid: number;
+}
+
+interface InstallSkillsFromUrlResult {
+  skills: SkillDefinition[];
+  summary: InstallSkillsSummary;
+  skippedExisting: string[];
+}
+
 type GitHubContentItem = {
   type: 'file' | 'dir' | 'symlink' | 'submodule';
   name: string;
@@ -258,7 +271,7 @@ async function readInstalledSkill(localSkillDir: string): Promise<SkillDefinitio
   }
 }
 
-async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: string): Promise<{ skills: SkillDefinition[] }> {
+async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: string): Promise<InstallSkillsFromUrlResult> {
   const parsed = parseGitHubUrl(url);
   const ref = parsed.ref || await getDefaultBranch(parsed.owner, parsed.repo);
 
@@ -271,8 +284,10 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
   if (candidateBase) {
     candidates.push(candidateBase);
     candidates.push(`${candidateBase}/.codex/skills`);
+    candidates.push(`${candidateBase}/.codex`);
   }
   candidates.push('.codex/skills');
+  candidates.push('.codex');
 
   let remoteSkillsRoot: string | null = null;
   for (const candidate of candidates) {
@@ -284,8 +299,14 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
         break;
       }
 
-      // If it contains at least one subdir, treat it as skills root.
-      if (entries.some(e => e.type === 'dir')) {
+      // Only treat `.codex/skills` as a skills root directory (avoid false positives on arbitrary paths).
+      if (/(^|\/)\.codex\/skills$/.test(candidate)) {
+        remoteSkillsRoot = candidate;
+        break;
+      }
+
+      // Fallback: some repos put skills directly under `.codex/<skill>/SKILL.md` (no `skills/` subdir).
+      if (/(^|\/)\.codex$/.test(candidate)) {
         remoteSkillsRoot = candidate;
         break;
       }
@@ -295,7 +316,7 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
   }
 
   if (!remoteSkillsRoot) {
-    throw new Error('Cannot find `.codex/skills` in this repository URL');
+    throw new Error('NO_SKILLS_DIR');
   }
 
   const remoteEntries = await listGitHubDirectory(parsed.owner, parsed.repo, ref, remoteSkillsRoot);
@@ -303,44 +324,113 @@ async function installCodexSkillsFromGitHubUrl(url: string, workspaceFsPath: str
   const localSkillsRoot = path.join(workspaceFsPath, '.codex', 'skills');
   await ensureDir(localSkillsRoot);
 
-  const installedSkills: SkillDefinition[] = [];
+  const summary: InstallSkillsSummary = {
+    found: 0,
+    installed: 0,
+    skippedExisting: 0,
+    invalid: 0
+  };
+  const skippedExisting: string[] = [];
+  const skillsById = new Map<string, SkillDefinition>();
 
   const isSingleSkillDir = remoteEntries.some(e => e.type === 'file' && e.name === 'SKILL.md');
   if (isSingleSkillDir) {
     const skillName = path.basename(remoteSkillsRoot);
     const localSkillDir = path.join(localSkillsRoot, skillName);
 
+    summary.found = 1;
+
     if (fs.existsSync(localSkillDir)) {
-      throw new Error(`Skill already exists: ${skillName}`);
+      const existing = await readInstalledSkill(localSkillDir);
+      if (existing) {
+        skillsById.set(existing.id, existing);
+        summary.skippedExisting += 1;
+        skippedExisting.push(skillName);
+      } else {
+        summary.invalid += 1;
+      }
+
+      if (summary.installed === 0 && summary.skippedExisting === 0) {
+        throw new Error('NO_VALID_SKILLS');
+      }
+
+      return { skills: Array.from(skillsById.values()), summary, skippedExisting };
     }
 
     await downloadGitHubDirectory(parsed.owner, parsed.repo, ref, remoteSkillsRoot, localSkillDir);
     await patchInstalledSkillMarkdown(localSkillDir);
     const skill = await readInstalledSkill(localSkillDir);
-    if (skill) installedSkills.push(skill);
+    if (skill) {
+      skillsById.set(skill.id, skill);
+      summary.installed += 1;
+    } else {
+      summary.invalid += 1;
+    }
 
-    return { skills: installedSkills };
+    if (summary.installed === 0 && summary.skippedExisting === 0) {
+      throw new Error('NO_VALID_SKILLS');
+    }
+
+    return { skills: Array.from(skillsById.values()), summary, skippedExisting };
   }
 
   const skillDirs = remoteEntries.filter(e => e.type === 'dir');
-  if (skillDirs.length === 0) {
-    throw new Error('No skills found under `.codex/skills`');
-  }
+  const isCodexRoot = /(^|\/)\.codex$/.test(remoteSkillsRoot);
+  summary.found = isCodexRoot ? 0 : skillDirs.length;
 
   for (const dir of skillDirs) {
     const localSkillDir = path.join(localSkillsRoot, dir.name);
-    if (fs.existsSync(localSkillDir)) {
-      // Skip existing skill directories.
+    const localExists = fs.existsSync(localSkillDir);
+
+    // `.codex` root may contain non-skill folders; only treat dirs with SKILL.md as skills.
+    if (isCodexRoot || !localExists) {
+      const remoteDirEntries = await listGitHubDirectory(parsed.owner, parsed.repo, ref, dir.path).catch(() => null);
+      if (!remoteDirEntries || !remoteDirEntries.some(e => e.type === 'file' && e.name === 'SKILL.md')) {
+        // `.codex/skills` is an explicit skills root: mark missing SKILL.md as invalid.
+        if (!isCodexRoot) {
+          summary.invalid += 1;
+        }
+        continue;
+      }
+
+      if (isCodexRoot) {
+        summary.found += 1;
+      }
+    }
+
+    if (localExists) {
+      // Skip existing skill directories (idempotent), but return the local SKILL.md if available.
+      const existing = await readInstalledSkill(localSkillDir);
+      if (existing) {
+        skillsById.set(existing.id, existing);
+        summary.skippedExisting += 1;
+        skippedExisting.push(dir.name);
+      } else {
+        summary.invalid += 1;
+      }
       continue;
     }
 
     await downloadGitHubDirectory(parsed.owner, parsed.repo, ref, dir.path, localSkillDir);
     await patchInstalledSkillMarkdown(localSkillDir);
     const skill = await readInstalledSkill(localSkillDir);
-    if (skill) installedSkills.push(skill);
+    if (skill) {
+      skillsById.set(skill.id, skill);
+      summary.installed += 1;
+    } else {
+      summary.invalid += 1;
+    }
   }
 
-  return { skills: installedSkills };
+  if (summary.found === 0) {
+    throw new Error('NO_VALID_SKILLS');
+  }
+
+  if (summary.installed === 0 && summary.skippedExisting === 0) {
+    throw new Error('NO_VALID_SKILLS');
+  }
+
+  return { skills: Array.from(skillsById.values()), summary, skippedExisting };
 }
 
 /**

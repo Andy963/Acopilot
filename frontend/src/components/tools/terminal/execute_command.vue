@@ -14,7 +14,7 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useTerminalStore } from '../../../stores/terminalStore'
 import CustomScrollbar from '../../common/CustomScrollbar.vue'
 import { useI18n } from '../../../composables/useI18n'
-import { sendToExtension } from '../../../utils/vscode'
+import { loadDiffContent as loadDiffContentFromBackend, sendToExtension } from '../../../utils/vscode'
 
 const { t } = useI18n()
 
@@ -118,6 +118,434 @@ const duration = computed(() => {
 const truncated = computed(() => resultData.value.truncated as boolean || false)
 const totalLines = computed(() => resultData.value.totalLines as number || 0)
 const outputLines = computed(() => resultData.value.outputLines as number || 0)
+
+// ========== 文件变更（git diff）==========
+type FileChangeAction = 'created' | 'modified' | 'deleted' | 'renamed'
+
+interface ChangedFileEntry {
+  path: string
+  action: FileChangeAction
+  fromPath?: string
+  diffContentId?: string | null
+  skippedReason?: string | null
+}
+
+interface ChangesSummary {
+  totalFiles: number
+  diffAvailableFiles: number
+  skippedFiles: number
+  truncatedFiles?: number
+  unsupportedReason?: string
+}
+
+interface DiffContent {
+  originalContent: string
+  newContent: string
+  filePath: string
+}
+
+interface DiffLine {
+  type: 'unchanged' | 'deleted' | 'added'
+  content: string
+  oldLineNum?: number
+  newLineNum?: number
+}
+
+interface DiffStats {
+  added: number
+  deleted: number
+}
+
+const changedFiles = computed((): ChangedFileEntry[] => {
+  const raw = (resultData.value.changedFiles as unknown) ?? []
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .map((r: any) => ({
+      path: String(r?.path || '').trim(),
+      action: String(r?.action || 'modified') as FileChangeAction,
+      fromPath: r?.fromPath ? String(r.fromPath) : undefined,
+      diffContentId: r?.diffContentId ?? null,
+      skippedReason: r?.skippedReason ?? null
+    }))
+    .filter((f) => Boolean(f.path))
+})
+
+const changesSummary = computed((): ChangesSummary | null => {
+  const s = resultData.value.changesSummary as any
+  if (!s || typeof s !== 'object') return null
+  return {
+    totalFiles: Number(s.totalFiles) || 0,
+    diffAvailableFiles: Number(s.diffAvailableFiles) || 0,
+    skippedFiles: Number(s.skippedFiles) || 0,
+    truncatedFiles: s.truncatedFiles !== undefined ? Number(s.truncatedFiles) : undefined,
+    unsupportedReason: s.unsupportedReason ? String(s.unsupportedReason) : undefined
+  }
+})
+
+const hasChangeSection = computed(() => {
+  if (isRunning.value) return false
+  return Boolean(changesSummary.value || changedFiles.value.length > 0)
+})
+
+const changeCount = computed(() => changesSummary.value?.totalFiles ?? changedFiles.value.length)
+
+const changeHeaderMeta = computed(() => {
+  const s = changesSummary.value
+  if (!s) return ''
+
+  if (s.unsupportedReason) {
+    return t('components.tools.terminal.executeCommandPanel.fileChanges.unsupported')
+  }
+
+  const parts: string[] = []
+  if (s.diffAvailableFiles > 0) {
+    parts.push(t('components.tools.terminal.executeCommandPanel.fileChanges.diffAvailable', { count: s.diffAvailableFiles }))
+  }
+  if (s.skippedFiles > 0) {
+    parts.push(t('components.tools.terminal.executeCommandPanel.fileChanges.skipped', { count: s.skippedFiles }))
+  }
+  if (s.truncatedFiles && s.truncatedFiles > 0) {
+    parts.push(t('components.tools.terminal.executeCommandPanel.fileChanges.truncated', { count: s.truncatedFiles }))
+  }
+  return parts.join(' · ')
+})
+
+const changesExpanded = ref(false)
+const changesUserToggled = ref(false)
+
+const headerChangesPreviewLimit = 2
+
+function getPathBasename(p: string): string {
+  const normalized = String(p || '').replace(/\\/g, '/')
+  const parts = normalized.split('/').filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : normalized
+}
+
+const showHeaderChangesPreview = computed(() => {
+  if (isRunning.value) return false
+  if (expanded.value) return false
+  return changedFiles.value.length > 0
+})
+
+const headerPreviewFiles = computed(() => changedFiles.value.slice(0, headerChangesPreviewLimit))
+
+const headerMoreCount = computed(() => {
+  const total = changeCount.value
+  const shown = headerPreviewFiles.value.length
+  return Math.max(0, total - shown)
+})
+
+const defaultChangesExpanded = computed(() => {
+  const s = changesSummary.value
+  if (s?.unsupportedReason) return false
+  return changeCount.value > 0
+})
+
+function toggleChangesExpanded() {
+  changesExpanded.value = !changesExpanded.value
+  changesUserToggled.value = true
+}
+
+watch(() => props.toolId, () => {
+  changesUserToggled.value = false
+  changesExpanded.value = defaultChangesExpanded.value
+}, { immediate: true })
+
+watch(defaultChangesExpanded, (next) => {
+  if (!changesUserToggled.value) {
+    changesExpanded.value = next
+  }
+})
+
+const expandedDiffFiles = ref<Set<string>>(new Set())
+const diffContents = ref<Map<string, DiffContent>>(new Map())
+const loadingDiffs = ref<Set<string>>(new Set())
+const diffLoadErrors = ref<Map<string, string>>(new Map())
+const diffLinesByFile = ref<Map<string, DiffLine[]>>(new Map())
+const diffStats = ref<Map<string, DiffStats>>(new Map())
+
+const previewDiffLineCount = 20
+
+function isDiffExpanded(filePath: string): boolean {
+  return expandedDiffFiles.value.has(filePath)
+}
+
+function setDiffExpanded(filePath: string, expanded: boolean) {
+  const next = new Set(expandedDiffFiles.value)
+  if (expanded) next.add(filePath)
+  else next.delete(filePath)
+  expandedDiffFiles.value = next
+}
+
+function isLoadingDiff(filePath: string): boolean {
+  return loadingDiffs.value.has(filePath)
+}
+
+function setLoadingDiff(filePath: string, loading: boolean) {
+  const next = new Set(loadingDiffs.value)
+  if (loading) next.add(filePath)
+  else next.delete(filePath)
+  loadingDiffs.value = next
+}
+
+function getDiffContent(filePath: string): DiffContent | null {
+  return diffContents.value.get(filePath) || null
+}
+
+function getDiffLines(filePath: string): DiffLine[] | null {
+  return diffLinesByFile.value.get(filePath) || null
+}
+
+function getDiffError(filePath: string): string | null {
+  return diffLoadErrors.value.get(filePath) || null
+}
+
+function getDiffStatsForFile(filePath: string): DiffStats | null {
+  return diffStats.value.get(filePath) || null
+}
+
+async function ensureDiffLoaded(file: ChangedFileEntry) {
+  if (!file.diffContentId) return
+  if (diffContents.value.has(file.path)) return
+  if (loadingDiffs.value.has(file.path)) return
+
+  setLoadingDiff(file.path, true)
+  diffLoadErrors.value.delete(file.path)
+  try {
+    const resp = await loadDiffContentFromBackend(String(file.diffContentId))
+    if (!resp) {
+      throw new Error('Failed to load diff content')
+    }
+
+    diffContents.value.set(file.path, resp as unknown as DiffContent)
+
+    const lines = computeDiffLines(resp.originalContent, resp.newContent)
+    diffLinesByFile.value.set(file.path, lines)
+    diffStats.value.set(file.path, getDiffStats(lines))
+  } catch (err: any) {
+    diffLoadErrors.value.set(file.path, err?.message || t('common.failed'))
+  } finally {
+    setLoadingDiff(file.path, false)
+  }
+}
+
+async function toggleFileDiff(file: ChangedFileEntry) {
+  if (!file.path) return
+  const next = !isDiffExpanded(file.path)
+  setDiffExpanded(file.path, next)
+  if (next) {
+    await ensureDiffLoaded(file)
+  }
+}
+
+async function openFileDiffInVSCode(file: ChangedFileEntry) {
+  if (!file.diffContentId) return
+
+  try {
+    const serializedArgs = JSON.parse(JSON.stringify(props.args || {}))
+    const serializedResult = props.result ? JSON.parse(JSON.stringify(props.result)) : undefined
+
+    await sendToExtension('diff.openPreview', {
+      toolId: props.toolId || '',
+      toolName: 'execute_command',
+      filePaths: [file.path],
+      args: serializedArgs,
+      result: serializedResult
+    })
+  } catch (err) {
+    console.warn('Failed to open diff preview:', err)
+  }
+}
+
+async function openChangedFile(file: ChangedFileEntry) {
+  if (!file.path) return
+  try {
+    await sendToExtension('openWorkspaceFile', { path: file.path })
+  } catch (err) {
+    console.warn('Failed to open file:', err)
+  }
+}
+
+async function handleHeaderChangeClick(file: ChangedFileEntry) {
+  if (!file.path) return
+
+  if (file.diffContentId) {
+    await openFileDiffInVSCode(file)
+    return
+  }
+
+  toggleExpanded()
+}
+
+function getActionLabel(action: FileChangeAction): string {
+  switch (action) {
+    case 'created':
+      return t('components.tools.terminal.executeCommandPanel.fileChanges.actions.created')
+    case 'deleted':
+      return t('components.tools.terminal.executeCommandPanel.fileChanges.actions.deleted')
+    case 'renamed':
+      return t('components.tools.terminal.executeCommandPanel.fileChanges.actions.renamed')
+    case 'modified':
+    default:
+      return t('components.tools.terminal.executeCommandPanel.fileChanges.actions.modified')
+  }
+}
+
+function getActionIcon(action: FileChangeAction): string {
+  switch (action) {
+    case 'created':
+      return 'codicon-new-file'
+    case 'deleted':
+      return 'codicon-trash'
+    case 'renamed':
+      return 'codicon-arrow-right'
+    case 'modified':
+    default:
+      return 'codicon-edit'
+  }
+}
+
+function getDiffLineNumWidth(diffContent: DiffContent): number {
+  const oldLines = diffContent.originalContent.split('\n').length
+  const newLines = diffContent.newContent.split('\n').length
+  return String(Math.max(oldLines, newLines)).length
+}
+
+function formatLineNum(num: number | undefined, width: number): string {
+  if (num === undefined) return ' '.repeat(width)
+  return String(num).padStart(width)
+}
+
+function getDiffStats(lines: DiffLine[]): DiffStats {
+  const deleted = lines.filter(l => l.type === 'deleted').length
+  const added = lines.filter(l => l.type === 'added').length
+  return { added, deleted }
+}
+
+function needsDiffExpand(lines: DiffLine[]): boolean {
+  return lines.length > previewDiffLineCount
+}
+
+function getDisplayDiffLines(lines: DiffLine[], filePath: string): DiffLine[] {
+  if (!needsDiffExpand(lines)) return lines
+  if (expandedFiles.value.has(filePath + '_diff')) return lines
+  return lines.slice(0, previewDiffLineCount)
+}
+
+function toggleDiffExpand(filePath: string) {
+  const key = filePath + '_diff'
+  if (expandedFiles.value.has(key)) {
+    expandedFiles.value.delete(key)
+  } else {
+    expandedFiles.value.add(key)
+  }
+}
+
+function isDiffFullyExpanded(filePath: string): boolean {
+  return expandedFiles.value.has(filePath + '_diff')
+}
+
+function computeDiffLines(originalContent: string, newContent: string): DiffLine[] {
+  const oldLines = originalContent.split('\n')
+  const newLines = newContent.split('\n')
+  const result: DiffLine[] = []
+
+  const lcs = computeLCS(oldLines, newLines)
+
+  let oldIdx = 0
+  let newIdx = 0
+  let oldLineNum = 1
+  let newLineNum = 1
+
+  for (const match of lcs) {
+    while (oldIdx < match.oldIndex) {
+      result.push({
+        type: 'deleted',
+        content: oldLines[oldIdx],
+        oldLineNum: oldLineNum++
+      })
+      oldIdx++
+    }
+
+    while (newIdx < match.newIndex) {
+      result.push({
+        type: 'added',
+        content: newLines[newIdx],
+        newLineNum: newLineNum++
+      })
+      newIdx++
+    }
+
+    result.push({
+      type: 'unchanged',
+      content: oldLines[oldIdx],
+      oldLineNum: oldLineNum++,
+      newLineNum: newLineNum++
+    })
+    oldIdx++
+    newIdx++
+  }
+
+  while (oldIdx < oldLines.length) {
+    result.push({
+      type: 'deleted',
+      content: oldLines[oldIdx],
+      oldLineNum: oldLineNum++
+    })
+    oldIdx++
+  }
+
+  while (newIdx < newLines.length) {
+    result.push({
+      type: 'added',
+      content: newLines[newIdx],
+      newLineNum: newLineNum++
+    })
+    newIdx++
+  }
+
+  return result
+}
+
+interface LCSMatch {
+  oldIndex: number
+  newIndex: number
+}
+
+function computeLCS(oldLines: string[], newLines: string[]): LCSMatch[] {
+  const m = oldLines.length
+  const n = newLines.length
+
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+      }
+    }
+  }
+
+  const result: LCSMatch[] = []
+  let i = m, j = n
+
+  while (i > 0 && j > 0) {
+    if (oldLines[i - 1] === newLines[j - 1]) {
+      result.unshift({ oldIndex: i - 1, newIndex: j - 1 })
+      i--
+      j--
+    } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      i--
+    } else {
+      j--
+    }
+  }
+
+  return result
+}
 
 // 是否正在运行
 const isRunning = computed(() => {
@@ -524,6 +952,7 @@ async function openFirstError() {
 
 const expanded = ref(false)
 const userToggled = ref(false)
+const expandedFiles = ref<Set<string>>(new Set())
 
 function toggleExpanded() {
   expanded.value = !expanded.value
@@ -669,6 +1098,37 @@ watch(isRunning, (running) => {
         {{ formatDuration(duration) }}
       </span>
 
+      <div
+        v-if="showHeaderChangesPreview"
+        class="changes-preview-header"
+        @click.stop
+      >
+        <i
+          class="codicon codicon-diff"
+          :title="t('components.tools.terminal.executeCommandPanel.fileChanges.title')"
+        ></i>
+
+        <button
+          v-for="f in headerPreviewFiles"
+          :key="f.path"
+          class="change-chip"
+          :class="{ disabled: !f.diffContentId }"
+          :title="f.diffContentId ? `${t('components.tools.terminal.executeCommandPanel.fileChanges.viewInVSCode')}: ${f.path}` : (f.skippedReason ? String(f.skippedReason) : t('components.tools.terminal.executeCommandPanel.fileChanges.diffUnavailable'))"
+          @click.stop="handleHeaderChangeClick(f)"
+        >
+          {{ getPathBasename(f.path) }}
+        </button>
+
+        <button
+          v-if="headerMoreCount > 0"
+          class="change-chip more"
+          :title="t('common.expand')"
+          @click.stop="toggleExpanded"
+        >
+          +{{ headerMoreCount }}
+        </button>
+      </div>
+
       <div class="header-actions" @click.stop>
         <button
           v-if="isRunning"
@@ -712,6 +1172,124 @@ watch(isRunning, (running) => {
 
     <!-- 终端输出块 -->
     <div v-if="expanded" class="panel-body">
+      <div v-if="hasChangeSection" class="changes-card">
+        <div class="changes-header" @click="toggleChangesExpanded">
+          <i class="codicon" :class="changesExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
+          <i class="codicon codicon-diff"></i>
+          <span class="changes-title">{{ t('components.tools.terminal.executeCommandPanel.fileChanges.title') }}</span>
+          <span v-if="changeCount > 0" class="changes-count">({{ changeCount }})</span>
+          <span v-if="changeHeaderMeta" class="changes-meta">{{ changeHeaderMeta }}</span>
+        </div>
+
+        <div v-if="changesExpanded" class="changes-body">
+          <div v-if="changesSummary?.unsupportedReason" class="changes-empty warning">
+            <i class="codicon codicon-info"></i>
+            <span>{{ t('components.tools.terminal.executeCommandPanel.fileChanges.notSupported') }}</span>
+          </div>
+
+          <div v-else-if="changedFiles.length === 0" class="changes-empty">
+            <i class="codicon codicon-check"></i>
+            <span>{{ t('components.tools.terminal.executeCommandPanel.fileChanges.noChanges') }}</span>
+          </div>
+
+          <div v-else class="changes-list">
+            <div v-for="f in changedFiles" :key="f.path" class="change-item">
+              <div class="change-row">
+                <i class="codicon change-icon" :class="getActionIcon(f.action)"></i>
+                <code class="change-path" :title="f.fromPath ? `${f.fromPath} → ${f.path}` : f.path">
+                  {{ f.fromPath ? `${f.fromPath} → ${f.path}` : f.path }}
+                </code>
+                <span class="change-action" :class="`action-${f.action}`">{{ getActionLabel(f.action) }}</span>
+
+                <span v-if="getDiffStatsForFile(f.path)" class="change-stats">
+                  +{{ getDiffStatsForFile(f.path)!.added }} / -{{ getDiffStatsForFile(f.path)!.deleted }}
+                </span>
+                <span v-else-if="f.diffContentId" class="change-stats placeholder">+— / -—</span>
+
+                <span v-if="f.skippedReason" class="change-skipped" :title="String(f.skippedReason)">
+                  {{ t('components.tools.terminal.executeCommandPanel.fileChanges.diffUnavailable') }}
+                </span>
+
+                <div class="change-actions" @click.stop>
+                  <button
+                    class="small-btn"
+                    :disabled="!f.diffContentId"
+                    :title="f.diffContentId ? t('components.tools.terminal.executeCommandPanel.fileChanges.expandDiff') : (f.skippedReason || t('components.tools.terminal.executeCommandPanel.fileChanges.diffUnavailable'))"
+                    @click.stop="toggleFileDiff(f)"
+                  >
+                    <i class="codicon" :class="isDiffExpanded(f.path) ? 'codicon-chevron-up' : 'codicon-chevron-down'"></i>
+                    {{ t('components.tools.terminal.executeCommandPanel.fileChanges.expandDiff') }}
+                  </button>
+                  <button
+                    class="small-btn"
+                    :disabled="!f.diffContentId"
+                    @click.stop="openFileDiffInVSCode(f)"
+                  >
+                    <i class="codicon codicon-open-preview"></i>
+                    {{ t('components.tools.terminal.executeCommandPanel.fileChanges.viewInVSCode') }}
+                  </button>
+                  <button class="small-btn" @click.stop="openChangedFile(f)">
+                    <i class="codicon codicon-go-to-file"></i>
+                    {{ t('components.tools.terminal.executeCommandPanel.fileChanges.openFile') }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="isDiffExpanded(f.path)" class="change-diff">
+                <div v-if="isLoadingDiff(f.path)" class="diff-loading">
+                  <i class="codicon codicon-loading codicon-modifier-spin"></i>
+                  <span>{{ t('components.tools.terminal.executeCommandPanel.fileChanges.loadingDiff') }}</span>
+                </div>
+
+                <div v-else-if="getDiffError(f.path)" class="diff-loading error">
+                  <i class="codicon codicon-error"></i>
+                  <span>{{ getDiffError(f.path) }}</span>
+                </div>
+
+                <div v-else-if="getDiffContent(f.path)" class="diff-view">
+                  <CustomScrollbar :horizontal="true" :max-height="260">
+                    <div class="diff-lines">
+                      <div
+                        v-for="(line, idx) in getDisplayDiffLines(getDiffLines(f.path) || [], f.path)"
+                        :key="idx"
+                        :class="['diff-line', `line-${line.type}`]"
+                      >
+                        <span class="line-nums">
+                          <span class="old-num">{{ formatLineNum(line.oldLineNum, getDiffLineNumWidth(getDiffContent(f.path)!)) }}</span>
+                          <span class="new-num">{{ formatLineNum(line.newLineNum, getDiffLineNumWidth(getDiffContent(f.path)!)) }}</span>
+                        </span>
+                        <span class="line-marker">
+                          <span v-if="line.type === 'deleted'" class="marker deleted">-</span>
+                          <span v-else-if="line.type === 'added'" class="marker added">+</span>
+                          <span v-else class="marker unchanged">&nbsp;</span>
+                        </span>
+                        <span class="line-content">{{ line.content || ' ' }}</span>
+                      </div>
+                    </div>
+                  </CustomScrollbar>
+
+                  <div
+                    v-if="needsDiffExpand(getDiffLines(f.path) || [])"
+                    class="expand-section"
+                  >
+                    <button class="expand-btn" @click.stop="toggleDiffExpand(f.path)">
+                      <i class="codicon" :class="isDiffFullyExpanded(f.path) ? 'codicon-chevron-up' : 'codicon-chevron-down'"></i>
+                      {{
+                        isDiffFullyExpanded(f.path)
+                          ? t('common.collapse')
+                          : t('components.tools.terminal.executeCommandPanel.fileChanges.expandRemaining', {
+                              count: (getDiffLines(f.path) || []).length - previewDiffLineCount
+                            })
+                      }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div v-if="hasNextSuggestions" class="next-commands">
         <div class="next-commands-title">
           <i class="codicon codicon-lightbulb"></i>
@@ -839,6 +1417,305 @@ watch(isRunning, (running) => {
   flex-shrink: 0;
 }
 
+.changes-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(127, 127, 127, 0.04);
+  margin-bottom: 10px;
+}
+
+.changes-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.changes-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.changes-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  flex-shrink: 0;
+}
+
+.changes-count {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.changes-meta {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.changes-body {
+  border-top: 1px solid var(--vscode-panel-border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.changes-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.changes-empty.warning {
+  color: var(--vscode-notificationsWarningIcon-foreground, #cca700);
+}
+
+.changes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.change-item {
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(127, 127, 127, 0.03);
+}
+
+.change-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.change-icon {
+  font-size: 14px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.change-path {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.change-action {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.change-action.action-created {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+  background: rgba(40, 167, 69, 0.15);
+  border-color: rgba(40, 167, 69, 0.35);
+}
+
+.change-action.action-modified {
+  color: var(--vscode-charts-blue, #2f81f7);
+  background: rgba(47, 129, 247, 0.15);
+  border-color: rgba(47, 129, 247, 0.35);
+}
+
+.change-action.action-deleted {
+  color: var(--vscode-testing-iconFailed, #f85149);
+  background: rgba(248, 81, 73, 0.15);
+  border-color: rgba(248, 81, 73, 0.35);
+}
+
+.change-action.action-renamed {
+  color: var(--vscode-charts-yellow, #d29922);
+  background: rgba(210, 153, 34, 0.15);
+  border-color: rgba(210, 153, 34, 0.35);
+}
+
+.change-stats {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.change-stats.placeholder {
+  opacity: 0.6;
+}
+
+.change-skipped {
+  font-size: 10px;
+  color: var(--vscode-notificationsWarningIcon-foreground, #cca700);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.change-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.small-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.22);
+  background: rgba(127, 127, 127, 0.04);
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast, 0.1s), border-color var(--transition-fast, 0.1s);
+  white-space: nowrap;
+}
+
+.small-btn:hover:not(:disabled) {
+  background: rgba(127, 127, 127, 0.07);
+  border-color: rgba(128, 128, 128, 0.32);
+}
+
+.small-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.change-diff {
+  border-top: 1px solid rgba(128, 128, 128, 0.18);
+  padding: 8px 10px 10px;
+}
+
+.diff-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.diff-loading.error {
+  color: var(--vscode-testing-iconFailed, #f85149);
+}
+
+.diff-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expand-section {
+  display: flex;
+  justify-content: center;
+}
+
+.expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.22);
+  background: rgba(127, 127, 127, 0.04);
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 11px;
+  transition: background-color var(--transition-fast, 0.1s), border-color var(--transition-fast, 0.1s);
+}
+
+.expand-btn:hover {
+  background: rgba(127, 127, 127, 0.07);
+  border-color: rgba(128, 128, 128, 0.32);
+}
+
+.diff-lines {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.diff-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 6px;
+  white-space: pre;
+}
+
+.diff-line.line-unchanged {
+  background: transparent;
+}
+
+.diff-line.line-deleted {
+  background: rgba(248, 81, 73, 0.12);
+}
+
+.diff-line.line-added {
+  background: rgba(40, 167, 69, 0.12);
+}
+
+.line-nums {
+  display: inline-flex;
+  gap: 6px;
+  color: var(--vscode-editorLineNumber-foreground);
+  opacity: 0.8;
+  min-width: 64px;
+  flex-shrink: 0;
+}
+
+.line-nums .old-num,
+.line-nums .new-num {
+  display: inline-block;
+  min-width: 1ch;
+}
+
+.line-marker {
+  display: inline-flex;
+  justify-content: center;
+  width: 12px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.marker.deleted {
+  color: var(--vscode-testing-iconFailed, #f85149);
+}
+
+.marker.added {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.line-content {
+  min-width: 0;
+}
+
 .command-text {
   flex: 1;
   min-width: 0;
@@ -861,6 +1738,53 @@ watch(isRunning, (running) => {
 .duration {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.changes-preview-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+}
+
+.changes-preview-header .codicon {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.change-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  max-width: 110px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.22);
+  background: rgba(127, 127, 127, 0.04);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change-chip:hover {
+  background: rgba(127, 127, 127, 0.07);
+  border-color: rgba(128, 128, 128, 0.32);
+  color: var(--vscode-foreground);
+}
+
+.change-chip.disabled {
+  opacity: 0.55;
+}
+
+.change-chip.more {
   flex-shrink: 0;
 }
 

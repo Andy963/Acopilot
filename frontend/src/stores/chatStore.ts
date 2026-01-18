@@ -89,6 +89,7 @@ import {
   deleteSingleMessage as deleteSingleMessageFn,
   clearMessages as clearMessagesFn
 } from './chat/messageActions'
+import type { SendMessageOptions } from './chat/messageActions'
 
 import type { PinnedPromptState } from './chat/types'
 import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
@@ -112,6 +113,7 @@ import {
   pausePlanRunner as pausePlanRunnerFn,
   cancelPlanRunner as cancelPlanRunnerFn,
   rerunPlanRunnerFromStep as rerunPlanRunnerFromStepFn,
+  runSinglePlanRunnerStep as runSinglePlanRunnerStepFn,
   type PlanRunnerCreateInput
 } from './chat/planRunnerActions'
 
@@ -140,8 +142,8 @@ export const useChatStore = defineStore('chat', () => {
 
   // ============ 消息操作 ============
   
-  const sendMessage = (messageText: string, attachments?: Attachment[]) =>
-    sendMessageFn(state, computed, messageText, attachments)
+  const sendMessage = (messageText: string, attachments?: Attachment[], options?: SendMessageOptions) =>
+    sendMessageFn(state, computed, messageText, attachments, options)
   
   const retryLastMessage = () => retryLastMessageFn(state, computed, cancelStream)
   const retryFromMessage = (messageIndex: number) => 
@@ -225,6 +227,7 @@ export const useChatStore = defineStore('chat', () => {
   const pausePlanRunner = () => pausePlanRunnerFn(state)
   const cancelPlanRunner = () => cancelPlanRunnerFn(state, computed)
   const rerunPlanRunnerFromStep = (stepIndex: number) => rerunPlanRunnerFromStepFn(state, computed, stepIndex)
+  const runSinglePlanRunnerStep = (stepIndex: number) => runSinglePlanRunnerStepFn(state, computed, stepIndex)
 
   // ============ 改动后校验 ============
 
@@ -345,6 +348,7 @@ export const useChatStore = defineStore('chat', () => {
     pausePlanRunner,
     cancelPlanRunner,
     rerunPlanRunnerFromStep,
+    runSinglePlanRunnerStep,
 
     // 改动后校验
     runPostEditValidationCommand,

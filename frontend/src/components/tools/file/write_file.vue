@@ -420,6 +420,13 @@ function getFileName(filePath: string): string {
   return parts[parts.length - 1] || filePath
 }
 
+// 获取目录（不含文件名）
+function getFileDir(filePath: string): string {
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  if (lastSlash <= 0) return '.'
+  return filePath.slice(0, lastSlash)
+}
+
 // 获取文件扩展名（不含点号）
 function getFileExtension(filePath: string): string {
   const fileName = getFileName(filePath)
@@ -726,12 +733,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="write-file-panel">
-    <!-- 总体统计头部 -->
+    <!-- 总体统计 -->
     <div class="panel-header">
-      <div class="header-info">
-        <span class="codicon codicon-save files-icon"></span>
-        <span class="title">{{ t('components.tools.file.writeFilePanel.title') }}</span>
-      </div>
       <div class="header-stats">
         <span v-if="successCount > 0" class="stat success">
           <span class="codicon codicon-check"></span>
@@ -814,7 +817,7 @@ onBeforeUnmount(() => {
         
         <!-- 文件路径 -->
         <div class="file-path">
-          <span class="path">{{ file.path }}</span>
+          <span class="path" :title="file.path">{{ getFileDir(file.path) }}</span>
           <span v-if="getGitStatus(file.path)" class="git-status" :title="getGitStatus(file.path)!.xy">
             <span class="codicon codicon-source-control"></span>
             <code>{{ getGitStatus(file.path)!.xy }}</code>

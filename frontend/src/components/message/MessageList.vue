@@ -17,6 +17,36 @@ import type { Message, CheckpointRecord, Attachment } from '../../types'
 
 const { t } = useI18n()
 
+const errorCopied = ref(false)
+
+async function copyErrorDetails() {
+  const err = chatStore.error
+  if (!err) return
+
+  const parts: string[] = []
+  if (err.code) parts.push(String(err.code))
+  if (err.message) parts.push(String(err.message))
+
+  let text = parts.join(': ')
+  if (err.details !== undefined) {
+    try {
+      text += `\n\n${JSON.stringify(err.details, null, 2)}`
+    } catch {
+      text += `\n\n${String(err.details)}`
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(text)
+    errorCopied.value = true
+    window.setTimeout(() => {
+      errorCopied.value = false
+    }, 1200)
+  } catch (e) {
+    console.warn('Failed to copy error:', e)
+  }
+}
+
 const props = defineProps<{
   messages: Message[]
 }>()
@@ -551,6 +581,13 @@ function formatCheckpointTime(timestamp: number): string {
               <button class="error-retry" @click="handleErrorRetry" :title="t('components.message.error.retry')">
                 <span class="codicon codicon-refresh"></span>
               </button>
+              <button
+                class="error-copy"
+                @click="copyErrorDetails"
+                :title="errorCopied ? t('common.copied') : t('components.message.error.copy')"
+              >
+                <span :class="['codicon', errorCopied ? 'codicon-check' : 'codicon-copy']"></span>
+              </button>
               <button class="error-dismiss" @click="chatStore.error = null" :title="t('components.message.error.dismiss')">
                 ✕
               </button>
@@ -679,6 +716,7 @@ function formatCheckpointTime(timestamp: number): string {
 }
 
 .error-retry,
+.error-copy,
 .error-dismiss {
   flex-shrink: 0;
   width: 24px;
@@ -697,6 +735,7 @@ function formatCheckpointTime(timestamp: number): string {
 }
 
 .error-retry:hover,
+.error-copy:hover,
 .error-dismiss:hover {
   opacity: 1;
   background: var(--vscode-toolbar-hoverBackground);
