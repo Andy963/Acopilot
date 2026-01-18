@@ -50,11 +50,11 @@ export async function setConfigId(state: ChatStoreState, newConfigId: string): P
 export async function loadSavedConfigId(state: ChatStoreState): Promise<void> {
   try {
     const response = await sendToExtension<{ channelId?: string }>('settings.getActiveChannelId', {})
-    if (response?.channelId) {
-      state.configId.value = response.channelId
-    }
+    // 允许为空：后端会在启动时保证 activeChannelId 最终指向有效配置
+    state.configId.value = response?.channelId || ''
   } catch (error) {
     console.error('Failed to load saved config ID:', error)
+    state.configId.value = ''
   }
 }
 
