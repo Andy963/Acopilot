@@ -411,8 +411,12 @@ async function handlePasteStep(stepId: string, e: ClipboardEvent) {
 
   if (!hasImage) return
 
-  // Prevent default paste (text/other) when an image exists, consistent with InputBox behavior.
-  e.preventDefault()
+  // Only prevent default paste when the clipboard is "image-only".
+  // If the clipboard also includes text/plain, let the default paste happen so users can paste text normally.
+  const plainText = e.clipboardData?.getData('text/plain') || ''
+  if (!plainText.trim()) {
+    e.preventDefault()
+  }
 
   for (const c of candidates) {
     const normalizedFile = normalizePastedImageFile(c.file, c.mimeTypeHint)
@@ -544,11 +548,7 @@ async function handleSaveAndStart() {
 
       <div class="form-row">
         <div class="form-label-row">
-        <label class="form-label">{{ t('components.planRunner.modal.steps') }}</label>
-          <button class="btn" @click="addStep">
-            <i class="codicon codicon-add"></i>
-            {{ t('components.planRunner.modal.addStep') }}
-          </button>
+          <label class="form-label">{{ t('components.planRunner.modal.steps') }}</label>
         </div>
 
         <div ref="stepsContainerRef" class="steps">
@@ -613,6 +613,13 @@ async function handleSaveAndStart() {
             </div>
           </div>
         </div>
+
+        <div class="add-step-row">
+          <button class="btn add-step-btn" @click="addStep">
+            <i class="codicon codicon-add"></i>
+            {{ t('components.planRunner.modal.addStep') }}
+          </button>
+        </div>
       </div>
 
       <div v-if="!canSave" class="hint">
@@ -670,12 +677,6 @@ async function handleSaveAndStart() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 6px 0;
-  background: var(--vscode-editor-background);
 }
 
 .form-label {
@@ -703,6 +704,16 @@ async function handleSaveAndStart() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.add-step-row {
+  display: flex;
+  justify-content: center;
+}
+
+.add-step-btn {
+  width: 100%;
+  justify-content: center;
 }
 
 .step {

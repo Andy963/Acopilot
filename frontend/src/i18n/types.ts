@@ -481,6 +481,7 @@ export interface LanguageMessages {
                 pause: string;
                 cancel: string;
                 clear: string;
+                runStep: string;
                 rerunStep: string;
             };
             current: string;

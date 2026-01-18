@@ -264,6 +264,10 @@ function buildStepPrompt(plan: PlanRunnerData, stepIndex: number, step: PlanRunn
       const mime = att?.mimeType ? ` (${att.mimeType})` : ''
       attachmentLines.push(`- [${alias}] ${att?.name || 'attachment'}${mime}`)
     }
+    attachmentLines.push(
+      '',
+      'Note: These attachments are provided directly as multimodal inputs for this step. Do NOT use read_file on the attachment names; they may not exist on disk. Refer to attachments using the aliases above.'
+    )
   }
 
   const blocks: string[] = [header]
@@ -523,4 +527,40 @@ export async function rerunPlanRunnerFromStep(
 
   await persistPlanRunnerState(state)
   await startPlanRunner(state, computed)
+}
+
+export async function runSinglePlanRunnerStep(
+  state: ChatStoreState,
+  computed: ChatStoreComputed,
+  stepIndex: number
+): Promise<void> {
+  const runner = state.planRunner.value
+  if (!runner) return
+  if (runner.status === 'running') return
+  if (loopInProgress) return
+  if (state.isWaitingForResponse.value) return
+  if (!Number.isFinite(stepIndex)) return
+  if (runner.steps.length === 0) return
+
+  const targetIndex = Math.max(0, Math.min(Math.floor(stepIndex), runner.steps.length - 1))
+  const step = runner.steps[targetIndex]
+
+  // Ensure the target step can run even if it was previously completed/errored.
+  step.status = 'pending'
+  step.startedAt = undefined
+  step.endedAt = undefined
+  step.error = undefined
+
+  runner.currentStepIndex = targetIndex
+  runner.status = 'running'
+  runner.pauseRequested = true
+
+  await persistPlanRunnerState(state)
+
+  loopInProgress = true
+  try {
+    await runPlanLoop(state, computed)
+  } finally {
+    loopInProgress = false
+  }
 }

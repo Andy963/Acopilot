@@ -383,6 +383,7 @@ const en: LanguageMessages = {
                 pause: 'Pause',
                 cancel: 'Cancel',
                 clear: 'Clear',
+                runStep: 'Run step',
                 rerunStep: 'Rerun step'
             },
             current: 'Current',
