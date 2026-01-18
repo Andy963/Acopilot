@@ -332,6 +332,35 @@ async function createImageAttachment(file: File): Promise<Attachment | null> {
   }
 }
 
+function toPastedImageFilename(mimeType: string): string {
+  const lower = String(mimeType || '').toLowerCase().trim()
+  let ext = 'png'
+  if (lower === 'image/jpeg') ext = 'jpg'
+  else if (lower === 'image/png') ext = 'png'
+  else if (lower === 'image/gif') ext = 'gif'
+  else if (lower === 'image/webp') ext = 'webp'
+  else if (lower === 'image/bmp') ext = 'bmp'
+  else if (lower.startsWith('image/')) {
+    ext = lower.slice('image/'.length).replace(/[^a-z0-9]/g, '') || 'png'
+  }
+  return `pasted-image-${generateId()}.${ext}`
+}
+
+function normalizePastedImageFile(file: File, mimeTypeHint: string): File {
+  const name = (file.name || '').trim()
+  const mimeType = inferMimeType(name, file.type || mimeTypeHint || '')
+
+  // Clipboard images sometimes come with an empty filename; give them a stable one for display.
+  if (name) return file
+
+  try {
+    return new File([file], toPastedImageFilename(mimeType), { type: mimeType })
+  } catch {
+    // If File constructor fails for any reason, fall back to the original File.
+    return file
+  }
+}
+
 async function handleAttachStep(stepId: string) {
   const input = document.createElement('input')
   input.type = 'file'
@@ -354,6 +383,46 @@ async function handleAttachStep(stepId: string) {
   }
 
   input.click()
+}
+
+async function handlePasteStep(stepId: string, e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+
+  const step = steps.value.find(s => s.id === stepId)
+  if (!step) return
+
+  // First pass: detect whether the clipboard contains image files.
+  const candidates: Array<{ file: File; mimeTypeHint: string }> = []
+  let hasImage = false
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.kind !== 'file') continue
+
+    const file = item.getAsFile()
+    if (!file) continue
+
+    const mimeType = inferMimeType(file.name, file.type || item.type || '')
+    if (getFileType(mimeType) === 'image') {
+      hasImage = true
+    }
+
+    candidates.push({ file, mimeTypeHint: item.type })
+  }
+
+  if (!hasImage) return
+
+  // Prevent default paste (text/other) when an image exists, consistent with InputBox behavior.
+  e.preventDefault()
+
+  for (const c of candidates) {
+    const normalizedFile = normalizePastedImageFile(c.file, c.mimeTypeHint)
+    const attachment = await createImageAttachment(normalizedFile)
+    if (attachment) {
+      step.attachments.push(attachment)
+    }
+  }
 }
 
 function removeStepAttachment(stepId: string, attachmentId: string) {
@@ -495,7 +564,12 @@ async function handleSaveAndStart() {
         </div>
 
         <div ref="stepsContainerRef" class="steps">
-          <div v-for="(s, idx) in steps" :key="s.id" class="step">
+          <div
+            v-for="(s, idx) in steps"
+            :key="s.id"
+            class="step"
+            @paste="handlePasteStep(s.id, $event)"
+          >
             <div class="step-header">
               <span class="step-index">{{ idx + 1 }}.</span>
               <input
