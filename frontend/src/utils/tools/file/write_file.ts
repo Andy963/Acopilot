@@ -15,8 +15,18 @@ registerTool('write_file', {
   descriptionFormatter: (args) => {
     const files = args.files as Array<{ path: string; content: string }> | undefined
     if (!files || files.length === 0) return '无文件'
-    // 每行一个路径
-    return files.map(f => f.path).join('\n')
+
+    if (files.length === 1) return files[0].path || '无文件'
+
+    const previewCount = Math.min(3, files.length)
+    const previewNames = files
+      .slice(0, previewCount)
+      .map(f => (f?.path || '').split(/[/\\]/).pop() || f?.path || '')
+      .filter(Boolean)
+
+    const restCount = Math.max(0, files.length - previewNames.length)
+    const restSuffix = restCount > 0 ? ` … +${restCount}` : ''
+    return `${files.length} 个文件: ${previewNames.join(', ')}${restSuffix}`
   },
   
   // 使用自定义组件显示内容
