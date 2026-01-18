@@ -555,10 +555,25 @@ async function deleteCurrentConfig() {
     formatMessage(t('components.settings.channelSettings.dialog.delete.message'), currentConfig.value.name),
     async () => {
       try {
+        const deletedId = currentConfig.value!.id
         await sendToExtension('config.deleteConfig', {
-          configId: currentConfig.value!.id
+          configId: deletedId
         })
+
         await loadConfigs()
+
+        // 如果删除的是当前正在使用的配置，立即切换到一个仍存在的配置。
+        // 否则输入区会继续拿着旧 configId 拼出“幽灵模型”。
+        if (deletedId === chatStore.configId) {
+          const fallbackId = configs.value[0]?.id
+          if (fallbackId) {
+            currentConfigId.value = fallbackId
+            await chatStore.setConfigId(fallbackId)
+          }
+        } else {
+          // 删除非当前配置时也触发一次刷新：InputArea 会 watch currentConfig 并重载配置列表。
+          await chatStore.loadCurrentConfig()
+        }
       } catch (error) {
         console.error('Failed to delete config:', error)
       }

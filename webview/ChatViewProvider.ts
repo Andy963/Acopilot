@@ -44,17 +44,17 @@ import type { HandlerContext, DiffPreviewContentProvider as IDiffPreviewContentP
 class DiffPreviewContentProvider implements vscode.TextDocumentContentProvider, IDiffPreviewContentProvider {
     private contents: Map<string, string> = new Map();
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
-    
+
     public onDidChange = this.onDidChangeEmitter.event;
-    
+
     public setContent(uri: string, content: string): void {
         this.contents.set(uri, content);
     }
-    
+
     public provideTextDocumentContent(uri: vscode.Uri): string {
         return this.contents.get(uri.toString()) || '';
     }
-    
+
     public dispose(): void {
         this.contents.clear();
         this.onDidChangeEmitter.dispose();
@@ -67,11 +67,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     // Webview readiness handshake
     private webviewReady = false;
     private pendingWebviewMessages: any[] = [];
-    
+
     // Diff 预览内容提供者
     private diffPreviewProvider: DiffPreviewContentProvider;
     private diffPreviewProviderDisposable: vscode.Disposable;
-    
+
     // 后端模块
     private configManager!: ConfigManager;
     private channelManager!: ChannelManager;
@@ -85,16 +85,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     private dependencyManager!: DependencyManager;
     private storagePathManager!: StoragePathManager;
     private diffStorageManager!: DiffStorageManager;
-    
+
     // 消息路由器
     private messageRouter!: MessageRouter;
-    
+
     // 事件取消订阅函数
     private terminalOutputUnsubscribe?: () => void;
     private imageGenOutputUnsubscribe?: () => void;
     private taskEventUnsubscribe?: () => void;
     private dependencyProgressUnsubscribe?: () => void;
-    
+
     // 初始化状态
     private initPromise: Promise<void>;
 
@@ -106,7 +106,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.diffPreviewProvider
         );
         context.subscriptions.push(this.diffPreviewProviderDisposable);
-        
+
         // 异步初始化后端
         this.initPromise = this.initializeBackend().catch(err => {
             console.error('Failed to initialize backend:', err);
@@ -123,56 +123,56 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         const settingsStorage = new FileSettingsStorage(settingsStorageDir);
         this.settingsManager = new SettingsManager(settingsStorage);
         await this.settingsManager.initialize();
-        
+
         // 2. 初始化存储路径管理器
         this.storagePathManager = new StoragePathManager(this.settingsManager, this.context);
         await this.storagePathManager.ensureDirectories();
-        
+
         // 3. 获取有效的数据存储路径（可能是自定义路径）
         const effectiveDataUri = this.storagePathManager.getEffectiveDataUri();
-        
+
         // 4. 初始化存储适配器（使用文件系统存储，避免 globalState 过大）
         const storageAdapter = new FileSystemStorageAdapter(vscode, effectiveDataUri);
-        
+
         // 5. 初始化 Diff 存储管理器（用于 apply_diff 的大文件内容抽离）
         this.diffStorageManager = DiffStorageManager.initialize(this.storagePathManager.getEffectiveDataPath());
         setGlobalDiffStorageManager(this.diffStorageManager);
-        
+
         // 6. 初始化对话管理器
         this.conversationManager = new ConversationManager(storageAdapter);
-        
+
         // 7. 初始化配置管理器（使用Memento存储）
         const configStorage = new MementoStorageAdapter(
             this.context.globalState,
             'acopilot.configs'
         );
         this.configManager = new ConfigManager(configStorage);
-        
+
         // 8. 创建默认配置（如果不存在）
         await this.ensureDefaultConfig();
-        
+
         // 9. 同步语言设置到后端 i18n
         this.syncLanguageToBackend();
-        
+
         // 10. 设置全局上下文引用（供工具和其他模块访问）
         setGlobalSettingsManager(this.settingsManager);
         setGlobalConfigManager(this.configManager);
         setGlobalToolRegistry(toolRegistry);
-        
+
         // 11. 注册所有工具到工具注册器（必须在 ChannelManager 之前）
         registerAllTools(toolRegistry);
-        
+
         // 12. 初始化渠道管理器（传入工具注册器和设置管理器）
         this.channelManager = new ChannelManager(this.configManager, toolRegistry, this.settingsManager);
-        
+
         // 13. 设置重试状态回调
         this.channelManager.setRetryStatusCallback((status) => {
             this.handleRetryStatus(status);
         });
-        
+
         // 14. 设置全局渠道管理器引用
         setGlobalChannelManager(this.channelManager);
-        
+
         // 15. 初始化检查点管理器（使用自定义路径）
         this.checkpointManager = new CheckpointManager(
             this.settingsManager,
@@ -181,7 +181,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.storagePathManager.getEffectiveDataPath()
         );
         await this.checkpointManager.initialize();
-        
+
         // 16. 初始化聊天处理器（传入工具注册器和检查点管理器）
         this.chatHandler = new ChatHandler(
             this.configManager,
@@ -192,28 +192,28 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.chatHandler.setCheckpointManager(this.checkpointManager);
         this.chatHandler.setSettingsManager(this.settingsManager);
         this.chatHandler.setDiffStorageManager(this.diffStorageManager);
-        
+
         // 17. 初始化模型管理处理器
         this.modelsHandler = new ModelsHandler(this.configManager);
-        
+
         // 18. 初始化设置处理器（传入工具注册器）
         this.settingsHandler = new SettingsHandler(this.settingsManager, toolRegistry);
-        
+
         // 19. 订阅终端输出事件
         this.terminalOutputUnsubscribe = onTerminalOutput((event) => {
             this.handleTerminalOutputEvent(event);
         });
-        
+
         // 20. 订阅图像生成输出事件
         this.imageGenOutputUnsubscribe = onImageGenOutput((event) => {
             this.handleImageGenOutputEvent(event);
         });
-        
+
         // 21. 订阅统一任务事件（用于未来扩展）
         this.taskEventUnsubscribe = TaskManager.onTaskEvent((event) => {
             this.handleTaskEvent(event);
         });
-        
+
         // 22. 初始化 MCP 管理器（使用自定义路径下的 mcp 目录）
         const mcpConfigDir = vscode.Uri.file(this.storagePathManager.getMcpPath());
         try {
@@ -225,30 +225,30 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         const mcpStorage = new VSCodeFileSystemMcpStorageAdapter(mcpConfigFile, vscode.workspace.fs);
         this.mcpManager = new McpManager(mcpStorage);
         await this.mcpManager.initialize();
-        
+
         // 23. 将 MCP 管理器连接到 ChannelManager（用于工具声明）
         this.channelManager.setMcpManager(this.mcpManager);
-        
+
         // 24. 将 MCP 管理器连接到 ChatHandler（用于工具调用）
         this.chatHandler.setMcpManager(this.mcpManager);
-        
+
         // 25. 初始化依赖管理器（使用自定义路径）
         this.dependencyManager = DependencyManager.getInstance(
             this.context,
             this.storagePathManager.getDependenciesPath()
         );
         await this.dependencyManager.initialize();
-        
+
         // 26. 设置依赖检查器到工具注册器（用于过滤未安装依赖的工具）
         toolRegistry.setDependencyChecker({
             isInstalled: (name: string) => this.dependencyManager.isInstalledSync(name)
         });
-        
+
         // 27. 订阅依赖安装进度事件
         this.dependencyProgressUnsubscribe = this.dependencyManager.onProgress((event) => {
             this.handleDependencyProgressEvent(event);
         });
-        
+
         // 28. 初始化消息路由器
         this.messageRouter = new MessageRouter(
             this.chatHandler,
@@ -256,59 +256,59 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.sendResponse.bind(this),
             this.sendError.bind(this)
         );
-        
+
         console.log('Acopilot backend initialized with global context');
         console.log('Effective data path:', this.storagePathManager.getEffectiveDataPath());
     }
-    
+
     /**
      * 处理终端输出事件，推送到前端
      */
     private handleTerminalOutputEvent(event: TerminalOutputEvent): void {
         if (!this._view) return;
-        
+
         this._view.webview.postMessage({
             type: 'terminalOutput',
             data: event
         });
     }
-    
+
     /**
      * 处理图像生成输出事件，推送到前端
      */
     private handleImageGenOutputEvent(event: ImageGenOutputEvent): void {
         if (!this._view) return;
-        
+
         this._view.webview.postMessage({
             type: 'imageGenOutput',
             data: event
         });
     }
-    
+
     /**
      * 处理统一任务事件，推送到前端
      */
     private handleTaskEvent(event: TaskEvent): void {
         if (!this._view) return;
-        
+
         this._view.webview.postMessage({
             type: 'taskEvent',
             data: event
         });
     }
-    
+
     /**
      * 处理依赖安装进度事件，推送到前端
      */
     private handleDependencyProgressEvent(event: InstallProgressEvent): void {
         if (!this._view) return;
-        
+
         this._view.webview.postMessage({
             type: 'dependencyProgress',
             data: event
         });
     }
-    
+
     /**
      * 处理重试状态，推送到前端
      */
@@ -320,20 +320,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         nextRetryIn?: number;
     }): void {
         if (!this._view) return;
-        
+
         this._view.webview.postMessage({
             type: 'retryStatus',
             data: status
         });
     }
-    
+
     /**
-     * 确保存在默认配置
+     * 确保至少存在一个默认配置，并保证 activeChannelId 指向有效配置。
+     *
+     * 重要：不要因为缺少某个固定 ID（如 gemini-pro）就“自动补回”，
+     * 否则用户删除默认供应商后会在下次启动时被重新创建。
      */
     private async ensureDefaultConfig() {
         try {
-            const existingConfig = await this.configManager.getConfig('gemini-pro');
-            if (!existingConfig) {
+            // 1) 仅当完全没有任何配置时才创建默认配置
+            const existingConfigs = await this.configManager.listConfigs();
+            if (existingConfigs.length === 0) {
                 const config = {
                     id: 'gemini-pro',
                     type: 'gemini' as const,
@@ -346,14 +350,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     createdAt: Date.now(),
                     updatedAt: Date.now()
                 };
-                
+
                 const storage = (this.configManager as any).storageAdapter;
                 await storage.save(config);
-                
+
+                // 触发 ConfigManager 重新加载
                 (this.configManager as any).loaded = false;
             }
+
+            // 2) 修正 activeChannelId：如果为空或指向不存在的配置，则选择第一个可用配置
+            const configs = await this.configManager.listConfigs();
+            if (configs.length > 0) {
+                const activeId = this.settingsManager.getActiveChannelId();
+                const activeExists = !!activeId && configs.some(c => c.id === activeId);
+                if (!activeExists) {
+                    await this.settingsManager.setActiveChannelId(configs[0].id);
+                }
+            }
         } catch (error) {
-            console.error('Failed to create default config:', error);
+            console.error('Failed to ensure default config:', error);
         }
     }
 
@@ -432,13 +447,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
             // 等待初始化完成
             await this.initPromise;
-            
+
             // 创建处理器上下文
             const ctx = this.createHandlerContext(requestId);
-            
+
             // 使用消息路由器处理消息
             const handled = await this.messageRouter.route(type, data, requestId, ctx);
-            
+
             if (!handled) {
                 console.warn('Unknown message type:', type);
                 this.sendError(requestId, 'UNKNOWN_TYPE', `Unknown message type: ${type}`);
@@ -482,7 +497,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             console.error('Failed to sync language to backend:', error);
         }
     }
-    
+
     /**
      * 获取当前工作区 URI
      */
@@ -490,7 +505,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         return workspaceFolder ? workspaceFolder.uri.toString() : null;
     }
-    
+
     /**
      * 取消所有活跃的流式请求
      */
@@ -498,43 +513,43 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.messageRouter?.cancelAllStreams();
         console.log('All active streams cancelled');
     }
-    
+
     /**
      * 清理资源
      */
     public dispose(): void {
         // 取消所有活跃的流式请求
         this.cancelAllStreams();
-        
+
         // 取消终端输出订阅
         if (this.terminalOutputUnsubscribe) {
             this.terminalOutputUnsubscribe();
         }
-        
+
         // 取消图像生成输出订阅
         if (this.imageGenOutputUnsubscribe) {
             this.imageGenOutputUnsubscribe();
         }
-        
+
         // 取消统一任务事件订阅
         if (this.taskEventUnsubscribe) {
             this.taskEventUnsubscribe();
         }
-        
+
         // 取消依赖安装进度订阅
         if (this.dependencyProgressUnsubscribe) {
             this.dependencyProgressUnsubscribe();
         }
-        
+
         // 取消所有活跃任务
         TaskManager.cancelAllTasks();
-        
+
         // 释放 MCP 管理器资源（断开所有连接）
         this.mcpManager?.dispose();
 
         console.log('ChatViewProvider disposed');
     }
-    
+
     /**
      * 发送响应到前端
      */
