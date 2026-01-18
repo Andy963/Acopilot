@@ -825,6 +825,27 @@ export class ToolIterationLoopService {
                             // - 若已收到内容：把本次当作完成，避免误报为网络错误（但标记 finishReason 以便前端提示可能被截断）。
                             // - 若完全没有内容：做一次轻量重试（避免用户无法重试最后一步）。
                             if (finalContent.parts.length > 0) {
+                                const hasNonThoughtText = finalContent.parts.some((p: any) =>
+                                    typeof p?.text === 'string' &&
+                                    p.text.trim().length > 0 &&
+                                    p.thought !== true
+                                );
+                                const hasToolCall = finalContent.parts.some((p: any) => !!p?.functionCall);
+
+                                // 如果只有思考内容但没有任何可展示的正文/工具调用，通常意味着连接在“思考阶段”就断开。
+                                // 自动重试一次该请求，减少用户手动重试成本。
+                                if (
+                                    config.type !== 'openai-responses' &&
+                                    !hasNonThoughtText &&
+                                    !hasToolCall &&
+                                    streamNoDoneRetryCount < 1 &&
+                                    !abortSignal?.aborted
+                                ) {
+                                    streamNoDoneRetryCount++;
+                                    openaiResponseId = undefined;
+                                    continue;
+                                }
+
                                 // OpenAI Responses：未收到完成标记时，不要把这次的 responseId 写回 continuation，避免下一轮 previous_response_id 可能导致 0 token/ECONNRESET 等问题。
                                 if (config.type === 'openai-responses') {
                                     shouldPersistOpenAIResponsesContinuation = false;

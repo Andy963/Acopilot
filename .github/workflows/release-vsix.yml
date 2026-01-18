@@ -69,3 +69,4 @@ jobs:
         with:
           files: ${{ steps.vsix.outputs.vsix_path }}
           body_path: RELEASE_NOTES.md
+          prerelease: ${{ contains(github.ref_name, '-') }}

@@ -53,7 +53,7 @@ export class StreamRequestHandler {
         if (isError) break;
       }
     } catch (error: any) {
-      this.handleStreamError(error, processor, requestId);
+      this.handleStreamError(error, processor, requestId, controller.signal.aborted);
     } finally {
       this.deps.abortManager.delete(conversationId);
     }
@@ -83,7 +83,7 @@ export class StreamRequestHandler {
         if (isError) break;
       }
     } catch (error: any) {
-      this.handleStreamError(error, processor, requestId);
+      this.handleStreamError(error, processor, requestId, controller.signal.aborted);
     } finally {
       this.deps.abortManager.delete(conversationId);
     }
@@ -116,7 +116,7 @@ export class StreamRequestHandler {
         if (isError) break;
       }
     } catch (error: any) {
-      this.handleStreamError(error, processor, requestId);
+      this.handleStreamError(error, processor, requestId, controller.signal.aborted);
     } finally {
       this.deps.abortManager.delete(conversationId);
     }
@@ -148,7 +148,7 @@ export class StreamRequestHandler {
         if (isError) break;
       }
     } catch (error: any) {
-      this.handleStreamError(error, processor, requestId);
+      this.handleStreamError(error, processor, requestId, controller.signal.aborted);
     } finally {
       this.deps.abortManager.delete(conversationId);
     }
@@ -165,9 +165,11 @@ export class StreamRequestHandler {
   /**
    * 处理流式错误
    */
-  private handleStreamError(error: any, processor: StreamChunkProcessor, requestId: string): void {
-    if (error.name === 'AbortError' || error.message?.includes('aborted')) {
-      // 被用户取消，不需要发送错误
+  private handleStreamError(error: any, processor: StreamChunkProcessor, requestId: string, wasAborted?: boolean): void {
+    // 仅在当前请求的 AbortController 被触发时才视为“用户取消”。
+    // 之前用 error.message.includes('aborted') 会误吞掉真实网络错误（例如 ChannelError: "Request aborted"），
+    // 导致前端表现为“思考一半就停了且无任何错误”。
+    if (wasAborted) {
       return;
     }
     
