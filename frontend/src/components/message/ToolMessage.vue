@@ -364,6 +364,27 @@ async function runExecuteCommandInTerminal(tool: ToolUsage) {
   }
 }
 
+const acceptingDiffToolId = ref<string>('')
+function isDiffReviewTool(tool: ToolUsage): boolean {
+  return tool.name === 'apply_diff' || tool.name === 'write_file'
+}
+
+async function acceptPendingDiff(tool: ToolUsage) {
+  if (!tool?.id) return
+  if (acceptingDiffToolId.value === tool.id) return
+
+  acceptingDiffToolId.value = tool.id
+  try {
+    await sendToExtension('diff.acceptPending', { toolId: tool.id })
+  } catch (err) {
+    console.error(t('components.message.tool.acceptDiffFailed'), err)
+  } finally {
+    if (acceptingDiffToolId.value === tool.id) {
+      acceptingDiffToolId.value = ''
+    }
+  }
+}
+
 // 检查工具是否可展开
 function isExpandable(tool: ToolUsage): boolean {
   const config = getToolConfig(tool.name)
@@ -643,6 +664,16 @@ function renderToolContent(tool: ToolUsage) {
               <span class="diff-btn-text">{{ t('components.message.tool.viewDiff') }}</span>
               <span class="diff-btn-arrow codicon codicon-arrow-right"></span>
             </button>
+
+            <!-- 快速确认（保存并继续） -->
+            <IconButton
+              v-if="isDiffReviewTool(tool) && tool.status === 'running'"
+              icon="codicon-save"
+              size="small"
+              :loading="acceptingDiffToolId === tool.id"
+              :tooltip="t('components.message.tool.saveAndContinue')"
+              @click.stop="acceptPendingDiff(tool)"
+            />
           </div>
         </div>
       </div>

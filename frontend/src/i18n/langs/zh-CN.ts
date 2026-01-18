@@ -477,6 +477,8 @@ const zhCN: LanguageMessages = {
                 rejected: '已拒绝',
                 viewDiff: '查看差异',
                 viewDiffInVSCode: '在 VSCode 中查看差异',
+                saveAndContinue: '保存并继续',
+                acceptDiffFailed: '保存差异失败',
                 openDiffFailed: '打开 diff 预览失败'
             },
             attachment: {

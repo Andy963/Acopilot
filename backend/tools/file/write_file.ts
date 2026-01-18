@@ -41,7 +41,7 @@ interface WriteResult {
  * @param isMultiRoot 是否是多工作区模式
  * 始终等待 diff 被处理（保存或拒绝）
  */
-async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean): Promise<WriteResult> {
+async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean, toolId?: string): Promise<WriteResult> {
     const { path: filePath, content } = entry;
     
     const { uri, workspace } = resolveUriWithInfo(filePath);
@@ -97,7 +97,8 @@ async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean): Pro
             filePath,
             absolutePath,
             originalContent,
-            content
+            content,
+            toolId
         );
 
         // 等待 diff 被处理（保存或拒绝）或用户中断
@@ -219,7 +220,7 @@ export function createWriteFileTool(): Tool {
                 required: ['files']
             }
         },
-        handler: async (args): Promise<ToolResult> => {
+        handler: async (args, toolContext): Promise<ToolResult> => {
             const fileList = args.files as WriteFileEntry[] | undefined;
             
             if (!fileList || !Array.isArray(fileList) || fileList.length === 0) {
@@ -240,8 +241,10 @@ export function createWriteFileTool(): Tool {
             let modifiedCount = 0;
             let unchangedCount = 0;
 
+            const toolId = typeof toolContext?.toolId === 'string' ? toolContext.toolId : undefined;
+
             for (const entry of fileList) {
-                const result = await writeSingleFile(entry, isMultiRoot);
+                const result = await writeSingleFile(entry, isMultiRoot, toolId);
                 results.push(result);
                 
                 if (result.success) {

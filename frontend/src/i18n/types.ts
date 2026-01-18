@@ -351,6 +351,8 @@ export interface LanguageMessages {
                 rejected: string;
                 viewDiff: string;
                 viewDiffInVSCode: string;
+                saveAndContinue: string;
+                acceptDiffFailed: string;
                 openDiffFailed: string;
             };
             attachment: {

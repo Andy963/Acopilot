@@ -477,6 +477,8 @@ const en: LanguageMessages = {
                 rejected: 'Rejected',
                 viewDiff: 'View Diff',
                 viewDiffInVSCode: 'View diff in VSCode',
+                saveAndContinue: 'Save & continue',
+                acceptDiffFailed: 'Failed to save diff',
                 openDiffFailed: 'Failed to open diff preview'
             },
             attachment: {

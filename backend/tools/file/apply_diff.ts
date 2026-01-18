@@ -205,7 +205,7 @@ Important:
                 required: ['path', 'diffs']
             }
         },
-        handler: async (args): Promise<ToolResult> => {
+        handler: async (args, toolContext): Promise<ToolResult> => {
             const filePath = args.path as string;
             const diffs = args.diffs as DiffBlock[] | undefined;
             
@@ -301,7 +301,8 @@ Important:
                     filePath,
                     absolutePath,
                     originalContent,
-                    currentContent
+                    currentContent,
+                    typeof toolContext?.toolId === 'string' ? toolContext.toolId : undefined
                 );
                 
                 // 等待 diff 被处理（保存或拒绝）或用户中断

@@ -433,6 +433,8 @@ const ja: LanguageMessages = {
                 rejected: '拒否済み',
                 viewDiff: '差分を表示',
                 viewDiffInVSCode: 'VSCode で差分を表示',
+                saveAndContinue: '保存して続行',
+                acceptDiffFailed: '差分の保存に失敗しました',
                 openDiffFailed: 'diff プレビューを開くのに失敗しました'
             },
             attachment: {
