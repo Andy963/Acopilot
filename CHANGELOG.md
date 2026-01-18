@@ -2,6 +2,18 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.56] - 2026-01-18
+
+### Added
+  - LSP：新增 `get_errors` 工具，直接获取编辑器 diagnostics（类型错误/lint/编译错误等），无需运行编译命令解析输出。
+  - LSP：新增 `get_usages` 工具，一次返回 definition/references/implementations，减少多次 LSP 工具调用。
+  - 图像生成：`generate_image` 支持 Together Images API，并在设置中提供 Provider/推荐模型选择。
+
+### Improved
+  - 差异/补丁：`apply_diff` 匹配逻辑更健壮（含回退匹配），并支持按配置自动保存，减少“总是失败/需要手动保存”的摩擦。
+  - Plan Runner：支持单步执行（Run step）。
+  - 渠道设置：配置选择器支持直接删除配置。
+
 ## [1.0.55] - 2026-01-16
 
 ### Fixed
