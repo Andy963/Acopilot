@@ -993,6 +993,12 @@ const en: LanguageMessages = {
                 description: 'The image generation tool allows AI to call the image generation model to create images. Generated images will be saved to the workspace and returned to AI for viewing in multimodal form.',
                 api: {
                     title: 'API Configuration',
+                    provider: 'Provider',
+                    providerHint: 'Select the image API provider. It will auto-fill a default URL and recommended models.',
+                    providerOptions: {
+                        gemini: 'Gemini',
+                        together: 'Together AI'
+                    },
                     url: 'API URL',
                     urlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
                     urlHint: 'Base URL for image generation API',
@@ -1002,6 +1008,9 @@ const en: LanguageMessages = {
                     model: 'Model Name',
                     modelPlaceholder: 'gemini-3-pro-Image-preview',
                     modelHint: 'e.g.: gemini-3-pro-Image-preview',
+                    modelPreset: 'Recommended models',
+                    modelPresetPlaceholder: 'Custom (type manually)',
+                    modelPresetHint: 'Selecting a preset will fill the model name automatically. You can also type above.',
                     show: 'Show',
                     hide: 'Hide'
                 },

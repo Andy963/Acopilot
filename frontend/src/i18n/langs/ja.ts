@@ -993,6 +993,12 @@ const ja: LanguageMessages = {
                 description: '画像生成ツールにより、AI は画像生成モデルを呼び出して画像を作成できます。生成された画像はワークスペースに保存され、マルチモーダル形式で AI に返されて表示されます。',
                 api: {
                     title: 'API 設定',
+                    provider: 'Provider',
+                    providerHint: '画像生成 API のプロバイダーを選択します。デフォルト URL と推奨モデルを自動入力します。',
+                    providerOptions: {
+                        gemini: 'Gemini',
+                        together: 'Together AI'
+                    },
                     url: 'API URL',
                     urlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
                     urlHint: '画像生成 API のベース URL',
@@ -1002,6 +1008,9 @@ const ja: LanguageMessages = {
                     model: 'モデル名',
                     modelPlaceholder: 'gemini-3-pro-Image-preview',
                     modelHint: '例: gemini-3-pro-Image-preview',
+                    modelPreset: '推奨モデル',
+                    modelPresetPlaceholder: 'カスタム（手入力）',
+                    modelPresetHint: 'プリセットを選ぶとモデル名が自動入力されます。上の欄で手入力もできます。',
                     show: '表示',
                     hide: '非表示'
                 },
