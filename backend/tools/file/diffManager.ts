@@ -19,6 +19,12 @@ import { t } from '../../i18n';
 export interface PendingDiff {
     /** 唯一 ID */
     id: string;
+    /**
+     * 关联的工具调用 ID（可选）
+     *
+     * 用于在聊天面板中快速定位“当前等待确认的 diff”，实现不展开即可确认/保存。
+     */
+    toolId?: string;
     /** 文件路径（相对路径） */
     filePath: string;
     /** 文件绝对路径 */
@@ -63,6 +69,24 @@ let userInterruptFlag = false;
  */
 export class DiffManager {
     private static instance: DiffManager | null = null;
+
+    private static normalizeFsPath(fsPath: string): string {
+        try {
+            // 在存在符号链接/不同路径表示时，realpath 更稳定
+            return fs.realpathSync.native(fsPath);
+        } catch {
+            return path.resolve(fsPath);
+        }
+    }
+
+    private static isSameFsPath(a: string, b: string): boolean {
+        const na = DiffManager.normalizeFsPath(a);
+        const nb = DiffManager.normalizeFsPath(b);
+        if (process.platform === 'win32') {
+            return na.toLowerCase() === nb.toLowerCase();
+        }
+        return na === nb;
+    }
     
     /** 待处理的 diff 列表 */
     private pendingDiffs: Map<string, PendingDiff> = new Map();
@@ -190,12 +214,14 @@ export class DiffManager {
         filePath: string,
         absolutePath: string,
         originalContent: string,
-        newContent: string
+        newContent: string,
+        toolId?: string
     ): Promise<PendingDiff> {
         const id = `diff-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         const pendingDiff: PendingDiff = {
             id,
+            toolId: toolId ? String(toolId) : undefined,
             filePath,
             absolutePath,
             originalContent,
@@ -211,6 +237,36 @@ export class DiffManager {
         
         // 显示 diff 视图
         await this.showDiffView(pendingDiff);
+
+        // 兜底：若外部自动保存（VS Code Auto Save）在监听器注册前触发，
+        // 可能导致 diff 状态仍为 pending 且后续无法再触发 onDidSave。
+        // 这里通过磁盘内容检测，避免工具无限等待。
+        if (pendingDiff.status === 'pending') {
+            try {
+                const currentOnDisk = fs.readFileSync(pendingDiff.absolutePath, 'utf8');
+                if (currentOnDisk === pendingDiff.newContent) {
+                    pendingDiff.status = 'accepted';
+
+                    const saveListener = this.saveListeners.get(pendingDiff.id);
+                    if (saveListener) {
+                        saveListener.dispose();
+                        this.saveListeners.delete(pendingDiff.id);
+                    }
+
+                    const closeListener = this.closeListeners.get(pendingDiff.id);
+                    if (closeListener) {
+                        closeListener.dispose();
+                        this.closeListeners.delete(pendingDiff.id);
+                    }
+
+                    this.cleanup(pendingDiff.id);
+                    this.notifyStatusChange();
+                    this.notifySaveComplete(pendingDiff);
+                }
+            } catch {
+                // ignore
+            }
+        }
         
         // 如果开启自动保存，设置定时器
         const currentSettings = this.getSettings();
@@ -262,9 +318,18 @@ export class DiffManager {
         
         // 5. 监听文档保存事件
         const saveListener = vscode.workspace.onDidSaveTextDocument(async (savedDoc) => {
-            if (savedDoc.uri.fsPath === diff.absolutePath) {
+            if (DiffManager.isSameFsPath(savedDoc.uri.fsPath, diff.absolutePath)) {
                 diff.status = 'accepted';
+
                 saveListener.dispose();
+                this.saveListeners.delete(diff.id);
+
+                const closeListener = this.closeListeners.get(diff.id);
+                if (closeListener) {
+                    closeListener.dispose();
+                    this.closeListeners.delete(diff.id);
+                }
+
                 this.cleanup(diff.id);
                 this.notifyStatusChange();
                 this.notifySaveComplete(diff);
@@ -280,19 +345,28 @@ export class DiffManager {
         
         // 6. 监听文档关闭事件
         const closeListener = vscode.workspace.onDidCloseTextDocument((closedDoc) => {
-            if (closedDoc.uri.fsPath === diff.absolutePath && diff.status === 'pending') {
+            if (DiffManager.isSameFsPath(closedDoc.uri.fsPath, diff.absolutePath) && diff.status === 'pending') {
                 try {
                     const currentContent = fs.readFileSync(diff.absolutePath, 'utf8');
-                    if (currentContent !== diff.newContent) {
-                        diff.status = 'rejected';
-                        this.cleanup(diff.id);
-                        this.notifyStatusChange();
+                    const wasAccepted = currentContent === diff.newContent;
+                    diff.status = wasAccepted ? 'accepted' : 'rejected';
+                    this.cleanup(diff.id);
+                    this.notifyStatusChange();
+                    if (wasAccepted) {
+                        this.notifySaveComplete(diff);
                     }
                 } catch (e) {
                     // 忽略错误
                 }
+
                 closeListener.dispose();
-                saveListener.dispose();
+                this.closeListeners.delete(diff.id);
+
+                const saveListener = this.saveListeners.get(diff.id);
+                if (saveListener) {
+                    saveListener.dispose();
+                    this.saveListeners.delete(diff.id);
+                }
             }
         });
         
@@ -481,6 +555,12 @@ export class DiffManager {
      */
     public getPendingDiffs(): PendingDiff[] {
         return Array.from(this.pendingDiffs.values()).filter(d => d.status === 'pending');
+    }
+
+    public getPendingDiffsByToolId(toolId: string): PendingDiff[] {
+        const normalized = String(toolId || '').trim();
+        if (!normalized) return [];
+        return Array.from(this.pendingDiffs.values()).filter(d => d.status === 'pending' && d.toolId === normalized);
     }
     
     /**

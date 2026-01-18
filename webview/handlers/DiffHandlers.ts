@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import { t } from '../../backend/i18n';
+import { getDiffManager } from '../../backend/tools/file/diffManager';
 import type { HandlerContext, MessageHandler } from '../types';
 
 /**
@@ -40,6 +41,37 @@ export const loadDiffContent: MessageHandler = async (data, requestId, ctx) => {
     }
   } catch (error: any) {
     ctx.sendError(requestId, 'LOAD_DIFF_CONTENT_ERROR', error.message || t('webview.errors.loadDiffContentFailed'));
+  }
+};
+
+/**
+ * 接受（保存）当前工具关联的待处理 Diff
+ *
+ * 用于“apply_diff / write_file”等需要用户确认的文件变更，避免因未展开面板而难以继续对话。
+ */
+export const acceptPendingDiff: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const toolId = String(data?.toolId || '').trim();
+    if (!toolId) {
+      throw new Error('toolId is required');
+    }
+
+    const diffManager = getDiffManager();
+    const pending = diffManager.getPendingDiffsByToolId(toolId);
+
+    let accepted = 0;
+    for (const d of pending) {
+      const ok = await diffManager.acceptDiff(d.id, true);
+      if (ok) accepted++;
+    }
+
+    ctx.sendResponse(requestId, {
+      success: true,
+      accepted,
+      total: pending.length,
+    });
+  } catch (error: any) {
+    ctx.sendError(requestId, 'ACCEPT_DIFF_ERROR', error.message || t('webview.errors.acceptDiffFailed'));
   }
 };
 
@@ -296,4 +328,5 @@ async function openDiffView(
 export function registerDiffHandlers(registry: Map<string, MessageHandler>): void {
   registry.set('diff.openPreview', openDiffPreview);
   registry.set('diff.loadContent', loadDiffContent);
+  registry.set('diff.acceptPending', acceptPendingDiff);
 }

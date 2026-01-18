@@ -410,6 +410,7 @@ const zhCN: BackendLanguageMessages = {
             getConversationsWithCheckpointsFailed: '获取对话检查点信息失败',
             
             openDiffPreviewFailed: '打开 diff 预览失败',
+            acceptDiffFailed: '保存 diff 失败',
             diffContentNotFound: 'Diff 内容不存在或已过期',
             loadDiffContentFailed: '加载 diff 内容失败',
             invalidDiffData: '无效的 diff 数据',
