@@ -79,7 +79,7 @@ async function handleClear() {
   await chatStore.clearPlanRunner()
 }
 
-function canRerunStep(idx: number): boolean {
+function canRunStep(idx: number): boolean {
   if (!plan.value) return false
   if (plan.value.status === 'running') return false
   if (chatStore.isWaitingForResponse || chatStore.isStreaming) return false
@@ -88,9 +88,9 @@ function canRerunStep(idx: number): boolean {
   return true
 }
 
-async function handleRerunStep(idx: number) {
-  if (!canRerunStep(idx)) return
-  await chatStore.rerunPlanRunnerFromStep(idx)
+async function handleRunStep(idx: number) {
+  if (!canRunStep(idx)) return
+  await chatStore.runSinglePlanRunnerStep(idx)
 }
 </script>
 
@@ -168,11 +168,11 @@ async function handleRerunStep(idx: number) {
               <span v-if="step.error" class="step-error" :title="step.error">{{ step.error }}</span>
               <button
                 class="step-icon-btn"
-                :disabled="!canRerunStep(idx)"
-                :title="t('components.planRunner.actions.rerunStep')"
-                @click.stop="handleRerunStep(idx)"
+                :disabled="!canRunStep(idx)"
+                :title="t('components.planRunner.actions.runStep')"
+                @click.stop="handleRunStep(idx)"
               >
-                <i class="codicon codicon-refresh"></i>
+                <i class="codicon codicon-play"></i>
               </button>
             </div>
           </div>
@@ -316,6 +316,10 @@ async function handleRerunStep(idx: number) {
 
 .plan-step.success {
   opacity: 0.85;
+}
+
+.plan-step.success .step-icon {
+  color: var(--vscode-testing-iconPassed, #2ea043);
 }
 
 .plan-step.error {

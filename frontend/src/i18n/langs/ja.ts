@@ -457,6 +457,7 @@ const ja: LanguageMessages = {
                 pause: '一時停止',
                 cancel: 'キャンセル',
                 clear: 'クリア',
+                runStep: 'このステップを実行',
                 rerunStep: 'このステップを再実行'
             },
             current: '現在',

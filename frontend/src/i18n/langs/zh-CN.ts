@@ -383,6 +383,7 @@ const zhCN: LanguageMessages = {
                 pause: '暂停',
                 cancel: '取消',
                 clear: '清空',
+                runStep: '执行该步',
                 rerunStep: '重执行该步'
             },
             current: '当前',
