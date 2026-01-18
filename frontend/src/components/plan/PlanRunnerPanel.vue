@@ -191,6 +191,11 @@ async function handleRerunStep(idx: number) {
               </span>
             </div>
           </div>
+
+          <div v-if="step.acceptanceCriteria" class="step-acceptance-row">
+            <span class="acceptance-label">{{ t('components.planRunner.acceptanceCriteriaLabel') }}:</span>
+            <span class="acceptance-text" :title="step.acceptanceCriteria">{{ step.acceptanceCriteria }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -358,6 +363,29 @@ async function handleRerunStep(idx: number) {
   gap: 8px;
   padding-left: 44px;
   flex-wrap: wrap;
+}
+
+.step-acceptance-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 44px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: pre-wrap;
+}
+
+.acceptance-label {
+  flex-shrink: 0;
+}
+
+.acceptance-text {
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .attachments-label {
