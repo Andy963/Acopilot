@@ -397,6 +397,7 @@ const finishReasonIcon = computed(() => {
     case 'length':
     case 'max_tokens':
     case 'incomplete':
+    case 'stream_closed':
       return 'codicon-warning'
     case 'content_filter':
     case 'safety':

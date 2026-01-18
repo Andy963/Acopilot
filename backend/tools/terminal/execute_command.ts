@@ -1195,10 +1195,12 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         });
 
                         // 简化返回结构：AI 已知 command/cwd/shell，只需返回结果
-                        // 如果输出被截断，添加简单提示
-                        const wasTruncated = maxLines !== -1 && terminalProcess.output.length > maxLines;
+                        // 如果输出被截断，返回截断元数据（便于 UI 提示）
+                        const totalLines = terminalProcess.output.length;
+                        const outputLines = lastOutput.length;
+                        const wasTruncated = maxLines !== -1 && totalLines > outputLines;
                         const truncatedNote = wasTruncated
-                            ? `(Output truncated: showing last ${lastOutput.length} of ${terminalProcess.output.length} lines)`
+                            ? `(Output truncated: showing last ${outputLines} of ${totalLines} lines)`
                             : undefined;
 
                         // 尝试生成文件变更摘要（git 工作区），仅供 UI 展示（不会发送给模型）
@@ -1231,6 +1233,9 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                                 duration,
                                 // AI 只需要 output 和 exitCode
                                 output: lastOutput.join('\n'),
+                                truncated: wasTruncated,
+                                totalLines,
+                                outputLines,
                                 truncatedNote,
                                 changedFiles,
                                 changesSummary
@@ -1253,6 +1258,9 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                             ? terminalProcess.output
                             : getLastLines(terminalProcess.output, errMaxLines);
                         const duration = terminalProcess.endTime - terminalProcess.startTime;
+                        const totalLines = terminalProcess.output.length;
+                        const outputLines = lastOutput.length;
+                        const wasTruncated = errMaxLines !== -1 && totalLines > outputLines;
 
                         // 从活动进程中移除
                         activeProcesses.delete(terminalId);
@@ -1280,7 +1288,13 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                                 command,
                                 cwd: workingDir,
                                 shell,
-                                output: lastOutput.join('\n')
+                                exitCode: -1,
+                                killed: false,
+                                duration,
+                                output: lastOutput.join('\n'),
+                                truncated: wasTruncated,
+                                totalLines,
+                                outputLines
                             },
                             error: `Failed to execute command: ${err.message}`
                         });

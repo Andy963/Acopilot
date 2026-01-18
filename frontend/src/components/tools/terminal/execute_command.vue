@@ -1218,19 +1218,20 @@ watch(isRunning, (running) => {
                     @click.stop="toggleFileDiff(f)"
                   >
                     <i class="codicon" :class="isDiffExpanded(f.path) ? 'codicon-chevron-up' : 'codicon-chevron-down'"></i>
-                    {{ t('components.tools.terminal.executeCommandPanel.fileChanges.expandDiff') }}
+                    <span class="btn-text">{{ t('components.tools.terminal.executeCommandPanel.fileChanges.expandDiff') }}</span>
                   </button>
                   <button
-                    class="small-btn"
+                    class="small-btn compact"
                     :disabled="!f.diffContentId"
+                    :title="t('components.tools.terminal.executeCommandPanel.fileChanges.viewInVSCode')"
                     @click.stop="openFileDiffInVSCode(f)"
                   >
                     <i class="codicon codicon-open-preview"></i>
-                    {{ t('components.tools.terminal.executeCommandPanel.fileChanges.viewInVSCode') }}
+                    <span class="btn-text">{{ t('components.tools.terminal.executeCommandPanel.fileChanges.viewInVSCode') }}</span>
                   </button>
                   <button class="small-btn" @click.stop="openChangedFile(f)">
                     <i class="codicon codicon-go-to-file"></i>
-                    {{ t('components.tools.terminal.executeCommandPanel.fileChanges.openFile') }}
+                    <span class="btn-text">{{ t('components.tools.terminal.executeCommandPanel.fileChanges.openFile') }}</span>
                   </button>
                 </div>
               </div>
@@ -1310,11 +1311,12 @@ watch(isRunning, (running) => {
         </div>
       </div>
 
+      <!-- 注意：即使命令失败（exitCode != 0），也应展示 stdout/stderr，便于用户排查 -->
       <div v-if="error || resultData.error" class="output-content error">
         <pre class="output-code"><code>{{ error || resultData.error }}</code></pre>
       </div>
 
-      <div v-else-if="output || isRunning" class="output-content">
+      <div v-if="output || isRunning" class="output-content">
         <CustomScrollbar
           ref="outputScrollRef"
           :horizontal="true"
@@ -1498,6 +1500,7 @@ watch(isRunning, (running) => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
+  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -1579,7 +1582,24 @@ watch(isRunning, (running) => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.change-actions .small-btn {
+  white-space: normal;
+  max-width: 100%;
+}
+
+.small-btn.compact {
+  padding: 0 8px;
+}
+
+.small-btn.compact .btn-text {
+  display: none;
 }
 
 .small-btn {

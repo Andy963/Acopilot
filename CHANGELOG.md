@@ -2,6 +2,15 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.0] - 2026-01-18
+
+### Fixed
+  - 流式：Webview 不再误把包含 “aborted” 的网络错误当作用户取消而吞掉，避免出现“思考一半停住但无错误提示”。
+  - 流式：当连接在思考阶段异常关闭且没有正文/工具调用时，自动重试一次，降低“只输出思考就中断”的概率。
+  - execute_command：失败时也展示 stdout/stderr 输出，便于定位 pytest 等错误原因。
+  - execute_command：补齐输出截断元数据（truncated/totalLines/outputLines），UI 统一提示“仅显示最后 N 行”。
+  - execute_command：文件变更操作按钮在窄宽度下更紧凑（“在 VS Code 中查看”改为图标），避免按钮被裁切。
+
 ## [1.0.56] - 2026-01-18
 
 ### Added
