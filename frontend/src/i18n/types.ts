@@ -1156,6 +1156,12 @@ export interface LanguageMessages {
                 description: string;
                 api: {
                     title: string;
+                    provider: string;
+                    providerHint: string;
+                    providerOptions: {
+                        gemini: string;
+                        together: string;
+                    };
                     url: string;
                     urlPlaceholder: string;
                     urlHint: string;
@@ -1165,6 +1171,9 @@ export interface LanguageMessages {
                     model: string;
                     modelPlaceholder: string;
                     modelHint: string;
+                    modelPreset: string;
+                    modelPresetPlaceholder: string;
+                    modelPresetHint: string;
                     show: string;
                     hide: string;
                 };

@@ -202,6 +202,53 @@ interface GeminiImageResponse {
 }
 
 /**
+ * Together Images API 响应（OpenAI-like）
+ */
+interface TogetherImageResponse {
+    data?: Array<{
+        b64_json?: string;
+        // Some providers might return url instead; we don't support it currently.
+        url?: string;
+    }>;
+    error?: {
+        message?: string;
+        type?: string;
+        code?: unknown;
+    };
+}
+
+type ImageProvider = 'gemini' | 'together';
+
+function detectImageProvider(config: GenerateImageConfig): ImageProvider {
+    const url = (config.url || '').toLowerCase();
+    const model = (config.model || '').toLowerCase();
+
+    // Together models are typically namespaced (e.g. "google/flash-image-2.5").
+    if (url.includes('together.xyz') || model.includes('/')) {
+        return 'together';
+    }
+    return 'gemini';
+}
+
+function getTogetherImagesEndpoint(configUrl?: string): string {
+    const defaultBase = 'https://api.together.xyz/v1';
+    const raw = (configUrl && configUrl.trim()) ? configUrl.trim() : '';
+
+    // Allow both base URL (".../v1") and full endpoint (".../v1/images/generations").
+    const normalized = (raw || defaultBase).replace(/\/+$/, '');
+
+    // Common misconfiguration: user left Gemini base URL while selecting Together model.
+    // In this case, fall back to the official Together endpoint.
+    if (normalized.includes('generativelanguage.googleapis.com')) {
+        return `${defaultBase}/images/generations`;
+    }
+    if (normalized.endsWith('/images/generations')) {
+        return normalized;
+    }
+    return `${normalized}/images/generations`;
+}
+
+/**
  * 读取参考图片
  */
 async function readReferenceImage(imgPath: string): Promise<{ data: string; mimeType: string } | null> {
@@ -319,6 +366,74 @@ async function callGeminiImageApi(
 }
 
 /**
+ * 调用 Together Images API 生成图片
+ */
+async function callTogetherImagesApi(
+    prompt: string,
+    config: GenerateImageConfig,
+    abortSignal?: AbortSignal
+): Promise<TogetherImageResponse> {
+    const apiKey = config.apiKey;
+    if (!apiKey) {
+        throw new Error('API Key not configured. Please configure generate_image tool in settings.');
+    }
+
+    const model = config.model || 'google/flash-image-2.5';
+    const url = getTogetherImagesEndpoint(config.url);
+
+    if (abortSignal?.aborted) {
+        throw new Error('Request cancelled');
+    }
+
+    const fetchFn = createProxyFetch(config.proxyUrl);
+
+    const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+    };
+
+    // Prefer base64 responses for chat rendering; fall back if upstream rejects this parameter.
+    const requestBodyWithFormat = {
+        model,
+        prompt,
+        response_format: 'b64_json'
+    };
+
+    let response = await fetchFn(url, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify(requestBodyWithFormat),
+        signal: abortSignal
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        const maybeUnsupportedResponseFormat =
+            response.status === 400 &&
+            /response_format/i.test(errorText) &&
+            /(unsupported|unknown|unrecognized|invalid)/i.test(errorText);
+
+        if (maybeUnsupportedResponseFormat) {
+            response = await fetchFn(url, {
+                method: 'POST',
+                headers: requestHeaders,
+                body: JSON.stringify({ model, prompt }),
+                signal: abortSignal
+            });
+        } else {
+            throw new Error(`API request failed: ${response.status} ${errorText}`);
+        }
+    }
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${response.status} ${errorText}`);
+    }
+
+    return await response.json() as TogetherImageResponse;
+}
+
+/**
  * 解析 base64 图片数据获取尺寸（支持 PNG, JPEG, WebP）
  */
 function parseImageDimensionsFromBase64(base64Data: string, mimeType: string): { width: number; height: number } | null {
@@ -421,6 +536,32 @@ function extractFromResponse(response: GeminiImageResponse): {
     return { images, texts };
 }
 
+function extractFromTogetherResponse(response: TogetherImageResponse): {
+    images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }>;
+    texts: string[];
+} {
+    const images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }> = [];
+    const texts: string[] = [];
+
+    const data = response.data || [];
+    for (const item of data) {
+        if (item.b64_json) {
+            // Together returns base64 image data without mime type. Most models return PNG.
+            const mimeType = 'image/png';
+            const dimensions = parseImageDimensionsFromBase64(item.b64_json, mimeType);
+            images.push({ data: item.b64_json, mimeType, dimensions: dimensions || undefined });
+        }
+    }
+
+    if (images.length === 0) {
+        if (data.some(d => d.url)) {
+            texts.push('Together API returned image URLs, but this tool only supports base64 (b64_json) responses.');
+        }
+    }
+
+    return { images, texts };
+}
+
 /**
  * 保存图片到文件
  */
@@ -505,10 +646,21 @@ async function executeImageTask(
         if (abortSignal?.aborted) {
             return { index, success: false, error: `Task ${index + 1}: User cancelled image generation`, cancelled: true };
         }
-        
-        // 读取参考图片
+
+        const provider = detectImageProvider(config);
+
+        // Together 目前只支持纯文本 prompt（不支持 reference_images / aspect_ratio / image_size）。
+        if (provider === 'together' && reference_images && reference_images.length > 0) {
+            return {
+                index,
+                success: false,
+                error: `Task ${index + 1}: Together Images API does not support reference_images yet. Please omit reference_images or switch to Gemini.`
+            };
+        }
+
+        // 读取参考图片（仅 Gemini 模式支持）
         const referenceImages: Array<{ data: string; mimeType: string }> = [];
-        if (reference_images && reference_images.length > 0) {
+        if (provider === 'gemini' && reference_images && reference_images.length > 0) {
             for (const imgPath of reference_images) {
                 // 检查是否已取消
                 if (abortSignal?.aborted) {
@@ -546,26 +698,55 @@ async function executeImageTask(
         }
 
         // 调用 API 生成图片（传递取消信号）
-        const response = await callGeminiImageApi(
-            prompt,
-            referenceImages,
-            finalAspectRatio,
-            finalImageSize,
-            config,
-            abortSignal
-        );
+        let images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }> = [];
+        let texts: string[] = [];
 
-        if (response.error) {
-            return {
-                index,
-                success: false,
-                error: `Task ${index + 1}: API error - ${response.error.message}`
-            };
+        if (provider === 'together') {
+            // Together text-to-image endpoint does not support reference images in this tool yet.
+            if (referenceImages.length > 0) {
+                return {
+                    index,
+                    success: false,
+                    error: `Task ${index + 1}: reference_images is not supported for Together image generation. Please omit reference_images or use Gemini.`
+                };
+            }
+
+            // aspect_ratio / image_size are Gemini-specific; accept them but do not forward.
+            if (finalAspectRatio || finalImageSize) {
+                texts.push('Note: aspect_ratio/image_size are not forwarded for Together image generation.');
+            }
+
+            const response = await callTogetherImagesApi(prompt, config, abortSignal);
+            if (response.error?.message) {
+                return {
+                    index,
+                    success: false,
+                    error: `Task ${index + 1}: API error - ${response.error.message}`
+                };
+            }
+
+            ({ images, texts } = extractFromTogetherResponse(response));
+        } else {
+            const response = await callGeminiImageApi(
+                prompt,
+                referenceImages,
+                finalAspectRatio,
+                finalImageSize,
+                config,
+                abortSignal
+            );
+
+            if (response.error) {
+                return {
+                    index,
+                    success: false,
+                    error: `Task ${index + 1}: API error - ${response.error.message}`
+                };
+            }
+
+            ({ images, texts } = extractFromResponse(response));
         }
 
-        // 提取图片和文本
-        const { images, texts } = extractFromResponse(response);
-        
         if (images.length === 0) {
             return {
                 index,

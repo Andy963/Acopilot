@@ -993,6 +993,12 @@ const zhCN: LanguageMessages = {
                 description: '图像生成工具允许 AI 调用图像生成模型来创建图片。生成的图片会保存到工作区并以多模态形式返回给 AI 查看。',
                 api: {
                     title: 'API 配置',
+                    provider: 'Provider',
+                    providerHint: '选择图像生成 API 的服务商，会自动填充默认 URL 与推荐模型。',
+                    providerOptions: {
+                        gemini: 'Gemini',
+                        together: 'Together AI'
+                    },
                     url: 'API URL',
                     urlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
                     urlHint: '图像生成 API 的基础 URL',
@@ -1002,6 +1008,9 @@ const zhCN: LanguageMessages = {
                     model: '模型名称',
                     modelPlaceholder: 'gemini-3-pro-Image-preview',
                     modelHint: '例如：gemini-3-pro-Image-preview',
+                    modelPreset: '推荐模型',
+                    modelPresetPlaceholder: '自定义（手动输入）',
+                    modelPresetHint: '选择后会自动填充模型名称；也可直接在上方手动输入。',
                     show: '显示',
                     hide: '隐藏'
                 },

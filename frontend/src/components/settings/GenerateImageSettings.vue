@@ -11,11 +11,19 @@ import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
 
+type ImageProvider = 'gemini' | 'together'
+
+const GEMINI_DEFAULT_URL = 'https://generativelanguage.googleapis.com/v1beta'
+const GEMINI_DEFAULT_MODEL = 'gemini-3-pro-image-preview'
+
+const TOGETHER_DEFAULT_URL = 'https://api.together.xyz/v1'
+const TOGETHER_DEFAULT_MODEL = 'google/flash-image-2.5'
+
 // 图像生成配置
 const imageConfig = reactive({
-  url: 'https://generativelanguage.googleapis.com/v1beta',
+  url: GEMINI_DEFAULT_URL,
   apiKey: '',
-  model: 'gemini-3-pro-image-preview',
+  model: GEMINI_DEFAULT_MODEL,
   enableAspectRatio: false,
   defaultAspectRatio: '',
   enableImageSize: false,
@@ -26,6 +34,54 @@ const imageConfig = reactive({
 
 // API Key 显示状态
 const showApiKey = ref(false)
+
+function detectProvider(url: string, model: string): ImageProvider {
+  const u = String(url || '').toLowerCase()
+  const m = String(model || '').toLowerCase()
+  if (u.includes('together') || u.includes('/images/generations') || m.includes('/')) return 'together'
+  return 'gemini'
+}
+
+const currentProvider = computed<ImageProvider>(() => detectProvider(imageConfig.url, imageConfig.model))
+
+const providerOptions = computed<SelectOption[]>(() => [
+  {
+    value: 'gemini',
+    label: t('components.settings.generateImageSettings.api.providerOptions.gemini'),
+    description: 'Google Generative Language API'
+  },
+  {
+    value: 'together',
+    label: t('components.settings.generateImageSettings.api.providerOptions.together'),
+    description: 'Together Images API (/v1/images/generations)'
+  }
+])
+
+const modelPresetOptions = computed<SelectOption[]>(() => {
+  if (currentProvider.value === 'together') {
+    return [
+      { value: 'google/gemini-3-pro-image', label: 'google/gemini-3-pro-image' },
+      { value: 'google/flash-image-2.5', label: 'google/flash-image-2.5' },
+      { value: 'black-forest-labs/FLUX.2-pro', label: 'black-forest-labs/FLUX.2-pro' }
+    ]
+  }
+
+  return [
+    { value: GEMINI_DEFAULT_MODEL, label: GEMINI_DEFAULT_MODEL }
+  ]
+})
+
+const selectedModelPreset = computed(() => {
+  return modelPresetOptions.value.some(opt => opt.value === imageConfig.model) ? imageConfig.model : ''
+})
+
+const urlPlaceholder = computed(() =>
+  currentProvider.value === 'together' ? TOGETHER_DEFAULT_URL : t('components.settings.generateImageSettings.api.urlPlaceholder')
+)
+
+const modelPlaceholder = computed(() =>
+  currentProvider.value === 'together' ? TOGETHER_DEFAULT_MODEL : t('components.settings.generateImageSettings.api.modelPlaceholder')
+)
 
 // 宽高比选项
 const aspectRatioOptions = computed<SelectOption[]>(() => [
@@ -62,6 +118,17 @@ async function loadConfig() {
   }
 }
 
+async function updateConfig(patch: Record<string, any>) {
+  Object.assign(imageConfig as any, patch)
+  try {
+    await sendToExtension('updateGenerateImageConfig', {
+      config: { ...imageConfig }
+    })
+  } catch (error) {
+    console.error('Failed to save generate image config:', error)
+  }
+}
+
 // 更新配置字段（即时保存）
 async function updateConfigField(field: string, value: any) {
   // 先更新本地值
@@ -75,6 +142,45 @@ async function updateConfigField(field: string, value: any) {
   } catch (error) {
     console.error('Failed to save generate image config:', error)
   }
+}
+
+async function handleProviderChange(provider: ImageProvider) {
+  if (provider === currentProvider.value) return
+
+  if (provider === 'together') {
+    const patch: Record<string, any> = {}
+    if (!imageConfig.url || String(imageConfig.url).toLowerCase().includes('generativelanguage.googleapis.com')) {
+      patch.url = TOGETHER_DEFAULT_URL
+    }
+    if (!imageConfig.model || !String(imageConfig.model).includes('/')) {
+      patch.model = TOGETHER_DEFAULT_MODEL
+    }
+    await updateConfig(patch)
+    return
+  }
+
+  const patch: Record<string, any> = {}
+  if (!imageConfig.url || String(imageConfig.url).toLowerCase().includes('together') || String(imageConfig.url).includes('/images/generations')) {
+    patch.url = GEMINI_DEFAULT_URL
+  }
+  if (!imageConfig.model || String(imageConfig.model).includes('/')) {
+    patch.model = GEMINI_DEFAULT_MODEL
+  }
+  await updateConfig(patch)
+}
+
+async function handleModelPresetChange(model: string) {
+  const value = String(model || '').trim()
+  if (!value) return
+
+  const patch: Record<string, any> = { model: value }
+
+  // If user selects a Together model but still has Gemini base URL, switch to Together endpoint automatically.
+  if (value.includes('/') && String(imageConfig.url).toLowerCase().includes('generativelanguage.googleapis.com')) {
+    patch.url = TOGETHER_DEFAULT_URL
+  }
+
+  await updateConfig(patch)
 }
 
 // 初始化
@@ -97,13 +203,23 @@ onMounted(async () => {
         <i class="codicon codicon-plug"></i>
         {{ t('components.settings.generateImageSettings.api.title') }}
       </h5>
+
+      <div class="form-group">
+        <label>{{ t('components.settings.generateImageSettings.api.provider') }}</label>
+        <CustomSelect
+          :model-value="currentProvider"
+          :options="providerOptions"
+          @update:model-value="(v: string) => handleProviderChange(v as ImageProvider)"
+        />
+        <p class="field-hint">{{ t('components.settings.generateImageSettings.api.providerHint') }}</p>
+      </div>
       
       <div class="form-group">
         <label>{{ t('components.settings.generateImageSettings.api.url') }}</label>
         <input
           type="text"
           :value="imageConfig.url"
-          :placeholder="t('components.settings.generateImageSettings.api.urlPlaceholder')"
+          :placeholder="urlPlaceholder"
           @input="(e: any) => updateConfigField('url', e.target.value)"
         />
         <p class="field-hint">{{ t('components.settings.generateImageSettings.api.urlHint') }}</p>
@@ -134,10 +250,21 @@ onMounted(async () => {
         <input
           type="text"
           :value="imageConfig.model"
-          :placeholder="t('components.settings.generateImageSettings.api.modelPlaceholder')"
+          :placeholder="modelPlaceholder"
           @input="(e: any) => updateConfigField('model', e.target.value)"
         />
         <p class="field-hint">{{ t('components.settings.generateImageSettings.api.modelHint') }}</p>
+      </div>
+
+      <div class="form-group">
+        <label>{{ t('components.settings.generateImageSettings.api.modelPreset') }}</label>
+        <CustomSelect
+          :model-value="selectedModelPreset"
+          :options="modelPresetOptions"
+          :placeholder="t('components.settings.generateImageSettings.api.modelPresetPlaceholder')"
+          @update:model-value="(v: string) => handleModelPresetChange(v)"
+        />
+        <p class="field-hint">{{ t('components.settings.generateImageSettings.api.modelPresetHint') }}</p>
       </div>
     </div>
     
