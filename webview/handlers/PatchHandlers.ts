@@ -11,6 +11,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { t } from '../../backend/i18n';
+import { applyReplaceBlock } from '../../backend/tools/file/replaceBlock';
 import type { MessageHandler } from '../types';
 
 function hashContent(content: string): string {
@@ -19,85 +20,6 @@ function hashContent(content: string): string {
 
 function normalizeLineEndings(text: string): string {
   return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-}
-
-function applyReplaceOnce(
-  content: string,
-  from: string,
-  to: string,
-  startLine?: number
-): { success: boolean; result: string; error?: string; matchCount: number; matchedLine?: number } {
-  const normalizedContent = normalizeLineEndings(content);
-  const normalizedFrom = normalizeLineEndings(from);
-  const normalizedTo = normalizeLineEndings(to);
-
-  if (startLine !== undefined && Number.isFinite(startLine) && startLine > 0) {
-    const lines = normalizedContent.split('\n');
-    const startIndex = startLine - 1;
-    if (startIndex >= lines.length) {
-      return {
-        success: false,
-        result: normalizedContent,
-        error: `Start line ${startLine} is out of range. File has ${lines.length} lines.`,
-        matchCount: 0
-      };
-    }
-
-    let charOffset = 0;
-    for (let i = 0; i < startIndex; i++) {
-      charOffset += lines[i].length + 1;
-    }
-
-    const contentFromStart = normalizedContent.substring(charOffset);
-    const matchIndex = contentFromStart.indexOf(normalizedFrom);
-    if (matchIndex === -1) {
-      return {
-        success: false,
-        result: normalizedContent,
-        error: `No exact match found starting from line ${startLine}.`,
-        matchCount: 0
-      };
-    }
-
-    const textBeforeMatch = normalizedContent.substring(0, charOffset + matchIndex);
-    const actualMatchedLine = textBeforeMatch.split('\n').length;
-
-    const result =
-      normalizedContent.substring(0, charOffset + matchIndex) +
-      normalizedTo +
-      normalizedContent.substring(charOffset + matchIndex + normalizedFrom.length);
-
-    return { success: true, result, matchCount: 1, matchedLine: actualMatchedLine };
-  }
-
-  const matches = normalizedContent.split(normalizedFrom).length - 1;
-  if (matches === 0) {
-    return {
-      success: false,
-      result: normalizedContent,
-      error: 'No exact match found.',
-      matchCount: 0
-    };
-  }
-  if (matches > 1) {
-    return {
-      success: false,
-      result: normalizedContent,
-      error: `Multiple matches found (${matches}). Please provide start_line to disambiguate.`,
-      matchCount: matches
-    };
-  }
-
-  const matchIndex = normalizedContent.indexOf(normalizedFrom);
-  const textBeforeMatch = normalizedContent.substring(0, matchIndex);
-  const actualMatchedLine = textBeforeMatch.split('\n').length;
-
-  return {
-    success: true,
-    result: normalizedContent.replace(normalizedFrom, normalizedTo),
-    matchCount: 1,
-    matchedLine: actualMatchedLine
-  };
 }
 
 async function resolveWorkspaceFileUri(filePath: string): Promise<vscode.Uri> {
@@ -243,15 +165,7 @@ export const applyWorkspaceFileDiffBlock: MessageHandler = async (data, requestI
     const doc = await vscode.workspace.openTextDocument(uri);
     const currentText = doc.getText();
 
-    let applied = applyReplaceOnce(currentText, from, to, startLine);
-
-    // 如果带 startLine 失败，尝试全局唯一匹配（允许行号漂移）
-    if (!applied.success && startLine !== undefined) {
-      const fallback = applyReplaceOnce(currentText, from, to, undefined);
-      if (fallback.success) {
-        applied = fallback;
-      }
-    }
+    const applied = applyReplaceBlock(currentText, from, to, { startLine });
 
     if (!applied.success) {
       ctx.sendResponse(requestId, {
