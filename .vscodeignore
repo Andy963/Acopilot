@@ -13,6 +13,8 @@ tsconfig.json
 *.vsix
 build.sh
 todo.md
+**/.env
+**/.env.*
 
 # 锁文件
 pnpm-lock.yaml
@@ -22,6 +24,7 @@ yarn.lock
 # 后端和webview源文件（只需要 dist 中的编译结果）
 backend/**
 webview/**
+vscode-copilot-chat/**
 
 # 根目录 ts 源文件
 *.ts
