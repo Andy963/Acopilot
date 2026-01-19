@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.4] - 2026-01-19
+
+### Improved
+  - Provider：流式输出开关默认改为开启（新建配置默认 stream=true，旧配置未设置时也默认视为开启）。
+
 ## [1.0.57-pre.3] - 2026-01-19
 
 ### Improved

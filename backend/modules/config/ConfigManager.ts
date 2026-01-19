@@ -88,7 +88,7 @@ export class ConfigManager {
             sendHistoryThoughts: false,
             sendHistoryThoughtSignatures: false,
             options: {
-                stream: false
+                stream: true
             }
         };
         
