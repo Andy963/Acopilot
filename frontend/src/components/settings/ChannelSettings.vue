@@ -878,7 +878,7 @@ onMounted(async () => {
           @update:selected-model="handleUpdateSelectedModel" />
 
         <label class="custom-checkbox compact">
-          <input type="checkbox" :checked="currentConfig.options?.stream ?? false"
+          <input type="checkbox" :checked="currentConfig.options?.stream ?? true"
             @change="(e: any) => updateOption('stream', e.target.checked)" />
           <span class="checkmark"></span>
           <span class="checkbox-text">{{ t('components.settings.channelSettings.form.stream.label') }}</span>
