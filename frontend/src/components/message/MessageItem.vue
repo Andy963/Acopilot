@@ -761,9 +761,6 @@ function handleOpenContextUsed() {
           class="content-text"
         />
 
-        <!-- 流式指示器 - 简洁下划线 -->
-        <span v-if="isStreaming" class="streaming-indicator"></span>
-
         <!-- 消息底部信息：工具栏统一放在下方 -->
         <div
           v-if="formattedTime || showFooterActions || (!isUser && hasUsage)"
@@ -772,6 +769,11 @@ function handleOpenContextUsed() {
         >
           <div v-if="!isUser" class="message-footer-left">
             <span class="role-label">{{ roleDisplayName }}</span>
+            <span v-if="isStreaming" class="streaming-indicator" aria-hidden="true">
+              <span class="streaming-dot"></span>
+              <span class="streaming-dot"></span>
+              <span class="streaming-dot"></span>
+            </span>
 	
 	            <div v-if="hasUsage" class="token-usage">
 	              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
@@ -972,19 +974,51 @@ function handleOpenContextUsed() {
 
 /* .content-text 样式由 MarkdownRenderer 组件内部处理 */
 
-/* 流式指示器 - 简洁下划线动画 */
+/* 流式指示器 - 三点打字动画 */
 .streaming-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 2px;
-  margin-left: 2px;
-  background: var(--vscode-foreground);
-  animation: pulse 1s ease-in-out infinite;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.9;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+.streaming-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  transform: translateY(0) scale(0.95);
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.streaming-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.streaming-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-dot {
+  0%, 80%, 100% {
+    opacity: 0.25;
+    transform: translateY(0) scale(0.95);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-dot {
+    animation: none;
+    opacity: 0.6;
+    transform: none;
+  }
 }
 
 /* Token 使用统计 */
