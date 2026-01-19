@@ -17,9 +17,7 @@ const props = defineProps<{
   snapshot: ContextInspectorData
 }>()
 
-const emit = defineEmits<{
-  openDetails: []
-}>()
+
 
 const expanded = ref(false)
 
@@ -150,13 +148,6 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
       <span class="context-used-title">{{ t('components.message.stats.contextUsed') }}</span>
       <span v-if="headerMeta" class="context-used-meta">{{ headerMeta }}</span>
       <span v-if="referenceCount > 0" class="context-used-count">({{ referenceCount }})</span>
-
-      <div class="context-used-actions" @click.stop>
-        <button class="context-used-btn" @click="emit('openDetails')">
-          <i class="codicon codicon-eye"></i>
-          {{ t('components.message.stats.contextUsed') }}
-        </button>
-      </div>
     </div>
 
     <div v-if="expanded" class="context-used-body">
@@ -250,27 +241,6 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   flex-shrink: 0;
 }
 
-.context-used-actions {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.context-used-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--vscode-panel-border);
-  background: transparent;
-  color: var(--vscode-foreground);
-  cursor: pointer;
-  font-size: 11px;
-}
-
-.context-used-btn:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
 
 .context-used-body {
   padding: 10px;
