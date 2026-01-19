@@ -26,9 +26,6 @@ export interface PromptContext {
     /** 工作区根路径 */
     workspaceRoot?: string
     
-    /** 当前时间 */
-    currentTime?: string
-    
     /** 用户时区 */
     timezone?: string
     

@@ -53,6 +53,7 @@ import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo }
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 const OPENAI_RESPONSES_FEATURES_KEY = 'openaiResponsesFeatures';
 const OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY = 'openaiResponsesPromptCacheKey';
+const CONVERSATION_START_TIME_KEY = 'conversationStartTime';
 
 // Gemini 很容易在“工具循环”里触发 429：工具执行通常很快，导致下一次模型请求紧随其后发出。
 // 这里对工具迭代后的后续轮次做轻量限速，避免短时间内连续请求。
@@ -75,6 +76,17 @@ type OpenAIResponsesPromptCacheState = {
     configId: string;
     promptCacheKey: string;
 };
+
+async function getOrInitConversationStartTime(conversationManager: ConversationManager, conversationId: string): Promise<string> {
+    const raw = await conversationManager.getCustomMetadata(conversationId, CONVERSATION_START_TIME_KEY);
+    if (typeof raw === 'string' && raw.trim()) {
+        return raw;
+    }
+
+    const startTime = new Date().toISOString();
+    await conversationManager.setCustomMetadata(conversationId, CONVERSATION_START_TIME_KEY, startTime);
+    return startTime;
+}
 
 function createOpenAIResponsesPromptCacheKey(conversationId: string, configId: string): string {
     return `acopilot:${configId}:${conversationId}:${nanoid(10)}`;
@@ -660,9 +672,17 @@ export class ToolIterationLoopService {
             const pinnedPromptBlock = pinnedPromptEnabled
                 ? await getPinnedPromptBlock(this.conversationManager, conversationId)
                 : '';
-            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
+            let dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
                 .filter(Boolean)
                 .join('\n\n');
+
+            // Only inject a timestamp for the first user message of the conversation to reduce prompt volatility (improves cache hit rate).
+            if (isFirstMessage && iteration === 1) {
+                const startTime = await getOrInitConversationStartTime(this.conversationManager, conversationId);
+                dynamicSystemPrompt = [dynamicSystemPrompt, `====\n\nSESSION\n\nConversation Start Time: ${startTime}`]
+                    .filter(Boolean)
+                    .join('\n\n');
+            }
 
             // 4.1 构建 Context Snapshot（用于 UI 解释/调试）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
@@ -1271,9 +1291,17 @@ export class ToolIterationLoopService {
                 : '';
             const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
             const taskContext = ToolIterationLoopService.getLastUserTaskContext(fullHistory);
-            const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
+            let dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
                 .filter(Boolean)
                 .join('\n\n');
+
+            // Only inject a timestamp for the first user message of the conversation to reduce prompt volatility (improves cache hit rate).
+            if (shouldRefreshPrompt) {
+                const startTime = await getOrInitConversationStartTime(this.conversationManager, conversationId);
+                dynamicSystemPrompt = [dynamicSystemPrompt, `====\n\nSESSION\n\nConversation Start Time: ${startTime}`]
+                    .filter(Boolean)
+                    .join('\n\n');
+            }
 
             // Context Snapshot（用于 UI 解释/调试；非流式也可用）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);

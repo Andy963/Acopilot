@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.2] - 2026-01-19
+
+### Improved
+  - 上下文：不再每次请求注入 “Current Time”；仅在会话首条用户消息注入一次 “Conversation Start Time”，提升提示词缓存命中稳定性。
+  - execute_command：在聊天工具展开内容中隐藏内部命令头部并默认展开输出，避免命令重复显示与双层展开。
+
 ## [1.0.57-pre.1] - 2026-01-19
 
 ### Added

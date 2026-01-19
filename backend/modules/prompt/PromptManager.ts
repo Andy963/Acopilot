@@ -223,11 +223,6 @@ export class PromptManager {
             lines.push(`User Language: ${userLanguage}`)
             lines.push(`Please respond using the user's language by default.`)
         }
-
-        // Keep volatile "Current Time" at the very end to reduce prompt prefix churn (improves prompt cache hit rate).
-        if (context.currentTime) {
-            lines.push(`Current Time: ${context.currentTime}`)
-        }
         
         return lines.join('\n')
     }
@@ -556,11 +551,8 @@ export class PromptManager {
      * 获取上下文信息
      */
     private getContext(): PromptContext {
-        const now = new Date()
-        
         return {
             workspaceRoot: getWorkspaceRoot(),
-            currentTime: now.toISOString(),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             os: this.getOSInfo()
         }

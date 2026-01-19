@@ -29,11 +29,14 @@ const props = defineProps<{
   error?: string
   status?: 'pending' | 'running' | 'success' | 'error'
   toolId?: string
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update-result', result: Record<string, unknown>): void
 }>()
+
+const isEmbedded = computed(() => props.embedded === true)
 
 // 终端 store
 const terminalStore = useTerminalStore()
@@ -920,6 +923,15 @@ const canOpenFirstError = computed(() =>
   hasFailure.value && !isRunning.value && !!firstErrorLocation.value
 )
 
+const showEmbeddedActions = computed(() =>
+  isEmbedded.value && (
+    (truncated.value && !isRunning.value) ||
+    isRunning.value ||
+    canOpenFirstError.value ||
+    !!output.value
+  )
+)
+
 const openFirstErrorTitle = computed(() => {
   const loc = firstErrorLocation.value
   if (!loc) return ''
@@ -950,11 +962,12 @@ async function openFirstError() {
   }
 }
 
-const expanded = ref(false)
+const expanded = ref(props.embedded ? true : false)
 const userToggled = ref(false)
 const expandedFiles = ref<Set<string>>(new Set())
 
 function toggleExpanded() {
+  if (isEmbedded.value) return
   expanded.value = !expanded.value
   userToggled.value = true
 }
@@ -1036,10 +1049,11 @@ onMounted(() => {
 // 初始化/同步默认展开状态（成功默认收起）
 watch(() => props.toolId, () => {
   userToggled.value = false
-  expanded.value = defaultExpanded.value
+  expanded.value = isEmbedded.value ? true : defaultExpanded.value
 }, { immediate: true })
 
 watch(defaultExpanded, (next) => {
+  if (isEmbedded.value) return
   if (!userToggled.value && next) {
     expanded.value = true
   }
@@ -1069,9 +1083,10 @@ watch(isRunning, (running) => {
 </script>
 
 <template>
-  <div class="execute-command-panel" :class="[statusClass, { running: isRunning, expanded }]">
+  <div class="execute-command-panel" :class="[statusClass, { running: isRunning, expanded, embedded: isEmbedded }]">
     <!-- 头部信息栏 -->
     <div
+      v-if="!isEmbedded"
       class="panel-header"
       role="button"
       tabindex="0"
@@ -1171,7 +1186,45 @@ watch(isRunning, (running) => {
     </div>
 
     <!-- 终端输出块 -->
-    <div v-if="expanded" class="panel-body">
+    <div v-if="expanded || isEmbedded" class="panel-body">
+      <div v-if="showEmbeddedActions" class="embedded-actions" @click.stop>
+        <span
+          v-if="truncated && !isRunning"
+          class="embedded-truncated codicon codicon-warning"
+          :title="t('components.tools.terminal.executeCommandPanel.truncatedInfo', { outputLines, totalLines })"
+        ></span>
+
+        <button
+          v-if="isRunning"
+          class="icon-btn danger"
+          :disabled="killing"
+          :title="t('components.tools.terminal.executeCommandPanel.terminateTooltip')"
+          @click.stop="handleKillTerminal"
+        >
+          <span class="codicon codicon-debug-stop"></span>
+        </button>
+
+        <button
+          v-if="canOpenFirstError"
+          class="icon-btn"
+          :disabled="opening"
+          :title="openFirstErrorTitle"
+          @click.stop="openFirstError"
+        >
+          <span class="codicon codicon-go-to-file"></span>
+        </button>
+
+        <button
+          v-if="output"
+          class="icon-btn"
+          :class="{ success: copied }"
+          :title="copied ? t('components.tools.terminal.executeCommandPanel.copied') : t('components.tools.terminal.executeCommandPanel.copyOutput')"
+          @click.stop="copyOutput"
+        >
+          <span :class="['codicon', copied ? 'codicon-check' : 'codicon-copy']"></span>
+        </button>
+      </div>
+
       <div v-if="hasChangeSection" class="changes-card">
         <div class="changes-header" @click="toggleChangesExpanded">
           <i class="codicon" :class="changesExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
@@ -1341,6 +1394,12 @@ watch(isRunning, (running) => {
   border-radius: 8px;
   overflow: hidden;
   background: var(--vscode-editor-background);
+}
+
+.execute-command-panel.embedded {
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 /* 头部信息栏 */
@@ -1865,6 +1924,25 @@ watch(isRunning, (running) => {
 /* 输出块 */
 .panel-body {
   border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+}
+
+.execute-command-panel.embedded .panel-body {
+  border-top: none;
+}
+
+.embedded-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  background: rgba(127, 127, 127, 0.04);
+}
+
+.embedded-truncated {
+  color: var(--vscode-testing-iconFailed);
+  opacity: 0.85;
 }
 
 .next-commands {
