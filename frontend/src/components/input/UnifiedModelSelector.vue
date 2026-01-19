@@ -287,7 +287,8 @@ onUnmounted(() => {
   bottom: 100%;
   right: 0;
   width: 240px;
-  min-width: 240px;
+  max-width: 90vw;
+  min-width: 0;
   margin-bottom: 4px;
   background: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-dropdown-border);

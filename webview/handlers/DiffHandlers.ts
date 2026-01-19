@@ -311,6 +311,19 @@ async function openDiffView(
   diffTitle: string,
   ctx: HandlerContext
 ): Promise<void> {
+  // Inline diff (避免 side-by-side 在窄窗口里“右侧看不到”的体验问题)
+  // 目前 VS Code 的 vscode.diff 不支持 per-invocation 指定渲染模式，只能依赖 diffEditor.renderSideBySide。
+  // 这里选择将其设为 inline（false），与 DiffManager 的行为保持一致。
+  try {
+    const config = vscode.workspace.getConfiguration('diffEditor');
+    const current = config.get<boolean>('renderSideBySide');
+    if (current !== false) {
+      await config.update('renderSideBySide', false, vscode.ConfigurationTarget.Global);
+    }
+  } catch {
+    // ignore
+  }
+
   const originalUri = vscode.Uri.parse(`acopilot-diff-preview:original/${encodeURIComponent(filePath)}`);
   const newUri = vscode.Uri.parse(`acopilot-diff-preview:modified/${encodeURIComponent(filePath)}`);
   
