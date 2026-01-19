@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.1] - 2026-01-19
+
+### Added
+  - Gemini：支持 usageMetadata.cachedContentTokenCount 统计，并在消息底部展示提示词缓存命中（tokens/%）。
+
+### Fixed
+  - Diff 预览：打开 `vscode.diff` 时默认使用 inline 模式，避免窄窗口下右侧内容不可见。
+  - 输入区：底部栏在窄宽度下自动换行，避免右侧按钮被裁切。
+  - 模型选择器：下拉列表在窄宽度下限制最大宽度，避免溢出。
+
 ## [1.0.57-pre.0] - 2026-01-18
 
 ### Fixed

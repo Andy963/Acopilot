@@ -609,6 +609,7 @@ export class GeminiFormatter extends BaseFormatter {
         if (response.usageMetadata) {
             content.usageMetadata = {
                 promptTokenCount: response.usageMetadata.promptTokenCount,
+                cachedPromptTokenCount: response.usageMetadata.cachedContentTokenCount,
                 candidatesTokenCount: response.usageMetadata.candidatesTokenCount,
                 totalTokenCount: response.usageMetadata.totalTokenCount,
                 thoughtsTokenCount: response.usageMetadata.thoughtsTokenCount,
@@ -696,6 +697,7 @@ export class GeminiFormatter extends BaseFormatter {
             if (chunk.usageMetadata) {
                 streamChunk.usage = {
                     promptTokenCount: chunk.usageMetadata.promptTokenCount,
+                    cachedPromptTokenCount: chunk.usageMetadata.cachedContentTokenCount,
                     candidatesTokenCount: chunk.usageMetadata.candidatesTokenCount,
                     totalTokenCount: chunk.usageMetadata.totalTokenCount,
                     thoughtsTokenCount: chunk.usageMetadata.thoughtsTokenCount,

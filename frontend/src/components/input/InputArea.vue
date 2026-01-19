@@ -1507,8 +1507,10 @@ watch(pinPanelTab, (tab) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 0 6px;
+  min-width: 0;
 }
 
 .composer-selectors {
@@ -1524,7 +1526,11 @@ watch(pinPanelTab, (tab) => {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 /* 模型选择器 */
