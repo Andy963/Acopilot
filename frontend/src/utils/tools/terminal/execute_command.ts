@@ -16,7 +16,6 @@ registerTool('execute_command', {
   descriptionFormatter: (args) => {
     const command = args.command as string || ''
     const cwd = args.cwd as string
-    const shell = args.shell as string
     
     const risk = assessCommandRisk(command)
     const riskLabelMap: Record<string, string> = {
@@ -32,9 +31,6 @@ registerTool('execute_command', {
     }
     if (cwd) {
       desc += `\n目录: ${cwd}`
-    }
-    if (shell && shell !== 'default') {
-      desc += `\nShell: ${shell}`
     }
     return desc
   },

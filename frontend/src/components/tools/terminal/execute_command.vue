@@ -49,7 +49,6 @@ const outputScrollRef = ref<InstanceType<typeof CustomScrollbar> | null>(null)
 // 获取命令参数
 const command = computed(() => props.args.command as string || '')
 const cwd = computed(() => props.args.cwd as string || '')
-const shell = computed(() => props.args.shell as string || 'default')
 
 // 获取结果数据（来自工具执行结果）
 const resultData = computed(() => {
@@ -188,7 +187,13 @@ const changesSummary = computed((): ChangesSummary | null => {
 
 const hasChangeSection = computed(() => {
   if (isRunning.value) return false
-  return Boolean(changesSummary.value || changedFiles.value.length > 0)
+
+  // Only show the section when we have meaningful info to display:
+  // - unsupportedReason: explain why changes can't be collected
+  // - actual changes: avoid noisy "no changes" blocks that feel like flicker
+  const summary = changesSummary.value
+  if (summary?.unsupportedReason) return true
+  return changeCount.value > 0
 })
 
 const changeCount = computed(() => changesSummary.value?.totalFiles ?? changedFiles.value.length)
@@ -240,26 +245,28 @@ const headerMoreCount = computed(() => {
 })
 
 const defaultChangesExpanded = computed(() => {
-  const s = changesSummary.value
-  if (s?.unsupportedReason) return false
-  return changeCount.value > 0
+  // 默认保持收起，避免内容跳动/闪烁（更贴近 Copilot Chat 的“按需展开”体验）
+  return false
 })
 
 function toggleChangesExpanded() {
-  changesExpanded.value = !changesExpanded.value
+  changesExpanded.value = !effectiveChangesExpanded.value
   changesUserToggled.value = true
 }
 
-watch(() => props.toolId, () => {
-  changesUserToggled.value = false
-  changesExpanded.value = defaultChangesExpanded.value
-}, { immediate: true })
-
-watch(defaultChangesExpanded, (next) => {
-  if (!changesUserToggled.value) {
-    changesExpanded.value = next
-  }
+const effectiveChangesExpanded = computed(() => {
+  if (changesUserToggled.value) return changesExpanded.value
+  return defaultChangesExpanded.value
 })
+
+watch(
+  () => props.toolId,
+  () => {
+    changesUserToggled.value = false
+    changesExpanded.value = false
+  },
+  { immediate: true }
+)
 
 const expandedDiffFiles = ref<Set<string>>(new Set())
 const diffContents = ref<Map<string, DiffContent>>(new Map())
@@ -628,7 +635,6 @@ const commandTooltip = computed(() => {
 
   if (command.value) lines.push(command.value)
   if (cwd.value) lines.push(`CWD: ${cwd.value}`)
-  if (shell.value && shell.value !== 'default') lines.push(`Shell: ${shell.value}`)
   if (duration.value !== undefined) lines.push(formatDuration(duration.value))
   if (statusLabel.value) lines.push(statusLabel.value)
 
@@ -927,8 +933,7 @@ const showEmbeddedActions = computed(() =>
   isEmbedded.value && (
     (truncated.value && !isRunning.value) ||
     isRunning.value ||
-    canOpenFirstError.value ||
-    !!output.value
+    canOpenFirstError.value
   )
 )
 
@@ -1020,22 +1025,6 @@ async function handleKillTerminal() {
     console.error('杀掉终端失败:', err)
   } finally {
     killing.value = false
-  }
-}
-
-// 复制输出
-const copied = ref(false)
-async function copyOutput() {
-  if (!output.value) return
-  
-  try {
-    await navigator.clipboard.writeText(output.value)
-    copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 1000)
-  } catch (err) {
-    console.error('复制失败:', err)
   }
 }
 
@@ -1165,23 +1154,7 @@ watch(isRunning, (running) => {
           <span class="codicon codicon-go-to-file"></span>
         </button>
 
-        <button
-          v-if="output"
-          class="icon-btn"
-          :class="{ success: copied }"
-          :title="copied ? t('components.tools.terminal.executeCommandPanel.copied') : t('components.tools.terminal.executeCommandPanel.copyOutput')"
-          @click.stop="copyOutput"
-        >
-          <span :class="['codicon', copied ? 'codicon-check' : 'codicon-copy']"></span>
-        </button>
-
-        <button
-          class="icon-btn"
-          :title="expanded ? t('common.collapse') : t('common.expand')"
-          @click.stop="toggleExpanded"
-        >
-          <span :class="['codicon', expanded ? 'codicon-chevron-down' : 'codicon-chevron-right']"></span>
-        </button>
+        <!-- 交互操作已精简：点击整行即可展开/收起 -->
       </div>
     </div>
 
@@ -1214,15 +1187,6 @@ watch(isRunning, (running) => {
           <span class="codicon codicon-go-to-file"></span>
         </button>
 
-        <button
-          v-if="output"
-          class="icon-btn"
-          :class="{ success: copied }"
-          :title="copied ? t('components.tools.terminal.executeCommandPanel.copied') : t('components.tools.terminal.executeCommandPanel.copyOutput')"
-          @click.stop="copyOutput"
-        >
-          <span :class="['codicon', copied ? 'codicon-check' : 'codicon-copy']"></span>
-        </button>
       </div>
 
       <div v-if="hasChangeSection" class="changes-card">
