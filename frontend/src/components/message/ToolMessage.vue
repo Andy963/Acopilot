@@ -482,7 +482,8 @@ function renderToolContent(tool: ToolUsage) {
       result: tool.result,
       error: tool.error,
       status: tool.status,
-      toolId: tool.id
+      toolId: tool.id,
+      embedded: tool.name === 'execute_command'
     })
   }
   
