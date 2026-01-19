@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.3] - 2026-01-19
+
+### Improved
+  - Context Used：仅在每轮用户消息的首条助手回复展示一次，避免工具循环重复占位。
+  - 消息底部：眼睛/复制/重试等按钮改为始终显示，不再依赖 hover。
+  - 缓存命中：命中百分比改为绿色显示。
+
 ## [1.0.57-pre.2] - 2026-01-19
 
 ### Improved
