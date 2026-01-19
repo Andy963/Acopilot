@@ -329,40 +329,6 @@ function getExecuteCommandArgs(tool: ToolUsage): { command: string; cwd?: string
   }
 }
 
-const copiedCommandToolId = ref<string>('')
-async function copyExecuteCommand(tool: ToolUsage) {
-  const { command } = getExecuteCommandArgs(tool)
-  if (!command) return
-
-  try {
-    await navigator.clipboard.writeText(command)
-    copiedCommandToolId.value = tool.id
-    setTimeout(() => {
-      if (copiedCommandToolId.value === tool.id) copiedCommandToolId.value = ''
-    }, 1000)
-  } catch (err) {
-    console.error('复制命令失败:', err)
-  }
-}
-
-const runningInTerminalToolId = ref<string>('')
-async function runExecuteCommandInTerminal(tool: ToolUsage) {
-  const { command, cwd, shell } = getExecuteCommandArgs(tool)
-  if (!command) return
-
-  if (runningInTerminalToolId.value === tool.id) return
-  runningInTerminalToolId.value = tool.id
-
-  try {
-    await sendToExtension('terminal.runInTerminal', { command, cwd, shell })
-  } catch (err) {
-    console.warn('Failed to run command in terminal:', err)
-  } finally {
-    if (runningInTerminalToolId.value === tool.id) {
-      runningInTerminalToolId.value = ''
-    }
-  }
-}
 
 const acceptingDiffToolId = ref<string>('')
 function isDiffReviewTool(tool: ToolUsage): boolean {
@@ -571,28 +537,10 @@ function renderToolContent(tool: ToolUsage) {
                   {{ tool.riskBadge.label }}
                 </span>
 
-                <div class="exec-command-inline-actions" @click.stop>
-                  <IconButton
-                    :icon="copiedCommandToolId === tool.id ? 'codicon-check' : 'codicon-copy'"
-                    size="small"
-                    :tooltip="copiedCommandToolId === tool.id ? t('common.copied') : t('common.copy')"
-                    @click.stop="copyExecuteCommand(tool)"
-                  />
-                  <IconButton
-                    icon="codicon-terminal"
-                    size="small"
-                    :loading="runningInTerminalToolId === tool.id"
-                    :tooltip="t('common.runInTerminal')"
-                    @click.stop="runExecuteCommandInTerminal(tool)"
-                  />
-                </div>
               </div>
 
-              <div v-if="getExecuteCommandArgs(tool).cwd || (getExecuteCommandArgs(tool).shell && getExecuteCommandArgs(tool).shell !== 'default')" class="exec-command-meta">
-                <span v-if="getExecuteCommandArgs(tool).shell && getExecuteCommandArgs(tool).shell !== 'default'" class="exec-meta-item">
-                  Shell: {{ getExecuteCommandArgs(tool).shell }}
-                </span>
-                <span v-if="getExecuteCommandArgs(tool).cwd" class="exec-meta-item">
+              <div v-if="getExecuteCommandArgs(tool).cwd" class="exec-command-meta">
+                <span class="exec-meta-item">
                   目录: {{ getExecuteCommandArgs(tool).cwd }}
                 </span>
               </div>
@@ -889,12 +837,6 @@ function renderToolContent(tool: ToolUsage) {
   margin-right: 0;
 }
 
-.exec-command-inline-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
 
 .exec-command-meta {
   margin-top: 6px;

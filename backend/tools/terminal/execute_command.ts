@@ -11,6 +11,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as vscode from 'vscode';
+import { createHash } from 'crypto';
 import { EventEmitter } from 'events';
 import { StringDecoder } from 'string_decoder';
 import type { Tool, ToolResult, ToolContext } from '../types';
@@ -352,6 +353,25 @@ async function collectExecuteCommandChangedFiles(
     }
 
     return { changedFiles, summary };
+}
+
+async function getGitChangesFingerprint(workingDir: string): Promise<string | null> {
+    const repoRoot = await getGitRepoRoot(workingDir);
+    if (!repoRoot) return null;
+
+    try {
+        const statusBuf = await execFileBuffer('git', ['status', '--porcelain=v1', '-z'], { cwd: repoRoot });
+        const diffNumstatBuf = await execFileBuffer('git', ['diff', '--numstat'], { cwd: repoRoot });
+        const diffCachedNumstatBuf = await execFileBuffer('git', ['diff', '--cached', '--numstat'], { cwd: repoRoot });
+
+        const hash = createHash('sha1');
+        hash.update(statusBuf);
+        hash.update(diffNumstatBuf);
+        hash.update(diffCachedNumstatBuf);
+        return hash.digest('hex');
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -973,6 +993,9 @@ ${getAvailableShellsDescription()}${workspaceDescription}
             // 获取 shell 配置
             const shellConfig = getShellConfig(shell);
 
+            // 记录执行前的 git 变更指纹：只有当工作区变更发生变化时才返回 file changes，避免每个只读命令都重复展示同一批变更
+            const baselineGitChangesFingerprint = await getGitChangesFingerprint(workingDir);
+
             return new Promise((resolve) => {
                 // 检查是否已经取消
                 if (externalAbortSignal?.aborted) {
@@ -1207,9 +1230,18 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         let changedFiles: ExecuteCommandChangedFile[] | undefined;
                         let changesSummary: ExecuteCommandChangesSummary | undefined;
                         try {
-                            const changes = await collectExecuteCommandChangedFiles(workingDir);
-                            changedFiles = changes.changedFiles;
-                            changesSummary = changes.summary;
+                            const nextFingerprint = await getGitChangesFingerprint(workingDir);
+                            const shouldCollectChanges = (
+                                baselineGitChangesFingerprint === null ||
+                                nextFingerprint === null ||
+                                baselineGitChangesFingerprint !== nextFingerprint
+                            );
+
+                            if (shouldCollectChanges) {
+                                const changes = await collectExecuteCommandChangedFiles(workingDir);
+                                changedFiles = changes.changedFiles;
+                                changesSummary = changes.summary;
+                            }
                         } catch (e) {
                             changedFiles = [];
                             changesSummary = {
