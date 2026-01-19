@@ -2,6 +2,15 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.5] - 2026-01-19
+
+### Improved
+  - execute_command：减少“文件变更”区块闪烁/重复展示（仅当工作区变更发生变化时才收集并展示变更；默认收起，按需展开）。
+  - execute_command：精简工具 UI（去除输出复制/展开按钮、命令行内联按钮等），交互更接近 Copilot Chat。
+  - 消息：流式输出指示器改为三点打字动画，并支持 `prefers-reduced-motion`。
+  - 打包：`.vscodeignore` 增加忽略 `.env*` 与 `vscode-copilot-chat/**`，避免误打包。
+  - 仓库：移除过期 `todo.md`。
+
 ## [1.0.57-pre.4] - 2026-01-19
 
 ### Improved
