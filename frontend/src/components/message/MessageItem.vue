@@ -35,7 +35,7 @@ const emit = defineEmits<{
 
 const chatStore = useChatStore()
 
-const showActions = ref(false)
+const isHovered = ref(false)
 const showRetryDialog = ref(false)
 const showEditDialog = ref(false)
 
@@ -45,6 +45,9 @@ const isTool = computed(() => props.message.role === 'tool')
 
 // 是否为总结消息
 const isSummary = computed(() => props.message.isSummary === true)
+
+// AI 消息：底部操作按钮始终显示；用户消息：hover 时显示（保持界面干净）。
+const showFooterActions = computed(() => (!isUser.value && !isTool.value) || isHovered.value)
 
 // 是否为 Task 卡片消息
 const taskCard = computed(() => props.message.metadata?.taskCard)
@@ -467,6 +470,50 @@ const hasUsage = computed(() =>
 
 const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
 
+// Context Used：仅在“本轮用户消息”的首条助手回复展示，避免工具循环重复占位。
+const showContextUsedCard = computed(() => {
+  if (isUser.value || isTool.value || isSummary.value) return false
+  if (!props.message.metadata?.contextSnapshot) return false
+
+  const all = chatStore.allMessages.value
+  const currentIndex = props.messageIndex
+  if (!Array.isArray(all) || currentIndex <= 0 || currentIndex >= all.length) return true
+
+  // 找到最近一条“真实用户消息”（非 functionResponse/summary）
+  let lastUserIndex = -1
+  for (let i = currentIndex - 1; i >= 0; i--) {
+    const m = all[i]
+    if (!m || m.role !== 'user') continue
+    if (m.isFunctionResponse === true) continue
+    if (m.isSummary === true) continue
+    lastUserIndex = i
+    break
+  }
+
+  // 没有用户消息：只在第一条助手消息展示
+  if (lastUserIndex < 0) {
+    for (let i = 0; i < currentIndex; i++) {
+      const m = all[i]
+      if (!m || m.role !== 'assistant') continue
+      if (m.isFunctionResponse === true) continue
+      if (m.isSummary === true) continue
+      return false
+    }
+    return true
+  }
+
+  // 若在 lastUserIndex 之后已经出现过任何一条助手消息，则不是首条
+  for (let i = lastUserIndex + 1; i < currentIndex; i++) {
+    const m = all[i]
+    if (!m || m.role !== 'assistant') continue
+    if (m.isFunctionResponse === true) continue
+    if (m.isSummary === true) continue
+    return false
+  }
+
+  return true
+})
+
 function formatTokenCount(count: number | undefined): string {
   if (count === undefined) return ''
   if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
@@ -564,8 +611,8 @@ function handleOpenContextUsed() {
 <template>
   <div
     :class="messageClass"
-    @mouseenter="showActions = true"
-    @mouseleave="showActions = false"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
     <!-- 重试对话框 -->
     <RetryDialog
@@ -624,7 +671,7 @@ function handleOpenContextUsed() {
         <div class="message-content">
         <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
         <ContextUsedMessage
-          v-if="!isUser && !isTool && !isSummary && message.metadata?.contextSnapshot"
+          v-if="showContextUsedCard"
           :snapshot="message.metadata.contextSnapshot"
           @open-details="handleOpenContextUsed"
         />
@@ -719,7 +766,7 @@ function handleOpenContextUsed() {
 
         <!-- 消息底部信息：工具栏统一放在下方 -->
         <div
-          v-if="formattedTime || showActions || (!isUser && hasUsage)"
+          v-if="formattedTime || showFooterActions || (!isUser && hasUsage)"
           class="message-footer"
           :class="{ 'user-footer': isUser }"
         >
@@ -742,7 +789,10 @@ function handleOpenContextUsed() {
 
               <span v-if="cacheHitInfo" class="cache-hit" :title="cacheHitTitle">
                 <i class="codicon codicon-database"></i>
-                <span class="cache-hit-value">{{ cacheHitInfo.cachedTokensText }}({{ cacheHitInfo.percent }}%)</span>
+                <span class="cache-hit-tokens">{{ cacheHitInfo.cachedTokensText }}</span>
+                <span class="cache-hit-paren">(</span>
+                <span class="cache-hit-percent">{{ cacheHitInfo.percent }}%</span>
+                <span class="cache-hit-paren">)</span>
               </span>
 	
 	            <span
@@ -768,7 +818,7 @@ function handleOpenContextUsed() {
               @click="handleOpenContextUsed"
             />
             <MessageActions
-              v-if="showActions"
+              v-if="showFooterActions"
               :message="message"
               :can-edit="isUser"
               :can-retry="!isUser"
@@ -889,8 +939,6 @@ function handleOpenContextUsed() {
   align-items: center;
   gap: 2px;
   font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.7;
   white-space: nowrap;
   line-height: 1;
 }
@@ -898,7 +946,19 @@ function handleOpenContextUsed() {
 .cache-hit .codicon {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
   line-height: 1;
+}
+
+.cache-hit-tokens,
+.cache-hit-paren {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+}
+
+.cache-hit-percent {
+  color: var(--vscode-testing-iconPassed);
+  font-weight: 600;
 }
 
 /* 消息内容 */
