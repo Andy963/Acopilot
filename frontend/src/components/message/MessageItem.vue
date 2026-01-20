@@ -46,8 +46,8 @@ const isTool = computed(() => props.message.role === 'tool')
 // 是否为总结消息
 const isSummary = computed(() => props.message.isSummary === true)
 
-// AI 消息：底部操作按钮始终显示；用户消息：hover 时显示（保持界面干净）。
-const showFooterActions = computed(() => (!isUser.value && !isTool.value) || isHovered.value)
+// 用户/AI 消息：底部操作按钮始终显示；工具消息：hover 时显示（避免工具输出区过于拥挤）。
+const showFooterActions = computed(() => !isTool.value || isHovered.value)
 
 // 是否为 Task 卡片消息
 const taskCard = computed(() => props.message.metadata?.taskCard)

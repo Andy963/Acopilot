@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.10] - 2026-01-20
+
+### Fixed
+  - 消息：用户消息的编辑/复制/删除按钮改为始终显示（不再依赖 hover）。
+
 ## [1.0.57-pre.9] - 2026-01-20
 
 ### Fixed
