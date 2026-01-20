@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.6] - 2026-01-20
+
+### Improved
+  - execute_command：命令行摘要中，执行结果图标移到命令前；风险标识移到命令后。
+
 ## [1.0.57-pre.5] - 2026-01-19
 
 ### Improved

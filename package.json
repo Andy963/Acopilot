@@ -2,7 +2,7 @@
   "name": "acopilot",
   "displayName": "Acopilot",
   "description": "Acopilot 是一个AI编程助手插件，支持多模态和复杂功能。",
-  "version": "1.0.57-pre.5",
+  "version": "1.0.57-pre.6",
   "publisher": "Andy963",
   "icon": "resources/icon.png",
   "engines": {
