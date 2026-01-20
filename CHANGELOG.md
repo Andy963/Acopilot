@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.7] - 2026-01-20
+
+### Fixed
+  - 工具 UI：展开内容区不再重复显示工具标题（如“读取文件”）。
+
 ## [1.0.57-pre.6] - 2026-01-20
 
 ### Improved
