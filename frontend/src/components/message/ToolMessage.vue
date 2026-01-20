@@ -544,15 +544,12 @@ function renderToolContent(tool: ToolUsage) {
               isExpanded(tool.id) ? 'codicon-chevron-down' : 'codicon-chevron-right'
             ]"
           ></span>
-          
-          <!-- 工具图标 -->
-          <span :class="['tool-icon', 'codicon', getToolIcon(tool)]"></span>
-          
-          <!-- 工具名称 -->
-          <span class="tool-name">{{ getToolLabel(tool) }}</span>
-          
-          <!-- 状态图标 -->
-          <div v-if="(tool.status || tool.awaitingConfirmation) && tool.name !== 'execute_command'" class="status-icon-wrapper">
+
+          <!-- 状态图标（放到工具名称之前，更接近 Copilot Chat 的视觉顺序） -->
+          <div
+            v-if="(tool.status || tool.awaitingConfirmation) && tool.name !== 'execute_command'"
+            class="status-icon-wrapper"
+          >
             <span
               :class="[
                 'status-icon',
@@ -563,11 +560,17 @@ function renderToolContent(tool: ToolUsage) {
             ></span>
           </div>
           
+          <!-- 工具图标 -->
+          <span :class="['tool-icon', 'codicon', getToolIcon(tool)]"></span>
+          
+          <!-- 工具名称 -->
+          <span class="tool-name">{{ getToolLabel(tool) }}</span>
+          
           <!-- 执行时间 -->
           <div class="tool-meta">
             <div v-if="tool.name === 'read_file' && tool.readFileHeaderStats?.total" class="tool-stats">
               <span
-                v-if="(tool.readFileHeaderStats?.success ?? 0) > 0"
+                v-if="(tool.readFileHeaderStats?.fail ?? 0) > 0 && (tool.readFileHeaderStats?.success ?? 0) > 0"
                 class="tool-stat stat-success"
               >
                 <span class="codicon codicon-check"></span>
@@ -823,7 +826,6 @@ function renderToolContent(tool: ToolUsage) {
 .status-icon {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
-  margin-left: var(--spacing-xs, 4px);
 }
 
 .status-icon.status-success {
@@ -850,7 +852,6 @@ function renderToolContent(tool: ToolUsage) {
 .status-icon-wrapper {
   display: flex;
   align-items: center;
-  margin-left: var(--spacing-xs, 4px);
 }
 
 @keyframes spin {

@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.9] - 2026-01-20
+
+### Fixed
+  - 工具 UI：工具状态图标（对勾/错误/加载）移到工具名称之前，read_file 不再出现重复对勾/数字。
+
 ## [1.0.57-pre.8] - 2026-01-20
 
 ### Fixed
