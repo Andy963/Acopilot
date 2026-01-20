@@ -547,7 +547,7 @@ function renderToolContent(tool: ToolUsage) {
 
           <!-- 状态图标（放到工具名称之前，更接近 Copilot Chat 的视觉顺序） -->
           <div
-            v-if="(tool.status || tool.awaitingConfirmation) && tool.name !== 'execute_command'"
+            v-if="tool.status || tool.awaitingConfirmation"
             class="status-icon-wrapper"
           >
             <span
@@ -563,11 +563,20 @@ function renderToolContent(tool: ToolUsage) {
           <!-- 工具图标 -->
           <span :class="['tool-icon', 'codicon', getToolIcon(tool)]"></span>
           
-          <!-- 工具名称 -->
-          <span class="tool-name">{{ getToolLabel(tool) }}</span>
-          
-          <!-- 执行时间 -->
-          <div class="tool-meta">
+	          <!-- 工具名称 -->
+	          <span class="tool-name">{{ getToolLabel(tool) }}</span>
+
+	          <!-- execute_command: 显示执行目录（同一行，不单独占一行） -->
+	          <span
+	            v-if="tool.name === 'execute_command' && getExecuteCommandArgs(tool).cwd"
+	            class="tool-cwd"
+	            :title="getExecuteCommandArgs(tool).cwd"
+	          >
+	            · 目录: {{ getExecuteCommandArgs(tool).cwd }}
+	          </span>
+	          
+	          <!-- 执行时间 -->
+	          <div class="tool-meta">
             <div v-if="tool.name === 'read_file' && tool.readFileHeaderStats?.total" class="tool-stats">
               <span
                 v-if="(tool.readFileHeaderStats?.fail ?? 0) > 0 && (tool.readFileHeaderStats?.success ?? 0) > 0"
@@ -591,6 +600,56 @@ function renderToolContent(tool: ToolUsage) {
             <span v-if="tool.duration" class="tool-duration">
               {{ tool.duration }}ms
             </span>
+
+            <div
+              v-if="tool.name === 'execute_command' && tool.awaitingConfirmation"
+              class="tool-header-actions"
+              @click.stop
+            >
+              <!-- 确认按钮：当工具等待确认且未做决定时显示 -->
+              <button
+                v-if="!hasUserDecision(tool.id)"
+                class="confirm-btn"
+                :title="t('components.message.tool.confirmExecution')"
+                @click.stop="confirmToolExecution(tool.id, tool.name)"
+              >
+                <span class="confirm-btn-icon codicon codicon-check"></span>
+                <span class="confirm-btn-text">{{ t('components.message.tool.confirm') }}</span>
+              </button>
+
+              <!-- 拒绝按钮：当工具等待确认且未做决定时显示 -->
+              <button
+                v-if="!hasUserDecision(tool.id)"
+                class="reject-btn"
+                :title="t('components.message.tool.reject')"
+                @click.stop="rejectToolExecution(tool.id, tool.name)"
+              >
+                <span class="reject-btn-icon codicon codicon-close"></span>
+                <span class="reject-btn-text">{{ t('components.message.tool.reject') }}</span>
+              </button>
+
+              <!-- 已确认标记 -->
+              <span
+                v-if="getToolDecision(tool.id) === true"
+                class="decision-badge decision-confirmed"
+                :title="t('components.message.tool.confirmed')"
+                @click.stop="confirmToolExecution(tool.id, tool.name)"
+              >
+                <span class="codicon codicon-check"></span>
+                <span class="decision-text">{{ t('components.message.tool.confirmed') }}</span>
+              </span>
+
+              <!-- 已拒绝标记 -->
+              <span
+                v-if="getToolDecision(tool.id) === false"
+                class="decision-badge decision-rejected"
+                :title="t('components.message.tool.rejected')"
+                @click.stop="rejectToolExecution(tool.id, tool.name)"
+              >
+                <span class="codicon codicon-close"></span>
+                <span class="decision-text">{{ t('components.message.tool.rejected') }}</span>
+              </span>
+            </div>
           </div>
         </div>
         
@@ -599,36 +658,19 @@ function renderToolContent(tool: ToolUsage) {
           v-if="tool.name === 'execute_command' || tool.descriptionText || tool.riskBadge || hasActionButtons(tool)"
           class="tool-description-row"
         >
-          <div v-if="tool.name === 'execute_command'" class="exec-command">
-            <div class="exec-command-body">
-              <div class="exec-command-line">
-                <span
-                  v-if="tool.status || tool.awaitingConfirmation"
-                  :class="[
-                    'status-icon',
-                    'exec-status-icon',
-                    'codicon',
-                    getStatusIcon(tool.status, tool.awaitingConfirmation),
-                    getStatusClass(tool.status, tool.awaitingConfirmation)
-                  ]"
-                ></span>
-                <code class="exec-command-text">{{ getExecuteCommandArgs(tool).command }}</code>
-                <span
-                  v-if="tool.riskBadge"
-                  :class="['risk-badge', `risk-${tool.riskBadge.level}`, 'exec-risk-badge']"
-                >
-                  {{ tool.riskBadge.label }}
-                </span>
-
-              </div>
-
-              <div v-if="getExecuteCommandArgs(tool).cwd" class="exec-command-meta">
-                <span class="exec-meta-item">
-                  目录: {{ getExecuteCommandArgs(tool).cwd }}
-                </span>
-              </div>
-            </div>
-          </div>
+	          <div v-if="tool.name === 'execute_command'" class="exec-command">
+	            <div class="exec-command-body">
+	              <div class="exec-command-line">
+	                <code
+	                  class="exec-command-text"
+	                  :class="tool.riskBadge ? `risk-${tool.riskBadge.level}` : ''"
+	                >
+	                  {{ getExecuteCommandArgs(tool).command }}
+	                </code>
+	
+	              </div>
+	            </div>
+	          </div>
 
           <div v-else class="tool-description" :class="{ 'has-risk-badge': !!tool.riskBadge }">
             <span
@@ -643,7 +685,7 @@ function renderToolContent(tool: ToolUsage) {
           <div class="tool-action-buttons">
             <!-- 确认按钮：当工具等待确认且未做决定时显示 -->
             <button
-              v-if="tool.awaitingConfirmation && !hasUserDecision(tool.id)"
+              v-if="tool.name !== 'execute_command' && tool.awaitingConfirmation && !hasUserDecision(tool.id)"
               class="confirm-btn"
               :title="t('components.message.tool.confirmExecution')"
               @click.stop="confirmToolExecution(tool.id, tool.name)"
@@ -654,7 +696,7 @@ function renderToolContent(tool: ToolUsage) {
             
             <!-- 拒绝按钮：当工具等待确认且未做决定时显示 -->
             <button
-              v-if="tool.awaitingConfirmation && !hasUserDecision(tool.id)"
+              v-if="tool.name !== 'execute_command' && tool.awaitingConfirmation && !hasUserDecision(tool.id)"
               class="reject-btn"
               :title="t('components.message.tool.reject')"
               @click.stop="rejectToolExecution(tool.id, tool.name)"
@@ -665,7 +707,7 @@ function renderToolContent(tool: ToolUsage) {
             
             <!-- 已确认标记 -->
             <span
-              v-if="tool.awaitingConfirmation && getToolDecision(tool.id) === true"
+              v-if="tool.name !== 'execute_command' && tool.awaitingConfirmation && getToolDecision(tool.id) === true"
               class="decision-badge decision-confirmed"
               :title="t('components.message.tool.confirmed')"
               @click.stop="confirmToolExecution(tool.id, tool.name)"
@@ -676,7 +718,7 @@ function renderToolContent(tool: ToolUsage) {
             
             <!-- 已拒绝标记 -->
             <span
-              v-if="tool.awaitingConfirmation && getToolDecision(tool.id) === false"
+              v-if="tool.name !== 'execute_command' && tool.awaitingConfirmation && getToolDecision(tool.id) === false"
               class="decision-badge decision-rejected"
               :title="t('components.message.tool.rejected')"
               @click.stop="rejectToolExecution(tool.id, tool.name)"
@@ -773,6 +815,7 @@ function renderToolContent(tool: ToolUsage) {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs, 4px);
+  min-width: 0;
 }
 
 .expand-icon {
@@ -793,11 +836,29 @@ function renderToolContent(tool: ToolUsage) {
   font-family: var(--vscode-font-family);
 }
 
+.tool-cwd {
+  min-width: 0;
+  max-width: clamp(180px, 34vw, 420px);
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .tool-meta {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm, 8px);
+}
+
+.tool-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs, 4px);
+  flex-shrink: 0;
 }
 
 .tool-stats {
@@ -947,6 +1008,81 @@ function renderToolContent(tool: ToolUsage) {
   text-overflow: ellipsis;
 }
 
+/* execute_command: Use softer colors to indicate risk level via command text. */
+.exec-command-text.risk-low {
+  color: rgba(46, 160, 67, 0.52);
+}
+
+.exec-command-text.risk-medium {
+  color: rgba(240, 198, 116, 0.68);
+}
+
+.exec-command-text.risk-high {
+  color: rgba(230, 149, 0, 0.66);
+}
+
+.exec-command-text.risk-critical {
+  color: rgba(248, 81, 73, 0.68);
+}
+
+.risk-badge.risk-low {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+  background: rgba(40, 167, 69, 0.10);
+  border-color: rgba(40, 167, 69, 0.25);
+}
+
+.risk-badge.risk-medium {
+  color: var(--vscode-charts-yellow, #f0c674);
+  background: rgba(240, 198, 116, 0.10);
+  border-color: rgba(240, 198, 116, 0.25);
+}
+
+.risk-badge.risk-high {
+  color: var(--vscode-charts-orange, #e69500);
+  background: rgba(230, 149, 0, 0.10);
+  border-color: rgba(230, 149, 0, 0.25);
+}
+
+.risk-badge.risk-critical {
+  color: var(--vscode-testing-iconFailed, #f85149);
+  background: rgba(220, 53, 69, 0.10);
+  border-color: rgba(220, 53, 69, 0.25);
+}
+
+@supports (color: color-mix(in srgb, #000, #fff)) {
+  .exec-command-text.risk-low {
+    color: color-mix(in srgb, var(--vscode-foreground) 82%, rgb(46, 160, 67) 18%);
+  }
+
+  .exec-command-text.risk-medium {
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, rgb(240, 198, 116) 30%);
+  }
+
+  .exec-command-text.risk-high {
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, rgb(230, 149, 0) 30%);
+  }
+
+  .exec-command-text.risk-critical {
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, rgb(248, 81, 73) 30%);
+  }
+
+  .risk-badge.risk-low {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-testing-iconPassed, #2ea043));
+  }
+
+  .risk-badge.risk-medium {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-charts-yellow, #f0c674));
+  }
+
+  .risk-badge.risk-high {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-charts-orange, #e69500));
+  }
+
+  .risk-badge.risk-critical {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-testing-iconFailed, #f85149));
+  }
+}
+
 .exec-risk-badge {
   flex-shrink: 0;
   margin-right: 0;
@@ -985,29 +1121,7 @@ function renderToolContent(tool: ToolUsage) {
   vertical-align: text-top;
 }
 
-.risk-badge.risk-low {
-  color: var(--vscode-testing-iconPassed, #2ea043);
-  background: rgba(40, 167, 69, 0.15);
-  border-color: rgba(40, 167, 69, 0.35);
-}
-
-.risk-badge.risk-medium {
-  color: var(--vscode-charts-yellow, #f0c674);
-  background: rgba(240, 198, 116, 0.15);
-  border-color: rgba(240, 198, 116, 0.35);
-}
-
-.risk-badge.risk-high {
-  color: var(--vscode-charts-orange, #e69500);
-  background: rgba(230, 149, 0, 0.15);
-  border-color: rgba(230, 149, 0, 0.35);
-}
-
-.risk-badge.risk-critical {
-  color: var(--vscode-testing-iconFailed, #f85149);
-  background: rgba(220, 53, 69, 0.15);
-  border-color: rgba(220, 53, 69, 0.35);
-}
+/* (moved) risk-badge colors are defined above with a lighter palette */
 
 /* 确认按钮 - 极简无边框设计 */
 .confirm-btn {

@@ -952,14 +952,18 @@ function handleOpenContextUsed() {
   line-height: 1;
 }
 
-.cache-hit-tokens,
-.cache-hit-paren {
+.cache-hit-tokens {
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
 }
 
+.cache-hit-paren,
 .cache-hit-percent {
   color: var(--vscode-testing-iconPassed);
+  opacity: 0.78;
+}
+
+.cache-hit-percent {
   font-weight: 600;
 }
 

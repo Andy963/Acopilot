@@ -470,21 +470,25 @@ export function createReadFileTool(
                 return { success: false, error: 'files is required and must be a non-empty array' };
             }
 
-            const results: ReadResult[] = [];
             const allMultimodal: MultimodalData[] = [];
-            let successCount = 0;
-            let failCount = 0;
+            const MAX_CONCURRENT = 10;
 
-            for (const fileReq of fileList) {
+            // 处理单个文件请求的函数
+            const processFileRequest = async (fileReq: FileReadRequest, index: number): Promise<{
+                index: number;
+                result: ReadResult;
+                multimodal?: MultimodalData[];
+            }> => {
                 // 验证每个文件请求
                 if (!fileReq || typeof fileReq.path !== 'string') {
-                    results.push({
-                        path: String(fileReq?.path || 'unknown'),
-                        success: false,
-                        error: 'Invalid file request: path is required'
-                    });
-                    failCount++;
-                    continue;
+                    return {
+                        index,
+                        result: {
+                            path: String(fileReq?.path || 'unknown'),
+                            success: false,
+                            error: 'Invalid file request: path is required'
+                        }
+                    };
                 }
                 
                 // 构建行范围对象（每个文件单独的行范围）
@@ -503,15 +507,30 @@ export function createReadFileTool(
                 }
                 
                 const { result, multimodal } = await readSingleFile(fileReq.path, capability, isMultiRoot, lineRange);
-                results.push(result);
+                return { index, result, multimodal };
+            };
+
+            // 并行读取文件，限制最大并发数
+            const results: ReadResult[] = new Array(fileList.length);
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < fileList.length; i += MAX_CONCURRENT) {
+                const batch = fileList.slice(i, i + MAX_CONCURRENT);
+                const batchResults = await Promise.all(
+                    batch.map((fileReq, batchIndex) => processFileRequest(fileReq, i + batchIndex))
+                );
                 
-                if (result.success) {
-                    successCount++;
-                    if (multimodal) {
-                        allMultimodal.push(...multimodal);
+                for (const { index, result, multimodal } of batchResults) {
+                    results[index] = result;
+                    if (result.success) {
+                        successCount++;
+                        if (multimodal) {
+                            allMultimodal.push(...multimodal);
+                        }
+                    } else {
+                        failCount++;
                     }
-                } else {
-                    failCount++;
                 }
             }
 
