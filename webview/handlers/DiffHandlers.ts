@@ -331,7 +331,7 @@ async function openDiffView(
   ctx.diffPreviewProvider.setContent(newUri.toString(), newContent);
   
   await vscode.commands.executeCommand('vscode.diff', originalUri, newUri, diffTitle, {
-    preview: false
+    preview: true
   });
 }
 

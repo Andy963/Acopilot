@@ -7,10 +7,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import type { Tool, ToolResult } from '../types';
 import { resolveUriWithInfo, getAllWorkspaces } from '../utils';
-import { getDiffManager } from './diffManager';
 import { getDiffStorageManager } from '../../modules/conversation';
 
 /**
@@ -39,12 +37,11 @@ interface WriteResult {
  * 写入单个文件
  * @param entry 文件条目
  * @param isMultiRoot 是否是多工作区模式
- * 始终等待 diff 被处理（保存或拒绝）
  */
-async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean, toolId?: string): Promise<WriteResult> {
+async function writeSingleFile(entry: WriteFileEntry): Promise<WriteResult> {
     const { path: filePath, content } = entry;
     
-    const { uri, workspace } = resolveUriWithInfo(filePath);
+    const { uri } = resolveUriWithInfo(filePath);
     if (!uri) {
         return {
             path: filePath,
@@ -54,22 +51,27 @@ async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean, tool
     }
 
     const absolutePath = uri.fsPath;
-    const workspaceName = isMultiRoot ? workspace?.name : undefined;
 
     try {
         // 检查文件是否存在并获取原始内容
         let originalContent = '';
         let fileExists = false;
         
-        try {
-            await vscode.workspace.fs.stat(uri);
+        const openedDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
+        if (openedDoc) {
             fileExists = true;
-            const contentBytes = await vscode.workspace.fs.readFile(uri);
-            originalContent = new TextDecoder().decode(contentBytes);
-        } catch {
-            // 文件不存在，原始内容为空
-            fileExists = false;
-            originalContent = '';
+            originalContent = openedDoc.getText();
+        } else {
+            try {
+                await vscode.workspace.fs.stat(uri);
+                fileExists = true;
+                const contentBytes = await vscode.workspace.fs.readFile(uri);
+                originalContent = new TextDecoder().decode(contentBytes);
+            } catch {
+                // 文件不存在，原始内容为空
+                fileExists = false;
+                originalContent = '';
+            }
         }
 
         // 如果内容相同，无需修改
@@ -81,47 +83,32 @@ async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean, tool
             };
         }
 
-        // 如果文件不存在，需要先创建目录
+        // 方案A：使用 WorkspaceEdit 在后台直接写入并保存（不打开任何编辑器 Tab）
+        const edit = new vscode.WorkspaceEdit();
+
+        // 如果文件不存在，先创建目录+文件
         if (!fileExists) {
-            const dirPath = path.dirname(absolutePath);
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, { recursive: true });
-            }
-            // 创建空文件以便 DiffManager 可以操作
-            fs.writeFileSync(absolutePath, '', 'utf8');
+            const dirUri = vscode.Uri.file(path.dirname(absolutePath));
+            await vscode.workspace.fs.createDirectory(dirUri);
+            edit.createFile(uri, { overwrite: true });
+            edit.insert(uri, new vscode.Position(0, 0), content);
+        } else {
+            const doc = await vscode.workspace.openTextDocument(uri);
+            const currentText = doc.getText();
+            const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(currentText.length));
+            edit.replace(uri, fullRange, content);
         }
 
-        // 使用 DiffManager 创建待审阅的 diff
-        const diffManager = getDiffManager();
-        const pendingDiff = await diffManager.createPendingDiff(
-            filePath,
-            absolutePath,
-            originalContent,
-            content,
-            toolId
-        );
+        await vscode.workspace.applyEdit(edit);
 
-        // 等待 diff 被处理（保存或拒绝）或用户中断
-        const wasInterrupted = await new Promise<boolean>((resolve) => {
-            const checkStatus = () => {
-                // 检查用户中断
-                if (diffManager.isUserInterrupted()) {
-                    resolve(true);
-                    return;
-                }
-                
-                const diff = diffManager.getDiff(pendingDiff.id);
-                if (!diff || diff.status !== 'pending') {
-                    resolve(false);
-                } else {
-                    setTimeout(checkStatus, 100);
-                }
-            };
-            checkStatus();
-        });
-        
-        const finalDiff = diffManager.getDiff(pendingDiff.id);
-        const wasAccepted = !wasInterrupted && (!finalDiff || finalDiff.status === 'accepted');
+        // 保存文档（尽量只保存当前文件）
+        const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString())
+            || await vscode.workspace.openTextDocument(uri);
+        const saved = await doc.save();
+        if (!saved) {
+            // 兜底：直接写入文件系统
+            await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
+        }
         
         // 尝试将内容保存到 DiffStorageManager，供前端按需加载
         const diffStorageManager = getDiffStorageManager();
@@ -140,24 +127,12 @@ async function writeSingleFile(entry: WriteFileEntry, isMultiRoot: boolean, tool
             }
         }
         
-        if (wasInterrupted) {
-            // 简化返回：AI 已经知道写入的内容，不需要重复返回
-            return {
-                path: filePath,
-                success: true,  // 用户主动中断，不算失败
-                action: fileExists ? 'modified' : 'created',
-                status: 'pending',
-                diffContentId
-            };
-        }
-        
         // 简化返回：AI 已经知道写入的内容，不需要重复返回
         return {
             path: filePath,
-            success: wasAccepted,
+            success: true,
             action: fileExists ? 'modified' : 'created',
-            status: wasAccepted ? 'accepted' : 'rejected',
-            error: wasAccepted ? undefined : 'Diff was rejected',
+            status: 'accepted',
             diffContentId
         };
     } catch (error) {
@@ -182,7 +157,7 @@ export function createWriteFileTool(): Tool {
     const arrayFormatNote = '\n\n**IMPORTANT**: The `files` parameter MUST be an array, even for a single file. Example: `{"files": [{"path": "file.txt", "content": "..."}]}`, NOT `{"path": "file.txt", "content": "..."}`.';
     
     // 根据工作区数量生成描述
-    let description = 'Write content to one or more files. A Diff preview will be shown for user confirmation regardless of whether the file exists. For new files, a full content diff preview will be shown. Supports auto-save or manual review mode (configured in settings).' + arrayFormatNote;
+    let description = 'Write content to one or more files. Changes are applied and saved in the background (no editor tabs are opened). A diff preview is available in the UI for review.' + arrayFormatNote;
     let pathDescription = 'File path (relative to workspace root)';
     
     if (isMultiRoot) {
@@ -231,9 +206,6 @@ export function createWriteFileTool(): Tool {
             const workspaces = getAllWorkspaces();
             const isMultiRoot = workspaces.length > 1;
 
-            const diffManager = getDiffManager();
-            const settings = diffManager.getSettings();
-
             const results: WriteResult[] = [];
             let successCount = 0;
             let failCount = 0;
@@ -241,10 +213,8 @@ export function createWriteFileTool(): Tool {
             let modifiedCount = 0;
             let unchangedCount = 0;
 
-            const toolId = typeof toolContext?.toolId === 'string' ? toolContext.toolId : undefined;
-
             for (const entry of fileList) {
-                const result = await writeSingleFile(entry, isMultiRoot, toolId);
+                const result = await writeSingleFile(entry);
                 results.push(result);
                 
                 if (result.success) {

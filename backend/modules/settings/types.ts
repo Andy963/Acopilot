@@ -1532,8 +1532,6 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programmin
 
 {{$ENVIRONMENT}}
 
-{{$OPEN_TABS}}
-
 {{$ACTIVE_EDITOR}}
 
 {{$DIAGNOSTICS}}
@@ -1573,7 +1571,7 @@ export const DEFAULT_MAX_TOOL_ITERATIONS = 50;
 export const DEFAULT_CONTEXT_AWARENESS_CONFIG: ContextAwarenessConfig = {
     includeWorkspaceFiles: true,
     maxFileDepth: 2,
-    includeOpenTabs: true,
+    includeOpenTabs: false,
     maxOpenTabs: 20,
     includeActiveEditor: true,
     diagnostics: DEFAULT_DIAGNOSTICS_CONFIG,

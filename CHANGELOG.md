@@ -2,6 +2,17 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.11] - 2026-01-21
+
+### Improved
+  - read_file：多文件读取改为限流并行（提高吞吐，保持输出顺序）。
+  - write_file/apply_diff：在后台应用并保存（不打开编辑器 Tab），UI 仍可查看 diff。
+  - 设置：Checkpoints 列表支持“当前筛选全选/批量删除”，并优化确认文案。
+
+### Fixed
+  - execute_command：将执行目录显示到工具标题后（同一行），不再单独占一行。
+  - OpenAI Responses：流式在“思考阶段”异常断开时自动重试并清空 continuation，降低卡死概率。
+
 ## [1.0.57-pre.10] - 2026-01-20
 
 ### Fixed

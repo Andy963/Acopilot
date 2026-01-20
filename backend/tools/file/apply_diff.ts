@@ -5,9 +5,7 @@
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as path from 'path';
 import type { Tool, ToolResult } from '../types';
-import { getDiffManager } from './diffManager';
 import { resolveUriWithInfo, getAllWorkspaces } from '../utils';
 import { getDiffStorageManager } from '../../modules/conversation';
 import { applyReplaceBlock } from './replaceBlock';
@@ -61,7 +59,7 @@ Important:
 - The 'start_line' parameter is REQUIRED for accurate diff positioning
 - Include enough context to make the search unique
 - Diffs are applied in order
-- If any diff fails, the entire operation is rolled back
+- Changes are applied and saved in the background (no editor tabs are opened)
 
 **IMPORTANT**: The \`diffs\` parameter MUST be an array, even for a single diff. Example: \`{"path": "file.txt", "diffs": [{"search": "...", "replace": "...", "start_line": 1}]}\`${descriptionSuffix}`,
             
@@ -121,7 +119,8 @@ Important:
             }
             
             try {
-                const originalContent = fs.readFileSync(absolutePath, 'utf8');
+                const openedDoc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === absolutePath);
+                const originalContent = openedDoc ? openedDoc.getText() : fs.readFileSync(absolutePath, 'utf8');
                 let currentContent = originalContent;
                 
                 // 记录每个 diff 的应用结果
@@ -191,37 +190,24 @@ Important:
                 }
                 
                 // 至少有一个 diff 成功应用，创建待审阅的 diff
-                const diffManager = getDiffManager();
-                const pendingDiff = await diffManager.createPendingDiff(
-                    filePath,
-                    absolutePath,
-                    originalContent,
-                    currentContent,
-                    typeof toolContext?.toolId === 'string' ? toolContext.toolId : undefined
-                );
-                
-                // 等待 diff 被处理（保存或拒绝）或用户中断
-                const wasInterrupted = await new Promise<boolean>((resolve) => {
-                    const checkStatus = () => {
-                        // 检查用户中断
-                        if (diffManager.isUserInterrupted()) {
-                            resolve(true);
-                            return;
-                        }
-                        
-                        const diff = diffManager.getDiff(pendingDiff.id);
-                        if (!diff || diff.status !== 'pending') {
-                            resolve(false);
-                        } else {
-                            setTimeout(checkStatus, 100);
-                        }
-                    };
-                    checkStatus();
-                });
-                
-                // 获取最终状态
-                const finalDiff = diffManager.getDiff(pendingDiff.id);
-                const wasAccepted = !wasInterrupted && (!finalDiff || finalDiff.status === 'accepted');
+                // 方案A：使用 WorkspaceEdit 在后台直接应用并保存（不打开任何编辑器 Tab）
+                const doc = await vscode.workspace.openTextDocument(uri);
+                const currentText = doc.getText();
+                if (currentText !== currentContent) {
+                    const edit = new vscode.WorkspaceEdit();
+                    const fullRange = new vscode.Range(
+                        doc.positionAt(0),
+                        doc.positionAt(currentText.length)
+                    );
+                    edit.replace(uri, fullRange, currentContent);
+                    await vscode.workspace.applyEdit(edit);
+                }
+
+                const saved = await doc.save();
+                if (!saved) {
+                    // 如果 VSCode API 保存失败，尝试直接写入文件
+                    fs.writeFileSync(absolutePath, currentContent, 'utf8');
+                }
                 
                 // 尝试将大内容保存到 DiffStorageManager
                 const diffStorageManager = getDiffStorageManager();
@@ -240,42 +226,19 @@ Important:
                     }
                 }
                 
-                if (wasInterrupted) {
-                    // 简化返回：AI 已经知道 diffs 内容，不需要重复返回
-                    return {
-                        success: true,  // 用户主动中断，不算失败
-                        data: {
-                            file: filePath,
-                            message: failedCount === 0 
-                                ? `Diff for ${filePath} is still pending. User may not have reviewed/saved the changes yet.`
-                                : `Applied ${appliedCount}/${diffs.length} diffs for ${filePath}, but ${failedCount} failed. Still pending user review.`,
-                            status: 'pending',
-                            diffCount: diffs.length,
-                            appliedCount: appliedCount,
-                            failedCount: failedCount,
-                            // 包含失败详情供 AI 修复
-                            failedDiffs: failedDiffs.length > 0 ? failedDiffs : undefined,
-                            // 仅供前端按需加载用，不发送给 AI
-                            diffContentId
-                        }
-                    };
-                }
-                
                 // 简化返回：AI 已经知道 diffs 内容，不需要重复返回
-                let message = wasAccepted
-                    ? `Diff applied and saved to ${filePath}`
-                    : `Diff was rejected for ${filePath}`;
+                let message = `Diff applied and saved to ${filePath}`;
                 
-                if (wasAccepted && failedCount > 0) {
+                if (failedCount > 0) {
                     message = `Partially applied diffs to ${filePath}: ${appliedCount} succeeded, ${failedCount} failed. Saved successfully.`;
                 }
 
                 return {
-                    success: wasAccepted,
+                    success: true,
                     data: {
                         file: filePath,
                         message,
-                        status: wasAccepted ? 'accepted' : 'rejected',
+                        status: 'accepted',
                         diffCount: diffs.length,
                         appliedCount: appliedCount,
                         failedCount: failedCount,
