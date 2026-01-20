@@ -79,22 +79,7 @@ const readResults = computed((): ReadResult[] => {
   }))
 })
 
-// 总文件数统计
-const successCount = computed(() => {
-  const result = props.result as Record<string, any> | undefined
-  if (result?.data?.successCount !== undefined) {
-    return result.data.successCount as number
-  }
-  return readResults.value.filter(r => r.success).length
-})
-
-const failCount = computed(() => {
-  const result = props.result as Record<string, any> | undefined
-  if (result?.data?.failCount !== undefined) {
-    return result.data.failCount as number
-  }
-  return readResults.value.filter(r => !r.success).length
-})
+// 统计信息（成功/失败/总数）已上移到 ToolMessage 头部，避免重复标题栏。
 
 // 获取行范围摘要文本
 function getLineRangeSummary(result: ReadResult): string | null {
@@ -222,25 +207,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="read-file-panel">
-    <!-- 总体统计头部 -->
-    <div class="panel-header">
-      <div class="header-info">
-        <span class="codicon codicon-files files-icon"></span>
-        <span class="title">{{ t('components.tools.file.readFilePanel.title') }}</span>
-      </div>
-      <div class="header-stats">
-        <span v-if="successCount > 0" class="stat success">
-          <span class="codicon codicon-check"></span>
-          {{ successCount }}
-        </span>
-        <span v-if="failCount > 0" class="stat error">
-          <span class="codicon codicon-error"></span>
-          {{ failCount }}
-        </span>
-        <span class="stat total">{{ t('components.tools.file.readFilePanel.total', { count: readResults.length }) }}</span>
-      </div>
-    </div>
-    
     <!-- 全局错误 -->
     <div v-if="error && readResults.length === 0" class="panel-error">
       <span class="codicon codicon-error error-icon"></span>
@@ -338,53 +304,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 8px);
-}
-
-/* 总体头部 */
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-xs, 4px) 0;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs, 4px);
-}
-
-.files-icon {
-  color: var(--vscode-charts-blue);
-  font-size: 14px;
-}
-
-.title {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--vscode-foreground);
-}
-
-.header-stats {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-}
-
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-}
-
-.stat.success {
-  color: var(--vscode-testing-iconPassed);
-}
-
-.stat.error {
-  color: var(--vscode-testing-iconFailed);
 }
 
 /* 全局错误 */

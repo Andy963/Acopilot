@@ -265,6 +265,37 @@ function getToolDescription(tool: ToolUsage): string {
   return t('components.message.tool.paramCount', { count: argCount })
 }
 
+interface ReadFileHeaderStats {
+  total: number
+  success?: number
+  fail?: number
+}
+
+function getReadFileHeaderStats(tool: ToolUsage): ReadFileHeaderStats | null {
+  if (tool.name !== 'read_file') return null
+
+  const args = (tool.args ?? {}) as Record<string, unknown>
+  const result = tool.result as Record<string, any> | undefined
+
+  const results = result?.data?.results
+  const hasResults = Array.isArray(results)
+  const total = hasResults
+    ? results.length
+    : (Array.isArray(args.files) ? args.files.length : 0)
+
+  const success =
+    typeof result?.data?.successCount === 'number'
+      ? (result.data.successCount as number)
+      : (hasResults ? results.filter((r: any) => !!r?.success).length : undefined)
+
+  const fail =
+    typeof result?.data?.failCount === 'number'
+      ? (result.data.failCount as number)
+      : (hasResults ? results.filter((r: any) => !r?.success).length : undefined)
+
+  return { total, success, fail }
+}
+
 function riskLevelFromLabel(label: string): RiskBadgeLevel | null {
   const normalized = (label || '').trim().toLowerCase()
   if (!normalized) return null
@@ -304,18 +335,21 @@ interface DisplayToolUsage extends ToolUsage {
   description: string
   descriptionText: string
   riskBadge?: RiskBadgeInfo
+  readFileHeaderStats?: ReadFileHeaderStats | null
 }
 
 const displayTools = computed<DisplayToolUsage[]>(() => {
   return enhancedTools.value.map((tool) => {
     const description = getToolDescription(tool)
     const parsed = parseRiskPrefix(description)
+    const readFileHeaderStats = getReadFileHeaderStats(tool)
 
     return {
       ...tool,
       description,
       descriptionText: parsed ? parsed.text : description,
-      riskBadge: parsed?.badge
+      riskBadge: parsed?.badge,
+      readFileHeaderStats
     }
   })
 })
@@ -327,6 +361,17 @@ function getExecuteCommandArgs(tool: ToolUsage): { command: string; cwd?: string
     cwd: typeof args.cwd === 'string' ? args.cwd : undefined,
     shell: typeof args.shell === 'string' ? args.shell : undefined
   }
+}
+
+function hasActionButtons(tool: ToolUsage): boolean {
+  // Confirmation controls
+  if (tool.awaitingConfirmation) return true
+
+  // Diff preview / quick accept controls
+  if (hasDiffPreview(tool) && getDiffFilePaths(tool).length > 0) return true
+  if (isDiffReviewTool(tool) && tool.status === 'running') return true
+
+  return false
 }
 
 
@@ -519,13 +564,38 @@ function renderToolContent(tool: ToolUsage) {
           </div>
           
           <!-- 执行时间 -->
-          <span v-if="tool.duration" class="tool-duration">
-            {{ tool.duration }}ms
-          </span>
+          <div class="tool-meta">
+            <div v-if="tool.name === 'read_file' && tool.readFileHeaderStats?.total" class="tool-stats">
+              <span
+                v-if="(tool.readFileHeaderStats?.success ?? 0) > 0"
+                class="tool-stat stat-success"
+              >
+                <span class="codicon codicon-check"></span>
+                {{ tool.readFileHeaderStats?.success }}
+              </span>
+              <span
+                v-if="(tool.readFileHeaderStats?.fail ?? 0) > 0"
+                class="tool-stat stat-error"
+              >
+                <span class="codicon codicon-error"></span>
+                {{ tool.readFileHeaderStats?.fail }}
+              </span>
+              <span class="tool-stat stat-total">
+                {{ t('components.tools.file.readFilePanel.total', { count: tool.readFileHeaderStats?.total }) }}
+              </span>
+            </div>
+
+            <span v-if="tool.duration" class="tool-duration">
+              {{ tool.duration }}ms
+            </span>
+          </div>
         </div>
         
         <!-- 工具描述和操作按钮 -->
-        <div class="tool-description-row">
+        <div
+          v-if="tool.name === 'execute_command' || tool.descriptionText || tool.riskBadge || hasActionButtons(tool)"
+          class="tool-description-row"
+        >
           <div v-if="tool.name === 'execute_command'" class="exec-command">
             <div class="exec-command-body">
               <div class="exec-command-line">
@@ -720,6 +790,36 @@ function renderToolContent(tool: ToolUsage) {
   font-family: var(--vscode-font-family);
 }
 
+.tool-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+}
+
+.tool-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+}
+
+.tool-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+}
+
+.tool-stat.stat-success {
+  color: var(--vscode-testing-iconPassed);
+}
+
+.tool-stat.stat-error {
+  color: var(--vscode-testing-iconFailed);
+}
+
 .status-icon {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
@@ -759,7 +859,6 @@ function renderToolContent(tool: ToolUsage) {
 }
 
 .tool-duration {
-  margin-left: auto;
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
 }

@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.8] - 2026-01-20
+
+### Fixed
+  - 工具 UI：read_file 折叠状态不再显示文件路径列表，减少占位。
+
 ## [1.0.57-pre.7] - 2026-01-20
 
 ### Fixed
