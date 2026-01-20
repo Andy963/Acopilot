@@ -17,23 +17,12 @@ registerTool('read_file', {
   label: '读取文件',
   icon: 'codicon-file-text',
   
-  // 描述生成器 - 显示文件路径和行范围
+  // 描述生成器
+  // 说明：read_file 的关键信息（成功/失败/总数）已在 ToolMessage 头部显示，
+  // 折叠状态下不再重复列出文件路径，避免占用一整行。
   descriptionFormatter: (args) => {
-    if (!args.files || !Array.isArray(args.files)) {
-      return '?'
-    }
-    
-    return (args.files as FileRequest[]).map(f => {
-      let desc = f.path || '?'
-      if (f.startLine !== undefined && f.endLine !== undefined) {
-        desc += ` [L${f.startLine}-${f.endLine}]`
-      } else if (f.startLine !== undefined) {
-        desc += ` [L${f.startLine}+]`
-      } else if (f.endLine !== undefined) {
-        desc += ` [L1-${f.endLine}]`
-      }
-      return desc
-    }).join('\n')
+    void args
+    return ''
   },
   
   // 使用自定义组件显示内容
