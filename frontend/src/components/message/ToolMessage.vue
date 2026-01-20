@@ -1062,6 +1062,11 @@ function renderToolContent(tool: ToolUsage) {
   background: var(--vscode-editor-inactiveSelectionBackground);
 }
 
+/* Tool header already shows the tool label; hide redundant titles inside tool panels. */
+.tool-content :deep(.panel-header .title) {
+  display: none;
+}
+
 .tool-message.embedded .tool-content {
   padding: 0;
   border-top: 1px solid var(--vscode-panel-border);
