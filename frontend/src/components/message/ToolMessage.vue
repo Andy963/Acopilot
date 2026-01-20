@@ -507,7 +507,7 @@ function renderToolContent(tool: ToolUsage) {
           <span class="tool-name">{{ getToolLabel(tool) }}</span>
           
           <!-- 状态图标 -->
-          <div v-if="tool.status || tool.awaitingConfirmation" class="status-icon-wrapper">
+          <div v-if="(tool.status || tool.awaitingConfirmation) && tool.name !== 'execute_command'" class="status-icon-wrapper">
             <span
               :class="[
                 'status-icon',
@@ -529,6 +529,16 @@ function renderToolContent(tool: ToolUsage) {
           <div v-if="tool.name === 'execute_command'" class="exec-command">
             <div class="exec-command-body">
               <div class="exec-command-line">
+                <span
+                  v-if="tool.status || tool.awaitingConfirmation"
+                  :class="[
+                    'status-icon',
+                    'exec-status-icon',
+                    'codicon',
+                    getStatusIcon(tool.status, tool.awaitingConfirmation),
+                    getStatusClass(tool.status, tool.awaitingConfirmation)
+                  ]"
+                ></span>
                 <code class="exec-command-text">{{ getExecuteCommandArgs(tool).command }}</code>
                 <span
                   v-if="tool.riskBadge"
@@ -818,6 +828,11 @@ function renderToolContent(tool: ToolUsage) {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.exec-status-icon {
+  margin-left: 0;
+  flex-shrink: 0;
 }
 
 .exec-command-text {
