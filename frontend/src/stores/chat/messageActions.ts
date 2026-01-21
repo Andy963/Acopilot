@@ -12,6 +12,18 @@ import { createAndPersistConversation } from './conversationActions'
 import { clearCheckpointsFromIndex } from './checkpointActions'
 import { persistPinnedPromptForConversation } from './pinnedPromptActions'
 
+async function getLocateModelOverride(): Promise<string | undefined> {
+  try {
+    const resp = await sendToExtension<{ config: { model?: unknown } }>('tools.getToolConfig', {
+      toolName: 'locate'
+    })
+    const raw = resp?.config?.model
+    return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * 取消流式的回调类型
  */
@@ -39,6 +51,8 @@ export async function sendMessage(
     : originalText
 
   if (!effectiveMessageText.trim() && (!attachments || attachments.length === 0)) return
+
+  const locateModelOverride = isLocateCommand ? await getLocateModelOverride() : undefined
   
   state.error.value = null
   if (state.isWaitingForResponse.value) return
@@ -91,7 +105,7 @@ export async function sendMessage(
       timestamp: Date.now(),
       streaming: true,
       metadata: {
-        modelVersion: computed.currentModelName.value
+        modelVersion: locateModelOverride || computed.currentModelName.value
       }
     }
     state.allMessages.value.push(assistantMessage)
@@ -128,8 +142,15 @@ export async function sendMessage(
     const selectionReferencesPayload = hasSelectionReferences
       ? selectionReferences.map((r) => ({ ...r }))
       : undefined
-    const contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
+    let contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
     const taskContextPayload = options?.taskContext?.trim() ? String(options.taskContext) : undefined
+
+    if (isLocateCommand && locateModelOverride) {
+      contextOverridesPayload = {
+        ...(contextOverridesPayload || {}),
+        modelOverride: locateModelOverride
+      }
+    }
     
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,

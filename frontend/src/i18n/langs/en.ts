@@ -1463,6 +1463,7 @@ const en: LanguageMessages = {
                     locate: {
                         title: 'Locate (/locate)',
                         hint: '(optional) Set a faster model for /locate; leave empty to use the current chat model',
+                        useChatModelOption: 'Follow current chat model (no override)',
                         modelLabel: 'Locate model',
                         modelPlaceholder: 'Leave empty to use current chat model (e.g. gemini-2.5-flash)'
                     }
