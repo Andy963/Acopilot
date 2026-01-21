@@ -1459,6 +1459,14 @@ const en: LanguageMessages = {
                         addButton: 'Add'
                     }
                 },
+                lsp: {
+                    locate: {
+                        title: 'Locate (/locate)',
+                        hint: '(optional) Set a faster model for /locate; leave empty to use the current chat model',
+                        modelLabel: 'Locate model',
+                        modelPlaceholder: 'Leave empty to use current chat model (e.g. gemini-2.5-flash)'
+                    }
+                },
                 terminal: {
                     executeCommand: {
                         shellEnv: 'Shell Environment',

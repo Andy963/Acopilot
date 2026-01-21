@@ -79,6 +79,24 @@ export class ChatFlowService {
     return this.settingsManager?.getMaxToolIterations() ?? 20;
   }
 
+  private static readonly LOCATE_TOOL_ALLOWLIST = [
+    'search_in_files',
+    'find_files',
+    'read_file',
+    'get_errors',
+    'get_usages',
+    'open_file'
+  ] as const;
+
+  private static readonly LOCATE_TASK_CONTEXT = [
+    'LOCATE MODE:',
+    '- Goal: quickly locate the relevant file/line and open it.',
+    '- Do NOT modify code and do NOT propose patches.',
+    '- Use tools (read/search/lsp) to narrow down the location.',
+    '- Once confident, call open_file(path, start_line, start_column) to open the best match.',
+    '- After opening, reply with a short note of what you opened (file:line) and wait for the user to edit.'
+  ].join('\n');
+
   /**
    * 确保对话存在（不存在则创建）
    */
@@ -117,16 +135,50 @@ export class ChatFlowService {
       };
     }
 
+    const isLocateMode = request.mode === 'locate';
+    const effectiveMessage = isLocateMode ? String(message || '').replace(/^\s*\/locate\b\s*/i, '') : message;
+
+    let effectiveContextOverrides = request.contextOverrides;
+    let effectiveTaskContext = request.taskContext;
+
+    if (isLocateMode) {
+      if (this.settingsManager && this.settingsManager.isToolEnabled('locate') === false) {
+        return {
+          success: false,
+          error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' }
+        };
+      }
+
+      const locateModel = (() => {
+        const cfg = this.settingsManager?.getToolsConfig?.();
+        const raw = (cfg as any)?.locate?.model;
+        return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+      })();
+
+      effectiveContextOverrides = {
+        ...(effectiveContextOverrides || {}),
+        mode: 'locate',
+        includeTools: true,
+        toolAllowList: [...ChatFlowService.LOCATE_TOOL_ALLOWLIST],
+        ...(locateModel ? { modelOverride: locateModel } : {}),
+      };
+
+      const userTaskContext = typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
+        ? effectiveTaskContext.trim()
+        : '';
+      effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\n\n');
+    }
+
     // 3. 添加用户消息到历史（包含附件）
-    const userParts = this.messageBuilderService.buildUserMessageParts(message, request.attachments);
+    const userParts = this.messageBuilderService.buildUserMessageParts(effectiveMessage, request.attachments);
     await this.conversationManager.addContent(conversationId, {
       role: 'user',
       parts: userParts,
       selectionReferences: request.selectionReferences,
-      taskContext: typeof request.taskContext === 'string' && request.taskContext.trim()
-        ? request.taskContext
+      taskContext: typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
+        ? effectiveTaskContext
         : undefined,
-      contextOverrides: request.contextOverrides,
+      contextOverrides: effectiveContextOverrides,
     });
 
     // 4. 工具调用循环（委托给 ToolIterationLoopService，非流式）
@@ -359,6 +411,41 @@ export class ChatFlowService {
       return;
     }
 
+    const isLocateMode = request.mode === 'locate';
+    const effectiveMessage = isLocateMode ? String(message || '').replace(/^\s*\/locate\b\s*/i, '') : message;
+
+    let effectiveContextOverrides = request.contextOverrides;
+    let effectiveTaskContext = request.taskContext;
+
+    if (isLocateMode) {
+      if (this.settingsManager && this.settingsManager.isToolEnabled('locate') === false) {
+        yield {
+          conversationId,
+          error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' }
+        };
+        return;
+      }
+
+      const locateModel = (() => {
+        const cfg = this.settingsManager?.getToolsConfig?.();
+        const raw = (cfg as any)?.locate?.model;
+        return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+      })();
+
+      effectiveContextOverrides = {
+        ...(effectiveContextOverrides || {}),
+        mode: 'locate',
+        includeTools: true,
+        toolAllowList: [...ChatFlowService.LOCATE_TOOL_ALLOWLIST],
+        ...(locateModel ? { modelOverride: locateModel } : {})
+      };
+
+      const userTaskContext = typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
+        ? effectiveTaskContext.trim()
+        : '';
+      effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\\n\\n');
+    }
+
     // 3. 中断之前未完成的 diff 等待
     this.diffInterruptService.markUserInterrupt();
 
@@ -377,15 +464,15 @@ export class ChatFlowService {
     }
 
     // 5. 添加用户消息到历史（包含附件）
-    const userParts = this.messageBuilderService.buildUserMessageParts(message, request.attachments);
+    const userParts = this.messageBuilderService.buildUserMessageParts(effectiveMessage, request.attachments);
     await this.conversationManager.addContent(conversationId, {
       role: 'user',
       parts: userParts,
       selectionReferences: request.selectionReferences,
-      taskContext: typeof request.taskContext === 'string' && request.taskContext.trim()
-        ? request.taskContext
+      taskContext: typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
+        ? effectiveTaskContext
         : undefined,
-      contextOverrides: request.contextOverrides,
+      contextOverrides: effectiveContextOverrides,
     });
 
     // 5.1 预计算用户消息 token 数

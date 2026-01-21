@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.16] - 2026-01-21
+
+### Added
+  - /locate：定位模式（可选指定模型 + 限制工具白名单），用于快速定位并打开相关文件。
+  - open_file：打开文件并跳转到行列的工具（供 /locate 使用）。
+
 ## [1.0.57-pre.15] - 2026-01-21
 
 ### Improved

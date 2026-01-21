@@ -335,7 +335,8 @@ export class ChannelManager {
         const tools = nonStreamRequest.skipTools ? undefined : this.getFilteredTools(
             (config as any).multimodalToolsEnabled,
             config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
-            (config as any).toolMode
+            (config as any).toolMode,
+            nonStreamRequest.toolAllowList
         );
         
         // 6. 构建请求
@@ -522,7 +523,8 @@ export class ChannelManager {
         const tools = streamRequest.skipTools ? undefined : this.getFilteredTools(
             (config as any).multimodalToolsEnabled,
             config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
-            (config as any).toolMode
+            (config as any).toolMode,
+            streamRequest.toolAllowList
         );
         
         // 5. 构建请求
@@ -950,8 +952,12 @@ export class ChannelManager {
     private getFilteredTools(
         multimodalEnabled?: boolean,
         channelType?: 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
-        toolMode?: 'function_call' | 'xml' | 'json'
+        toolMode?: 'function_call' | 'xml' | 'json',
+        toolAllowList?: string[]
     ) {
+        const allowSet = Array.isArray(toolAllowList) && toolAllowList.length > 0
+            ? new Set(toolAllowList.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim()))
+            : null;
         const tools: any[] = [];
         
         // 1. 获取内置工具
@@ -971,6 +977,9 @@ export class ChannelManager {
             // 清理内置工具的 schema，并动态更新特定工具的描述
             if (builtinTools) {
                 for (const tool of builtinTools) {
+                    if (allowSet && !allowSet.has(tool.name)) {
+                        continue;
+                    }
                     let declaration = { ...tool };
                     
                     // 对 read_file 工具动态生成描述
@@ -1106,6 +1115,9 @@ export class ChannelManager {
                     // 工具名称格式：mcp__{serverId}__{toolName}
                     // 使用双下划线分隔，因为 Gemini API 不允许函数名中包含多个冒号
                     const toolName = `mcp__${serverTools.serverId}__${tool.name}`;
+                    if (allowSet && !allowSet.has(toolName)) {
+                        continue;
+                    }
                     
                     // 根据服务器配置决定是否清理 schema
                     const rawSchema = tool.inputSchema || { type: 'object', properties: {} };

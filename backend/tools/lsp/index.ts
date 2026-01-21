@@ -12,6 +12,8 @@ export { registerGotoDefinition } from './goto_definition';
 export { registerFindReferences } from './find_references';
 export { registerGetErrors } from './get_errors';
 export { registerGetUsages } from './get_usages';
+export { registerOpenFile } from './open_file';
+export { registerLocate } from './locate';
 
 /**
  * 获取所有 LSP 工具
@@ -23,6 +25,8 @@ export function getAllLspTools(): Tool[] {
     const { registerFindReferences } = require('./find_references');
     const { registerGetErrors } = require('./get_errors');
     const { registerGetUsages } = require('./get_usages');
+    const { registerOpenFile } = require('./open_file');
+    const { registerLocate } = require('./locate');
     
     return [
         registerGetSymbols(),
@@ -30,6 +34,8 @@ export function getAllLspTools(): Tool[] {
         registerFindReferences(),
         registerGetErrors(),
         registerGetUsages(),
+        registerOpenFile(),
+        registerLocate(),
     ];
 }
 
@@ -43,6 +49,8 @@ export function getLspToolRegistrations() {
     const { registerFindReferences } = require('./find_references');
     const { registerGetErrors } = require('./get_errors');
     const { registerGetUsages } = require('./get_usages');
+    const { registerOpenFile } = require('./open_file');
+    const { registerLocate } = require('./locate');
     
     return [
         registerGetSymbols,
@@ -50,5 +58,7 @@ export function getLspToolRegistrations() {
         registerFindReferences,
         registerGetErrors,
         registerGetUsages,
+        registerOpenFile,
+        registerLocate,
     ];
 }
