@@ -61,9 +61,9 @@ async function handleDelete(id: string) {
         <i class="codicon codicon-close"></i>
       </button>
     </div>
-    
-    <!-- 搜索输入框 -->
-    <div class="search-bar">
+
+    <!-- 搜索 + 工作区筛选（合并为一行） -->
+    <div class="controls-bar">
       <div class="search-input-container">
         <i class="codicon codicon-search"></i>
         <input
@@ -81,17 +81,16 @@ async function handleDelete(id: string) {
           <i class="codicon codicon-close"></i>
         </button>
       </div>
-    </div>
-    
-    <!-- 工作区筛选 -->
-    <div class="filter-bar">
-      <span class="filter-label">{{ t('components.history.showHistory') }}</span>
-      <CustomSelect
-        :model-value="chatStore.workspaceFilter"
-        :options="workspaceFilterOptions"
-        class="filter-select"
-        @update:model-value="handleFilterChange"
-      />
+
+      <div class="filter-group">
+        <span class="filter-label">{{ t('components.history.showHistory') }}</span>
+        <CustomSelect
+          :model-value="chatStore.workspaceFilter"
+          :options="workspaceFilterOptions"
+          class="filter-select"
+          @update:model-value="handleFilterChange"
+        />
+      </div>
     </div>
 
     <!-- 对话列表 -->
@@ -137,13 +136,20 @@ async function handleDelete(id: string) {
   font-weight: 500;
 }
 
-/* 筛选栏 */
-.filter-bar {
+/* 控制栏（搜索 + 筛选） */
+.controls-bar {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -157,17 +163,12 @@ async function handleDelete(id: string) {
   width: 120px;
 }
 
-/* 搜索栏 */
-.search-bar {
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  flex-shrink: 0;
-}
-
 .search-input-container {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 1;
+  min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--vscode-input-border);
   border-radius: 2px;
@@ -216,6 +217,15 @@ async function handleDelete(id: string) {
 
 .search-clear-btn .codicon {
   font-size: 12px;
+}
+
+@media (max-width: 340px) {
+  .filter-label {
+    display: none;
+  }
+  .filter-select {
+    width: 110px;
+  }
 }
 
 /* 无结果提示 */

@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.12] - 2026-01-21
+
+### Improved
+  - 对话历史：搜索与“显示对话历史”筛选合并为一行，减少占位。
+  - apply_diff：工具卡片支持一键 Undo（按块回滚并最终保存）。
+  - read_file：partial 标识在不同主题下更清晰易读。
+
 ## [1.0.57-pre.11] - 2026-01-21
 
 ### Improved

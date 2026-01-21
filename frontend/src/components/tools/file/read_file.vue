@@ -460,8 +460,10 @@ onBeforeUnmount(() => {
   padding: 1px 6px;
   font-size: 10px;
   font-weight: 500;
-  color: var(--vscode-charts-orange);
-  background: rgba(255, 165, 0, 0.15);
+  /* Ensure "partial" remains readable across VS Code themes (avoid orange-on-orange). */
+  color: #fff;
+  background: var(--vscode-charts-orange, #e69500);
+  border: 1px solid rgba(0, 0, 0, 0.18);
   border-radius: 2px;
 }
 
