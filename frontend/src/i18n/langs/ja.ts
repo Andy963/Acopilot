@@ -1459,6 +1459,14 @@ const ja: LanguageMessages = {
                         addButton: '追加'
                     }
                 },
+                lsp: {
+                    locate: {
+                        title: 'Locate（/locate）',
+                        hint: '（任意）/locate 用の高速モデルを指定できます。空欄の場合は現在の会話モデルを使用します',
+                        modelLabel: '定位モデル',
+                        modelPlaceholder: '空欄の場合は現在の会話モデル（例：gemini-2.5-flash）'
+                    }
+                },
                 terminal: {
                     executeCommand: {
                         shellEnv: 'シェル環境',

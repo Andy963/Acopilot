@@ -425,6 +425,28 @@ export interface ContextInjectionOverrides {
     includePinnedFiles?: boolean;
     includePinnedPrompt?: boolean;
     includeTools?: boolean;
+
+    /**
+     * 限制本次请求可用的工具集合（白名单）
+     *
+     * - 仅影响“注入给模型的工具声明”和“工具执行阶段的允许列表”。
+     * - 为空/未设置时表示不限制（沿用全局工具开关）。
+     */
+    toolAllowList?: string[];
+
+    /**
+     * 模型覆盖（仅本次请求生效）
+     *
+     * 如果提供，将覆盖当前渠道配置的 model 字段。
+     */
+    modelOverride?: string;
+
+    /**
+     * 请求模式（仅本次请求生效）
+     *
+     * - locate: 只做定位 + 打开文件，不做修改。
+     */
+    mode?: 'locate';
 }
 
 /**

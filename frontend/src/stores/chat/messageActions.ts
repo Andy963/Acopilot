@@ -31,7 +31,14 @@ export async function sendMessage(
   attachments?: Attachment[],
   options?: SendMessageOptions
 ): Promise<void> {
-  if (!messageText.trim() && (!attachments || attachments.length === 0)) return
+  const originalText = String(messageText || '')
+  const isLocateCommand = /^\s*\/locate\b/i.test(originalText)
+  const requestMode = isLocateCommand ? 'locate' : undefined
+  const effectiveMessageText = isLocateCommand
+    ? originalText.replace(/^\s*\/locate\b\s*/i, '')
+    : originalText
+
+  if (!effectiveMessageText.trim() && (!attachments || attachments.length === 0)) return
   
   state.error.value = null
   if (state.isWaitingForResponse.value) return
@@ -70,7 +77,7 @@ export async function sendMessage(
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
-      content: messageText,
+      content: effectiveMessageText,
       timestamp: Date.now(),
       attachments: attachments && attachments.length > 0 ? attachments : undefined
     }
@@ -127,7 +134,8 @@ export async function sendMessage(
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
       configId: state.configId.value,
-      message: messageText,
+      message: effectiveMessageText,
+      mode: requestMode,
       attachments: attachmentData,
       selectionReferences: selectionReferencesPayload,
       contextOverrides: contextOverridesPayload,

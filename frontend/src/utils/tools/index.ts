@@ -30,6 +30,7 @@ import './media/rotate_image'
 import './lsp/get_symbols'
 import './lsp/goto_definition'
 import './lsp/find_references'
+import './lsp/open_file'
 
 // 导出工具注册表
 export { toolRegistry, registerTool, getToolConfig, type ToolConfig } from '../toolRegistry'

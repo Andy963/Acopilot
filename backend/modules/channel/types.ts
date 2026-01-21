@@ -47,6 +47,14 @@ export interface GenerateRequest {
      * 用于总结等不需要工具调用的场景。
      */
     skipTools?: boolean;
+
+    /**
+     * 工具白名单（可选）
+     *
+     * 如果提供，将在“工具启用过滤”的基础上进一步只保留白名单中的工具声明。
+     * 用于定位等只读场景，避免模型调用写入/执行类工具。
+     */
+    toolAllowList?: string[];
     
     /**
      * 模型覆盖（可选）

@@ -91,12 +91,18 @@ export class ToolExecutionService {
     async executeFunctionCalls(
         calls: FunctionCallInfo[],
         conversationId?: string,
-        messageIndex?: number
+        messageIndex?: number,
+        config?: BaseChannelConfig,
+        abortSignal?: AbortSignal,
+        toolAllowList?: string[]
     ): Promise<ContentPart[]> {
         const { responseParts } = await this.executeFunctionCallsWithResults(
             calls,
             conversationId,
-            messageIndex
+            messageIndex,
+            config,
+            abortSignal,
+            toolAllowList
         );
         return responseParts;
     }
@@ -125,12 +131,16 @@ export class ToolExecutionService {
         conversationId?: string,
         messageIndex?: number,
         config?: BaseChannelConfig,
-        abortSignal?: AbortSignal
+        abortSignal?: AbortSignal,
+        toolAllowList?: string[]
     ): Promise<ToolExecutionFullResult> {
         const responseParts: ContentPart[] = [];
         const toolResults: ToolExecutionResult[] = [];
         const checkpoints: CheckpointRecord[] = [];
         const multimodalAttachments: ContentPart[] = [];
+        const allowSet = Array.isArray(toolAllowList) && toolAllowList.length > 0
+            ? new Set(toolAllowList.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim()))
+            : null;
 
         // 获取工具调用模式
         const toolMode = config?.toolMode || 'function_call';
@@ -164,6 +174,13 @@ export class ToolExecutionService {
             let response: Record<string, unknown>;
 
             try {
+                // Tool allowlist: return an error response without executing the tool.
+                if (allowSet && !allowSet.has(call.name)) {
+                    response = {
+                        success: false,
+                        error: `Tool not allowed in this mode: ${call.name}`
+                    };
+                } else
                 // execute_command：根据风险策略可直接拦截（denyPatterns）
                 if (call.name === 'execute_command' && this.settingsManager) {
                     const command = (call.args?.command as string | undefined) || '';

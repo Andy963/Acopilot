@@ -26,6 +26,7 @@ import RemoveBackgroundConfig from './tools/media/remove_background.vue'
 import CropImageConfig from './tools/media/crop_image.vue'
 import ResizeImageConfig from './tools/media/resize_image.vue'
 import RotateImageConfig from './tools/media/rotate_image.vue'
+import LocateConfig from './tools/lsp/locate.vue'
 
 // 工具信息接口
 interface ToolInfo {
@@ -70,6 +71,7 @@ function hasConfigPanel(toolName: string): boolean {
     'execute_command',
     'find_files',
     'search_in_files',
+    'locate',
     'generate_image',
     'remove_background',
     'crop_image',
@@ -530,6 +532,7 @@ onMounted(() => {
               :tool-name="tool.name" />
             <FindFilesConfig v-if="tool.name === 'find_files' && isConfigExpanded(tool.name)" />
             <SearchInFilesConfig v-if="tool.name === 'search_in_files' && isConfigExpanded(tool.name)" />
+            <LocateConfig v-if="tool.name === 'locate' && isConfigExpanded(tool.name)" />
             <GenerateImageConfig v-if="tool.name === 'generate_image' && isConfigExpanded(tool.name)" />
             <RemoveBackgroundConfig v-if="tool.name === 'remove_background' && isConfigExpanded(tool.name)" />
             <CropImageConfig v-if="tool.name === 'crop_image' && isConfigExpanded(tool.name)" />

@@ -564,6 +564,13 @@ export class ToolIterationLoopService {
             const toolsEnabled = contextOverrides?.includeTools !== false;
             const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
+            const toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+                ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
+                : undefined;
+            const modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
+                ? contextOverrides.modelOverride.trim()
+                : undefined;
+
             let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
@@ -686,9 +693,13 @@ export class ToolIterationLoopService {
 
             // 4.1 构建 Context Snapshot（用于 UI 解释/调试）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
-            const declarations = toolsEnabled
+            let declarations = toolsEnabled
                 ? this.channelManager.getToolDeclarationsForPreview(config as any)
                 : [];
+            if (Array.isArray(toolAllowList) && toolAllowList.length > 0) {
+                const allowSet = new Set(toolAllowList);
+                declarations = declarations.filter((d) => allowSet.has(d.name));
+            }
             const mcpCount = ToolIterationLoopService.countMcpTools(declarations);
 
             let toolsDefinition = '';
@@ -779,18 +790,19 @@ export class ToolIterationLoopService {
             let openaiResponseId: string | undefined;
 
             let requestHistory = history;
-            let requestPreviousResponseId = previousResponseId;
-            let requestPromptCacheKey = promptCacheKey;
+            let requestPreviousResponseId = modelOverride ? undefined : previousResponseId;
+            let requestPromptCacheKey = modelOverride ? undefined : promptCacheKey;
             let fallbackCount = 0;
             let openaiResponsesStreamNoDoneRetryCount = 0;
             let streamNoDoneRetryCount = 0;
-            let shouldPersistOpenAIResponsesContinuation = true;
+            let shouldPersistOpenAIResponsesContinuation = !modelOverride;
 
             while (true) {
                 const requestStartTime = Date.now();
 
                 // 每次请求默认允许更新 continuation（仅当明确收到完成标记时才会真正启用）
-                shouldPersistOpenAIResponsesContinuation = true;
+                // 如果本次请求使用 modelOverride，则禁用 continuation（避免 previous_response_id 与缓存状态不一致）。
+                shouldPersistOpenAIResponsesContinuation = !modelOverride;
 
                 let sawAnyChunk = false;
                 try {
@@ -804,7 +816,9 @@ export class ToolIterationLoopService {
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
                         promptCacheKey: requestPromptCacheKey,
-                        skipTools: !toolsEnabled
+                        skipTools: !toolsEnabled,
+                        modelOverride,
+                        toolAllowList
                     });
 
                     if (isAsyncGenerator(response)) {
@@ -1114,7 +1128,8 @@ export class ToolIterationLoopService {
                 conversationId,
                 messageIndex,
                 config,
-                abortSignal
+                abortSignal,
+                toolAllowList
             );
 
             // 14. 将函数响应添加到历史
@@ -1197,6 +1212,13 @@ export class ToolIterationLoopService {
             const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
             const toolsEnabled = contextOverrides?.includeTools !== false;
             const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+
+            const toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+                ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
+                : undefined;
+            const modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
+                ? contextOverrides.modelOverride.trim()
+                : undefined;
 
             let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
@@ -1322,9 +1344,13 @@ export class ToolIterationLoopService {
 
             // Context Snapshot（用于 UI 解释/调试；非流式也可用）
             const toolMode = ((config.toolMode || 'function_call') as ContextSnapshotTools['toolMode']);
-            const declarations = toolsEnabled
+            let declarations = toolsEnabled
                 ? this.channelManager.getToolDeclarationsForPreview(config as any)
                 : [];
+            if (Array.isArray(toolAllowList) && toolAllowList.length > 0) {
+                const allowSet = new Set(toolAllowList);
+                declarations = declarations.filter((d) => allowSet.has(d.name));
+            }
             const mcpCount = ToolIterationLoopService.countMcpTools(declarations);
 
             let toolsDefinition = '';
@@ -1413,8 +1439,8 @@ export class ToolIterationLoopService {
             // 调用 AI（非流式）
             let response: GenerateResponse | AsyncGenerator<any>;
             let requestHistory = history;
-            let requestPreviousResponseId = previousResponseId;
-            let requestPromptCacheKey = promptCacheKey;
+            let requestPreviousResponseId = modelOverride ? undefined : previousResponseId;
+            let requestPromptCacheKey = modelOverride ? undefined : promptCacheKey;
             let fallbackCount = 0;
 
             while (true) {
@@ -1428,7 +1454,9 @@ export class ToolIterationLoopService {
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
                         promptCacheKey: requestPromptCacheKey,
-                        skipTools: !toolsEnabled
+                        skipTools: !toolsEnabled,
+                        modelOverride,
+                        toolAllowList
                     });
                     break;
                 } catch (error) {
@@ -1556,7 +1584,10 @@ export class ToolIterationLoopService {
             const functionResponses = await this.toolExecutionService.executeFunctionCalls(
                 functionCalls,
                 conversationId,
-                messageIndex
+                messageIndex,
+                config,
+                undefined,
+                toolAllowList
             );
 
             // 将函数响应添加到历史（作为 user 消息，标记为函数响应）

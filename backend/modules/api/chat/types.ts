@@ -67,6 +67,13 @@ export interface ChatRequestData {
     contextOverrides?: ContextInjectionOverrides;
 
     /**
+     * 请求模式（可选）
+     *
+     * - locate: 只做定位 + 打开文件，不做修改
+     */
+    mode?: 'locate';
+
+    /**
      * Task Context（可选）
      *
      * 由前端 Create Task / Issue 导入等功能提供。
