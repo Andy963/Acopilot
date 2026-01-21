@@ -10,7 +10,7 @@
  * 5. 通过工具 ID 从 store 获取响应结果
  */
 
-import { ref, computed, Component, h, watchEffect } from 'vue'
+import { ref, computed, Component, h, watchEffect, onBeforeUnmount } from 'vue'
 import type { ToolUsage, Message } from '../../types'
 import { getToolConfig } from '../../utils/toolRegistry'
 import { ensureMcpToolRegistered } from '../../utils/tools'
@@ -35,6 +35,16 @@ const props = defineProps<{
 }>()
 
 const chatStore = useChatStore()
+
+// read_file: copy status (only used for single-file inline header action)
+// eslint-disable-next-line no-undef
+const copiedReadFileToolIds = ref<Set<string>>(new Set())
+const copiedReadFileTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+onBeforeUnmount(() => {
+  for (const t of copiedReadFileTimeouts.values()) clearTimeout(t)
+  copiedReadFileTimeouts.clear()
+})
 
 
 // 确保 MCP 工具已注册
@@ -294,6 +304,97 @@ function getReadFileHeaderStats(tool: ToolUsage): ReadFileHeaderStats | null {
       : (hasResults ? results.filter((r: any) => !r?.success).length : undefined)
 
   return { total, success, fail }
+}
+
+function getBasename(filePath: string): string {
+  const parts = (filePath || '').split(/[/\\]/)
+  return parts[parts.length - 1] || filePath
+}
+
+function getReadFileSinglePath(tool: ToolUsage): string | null {
+  if (tool.name !== 'read_file') return null
+  const args = (tool.args ?? {}) as Record<string, unknown>
+  const result = tool.result as Record<string, any> | undefined
+
+  const results = result?.data?.results
+  if (Array.isArray(results) && results.length === 1) {
+    const p = results[0]?.path
+    return typeof p === 'string' ? p : null
+  }
+
+  const files = Array.isArray(args.files) ? (args.files as any[]) : null
+  if (files && files.length === 1) {
+    const p = files[0]?.path
+    return typeof p === 'string' ? p : null
+  }
+
+  return null
+}
+
+function getReadFileSingleDisplayName(tool: ToolUsage): string | null {
+  const p = getReadFileSinglePath(tool)
+  if (!p) return null
+  return getBasename(p)
+}
+
+function getReadFileSingleLineCount(tool: ToolUsage): number | null {
+  if (tool.name !== 'read_file') return null
+  const result = tool.result as Record<string, any> | undefined
+  const results = result?.data?.results
+  if (!Array.isArray(results) || results.length !== 1) return null
+  const lc = results[0]?.lineCount
+  return typeof lc === 'number' ? lc : null
+}
+
+function isReadFileCopied(toolId: string): boolean {
+  return copiedReadFileToolIds.value.has(toolId)
+}
+
+function markReadFileCopied(toolId: string) {
+  copiedReadFileToolIds.value.add(toolId)
+  copiedReadFileToolIds.value = new Set(copiedReadFileToolIds.value)
+
+  const existing = copiedReadFileTimeouts.get(toolId)
+  if (existing) clearTimeout(existing)
+
+  const timeout = setTimeout(() => {
+    copiedReadFileToolIds.value.delete(toolId)
+    copiedReadFileToolIds.value = new Set(copiedReadFileToolIds.value)
+    copiedReadFileTimeouts.delete(toolId)
+  }, 1000)
+
+  copiedReadFileTimeouts.set(toolId, timeout)
+}
+
+function getReadFileSingleContent(tool: ToolUsage): string | null {
+  if (tool.name !== 'read_file') return null
+  const result = tool.result as Record<string, any> | undefined
+  const results = result?.data?.results
+  if (!Array.isArray(results) || results.length !== 1) return null
+  const content = results[0]?.content
+  return typeof content === 'string' && content.length > 0 ? content : null
+}
+
+async function copyReadFileSingleContent(tool: ToolUsage) {
+  if (tool.name !== 'read_file') return
+  const content = getReadFileSingleContent(tool)
+  if (!content) return
+
+  try {
+    // Remove the line-number prefix (format like "   1 | content") to copy clean file contents.
+    const raw = content
+      .split('\n')
+      .map((line) => {
+        const match = line.match(/^\s*\d+\s*\|\s?(.*)$/)
+        return match ? match[1] : line
+      })
+      .join('\n')
+
+    await navigator.clipboard.writeText(raw)
+    markReadFileCopied(tool.id)
+  } catch (err) {
+    console.error('复制失败:', err)
+  }
 }
 
 function riskLevelFromLabel(label: string): RiskBadgeLevel | null {
@@ -688,8 +789,17 @@ function renderToolContent(tool: ToolUsage) {
           <!-- 工具图标 -->
           <span :class="['tool-icon', 'codicon', getToolIcon(tool)]"></span>
           
-	          <!-- 工具名称 -->
+          <!-- 工具名称 -->
 	          <span class="tool-name">{{ getToolLabel(tool) }}</span>
+
+            <!-- read_file: 单文件时把文件名内联到同一行，减少垂直空间 -->
+            <span
+              v-if="tool.name === 'read_file' && getReadFileSingleDisplayName(tool)"
+              class="tool-readfile-target"
+              :title="getReadFileSinglePath(tool) || undefined"
+            >
+              {{ getReadFileSingleDisplayName(tool) }}
+            </span>
 
 	          <!-- execute_command: 显示执行目录（同一行，不单独占一行） -->
 	          <span
@@ -721,6 +831,24 @@ function renderToolContent(tool: ToolUsage) {
                 {{ t('components.tools.file.readFilePanel.total', { count: tool.readFileHeaderStats?.total }) }}
               </span>
             </div>
+
+            <!-- read_file: 单文件时把“复制内容”动作也放到头部，配合 compact 渲染减少一行 -->
+            <button
+              v-if="tool.name === 'read_file' && tool.readFileHeaderStats?.total === 1 && getReadFileSingleContent(tool)"
+              class="tool-inline-action"
+              :class="{ copied: isReadFileCopied(tool.id) }"
+              :title="isReadFileCopied(tool.id) ? t('components.tools.file.readFilePanel.copied') : t('components.tools.file.readFilePanel.copyContent')"
+              @click.stop="copyReadFileSingleContent(tool)"
+            >
+              <span :class="['codicon', isReadFileCopied(tool.id) ? 'codicon-check' : 'codicon-copy']"></span>
+            </button>
+
+            <span
+              v-if="tool.name === 'read_file' && tool.readFileHeaderStats?.total === 1 && getReadFileSingleLineCount(tool)"
+              class="tool-duration"
+            >
+              {{ t('components.tools.file.readFilePanel.lines', { count: getReadFileSingleLineCount(tool) }) }}
+            </span>
 
             <span v-if="tool.duration" class="tool-duration">
               {{ tool.duration }}ms
@@ -977,6 +1105,42 @@ function renderToolContent(tool: ToolUsage) {
   font-weight: 600;
   color: var(--vscode-foreground);
   font-family: var(--vscode-font-family);
+}
+
+.tool-readfile-target {
+  min-width: 0;
+  max-width: clamp(180px, 34vw, 520px);
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-inline-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.1s);
+}
+
+.tool-inline-action:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.tool-inline-action.copied {
+  color: var(--vscode-testing-iconPassed);
 }
 
 .tool-cwd {
