@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.17] - 2026-01-21
+
+### Fixed
+  - /locate：流式请求透传 mode 字段，确保定位模式与模型覆盖配置生效。
+
 ## [1.0.57-pre.16] - 2026-01-21
 
 ### Added

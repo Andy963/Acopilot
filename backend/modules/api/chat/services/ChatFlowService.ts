@@ -443,7 +443,7 @@ export class ChatFlowService {
       const userTaskContext = typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
         ? effectiveTaskContext.trim()
         : '';
-      effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\\n\\n');
+      effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\n\n');
     }
 
     // 3. 中断之前未完成的 diff 等待
