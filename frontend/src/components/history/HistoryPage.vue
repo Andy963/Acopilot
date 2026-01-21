@@ -56,40 +56,44 @@ async function handleDelete(id: string) {
   <div class="history-page">
     <!-- 页面标题栏 -->
     <div class="page-header">
-      <h3>{{ t('components.history.title') }}</h3>
-      <button class="close-btn" :title="t('components.history.backToChat')" @click="settingsStore.showChat">
-        <i class="codicon codicon-close"></i>
-      </button>
-    </div>
-
-    <!-- 搜索 + 工作区筛选（合并为一行） -->
-    <div class="controls-bar">
-      <div class="search-input-container">
-        <i class="codicon codicon-search"></i>
-        <input
-          v-model="searchKeyword"
-          type="text"
-          :placeholder="t('components.history.searchPlaceholder')"
-          class="search-input"
-        />
-        <button
-          v-if="searchKeyword"
-          class="search-clear-btn"
-          :title="t('components.history.clearSearch')"
-          @click="searchKeyword = ''"
-        >
-          <i class="codicon codicon-close"></i>
-        </button>
+      <div class="page-header-left">
+        <h3>{{ t('components.history.title') }}</h3>
       </div>
 
-      <div class="filter-group">
-        <span class="filter-label">{{ t('components.history.showHistory') }}</span>
-        <CustomSelect
-          :model-value="chatStore.workspaceFilter"
-          :options="workspaceFilterOptions"
-          class="filter-select"
-          @update:model-value="handleFilterChange"
-        />
+      <div class="page-header-right">
+        <!-- 搜索（与标题栏合并，减少占位） -->
+        <div class="search-input-container header-search">
+          <i class="codicon codicon-search"></i>
+          <input
+            v-model="searchKeyword"
+            type="text"
+            :placeholder="t('components.history.searchPlaceholder')"
+            class="search-input"
+          />
+          <button
+            v-if="searchKeyword"
+            class="search-clear-btn"
+            :title="t('components.history.clearSearch')"
+            @click="searchKeyword = ''"
+          >
+            <i class="codicon codicon-close"></i>
+          </button>
+        </div>
+
+        <!-- 工作区筛选 -->
+        <div class="filter-group header-filter">
+          <CustomSelect
+            :model-value="chatStore.workspaceFilter"
+            :options="workspaceFilterOptions"
+            compact
+            class="filter-select"
+            @update:model-value="handleFilterChange"
+          />
+        </div>
+
+        <button class="close-btn" :title="t('components.history.backToChat')" @click="settingsStore.showChat">
+          <i class="codicon codicon-close"></i>
+        </button>
       </div>
     </div>
 
@@ -126,24 +130,34 @@ async function handleDelete(id: string) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.page-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
 }
 
 .page-header h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-}
-
-/* 控制栏（搜索 + 筛选） */
-.controls-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .filter-group {
@@ -153,14 +167,12 @@ async function handleDelete(id: string) {
   flex-shrink: 0;
 }
 
-.filter-label {
-  font-size: 12px;
-  color: var(--vscode-descriptionForeground);
-  white-space: nowrap;
-}
-
 .filter-select {
   width: 120px;
+}
+
+.header-filter {
+  flex-shrink: 0;
 }
 
 .search-input-container {
@@ -173,6 +185,11 @@ async function handleDelete(id: string) {
   border: 1px solid var(--vscode-input-border);
   border-radius: 2px;
   background: var(--vscode-input-background);
+}
+
+.header-search {
+  flex: 1 1 160px;
+  max-width: 360px;
 }
 
 .search-input-container .codicon-search {
@@ -220,9 +237,6 @@ async function handleDelete(id: string) {
 }
 
 @media (max-width: 340px) {
-  .filter-label {
-    display: none;
-  }
   .filter-select {
     width: 110px;
   }
