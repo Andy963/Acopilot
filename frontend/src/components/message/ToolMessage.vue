@@ -370,8 +370,133 @@ function hasActionButtons(tool: ToolUsage): boolean {
   // Diff preview / quick accept controls
   if (hasDiffPreview(tool) && getDiffFilePaths(tool).length > 0) return true
   if (isDiffReviewTool(tool) && tool.status === 'running') return true
+  if (canUndoApplyDiff(tool)) return true
 
   return false
+}
+
+interface ApplyDiffBlock {
+  search: string
+  replace: string
+  start_line?: number
+}
+
+function getApplyDiffArgs(tool: ToolUsage): { path: string; diffs: ApplyDiffBlock[] } | null {
+  if (tool.name !== 'apply_diff') return null
+  const args = (tool.args ?? {}) as Record<string, unknown>
+  const path = typeof args.path === 'string' ? args.path : ''
+  const diffs = Array.isArray(args.diffs) ? (args.diffs as ApplyDiffBlock[]) : []
+  if (!path || diffs.length === 0) return null
+  return { path, diffs }
+}
+
+function getApplyDiffFailedIndices(tool: ToolUsage): Set<number> {
+  const failed = new Set<number>()
+  const data = (tool.result as any)?.data
+
+  // New format: failedDiffs: [{ index, error }]
+  if (Array.isArray(data?.failedDiffs)) {
+    for (const f of data.failedDiffs) {
+      if (typeof f?.index === 'number') failed.add(f.index)
+    }
+  }
+
+  // Legacy format: results/diffs: [{ index, success }]
+  const legacy = Array.isArray(data?.results) ? data.results : (Array.isArray(data?.diffs) ? data.diffs : null)
+  if (Array.isArray(legacy)) {
+    for (const r of legacy) {
+      if (typeof r?.index === 'number' && r?.success === false) failed.add(r.index)
+    }
+  }
+
+  return failed
+}
+
+function canUndoApplyDiff(tool: ToolUsage): boolean {
+  if (tool.name !== 'apply_diff') return false
+  if (!tool.result || tool.error) return false
+  if (undoneApplyDiffToolIds.value.has(tool.id)) return false
+
+  const args = getApplyDiffArgs(tool)
+  if (!args) return false
+
+  const data = (tool.result as any)?.data
+  const appliedCount = typeof data?.appliedCount === 'number'
+    ? (data.appliedCount as number)
+    : Math.max(0, args.diffs.length - getApplyDiffFailedIndices(tool).size)
+
+  return appliedCount > 0
+}
+
+const undoneApplyDiffToolIds = ref<Set<string>>(new Set())
+const undoingApplyDiffToolId = ref<string>('')
+async function undoApplyDiffTool(tool: ToolUsage) {
+  const args = getApplyDiffArgs(tool)
+  if (!args) return
+  if (!tool.id) return
+  if (undoingApplyDiffToolId.value === tool.id) return
+
+  const { path, diffs } = args
+  const failed = getApplyDiffFailedIndices(tool)
+  const appliedIndices = diffs
+    .map((_, i) => i)
+    .filter(i => !failed.has(i))
+    .reverse() // Undo in reverse order to reduce shifting effects
+
+  if (appliedIndices.length === 0) return
+
+  undoingApplyDiffToolId.value = tool.id
+  let ok = 0
+  let fail = 0
+
+  try {
+    for (const index of appliedIndices) {
+      const diff = diffs[index]
+      if (!diff || typeof diff.search !== 'string' || typeof diff.replace !== 'string') continue
+
+      // Try with the original start_line first, then fall back to global search.
+      let resp: any = await sendToExtension('patch.applyWorkspaceFileDiffBlock', {
+        path,
+        from: diff.replace,
+        to: diff.search,
+        startLine: diff.start_line,
+        save: false
+      })
+
+      if (!resp?.success && typeof diff.start_line === 'number') {
+        resp = await sendToExtension('patch.applyWorkspaceFileDiffBlock', {
+          path,
+          from: diff.replace,
+          to: diff.search,
+          save: false
+        })
+      }
+
+      if (resp?.success) ok++
+      else fail++
+    }
+
+    // Save once at the end.
+    await sendToExtension('patch.saveWorkspaceFile', { path })
+
+    if (fail === 0) {
+      const next = new Set(undoneApplyDiffToolIds.value)
+      next.add(tool.id)
+      undoneApplyDiffToolIds.value = next
+      await sendToExtension('showNotification', { type: 'info', message: `${t('common.undo')} (${ok}/${appliedIndices.length})` })
+    } else {
+      await sendToExtension('showNotification', { type: 'warning', message: `${t('common.undo')} (${ok}/${appliedIndices.length}) - ${t('common.failed')}: ${fail}` })
+    }
+  } catch (err) {
+    console.error('Failed to undo apply_diff:', err)
+    try {
+      await sendToExtension('showNotification', { type: 'error', message: t('common.failed') })
+    } catch {
+      // ignore
+    }
+  } finally {
+    if (undoingApplyDiffToolId.value === tool.id) undoingApplyDiffToolId.value = ''
+  }
 }
 
 
@@ -737,6 +862,24 @@ function renderToolContent(tool: ToolUsage) {
               <span class="diff-btn-icon codicon codicon-diff"></span>
               <span class="diff-btn-text">{{ t('components.message.tool.viewDiff') }}</span>
               <span class="diff-btn-arrow codicon codicon-arrow-right"></span>
+            </button>
+
+            <!-- 快速撤销（apply_diff） -->
+            <button
+              v-if="canUndoApplyDiff(tool)"
+              class="undo-diff-btn"
+              :disabled="undoingApplyDiffToolId === tool.id"
+              :title="t('common.undo')"
+              @click.stop="undoApplyDiffTool(tool)"
+            >
+              <span
+                :class="[
+                  'undo-btn-icon',
+                  'codicon',
+                  undoingApplyDiffToolId === tool.id ? 'codicon-loading codicon-modifier-spin' : 'codicon-discard'
+                ]"
+              ></span>
+              <span class="undo-btn-text">{{ t('common.undo') }}</span>
             </button>
 
             <!-- 快速确认（保存并继续） -->
@@ -1232,13 +1375,52 @@ function renderToolContent(tool: ToolUsage) {
   padding: 4px 12px;
   background: transparent;
   border: 1px solid #555555;
-  border-radius: 2px;
+  border-radius: 6px;
   color: var(--vscode-foreground);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.12s ease;
   flex-shrink: 0;
+}
+
+.undo-diff-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid #555555;
+  border-radius: 6px;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.undo-diff-btn:hover {
+  background: rgba(128, 128, 128, 0.1);
+  border-color: #777777;
+}
+
+.undo-diff-btn:active {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.undo-diff-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.undo-btn-icon {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.undo-btn-text {
+  white-space: nowrap;
 }
 
 .diff-preview-btn:hover {
