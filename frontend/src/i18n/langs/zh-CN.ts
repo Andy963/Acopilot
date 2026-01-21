@@ -1459,14 +1459,15 @@ const zhCN: LanguageMessages = {
                         addButton: '添加'
                     }
 	                },
-	                lsp: {
-	                    locate: {
-	                        title: '定位（/locate）',
-	                        hint: '（可选）为 /locate 指定一个更快的模型，留空则使用当前对话模型',
-	                        modelLabel: '定位模型',
-	                        modelPlaceholder: '留空使用当前对话模型（例如：gemini-2.5-flash）'
-	                    }
-	                },
+		                lsp: {
+		                    locate: {
+		                        title: '定位（/locate）',
+		                        hint: '（可选）为 /locate 指定一个更快的模型，留空则使用当前对话模型',
+		                        useChatModelOption: '跟随当前对话模型（不覆盖）',
+		                        modelLabel: '定位模型',
+		                        modelPlaceholder: '留空使用当前对话模型（例如：gemini-2.5-flash）'
+		                    }
+		                },
 	                terminal: {
                     executeCommand: {
                         shellEnv: 'Shell 环境',

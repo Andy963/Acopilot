@@ -9,11 +9,14 @@
 
 import { ref, onMounted } from 'vue'
 import { sendToExtension } from '@/utils/vscode'
+import { CustomSelect, type SelectOption } from '../../../common'
 import { t } from '@/i18n'
 
 const model = ref<string>('')
 const isLoading = ref(false)
+const isLoadingModels = ref(false)
 const isSaving = ref(false)
+const modelOptions = ref<SelectOption[]>([])
 
 async function loadConfig() {
   isLoading.value = true
@@ -26,6 +29,51 @@ async function loadConfig() {
     console.error('Failed to load locate config:', err)
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadModelOptions() {
+  isLoadingModels.value = true
+  try {
+    const resp = await sendToExtension<{ channelId?: string }>('settings.getActiveChannelId', {})
+    const channelId = typeof resp?.channelId === 'string' ? resp.channelId.trim() : ''
+
+    const ids = new Set<string>()
+
+    // Include current configured locate model even if it's not in the channel model list.
+    if (model.value.trim()) {
+      ids.add(model.value.trim())
+    }
+
+    if (channelId) {
+      const cfg = await sendToExtension<any>('config.getConfig', { configId: channelId })
+      const active = typeof cfg?.model === 'string' ? cfg.model.trim() : ''
+      if (active) ids.add(active)
+
+      const list = Array.isArray(cfg?.models) ? cfg.models : []
+      for (const m of list) {
+        const id = typeof m?.id === 'string' ? m.id.trim() : ''
+        if (id) ids.add(id)
+      }
+    }
+
+    const options: SelectOption[] = [
+      { value: '', label: t('components.settings.toolSettings.lsp.locate.useChatModelOption') }
+    ]
+
+    const sorted = Array.from(ids).sort((a, b) => a.localeCompare(b))
+    for (const id of sorted) {
+      options.push({ value: id, label: id })
+    }
+
+    modelOptions.value = options
+  } catch (err) {
+    console.error('Failed to load locate model options:', err)
+    modelOptions.value = [
+      { value: '', label: t('components.settings.toolSettings.lsp.locate.useChatModelOption') }
+    ]
+  } finally {
+    isLoadingModels.value = false
   }
 }
 
@@ -45,8 +93,13 @@ async function saveConfig() {
   }
 }
 
+function handleModelChange(value: string) {
+  model.value = value
+  saveConfig()
+}
+
 onMounted(() => {
-  loadConfig()
+  loadConfig().then(loadModelOptions)
 })
 </script>
 
@@ -67,12 +120,14 @@ onMounted(() => {
 
         <div v-else class="row">
           <label class="label">{{ t('components.settings.toolSettings.lsp.locate.modelLabel') }}</label>
-          <input
-            v-model="model"
-            class="input"
-            type="text"
+          <CustomSelect
+            class="select"
+            :model-value="model"
+            :options="modelOptions"
+            searchable
+            :disabled="isSaving || isLoadingModels"
             :placeholder="t('components.settings.toolSettings.lsp.locate.modelPlaceholder')"
-            @blur="saveConfig"
+            @update:modelValue="handleModelChange"
           />
           <button class="save-btn" :disabled="isSaving" @click="saveConfig">
             <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
@@ -154,6 +209,10 @@ onMounted(() => {
   font-family: var(--vscode-font-family);
 }
 
+.select {
+  width: 100%;
+}
+
 .save-btn {
   display: inline-flex;
   align-items: center;
@@ -176,4 +235,3 @@ onMounted(() => {
   background: var(--vscode-toolbar-hoverBackground);
 }
 </style>
-

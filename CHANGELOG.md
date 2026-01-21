@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.18] - 2026-01-21
+
+### Improved
+  - /locate：发送消息时显示定位模型，并将 modelOverride 随请求传递，确保覆盖生效。
+  - 定位（/locate）设置：定位模型改为下拉选择（从当前渠道已配置模型列表中选择，避免手输出错）。
+
 ## [1.0.57-pre.17] - 2026-01-21
 
 ### Fixed
