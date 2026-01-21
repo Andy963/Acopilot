@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.14] - 2026-01-21
+
+### Improved
+  - 对话历史：将“工作区筛选”移动到标题栏右侧，减少控制栏占位。
+
+### Chore
+  - 仓库：忽略本地 `.npm-cache/`。
+
 ## [1.0.57-pre.13] - 2026-01-21
 
 ### Fixed
