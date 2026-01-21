@@ -22,9 +22,6 @@ const { t } = useI18n()
 // 每个目录的展开状态
 const expandedDirs = ref<Set<string>>(new Set())
 
-// 是否递归
-const isRecursive = computed(() => props.args.recursive as boolean || false)
-
 // 获取路径列表
 const pathList = computed(() => {
   if (props.args.paths && Array.isArray(props.args.paths)) {
@@ -121,24 +118,6 @@ const listResults = computed((): ListResult[] => {
   }))
 })
 
-// 总文件数
-const totalFiles = computed(() => {
-  const result = props.result as Record<string, any> | undefined
-  if (result?.data?.totalFiles !== undefined) {
-    return result.data.totalFiles as number
-  }
-  return listResults.value.reduce((sum, r) => sum + r.fileCount, 0)
-})
-
-// 总目录数
-const totalDirs = computed(() => {
-  const result = props.result as Record<string, any> | undefined
-  if (result?.data?.totalDirs !== undefined) {
-    return result.data.totalDirs as number
-  }
-  return listResults.value.reduce((sum, r) => sum + r.dirCount, 0)
-})
-
 // 预览数量
 const previewCount = 15
 
@@ -213,43 +192,10 @@ function getEntryIcon(entry: Entry): string {
   return iconMap[ext] || 'codicon-file'
 }
 
-// 复制单个目录的条目列表
-async function copyDirEntries(result: ListResult) {
-  try {
-    await navigator.clipboard.writeText(result.entries.map(e => e.name).join('\n'))
-  } catch (err) {
-    console.error('复制失败:', err)
-  }
-}
-
-// 复制所有条目列表
-async function copyAllEntries() {
-  try {
-    const allEntries = listResults.value.flatMap(r => r.entries.map(e => e.name))
-    await navigator.clipboard.writeText(allEntries.join('\n'))
-  } catch (err) {
-    console.error('复制失败:', err)
-  }
-}
 </script>
 
 <template>
   <div class="list-files-panel">
-    <!-- 总体统计头部 -->
-    <div class="panel-header">
-      <div class="header-info">
-        <span class="codicon codicon-folder-library folder-icon"></span>
-        <span class="title">{{ t('components.tools.file.listFilesPanel.title') }}</span>
-        <span v-if="isRecursive" class="recursive-badge">{{ t('components.tools.file.listFilesPanel.recursive') }}</span>
-      </div>
-      <div class="header-meta">
-        <span class="total-count">{{ t('components.tools.file.listFilesPanel.totalStat', { dirCount: listResults.length, folderCount: totalDirs, fileCount: totalFiles }) }}</span>
-        <button class="action-btn" :title="t('components.tools.file.listFilesPanel.copyAll')" @click="copyAllEntries">
-          <span class="codicon codicon-copy"></span>
-        </button>
-      </div>
-    </div>
-    
     <!-- 全局错误 -->
     <div v-if="error && listResults.length === 0" class="panel-error">
       <span class="codicon codicon-error error-icon"></span>
@@ -272,12 +218,6 @@ async function copyAllEntries() {
               result.success ? 'codicon-folder' : 'codicon-error'
             ]"></span>
             <span class="dir-path">{{ result.path }}</span>
-            <span class="dir-count">{{ t('components.tools.file.listFilesPanel.dirStat', { folderCount: result.dirCount, fileCount: result.fileCount }) }}</span>
-          </div>
-          <div class="dir-actions">
-            <button class="action-btn" :title="t('components.tools.file.listFilesPanel.copyList')" @click.stop="copyDirEntries(result)">
-              <span class="codicon codicon-copy"></span>
-            </button>
           </div>
         </div>
         
@@ -321,69 +261,6 @@ async function copyAllEntries() {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 8px);
-}
-
-/* 总体头部 */
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-xs, 4px) 0;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs, 4px);
-}
-
-.folder-icon {
-  color: var(--vscode-charts-yellow);
-  font-size: 14px;
-}
-
-.title {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--vscode-foreground);
-}
-
-.recursive-badge {
-  font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 2px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-}
-
-.header-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm, 8px);
-}
-
-.total-count {
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm, 2px);
-  color: var(--vscode-descriptionForeground);
-  cursor: pointer;
-  transition: all var(--transition-fast, 0.1s);
-}
-
-.action-btn:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-foreground);
 }
 
 /* 全局错误 */
@@ -441,7 +318,6 @@ async function copyAllEntries() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs, 4px);
-  flex: 1;
   min-width: 0;
 }
 
@@ -463,18 +339,6 @@ async function copyAllEntries() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.dir-count {
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
-  flex-shrink: 0;
-}
-
-.dir-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs, 4px);
 }
 
 /* 目录错误 */

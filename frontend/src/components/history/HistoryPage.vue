@@ -61,25 +61,6 @@ async function handleDelete(id: string) {
       </div>
 
       <div class="page-header-right">
-        <!-- 搜索（与标题栏合并，减少占位） -->
-        <div class="search-input-container header-search">
-          <i class="codicon codicon-search"></i>
-          <input
-            v-model="searchKeyword"
-            type="text"
-            :placeholder="t('components.history.searchPlaceholder')"
-            class="search-input"
-          />
-          <button
-            v-if="searchKeyword"
-            class="search-clear-btn"
-            :title="t('components.history.clearSearch')"
-            @click="searchKeyword = ''"
-          >
-            <i class="codicon codicon-close"></i>
-          </button>
-        </div>
-
         <!-- 工作区筛选 -->
         <div class="filter-group header-filter">
           <CustomSelect
@@ -92,6 +73,27 @@ async function handleDelete(id: string) {
         </div>
 
         <button class="close-btn" :title="t('components.history.backToChat')" @click="settingsStore.showChat">
+          <i class="codicon codicon-close"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="controls-bar">
+      <div class="search-input-container">
+        <i class="codicon codicon-search"></i>
+        <input
+          v-model="searchKeyword"
+          type="text"
+          :placeholder="t('components.history.searchPlaceholder')"
+          class="search-input"
+        />
+        <button
+          v-if="searchKeyword"
+          class="search-clear-btn"
+          :title="t('components.history.clearSearch')"
+          @click="searchKeyword = ''"
+        >
           <i class="codicon codicon-close"></i>
         </button>
       </div>
@@ -146,8 +148,6 @@ async function handleDelete(id: string) {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
   justify-content: flex-end;
 }
 
@@ -175,6 +175,12 @@ async function handleDelete(id: string) {
   flex-shrink: 0;
 }
 
+.controls-bar {
+  display: flex;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
 .search-input-container {
   display: flex;
   align-items: center;
@@ -185,11 +191,6 @@ async function handleDelete(id: string) {
   border: 1px solid var(--vscode-input-border);
   border-radius: 2px;
   background: var(--vscode-input-background);
-}
-
-.header-search {
-  flex: 1 1 160px;
-  max-width: 360px;
 }
 
 .search-input-container .codicon-search {
