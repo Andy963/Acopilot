@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.13] - 2026-01-21
+
+### Fixed
+  - read_file：单文件读取时工具头部合并为一行展示（“读取文件 文件名”），减少占位。
+  - read_file：单文件模式下不再重复显示文件头/路径；修复文件扩展名重复展示。
+
 ## [1.0.57-pre.12] - 2026-01-21
 
 ### Improved

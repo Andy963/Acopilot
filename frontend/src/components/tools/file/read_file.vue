@@ -79,6 +79,9 @@ const readResults = computed((): ReadResult[] => {
   }))
 })
 
+// 单文件时：头部已在 ToolMessage 内联显示（读取文件 + 文件名），这里压缩掉每文件标题行。
+const compactSingleFile = computed(() => readResults.value.length === 1)
+
 // 统计信息（成功/失败/总数）已上移到 ToolMessage 头部，避免重复标题栏。
 
 // 获取行范围摘要文本
@@ -109,16 +112,25 @@ function isPartialRead(result: ReadResult): boolean {
 const previewLineCount = 15
 
 // 获取文件名
-function getFileName(filePath: string): string {
+function getFileNameWithExt(filePath: string): string {
   const parts = filePath.split(/[/\\]/)
   return parts[parts.length - 1] || filePath
 }
 
+// 获取不含扩展名的文件名（用于 UI 分离显示扩展名）
+function getFileBaseName(filePath: string): string {
+  const fileName = getFileNameWithExt(filePath)
+  const lastDot = fileName.lastIndexOf('.')
+  if (lastDot > 0 && lastDot < fileName.length - 1) return fileName.slice(0, lastDot)
+  return fileName
+}
+
 // 获取文件扩展名
 function getFileExtension(filePath: string): string {
-  const fileName = getFileName(filePath)
-  const parts = fileName.split('.')
-  return parts.length > 1 ? parts[parts.length - 1] : ''
+  const fileName = getFileNameWithExt(filePath)
+  const lastDot = fileName.lastIndexOf('.')
+  if (lastDot > 0 && lastDot < fileName.length - 1) return fileName.slice(lastDot + 1)
+  return ''
 }
 
 // 获取内容行数组
@@ -221,14 +233,14 @@ onBeforeUnmount(() => {
         :class="['file-panel', { 'is-error': !result.success }]"
       >
         <!-- 文件头部 -->
-        <div class="file-header">
+        <div v-if="!compactSingleFile" class="file-header">
           <div class="file-info">
             <span :class="[
               'file-icon',
               'codicon',
               result.success ? 'codicon-file-text' : 'codicon-error'
             ]"></span>
-            <span class="file-name">{{ getFileName(result.path) }}</span>
+            <span class="file-name">{{ getFileBaseName(result.path) }}</span>
             <span v-if="getFileExtension(result.path)" class="file-ext">.{{ getFileExtension(result.path) }}</span>
             <span v-if="result.lineCount" class="line-count">{{ t('components.tools.file.readFilePanel.lines', { count: result.lineCount }) }}</span>
           </div>
@@ -246,7 +258,7 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- 文件路径 -->
-        <div class="file-path">{{ result.path }}</div>
+        <div v-if="!compactSingleFile" class="file-path">{{ result.path }}</div>
         
         <!-- 行范围信息（仅当使用行范围时显示） -->
         <div v-if="getLineRangeSummary(result)" class="line-range-info">
