@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57-pre.15] - 2026-01-21
+
+### Improved
+  - 对话历史：标题栏仅保留“对话历史 + 工作区筛选”，搜索框单独一行展示。
+  - list_files：移除重复的汇总行（目录/文件统计 + 复制按钮），避免信息重复。
+
 ## [1.0.57-pre.14] - 2026-01-21
 
 ### Improved
