@@ -49,6 +49,7 @@ import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecut
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
 import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
+import { LOCATE_CARRYOVER_METADATA_KEY, parseLocateCarryoverState, withOpenedFile } from './locateCarryover';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 const OPENAI_RESPONSES_FEATURES_KEY = 'openaiResponsesFeatures';
@@ -487,6 +488,47 @@ export class ToolIterationLoopService {
         this.promptManager = new PromptManager();
     }
 
+    private static normalizePositiveInt(value: unknown): number | undefined {
+        if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+        const n = Math.trunc(value);
+        return n > 0 ? n : undefined;
+    }
+
+    private async updateLocateCarryoverFromOpenFileCalls(
+        conversationId: string,
+        enabled: boolean,
+        calls: Array<{ name: string; args: Record<string, unknown> }>
+    ): Promise<void> {
+        if (!enabled) return;
+
+        const openFileCalls = calls.filter((c) => c?.name === 'open_file');
+        if (openFileCalls.length === 0) return;
+
+        const last = openFileCalls[openFileCalls.length - 1];
+        const rawPath = typeof (last.args as any)?.path === 'string' ? String((last.args as any).path) : '';
+        const path = rawPath.trim();
+        if (!path) return;
+
+        const openedFile = {
+            path,
+            startLine: ToolIterationLoopService.normalizePositiveInt((last.args as any)?.start_line),
+            startColumn: ToolIterationLoopService.normalizePositiveInt((last.args as any)?.start_column),
+            endLine: ToolIterationLoopService.normalizePositiveInt((last.args as any)?.end_line),
+            endColumn: ToolIterationLoopService.normalizePositiveInt((last.args as any)?.end_column),
+        };
+
+        const existing = parseLocateCarryoverState(
+            await this.conversationManager.getCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY)
+        );
+        if (!existing) return;
+
+        await this.conversationManager.setCustomMetadata(
+            conversationId,
+            LOCATE_CARRYOVER_METADATA_KEY,
+            withOpenedFile(existing, openedFile)
+        );
+    }
+
     /**
      * 设置提示词管理器（允许外部注入已初始化的实例）
      */
@@ -570,6 +612,7 @@ export class ToolIterationLoopService {
             const modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
                 ? contextOverrides.modelOverride.trim()
                 : undefined;
+            const isLocateMode = contextOverrides?.mode === 'locate';
 
             let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
@@ -1131,6 +1174,8 @@ export class ToolIterationLoopService {
                 abortSignal,
                 toolAllowList
             );
+
+            await this.updateLocateCarryoverFromOpenFileCalls(conversationId, isLocateMode, functionCalls as any);
 
             // 14. 将函数响应添加到历史
             const functionResponseParts = executionResult.multimodalAttachments

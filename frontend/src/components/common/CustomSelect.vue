@@ -53,7 +53,7 @@ const filteredOptions = computed(() => {
     return props.options
   }
   const query = searchQuery.value.toLowerCase()
-  return props.options.filter(opt => 
+  return props.options.filter(opt =>
     opt.label.toLowerCase().includes(query) ||
     opt.description?.toLowerCase().includes(query)
   )
@@ -158,17 +158,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    :class="['custom-select', { open: isOpen, disabled, 'drop-up': dropUp, compact }]"
-    @keydown="handleKeydown"
-  >
-    <button
-      type="button"
-      class="select-trigger"
-      :disabled="disabled"
-      @click="toggle"
-    >
+  <div ref="containerRef" :class="['custom-select', { open: isOpen, disabled, 'drop-up': dropUp, compact }]"
+    @keydown="handleKeydown">
+    <button type="button" class="select-trigger" :disabled="disabled" @click="toggle">
       <span v-if="selectedOption" class="selected-value">
         <span class="selected-label">{{ selectedOption.label }}</span>
       </span>
@@ -179,35 +171,23 @@ onUnmounted(() => {
     <Transition name="dropdown">
       <div v-if="isOpen" class="select-dropdown">
         <div v-if="searchable" class="search-wrapper">
-          <input
-            ref="inputRef"
-            v-model="searchQuery"
-            type="text"
-            class="search-input"
-            placeholder="搜索..."
-            @click.stop
-          />
+          <input ref="inputRef" v-model="searchQuery" type="text" class="search-input" placeholder="搜索..."
+            @click.stop />
         </div>
 
         <CustomScrollbar :max-height="200" :width="5" :offset="1">
           <div class="options-list">
-            <div
-              v-for="(option, index) in filteredOptions"
-              :key="option.value"
-              :class="[
-                'option-item',
-                {
-                  selected: option.value === modelValue,
-                  highlighted: index === highlightedIndex
-                }
-              ]"
-              @click="(e: MouseEvent) => {
+            <div v-for="(option, index) in filteredOptions" :key="option.value" :class="[
+              'option-item',
+              {
+                selected: option.value === modelValue,
+                highlighted: index === highlightedIndex
+              }
+            ]" @click="(e: MouseEvent) => {
                 const target = e.target as Element | null
                 if (isInteractiveElement(target) || target?.closest('.option-actions')) return
                 selectOption(option)
-              }"
-              @mouseenter="highlightedIndex = index"
-            >
+              }" @mouseenter="highlightedIndex = index">
               <div class="option-content">
                 <span class="option-label">{{ option.label }}</span>
                 <span v-if="option.description" class="option-description">{{ option.description }}</span>
@@ -304,7 +284,7 @@ onUnmounted(() => {
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 9999;
   overflow: hidden;
 }
 
