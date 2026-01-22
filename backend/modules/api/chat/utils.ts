@@ -28,6 +28,10 @@ export interface ContextTrimInfo {
     history: Content[];
     /** 裁剪起始索引（在完整历史中的索引，0 表示没有裁剪） */
     trimStartIndex: number;
+    /** 估算的总 token 数（含 system/pinned/taskContext/selectionReferences 等注入） */
+    estimatedTotalTokens?: number;
+    /** 该渠道配置的最大上下文窗口 token 数（默认 128000） */
+    maxContextTokens?: number;
 }
 
 /**

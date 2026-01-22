@@ -192,27 +192,27 @@ onMounted(async () => {
       <h5 class="section-title">
         <i class="codicon codicon-zap"></i>
         {{ t('components.settings.summarizeSettings.autoSection.title') }}
-        <span class="badge coming-soon">{{ t('components.settings.summarizeSettings.autoSection.comingSoon') }}</span>
       </h5>
       
-      <div class="form-group disabled">
+      <div class="form-group">
         <CustomCheckbox
-          v-model="summarizeConfig.autoSummarize"
+          :model-value="summarizeConfig.autoSummarize"
           :label="t('components.settings.summarizeSettings.autoSection.enable')"
-          :disabled="true"
+          @update:model-value="(v: boolean) => updateConfigField('autoSummarize', v)"
         />
         <p class="field-hint">{{ t('components.settings.summarizeSettings.autoSection.enableHint') }}</p>
       </div>
       
-      <div class="form-group disabled">
+      <div class="form-group">
         <label>{{ t('components.settings.summarizeSettings.autoSection.threshold') }}</label>
         <div class="threshold-input">
           <input
             type="number"
-            v-model.number="summarizeConfig.autoSummarizeThreshold"
+            :value="summarizeConfig.autoSummarizeThreshold"
             min="50"
             max="95"
-            disabled
+            :disabled="!summarizeConfig.autoSummarize"
+            @input="(e: any) => updateConfigField('autoSummarizeThreshold', Number(e.target.value))"
           />
           <span class="unit">{{ t('components.settings.summarizeSettings.autoSection.thresholdUnit') }}</span>
         </div>

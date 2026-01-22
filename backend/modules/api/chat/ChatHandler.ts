@@ -140,6 +140,7 @@ export class ChatHandler {
             this.tokenEstimationService,
             this.contextTrimService,
             this.toolExecutionService,
+            this.summarizeService,
             this.checkpointService
         );
         this.orphanedToolCallService = new OrphanedToolCallService(
@@ -186,6 +187,8 @@ export class ChatHandler {
         this.toolExecutionService.setSettingsManager(settingsManager);
         // 更新 summarizeService 的设置管理器
         this.summarizeService.setSettingsManager(settingsManager);
+        // 更新 toolIterationLoopService 的设置管理器（用于自动总结等运行时设置）
+        this.toolIterationLoopService.setSettingsManager(settingsManager);
         // 更新 checkpointService 的设置管理器
         this.checkpointService.setSettingsManager(settingsManager);
         // 更新 chatFlowService 的设置引用

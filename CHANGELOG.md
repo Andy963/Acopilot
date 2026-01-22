@@ -10,6 +10,12 @@ All notable changes to the "Acopilot" extension will be documented in this file.
   - /locate：定位后自动携带“本次定位 query + 打开的文件位置”到下一条消息，减少“我说的是这里吗？”的断上下文体验。
   - open_file：返回定位范围与附近代码片段（excerpt），便于后续追问快速对齐上下文。
 
+## [1.0.58-pre.1] - 2026-01-22
+
+### Added
+  - 上下文总结：设置面板启用“自动总结”开关与阈值配置（百分比）。
+  - 自动总结（方案A）：在发送请求前预估上下文 token 使用量，超过阈值时自动生成摘要，避免直接丢弃旧回合。
+
 ## [1.0.58-pre.0] - 2026-01-22
 
 ### Added

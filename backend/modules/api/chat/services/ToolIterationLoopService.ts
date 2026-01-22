@@ -20,6 +20,7 @@ import { PromptManager } from '../../../prompt';
 import { t } from '../../../../i18n';
 import { convertToolsToJSON } from '../../../../tools/jsonFormatter';
 import { convertToolsToXML } from '../../../../tools/xmlFormatter';
+import type { SettingsManager } from '../../../settings/SettingsManager';
 import {
     decodeOpenAIResponsesStatefulMarker,
     encodeOpenAIResponsesStatefulMarker,
@@ -46,6 +47,7 @@ import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
 import type { ContextTrimService } from './ContextTrimService';
 import type { ToolExecutionService, ToolExecutionFullResult } from './ToolExecutionService';
+import type { SummarizeService } from './SummarizeService';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './pinnedPrompt';
 import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from './contextInjectionInfo';
@@ -55,6 +57,7 @@ const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 const OPENAI_RESPONSES_FEATURES_KEY = 'openaiResponsesFeatures';
 const OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY = 'openaiResponsesPromptCacheKey';
 const CONVERSATION_START_TIME_KEY = 'conversationStartTime';
+const AUTO_SUMMARIZE_STATE_KEY = 'acopilotAutoSummarizeState';
 
 // Gemini 很容易在“工具循环”里触发 429：工具执行通常很快，导致下一次模型请求紧随其后发出。
 // 这里对工具迭代后的后续轮次做轻量限速，避免短时间内连续请求。
@@ -76,6 +79,11 @@ type OpenAIResponsesFeatures = {
 type OpenAIResponsesPromptCacheState = {
     configId: string;
     promptCacheKey: string;
+};
+
+type AutoSummarizeState = {
+    lastAt: number;
+    lastHistoryLength: number;
 };
 
 async function getOrInitConversationStartTime(conversationManager: ConversationManager, conversationId: string): Promise<string> {
@@ -266,6 +274,7 @@ export interface NonStreamToolLoopResult {
  */
 export class ToolIterationLoopService {
     private promptManager: PromptManager;
+    private settingsManager?: SettingsManager;
 
     private delay(ms: number, signal?: AbortSignal): Promise<void> {
         if (ms <= 0) return Promise.resolve();
@@ -483,6 +492,7 @@ export class ToolIterationLoopService {
         private tokenEstimationService: TokenEstimationService,
         private contextTrimService: ContextTrimService,
         private toolExecutionService: ToolExecutionService,
+        private summarizeService: SummarizeService,
         private checkpointService: CheckpointService
     ) {
         this.promptManager = new PromptManager();
@@ -537,6 +547,89 @@ export class ToolIterationLoopService {
     }
 
     /**
+     * 设置设置管理器（用于读取自动总结配置等运行时设置）
+     */
+    setSettingsManager(settingsManager: SettingsManager): void {
+        this.settingsManager = settingsManager;
+    }
+
+    private static parseAutoSummarizeState(value: unknown): AutoSummarizeState | null {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+        const v = value as any;
+        if (typeof v.lastAt !== 'number' || !Number.isFinite(v.lastAt)) return null;
+        if (typeof v.lastHistoryLength !== 'number' || !Number.isFinite(v.lastHistoryLength)) return null;
+        return { lastAt: v.lastAt, lastHistoryLength: v.lastHistoryLength };
+    }
+
+    private async resetOpenAIResponsesContinuationState(conversationId: string, configId: string): Promise<void> {
+        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
+        // 避免从历史 marker 复用旧的 promptCacheKey（历史已被改写）
+        const promptCacheKey = createOpenAIResponsesPromptCacheKey(conversationId, configId);
+        const nextState: OpenAIResponsesPromptCacheState = { configId, promptCacheKey };
+        await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, nextState);
+    }
+
+    private async maybeAutoSummarizeIfNeeded(opts: {
+        conversationId: string;
+        configId: string;
+        config: BaseChannelConfig;
+        abortSignal?: AbortSignal;
+        isLocateMode: boolean;
+        estimatedTotalTokens?: number;
+        maxContextTokens?: number;
+        fullHistoryLength: number;
+    }): Promise<boolean> {
+        if (!this.settingsManager) return false;
+        if (opts.isLocateMode) return false;
+        if (opts.abortSignal?.aborted) return false;
+        if (typeof opts.estimatedTotalTokens !== 'number' || !Number.isFinite(opts.estimatedTotalTokens)) return false;
+
+        const summarizeConfig = this.settingsManager.getSummarizeConfig();
+        if (!summarizeConfig?.autoSummarize) return false;
+
+        const rawPct = typeof summarizeConfig.autoSummarizeThreshold === 'number' ? summarizeConfig.autoSummarizeThreshold : 80;
+        const pct = Math.max(1, Math.min(100, Math.floor(rawPct)));
+        const maxTokens =
+            typeof opts.maxContextTokens === 'number' && Number.isFinite(opts.maxContextTokens)
+                ? opts.maxContextTokens
+                : ((opts.config as any).maxContextTokens || 128000);
+        const thresholdTokens = Math.floor(maxTokens * pct / 100);
+
+        if (opts.estimatedTotalTokens < thresholdTokens) return false;
+
+        const now = Date.now();
+        const previousState = ToolIterationLoopService.parseAutoSummarizeState(
+            await this.conversationManager.getCustomMetadata(opts.conversationId, AUTO_SUMMARIZE_STATE_KEY)
+        );
+
+        // 轻量去重：短时间内不要重复触发；且若历史长度没有变化则不重复触发
+        if (previousState) {
+            if (now - previousState.lastAt < 30_000) return false;
+            if (previousState.lastHistoryLength === opts.fullHistoryLength) return false;
+        }
+
+        const result = await this.summarizeService.handleSummarizeContext({
+            conversationId: opts.conversationId,
+            configId: opts.configId,
+            abortSignal: opts.abortSignal
+        });
+
+        if (!result.success) return false;
+
+        if (opts.config.type === 'openai-responses') {
+            await this.resetOpenAIResponsesContinuationState(opts.conversationId, opts.configId);
+        }
+
+        const nextHistory = await this.conversationManager.getHistoryRef(opts.conversationId);
+        await this.conversationManager.setCustomMetadata(opts.conversationId, AUTO_SUMMARIZE_STATE_KEY, {
+            lastAt: now,
+            lastHistoryLength: nextHistory.length
+        } satisfies AutoSummarizeState);
+
+        return true;
+    }
+
+    /**
      * 运行工具迭代循环（流式）
      *
      * 这是核心方法，封装了工具调用循环的完整逻辑
@@ -559,6 +652,7 @@ export class ToolIterationLoopService {
         } = loopConfig;
 
         let iteration = startIteration;
+        let didAutoSummarizeThisTurn = false;
 
         // -1 表示无限制
         while (maxIterations === -1 || iteration < maxIterations) {
@@ -598,28 +692,66 @@ export class ToolIterationLoopService {
 
             // 3. 获取对话历史（应用上下文裁剪）
             const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
-            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+            let fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
-            const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
-            const selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
-            const taskContext = ToolIterationLoopService.getLastUserTaskContext(fullHistory);
-            const toolsEnabled = contextOverrides?.includeTools !== false;
-            const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+            let contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+            let selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
+            let taskContext = ToolIterationLoopService.getLastUserTaskContext(fullHistory);
+            let toolsEnabled = contextOverrides?.includeTools !== false;
+            let pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
-            const toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+            let toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
                 ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
                 : undefined;
-            const modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
+            let modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
                 ? contextOverrides.modelOverride.trim()
                 : undefined;
-            const isLocateMode = contextOverrides?.mode === 'locate';
+            let isLocateMode = contextOverrides?.mode === 'locate';
 
-            let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
+            let { history, trimStartIndex, estimatedTotalTokens, maxContextTokens } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
                 historyOptions,
                 contextOverrides
             );
+
+            if (!didAutoSummarizeThisTurn) {
+                const didAutoSummarize = await this.maybeAutoSummarizeIfNeeded({
+                    conversationId,
+                    configId,
+                    config,
+                    abortSignal,
+                    isLocateMode,
+                    estimatedTotalTokens,
+                    maxContextTokens,
+                    fullHistoryLength: fullHistory.length,
+                });
+
+                if (didAutoSummarize) {
+                    didAutoSummarizeThisTurn = true;
+
+                    fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+                    contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+                    selectionReferences = ToolIterationLoopService.getLastUserSelectionReferences(fullHistory);
+                    taskContext = ToolIterationLoopService.getLastUserTaskContext(fullHistory);
+                    toolsEnabled = contextOverrides?.includeTools !== false;
+                    pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+                    toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+                        ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
+                        : undefined;
+                    modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
+                        ? contextOverrides.modelOverride.trim()
+                        : undefined;
+                    isLocateMode = contextOverrides?.mode === 'locate';
+
+                    ({ history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
+                        conversationId,
+                        config,
+                        historyOptions,
+                        contextOverrides
+                    ));
+                }
+            }
 
             const historyForFullRetry = history;
 
@@ -1240,6 +1372,7 @@ export class ToolIterationLoopService {
         maxIterations: number
     ): Promise<NonStreamToolLoopResult> {
         let iteration = 0;
+        let didAutoSummarizeThisTurn = false;
         const historyOptions = this.messageBuilderService.buildHistoryOptions(config);
 
         // -1 表示无限制
@@ -1252,25 +1385,58 @@ export class ToolIterationLoopService {
             }
 
             // 获取对话历史（应用总结过滤和上下文阈值裁剪）
-            const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+            let fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
-            const contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
-            const toolsEnabled = contextOverrides?.includeTools !== false;
-            const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+            let contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+            let toolsEnabled = contextOverrides?.includeTools !== false;
+            let pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
-            const toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+            let toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
                 ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
                 : undefined;
-            const modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
+            let modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
                 ? contextOverrides.modelOverride.trim()
                 : undefined;
 
-            let { history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
+            let { history, trimStartIndex, estimatedTotalTokens, maxContextTokens } = await this.contextTrimService.getHistoryWithContextTrimInfo(
                 conversationId,
                 config,
                 historyOptions,
                 contextOverrides
             );
+
+            if (!didAutoSummarizeThisTurn) {
+                const didAutoSummarize = await this.maybeAutoSummarizeIfNeeded({
+                    conversationId,
+                    configId,
+                    config,
+                    isLocateMode: contextOverrides?.mode === 'locate',
+                    estimatedTotalTokens,
+                    maxContextTokens,
+                    fullHistoryLength: fullHistory.length,
+                });
+
+                if (didAutoSummarize) {
+                    didAutoSummarizeThisTurn = true;
+                    fullHistory = await this.conversationManager.getHistoryRef(conversationId);
+                    contextOverrides = ToolIterationLoopService.getLastUserContextOverrides(fullHistory);
+                    toolsEnabled = contextOverrides?.includeTools !== false;
+                    pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
+                    toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+                        ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
+                        : undefined;
+                    modelOverride = typeof contextOverrides?.modelOverride === 'string' && contextOverrides.modelOverride.trim()
+                        ? contextOverrides.modelOverride.trim()
+                        : undefined;
+
+                    ({ history, trimStartIndex } = await this.contextTrimService.getHistoryWithContextTrimInfo(
+                        conversationId,
+                        config,
+                        historyOptions,
+                        contextOverrides
+                    ));
+                }
+            }
 
             const historyForFullRetry = history;
 
