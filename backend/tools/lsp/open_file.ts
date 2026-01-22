@@ -7,6 +7,7 @@
 import * as vscode from 'vscode';
 import type { Tool } from '../types';
 import { resolveUriWithInfo } from '../utils';
+import { setTemporaryEditorHighlight } from './temporaryHighlight';
 
 function clampInt(value: unknown, min: number, max: number): number | undefined {
     if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
@@ -90,6 +91,13 @@ export function createOpenFileTool(): Tool {
 
                 editor.selection = new vscode.Selection(startPos, endPos);
                 editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+
+                // 临时标记定位范围：关闭文件后不应残留（由 temporaryHighlight 监听 doc close 清理）。
+                const lineRange = new vscode.Range(
+                    new vscode.Position(startLineIdx, 0),
+                    new vscode.Position(endLineIdx, doc.lineAt(endLineIdx).text.length)
+                );
+                setTemporaryEditorHighlight(editor, lineRange);
 
                 revealed = {
                     startLine,
