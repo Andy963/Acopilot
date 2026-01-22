@@ -768,12 +768,7 @@ function handleOpenContextUsed() {
           :class="{ 'user-footer': isUser }"
         >
           <div v-if="!isUser" class="message-footer-left">
-            <span class="role-label">{{ roleDisplayName }}</span>
-            <span v-if="isStreaming" class="streaming-indicator" aria-hidden="true">
-              <span class="streaming-dot"></span>
-              <span class="streaming-dot"></span>
-              <span class="streaming-dot"></span>
-            </span>
+            <span class="role-label" :class="{ marquee: isStreaming }">{{ roleDisplayName }}</span>
 	
 	            <div v-if="hasUsage" class="token-usage">
 	              <span v-if="usageMetadata?.totalTokenCount" class="token-total">
@@ -870,9 +865,10 @@ function handleOpenContextUsed() {
 }
 
 .role-label {
+  --lc-role-label-color: var(--vscode-foreground);
   font-size: 12px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--lc-role-label-color);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -883,16 +879,47 @@ function handleOpenContextUsed() {
 }
 
 .user-message .role-label {
-  color: var(--vscode-foreground);
+  --lc-role-label-color: var(--vscode-foreground);
+  color: var(--lc-role-label-color);
 }
 
 .assistant-message .role-label {
-  color: var(--vscode-descriptionForeground);
+  --lc-role-label-color: var(--vscode-descriptionForeground);
+  color: var(--lc-role-label-color);
 }
 
 /* 工具消息标签 */
 .message-item[class*="tool"] .role-label {
-  color: var(--vscode-charts-blue);
+  --lc-role-label-color: var(--vscode-charts-blue);
+  color: var(--lc-role-label-color);
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .role-label.marquee {
+    background-image: linear-gradient(
+      90deg,
+      var(--lc-role-label-color) 0%,
+      var(--lc-role-label-color) 35%,
+      var(--vscode-textLink-foreground) 50%,
+      var(--lc-role-label-color) 65%,
+      var(--lc-role-label-color) 100%
+    );
+    background-size: 220% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: role-label-marquee 1.4s linear infinite;
+  }
+}
+
+@keyframes role-label-marquee {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
 }
 
 /* 消息底部信息 */
@@ -976,52 +1003,11 @@ function handleOpenContextUsed() {
   position: relative;
 }
 
-/* .content-text 样式由 MarkdownRenderer 组件内部处理 */
-
-/* 流式指示器 - 三点打字动画 */
-.streaming-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 6px;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.9;
-}
-
-.streaming-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: currentColor;
-  opacity: 0.35;
-  transform: translateY(0) scale(0.95);
-  animation: typing-dot 1.4s ease-in-out infinite;
-}
-
-.streaming-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.streaming-dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing-dot {
-  0%, 80%, 100% {
-    opacity: 0.25;
-    transform: translateY(0) scale(0.95);
-  }
-  40% {
-    opacity: 1;
-    transform: translateY(-1px) scale(1.05);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .streaming-dot {
+  .role-label.marquee {
     animation: none;
-    opacity: 0.6;
-    transform: none;
+    background-image: none;
+    color: var(--lc-role-label-color);
   }
 }
 
