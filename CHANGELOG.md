@@ -10,6 +10,14 @@ All notable changes to the "Acopilot" extension will be documented in this file.
   - /locate：定位后自动携带“本次定位 query + 打开的文件位置”到下一条消息，减少“我说的是这里吗？”的断上下文体验。
   - open_file：返回定位范围与附近代码片段（excerpt），便于后续追问快速对齐上下文。
 
+## [1.0.58-pre.0] - 2026-01-22
+
+### Added
+  - open_file：打开文件后在编辑器内临时高亮定位范围（关闭文件后自动清理）。
+
+### Improved
+  - 消息底部模型名：将“... 三点闪烁”改为模型名文字跑马灯效果（仅流式时显示）。
+
 ## [1.0.57-pre.18] - 2026-01-21
 
 ### Improved
