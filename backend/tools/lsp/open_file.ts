@@ -65,6 +65,15 @@ export function createOpenFileTool(): Tool {
             const startLine = clampInt(args?.start_line, 1, lineCount);
             const endLine = clampInt(args?.end_line, 1, lineCount);
 
+            let revealed: {
+                startLine: number;
+                startColumn: number;
+                endLine: number;
+                endColumn: number;
+            } | undefined;
+
+            let excerpt: { startLine: number; endLine: number; text: string; truncated?: boolean } | undefined;
+
             if (startLine !== undefined) {
                 const startLineIdx = startLine - 1;
                 const endLineIdx = (endLine ?? startLine) - 1;
@@ -81,13 +90,60 @@ export function createOpenFileTool(): Tool {
 
                 editor.selection = new vscode.Selection(startPos, endPos);
                 editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+
+                revealed = {
+                    startLine,
+                    startColumn,
+                    endLine: (endLine ?? startLine),
+                    endColumn
+                };
+
+                const radius = 8;
+                const excerptStart = Math.max(1, startLine - radius);
+                const excerptEnd = Math.min(lineCount, (endLine ?? startLine) + radius);
+                const lines: string[] = [];
+                for (let l = excerptStart; l <= excerptEnd; l++) {
+                    lines.push(doc.lineAt(l - 1).text);
+                }
+
+                let text = lines.join('\n');
+                const maxChars = 4000;
+                const truncated = text.length > maxChars;
+                if (truncated) text = text.slice(0, maxChars);
+                excerpt = {
+                    startLine: excerptStart,
+                    endLine: excerptEnd,
+                    text,
+                    ...(truncated ? { truncated: true } : {})
+                };
+            } else {
+                // Provide a small top-of-file excerpt to help follow-up questions in chat.
+                const excerptStart = 1;
+                const excerptEnd = Math.min(lineCount, 30);
+                const lines: string[] = [];
+                for (let l = excerptStart; l <= excerptEnd; l++) {
+                    lines.push(doc.lineAt(l - 1).text);
+                }
+
+                let text = lines.join('\n');
+                const maxChars = 4000;
+                const truncated = text.length > maxChars;
+                if (truncated) text = text.slice(0, maxChars);
+                excerpt = {
+                    startLine: excerptStart,
+                    endLine: excerptEnd,
+                    text,
+                    ...(truncated ? { truncated: true } : {})
+                };
             }
 
             return {
                 success: true,
                 data: {
                     path: filePath,
-                    opened: true
+                    opened: true,
+                    ...(revealed ? { revealed } : {}),
+                    ...(excerpt ? { excerpt } : {})
                 }
             };
         }

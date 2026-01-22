@@ -39,6 +39,12 @@ import type {
 
 import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
+import {
+  LOCATE_CARRYOVER_METADATA_KEY,
+  buildLocateCarryoverTaskContext,
+  createLocateCarryoverState,
+  parseLocateCarryoverState,
+} from './locateCarryover';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 import type { ToolIterationLoopService } from './ToolIterationLoopService';
@@ -96,6 +102,29 @@ export class ChatFlowService {
     '- Once confident, call open_file(path, start_line, start_column) to open the best match.',
     '- After opening, reply with a short note of what you opened (file:line) and wait for the user to edit.'
   ].join('\n');
+
+  private async applyPendingLocateCarryover(
+    conversationId: string,
+    isLocateMode: boolean,
+    taskContext: string | undefined
+  ): Promise<string | undefined> {
+    if (isLocateMode) return taskContext;
+
+    const raw = await this.conversationManager.getCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY);
+    const state = parseLocateCarryoverState(raw);
+    if (!state || !state.pending) return taskContext;
+
+    const carryoverBlock = buildLocateCarryoverTaskContext(state);
+    const nextTaskContext = [carryoverBlock, taskContext?.trim() ? taskContext.trim() : ''].filter(Boolean).join('\n\n');
+
+    await this.conversationManager.setCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY, {
+      ...state,
+      pending: false,
+      updatedAt: Date.now(),
+    });
+
+    return nextTaskContext;
+  }
 
   /**
    * 确保对话存在（不存在则创建）
@@ -167,7 +196,14 @@ export class ChatFlowService {
         ? effectiveTaskContext.trim()
         : '';
       effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\n\n');
+
+      const carryover = createLocateCarryoverState(effectiveMessage);
+      if (carryover) {
+        await this.conversationManager.setCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY, carryover);
+      }
     }
+
+    effectiveTaskContext = await this.applyPendingLocateCarryover(conversationId, isLocateMode, effectiveTaskContext);
 
     // 3. 添加用户消息到历史（包含附件）
     const userParts = this.messageBuilderService.buildUserMessageParts(effectiveMessage, request.attachments);
@@ -444,7 +480,14 @@ export class ChatFlowService {
         ? effectiveTaskContext.trim()
         : '';
       effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\n\n');
+
+      const carryover = createLocateCarryoverState(effectiveMessage);
+      if (carryover) {
+        await this.conversationManager.setCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY, carryover);
+      }
     }
+
+    effectiveTaskContext = await this.applyPendingLocateCarryover(conversationId, isLocateMode, effectiveTaskContext);
 
     // 3. 中断之前未完成的 diff 等待
     this.diffInterruptService.markUserInterrupt();

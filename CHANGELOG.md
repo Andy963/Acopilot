@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.57] - 2026-01-22
+
+### Improved
+  - 工具面板：固定分类顺序，并将媒体相关工具移动到最底部。
+  - 工具面板：修复 locate 模型选择下拉被遮挡（由父容器 overflow 裁切导致）。
+  - /locate：定位后自动携带“本次定位 query + 打开的文件位置”到下一条消息，减少“我说的是这里吗？”的断上下文体验。
+  - open_file：返回定位范围与附近代码片段（excerpt），便于后续追问快速对齐上下文。
+
 ## [1.0.57-pre.18] - 2026-01-21
 
 ### Improved

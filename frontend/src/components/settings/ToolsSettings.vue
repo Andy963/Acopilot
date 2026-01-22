@@ -136,6 +136,27 @@ const toolsByCategory = computed(() => {
   return grouped
 })
 
+const orderedCategories = computed(() => {
+  const rank: Record<string, number> = {
+    file: 0,
+    search: 1,
+    terminal: 2,
+    lsp: 3,
+    mcp: 4,
+    其他: 5,
+    media: 6
+  }
+
+  return Object.entries(toolsByCategory.value)
+    .sort(([a], [b]) => {
+      const ra = rank[a] ?? rank['其他']
+      const rb = rank[b] ?? rank['其他']
+      if (ra !== rb) return ra - rb
+      return a.localeCompare(b)
+    })
+    .map(([category, categoryTools]) => ({ category, tools: categoryTools }))
+})
+
 function isMcpTool(tool: ToolInfo): boolean {
   return tool.category === 'mcp'
 }
@@ -445,10 +466,10 @@ onMounted(() => {
 
     <!-- 工具列表 -->
     <div v-else class="tools-list">
-      <SettingsGroup v-for="(categoryTools, category) in toolsByCategory" :key="category"
-        :title="getCategoryDisplayName(category)" :icon="getCategoryIcon(category)"
-        :badge="`${t('components.settings.toolsSettings.badges.enabled')} ${getCategoryEnabledCount(categoryTools)}/${getCategoryEnabledTotal(categoryTools)} · ${t('components.settings.toolsSettings.badges.autoExec')} ${getCategoryAutoExecCount(categoryTools)}/${categoryTools.length}`"
-        :storage-key="`acopilot.settings.tools.category.${category}`" :default-expanded="true">
+      <SettingsGroup v-for="entry in orderedCategories" :key="entry.category" :title="getCategoryDisplayName(entry.category)"
+        :icon="getCategoryIcon(entry.category)"
+        :badge="`${t('components.settings.toolsSettings.badges.enabled')} ${getCategoryEnabledCount(entry.tools)}/${getCategoryEnabledTotal(entry.tools)} · ${t('components.settings.toolsSettings.badges.autoExec')} ${getCategoryAutoExecCount(entry.tools)}/${entry.tools.length}`"
+        :storage-key="`acopilot.settings.tools.category.${entry.category}`" :default-expanded="true">
         <template #actions>
           <div class="group-columns" @click.stop>
             <span class="col-header">{{ t('components.settings.toolsSettings.columns.enabled') }}</span>
@@ -458,7 +479,7 @@ onMounted(() => {
           </div>
         </template>
         <div class="category-rows">
-          <div v-for="tool in categoryTools" :key="tool.name" class="tool-wrapper">
+          <div v-for="tool in entry.tools" :key="tool.name" class="tool-wrapper">
             <div class="tool-item tool-grid"
               :class="{ 'tool-disabled': hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) }">
               <div class="tool-info">
@@ -746,7 +767,7 @@ onMounted(() => {
 .category-rows {
   border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
   border-radius: var(--lc-settings-radius-md, 6px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .group-columns {
@@ -784,6 +805,16 @@ onMounted(() => {
   border: none;
   border-radius: 0;
   transition: background-color 0.15s;
+}
+
+.category-rows > .tool-wrapper:first-child .tool-item {
+  border-top-left-radius: var(--lc-settings-radius-md, 6px);
+  border-top-right-radius: var(--lc-settings-radius-md, 6px);
+}
+
+.category-rows > .tool-wrapper:last-child .tool-item {
+  border-bottom-left-radius: var(--lc-settings-radius-md, 6px);
+  border-bottom-right-radius: var(--lc-settings-radius-md, 6px);
 }
 
 .tool-grid {

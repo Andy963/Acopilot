@@ -343,6 +343,7 @@ export function handleToolIteration(
   
   // 创建新的占位消息用于接收后续 AI 响应
   const newAssistantMessageId = generateId()
+  const nextModelVersion = existingModelVersion || currentModelName()
   const newAssistantMessage: Message = {
     id: newAssistantMessageId,
     role: 'assistant',
@@ -350,7 +351,7 @@ export function handleToolIteration(
     timestamp: Date.now(),
     streaming: true,
     metadata: {
-      modelVersion: currentModelName()
+      modelVersion: nextModelVersion
     }
   }
   state.allMessages.value.push(newAssistantMessage)

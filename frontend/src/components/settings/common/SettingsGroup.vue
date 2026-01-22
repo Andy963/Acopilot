@@ -101,7 +101,7 @@ watch(expanded, (value) => {
   border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
   border-radius: var(--lc-settings-radius-lg, 8px);
   background: var(--lc-settings-surface, var(--vscode-editor-background));
-  overflow: hidden;
+  overflow: visible;
 }
 
 .group-header {
@@ -113,6 +113,13 @@ watch(expanded, (value) => {
   cursor: pointer;
   user-select: none;
   transition: background-color 0.15s;
+  border-top-left-radius: var(--lc-settings-radius-lg, 8px);
+  border-top-right-radius: var(--lc-settings-radius-lg, 8px);
+}
+
+.settings-group:not(.expanded) .group-header {
+  border-bottom-left-radius: var(--lc-settings-radius-lg, 8px);
+  border-bottom-right-radius: var(--lc-settings-radius-lg, 8px);
 }
 
 .settings-group:not(.disabled) .group-header:hover {
@@ -213,4 +220,3 @@ watch(expanded, (value) => {
   transform: translateY(-2px);
 }
 </style>
-
