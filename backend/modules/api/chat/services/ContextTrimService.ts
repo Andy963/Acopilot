@@ -256,6 +256,7 @@ export class ContextTrimService {
         
         // 获取当前渠道类型（gemini, openai, anthropic, custom）
         const channelType = config.type || 'custom';
+        const maxContextTokens = (config as any).maxContextTokens || 128000;
         
         // 查找最后一个总结消息
         const lastSummaryIndex = this.findLastSummaryIndex(fullHistory);
@@ -363,7 +364,7 @@ export class ContextTrimService {
         // 如果没有任何消息，直接返回空历史
         if (!hasEstimatedTokens) {
             const history = await this.conversationManager.getHistoryForAPI(conversationId, historyOptions);
-            return { history, trimStartIndex: 0 };
+            return { history, trimStartIndex: 0, estimatedTotalTokens, maxContextTokens };
         }
         
         // 检查是否启用上下文阈值检测
@@ -373,11 +374,10 @@ export class ContextTrimService {
                 ...historyOptions,
                 startIndex: effectiveStartIndex
             });
-            return { history, trimStartIndex: effectiveStartIndex };
+            return { history, trimStartIndex: effectiveStartIndex, estimatedTotalTokens, maxContextTokens };
         }
         
         // 获取最大上下文和阈值
-        const maxContextTokens = (config as any).maxContextTokens || 128000;
         const thresholdConfig = config.contextThreshold ?? '80%';
         const threshold = this.calculateThreshold(thresholdConfig, maxContextTokens);
         
@@ -387,11 +387,11 @@ export class ContextTrimService {
                 ...historyOptions,
                 startIndex: effectiveStartIndex
             });
-            return { history, trimStartIndex: effectiveStartIndex };
+            return { history, trimStartIndex: effectiveStartIndex, estimatedTotalTokens, maxContextTokens };
         }
         
         // 超过阈值，需要裁剪
-        return this.performContextTrim(
+        const trimInfo = await this.performContextTrim(
             conversationId,
             config,
             historyOptions,
@@ -402,6 +402,12 @@ export class ContextTrimService {
             threshold,
             maxContextTokens
         );
+
+        return {
+            ...trimInfo,
+            estimatedTotalTokens,
+            maxContextTokens
+        };
     }
 
     /**
