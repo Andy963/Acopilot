@@ -2,7 +2,7 @@
   "name": "acopilot",
   "displayName": "Acopilot",
   "description": "Acopilot 是一个AI编程助手插件，支持多模态和复杂功能。",
-  "version": "1.0.58-pre.1",
+  "version": "1.0.58-pre.2",
   "publisher": "Andy963",
   "icon": "resources/icon.png",
   "engines": {
@@ -108,7 +108,8 @@
     "watch": "tsc -watch -p ./",
     "build:frontend": "cd frontend && npm run build",
     "build": "npm run compile && npm run build:frontend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@vscode/codicons": "^0.0.43",
@@ -120,7 +121,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.2",
-    "@types/vscode": "^1.96.0"
+    "@types/vscode": "^1.96.0",
+    "vitest": "^4.0.17"
   },
   "keywords": [
     "agent",

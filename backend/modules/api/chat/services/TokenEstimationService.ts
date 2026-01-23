@@ -76,32 +76,8 @@ export class TokenEstimationService {
         }
         
         // 获取 Token 计数配置
-        const tokenCountConfig = this.settingsManager.getTokenCountConfig();
-        const normalizedChannelType = this.normalizeChannelType(channelType);
-        
-        let tokenCount: number | undefined;
-        
-        // 尝试调用 API 获取精确 token 数
-        if (normalizedChannelType && tokenCountConfig[normalizedChannelType]?.enabled) {
-            // 每次调用前更新代理设置（以便运行时更改代理生效）
-            this.tokenCountService.setProxyUrl(this.settingsManager.getEffectiveProxyUrl());
-            
-            // 直接传入整个用户消息
-            const result = await this.tokenCountService.countTokens(
-                normalizedChannelType,
-                tokenCountConfig,
-                [targetMessage]
-            );
-            
-            if (result.success && result.totalTokens !== undefined) {
-                tokenCount = result.totalTokens;
-            }
-        }
-        
-        // 如果 API 调用失败或未配置，使用估算
-        if (tokenCount === undefined) {
-            tokenCount = this.estimateMessageTokens(targetMessage);
-        }
+        // 这里仅使用本地估算，避免在发送请求前额外发起网络请求导致延迟/限流影响。
+        const tokenCount = this.estimateMessageTokens(targetMessage);
         
         // 更新用户消息的 token 数
         const tokenCountByChannel: ChannelTokenCounts = targetMessage.tokenCountByChannel || {};
@@ -148,37 +124,7 @@ export class TokenEstimationService {
         systemPrompt: string,
         channelType?: string
     ): Promise<number> {
-        if (!this.settingsManager) {
-            // 没有设置管理器，直接估算
-            return Math.ceil(systemPrompt.length / 4);
-        }
-        
-        const tokenCountConfig = this.settingsManager.getTokenCountConfig();
-        const normalizedChannelType = this.normalizeChannelType(channelType);
-        
-        // 尝试调用 API 获取精确 token 数
-        if (normalizedChannelType && tokenCountConfig[normalizedChannelType]?.enabled) {
-            // 更新代理设置
-            this.tokenCountService.setProxyUrl(this.settingsManager.getEffectiveProxyUrl());
-            
-            // 创建一个包含系统提示词的消息用于 token 计数
-            const systemMessage: Content = {
-                role: 'user',
-                parts: [{ text: systemPrompt }]
-            };
-            
-            const result = await this.tokenCountService.countTokens(
-                normalizedChannelType,
-                tokenCountConfig,
-                [systemMessage]
-            );
-            
-            if (result.success && result.totalTokens !== undefined) {
-                return result.totalTokens;
-            }
-        }
-        
-        // 回退到估算
+        // 这里仅使用本地估算，避免在发送请求前额外发起网络请求导致延迟/限流影响。
         return Math.ceil(systemPrompt.length / 4);
     }
     

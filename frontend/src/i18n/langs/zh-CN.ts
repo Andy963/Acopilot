@@ -1612,8 +1612,8 @@ const zhCN: LanguageMessages = {
                 }
             },
             tokenCountSettings: {
-                description: '配置用于精确计算 Token 数量的 API。启用后，将在发送请求前调用对应渠道的 Token 计数 API 来获取准确的 Token 数量，用于更精准的上下文管理。',
-                hint: '如果未配置或 API 调用失败，将回退到估算方法。',
+                description: '配置用于精确计算 Token 数量的 API（用于设置页/调试中的 Token 统计）。为避免额外延迟与限流影响，对话发送与上下文裁剪默认使用本地估算。',
+                hint: '如未配置或 API 调用失败，将自动回退到本地估算。',
                 enableChannel: '启用此渠道的 Token 计数',
                 baseUrl: 'API URL',
                 apiKey: 'API Key',

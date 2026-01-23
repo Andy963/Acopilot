@@ -2,6 +2,18 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.2] - 2026-01-23
+
+### Added
+  - 测试：引入 Vitest，并添加基础单元测试覆盖（命令风险、流式解析、token 工具函数）。
+
+### Changed
+  - Token 计数：对话发送与上下文裁剪默认使用本地估算，避免发送前额外调用 token 计数 API 带来的延迟与限流影响。
+  - Token 计数：设置页 token 统计在未配置/失败时自动回退到本地估算，避免“必须配置 API 才能用”。
+
+### Fixed
+  - execute_command 风险评估：修复 `curl | bash` 等 critical 场景被后续分支降级的问题。
+
 ## [1.0.57] - 2026-01-22
 
 ### Improved

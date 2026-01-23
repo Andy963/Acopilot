@@ -1612,8 +1612,8 @@ const en: LanguageMessages = {
                 }
             },
             tokenCountSettings: {
-                description: 'Configure API for accurate token counting. When enabled, the corresponding channel\'s token counting API will be called before sending requests to get accurate token counts for more precise context management.',
-                hint: 'If not configured or API call fails, will fallback to estimation method.',
+                description: 'Configure API for accurate token counting (used for settings/debug token stats). To avoid extra latency and rate-limit impact, chat sending and context trimming use local estimation by default.',
+                hint: 'If not configured or the API call fails, it will automatically fall back to local estimation.',
                 enableChannel: 'Enable token counting for this channel',
                 baseUrl: 'API URL',
                 apiKey: 'API Key',
