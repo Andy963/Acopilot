@@ -139,17 +139,20 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
     /\brmdir\b[^\n]*\s(c:\\|\\)(\s|$)/.test(lower) ||
     /\bdel\b[^\n]*\s(c:\\|\\)(\s|$)/.test(lower);
 
-  if (targetsRootLike && (hasForceDeleteFlag || hasRecursiveFlag)) {
-    level = 'critical';
-    reasons.push('targets root-like path with recursive/force flags');
-  } else if (isGitPushForce || isGitResetHard || isGitClean) {
-    level = 'high';
-  } else if ((isRm || isRmdir || isWindowsDelete) && (hasForceDeleteFlag || hasRecursiveFlag)) {
-    level = 'high';
-  } else if (isGitRestore || hasRedirection) {
-    level = 'medium';
-  } else if (hasSudo || hasNetwork) {
-    level = 'medium';
+  // Do not downgrade a critical assessment to a lower level later.
+  if (level !== 'critical') {
+    if (targetsRootLike && (hasForceDeleteFlag || hasRecursiveFlag)) {
+      level = 'critical';
+      reasons.push('targets root-like path with recursive/force flags');
+    } else if (isGitPushForce || isGitResetHard || isGitClean) {
+      level = 'high';
+    } else if ((isRm || isRmdir || isWindowsDelete) && (hasForceDeleteFlag || hasRecursiveFlag)) {
+      level = 'high';
+    } else if (isGitRestore || hasRedirection) {
+      level = 'medium';
+    } else if (hasSudo || hasNetwork) {
+      level = 'medium';
+    }
   }
 
   return {
@@ -237,4 +240,3 @@ export function shouldConfirmExecuteCommand(
   const confirm = order[assessment.level] > order[effectivePolicy.autoExecuteUpTo];
   return { confirm, assessment };
 }
-

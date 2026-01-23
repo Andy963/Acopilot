@@ -671,6 +671,16 @@ export class SettingsHandler {
             
             // 获取 token 计数配置
             const tokenCountConfig = this.settingsManager.getTokenCountConfig();
+
+            // 未启用或缺少配置时，直接回退到本地估算（避免让 UI 变成“必须配置 API 才能用”）。
+            const channelCfg = tokenCountConfig[channelType];
+            const hasRemoteConfig = !!(channelCfg?.enabled && channelCfg.apiKey && channelCfg.baseUrl);
+            if (!hasRemoteConfig) {
+                return {
+                    success: true,
+                    totalTokens: Math.ceil((text || '').length / 4)
+                };
+            }
             
             // 更新代理设置
             const proxySettings = this.settingsManager.getProxySettings();
@@ -697,21 +707,24 @@ export class SettingsHandler {
                     totalTokens: result.totalTokens
                 };
             } else {
+                // 远端计数失败时回退本地估算，避免阻断设置页体验
                 return {
-                    success: false,
+                    success: true,
+                    totalTokens: Math.ceil((text || '').length / 4),
                     error: {
-                        code: 'TOKEN_COUNT_FAILED',
-                        message: result.error || 'Token count failed'
+                        code: 'TOKEN_COUNT_FALLBACK',
+                        message: result.error || 'Token count failed, falling back to estimation'
                     }
                 };
             }
         } catch (error) {
             const err = error as any;
             return {
-                success: false,
+                success: true,
+                totalTokens: Math.ceil((request.text || '').length / 4),
                 error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || 'Token count failed'
+                    code: err.code || 'TOKEN_COUNT_FALLBACK',
+                    message: err.message || 'Token count failed, falling back to estimation'
                 }
             };
         }
