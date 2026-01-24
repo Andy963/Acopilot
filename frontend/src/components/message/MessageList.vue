@@ -332,8 +332,8 @@ function handleErrorRetry() {
 }
 
 // 处理继续对话（工具执行后中断时）
-function handleContinue() {
-  chatStore.retryAfterError()
+async function handleContinue() {
+  await chatStore.continueAfterToolExecution()
 }
 
 // 处理恢复检查点
