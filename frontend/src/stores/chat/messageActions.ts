@@ -326,6 +326,45 @@ export async function retryAfterError(
 }
 
 /**
+ * 工具执行后继续（避免重复执行工具）
+ *
+ * 当上一轮对话以 functionResponse 结束时，直接 retryStream 可能会导致模型重复发起工具调用，
+ * 造成“继续 → 又跑工具 → 又需要继续”的死循环。
+ *
+ * 这里通过发送一条“继续完成回复”的用户消息，并强制 includeTools=false，
+ * 让模型只基于已有工具结果补全回复，不再发起新工具调用。
+ */
+export async function continueAfterToolExecution(
+  state: ChatStoreState,
+  computed: ChatStoreComputed,
+  prompt?: string
+): Promise<void> {
+  if (!state.currentConversationId.value) return
+  if (state.isWaitingForResponse.value || state.isStreaming.value || state.isLoading.value) return
+
+  const continuePrompt = (prompt && prompt.trim())
+    ? prompt.trim()
+    : '继续完成上一条回复。不要重复执行任何工具/命令；仅基于已经产生的工具结果继续回答。'
+
+  // 保护用户准备的“下一条消息”上下文：continue 不应吞掉它们。
+  const previousOverrides = { ...(state.messageContextOverrides.value || {}) }
+  const previousSelectionRefs = Array.isArray(state.selectionReferences.value)
+    ? state.selectionReferences.value.map((r) => ({ ...r }))
+    : []
+
+  // 强制禁用工具，避免重复执行
+  state.messageContextOverrides.value = { includeTools: false }
+  state.selectionReferences.value = []
+
+  try {
+    await sendMessage(state, computed, continuePrompt, undefined)
+  } finally {
+    state.messageContextOverrides.value = previousOverrides
+    state.selectionReferences.value = previousSelectionRefs
+  }
+}
+
+/**
  * 编辑并重发消息
  */
 export async function editAndRetry(

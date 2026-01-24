@@ -84,6 +84,7 @@ import {
   retryLastMessage as retryLastMessageFn,
   retryFromMessage as retryFromMessageFn,
   retryAfterError as retryAfterErrorFn,
+  continueAfterToolExecution as continueAfterToolExecutionFn,
   editAndRetry as editAndRetryFn,
   deleteMessage as deleteMessageFn,
   deleteSingleMessage as deleteSingleMessageFn,
@@ -149,6 +150,7 @@ export const useChatStore = defineStore('chat', () => {
   const retryFromMessage = (messageIndex: number) => 
     retryFromMessageFn(state, computed, messageIndex, cancelStream)
   const retryAfterError = () => retryAfterErrorFn(state, computed)
+  const continueAfterToolExecution = (prompt?: string) => continueAfterToolExecutionFn(state, computed, prompt)
   
   const editAndRetry = (messageIndex: number, newMessage: string, attachments?: Attachment[]) =>
     editAndRetryFn(state, computed, messageIndex, newMessage, attachments, cancelStream)
@@ -327,6 +329,7 @@ export const useChatStore = defineStore('chat', () => {
     retryLastMessage,
     retryFromMessage,
     retryAfterError,
+    continueAfterToolExecution,
     cancelStream,
     rejectPendingToolsWithAnnotation,
     editAndRetry,

@@ -11,11 +11,11 @@ import type { ChatStoreComputed, ChatStoreState, PlanRunnerData, PlanRunnerStep 
 import type { Attachment } from '../../types'
 import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
-import { sendMessage, retryAfterError } from './messageActions'
+import { sendMessage, continueAfterToolExecution } from './messageActions'
 import { cancelStream as cancelStreamFn } from './toolActions'
 
 const PLAN_RUNNER_METADATA_KEY = 'planRunner'
-const MAX_AUTO_CONTINUE = 3
+const MAX_AUTO_CONTINUE = 1
 
 let loopInProgress = false
 
@@ -379,6 +379,8 @@ async function runPlanLoop(state: ChatStoreState, computed: ChatStoreComputed): 
     await sendMessage(state, computed, buildStepPrompt(runner, stepIndex, step), step.attachments)
     await waitForResponseDone(state)
 
+    const stepAcceptanceCriteria = step.acceptanceCriteria?.trim() || ''
+
     // 工具执行后中断：自动触发 continue（最多尝试 MAX_AUTO_CONTINUE 次）
     let continueCount = 0
     while (
@@ -387,7 +389,14 @@ async function runPlanLoop(state: ChatStoreState, computed: ChatStoreComputed): 
       continueCount < MAX_AUTO_CONTINUE
     ) {
       continueCount++
-      await retryAfterError(state, computed)
+      const continuePrompt = stepAcceptanceCriteria
+        ? [
+            '继续完成上一条回复（PlanRunner 当前步骤），不要重复执行任何工具/命令；仅基于已经产生的工具结果继续回答。',
+            '请在回复最后一行按要求输出：ACCEPTANCE: PASS 或 ACCEPTANCE: FAIL - <reason>。'
+          ].join('\n')
+        : '继续完成上一条回复（PlanRunner 当前步骤），不要重复执行任何工具/命令；仅基于已经产生的工具结果继续回答。'
+
+      await continueAfterToolExecution(state, computed, continuePrompt)
       await waitForResponseDone(state)
     }
 
@@ -409,7 +418,6 @@ async function runPlanLoop(state: ChatStoreState, computed: ChatStoreComputed): 
       return
     }
 
-    const stepAcceptanceCriteria = step.acceptanceCriteria?.trim() || ''
     if (stepAcceptanceCriteria) {
       const latestAssistant = getLatestAssistantContent(state)
       const acceptance = parseAcceptanceResult(latestAssistant)

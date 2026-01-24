@@ -23,29 +23,17 @@ defineEmits<{
     <div class="header-right">
       <!-- 新建对话 -->
       <Tooltip :content="t('components.header.newChat')" placement="bottom">
-        <IconButton
-          icon="codicon-add"
-          size="medium"
-          @click="$emit('newChat')"
-        />
+        <IconButton icon="codicon-add" size="medium" @click="$emit('newChat')" />
       </Tooltip>
 
       <!-- 对话历史 -->
       <Tooltip :content="t('components.header.history')" placement="bottom">
-        <IconButton
-          icon="codicon-history"
-          size="medium"
-          @click="$emit('showHistory')"
-        />
+        <IconButton icon="codicon-history" size="medium" @click="$emit('showHistory')" />
       </Tooltip>
 
       <!-- 设置 -->
       <Tooltip :content="t('components.header.settings')" placement="bottom">
-        <IconButton
-          icon="codicon-settings-gear"
-          size="medium"
-          @click="$emit('showSettings')"
-        />
+        <IconButton icon="codicon-settings-gear" size="medium" @click="$emit('showSettings')" />
       </Tooltip>
     </div>
   </header>
@@ -79,6 +67,7 @@ defineEmits<{
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs, 4px);
+  /* Make icon buttons easier to hit on touchpads / high-DPI screens */
+  gap: var(--spacing-sm, 8px);
 }
 </style>

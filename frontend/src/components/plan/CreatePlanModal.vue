@@ -176,18 +176,18 @@ async function loadFromDraftOrExistingPlan() {
 
   if (!conversationId) {
     const localDraft = loadDraftFromLocalStorage(localKey)
-      if (localDraft) {
-        title.value = localDraft.title || ''
-        goal.value = localDraft.goal || ''
-        steps.value = (localDraft.steps || []).map(s => ({
-          id: s.id || `step_${generateId()}`,
-          title: s.title || '',
-          instruction: s.instruction || '',
-          acceptanceCriteria: s.acceptanceCriteria || '',
-          attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
-        }))
+    if (localDraft) {
+      title.value = localDraft.title || ''
+      goal.value = localDraft.goal || ''
+      steps.value = (localDraft.steps || []).map(s => ({
+        id: s.id || `step_${generateId()}`,
+        title: s.title || '',
+        instruction: s.instruction || '',
+        acceptanceCriteria: s.acceptanceCriteria || '',
+        attachments: Array.isArray(s.attachments) ? [...s.attachments] : []
+      }))
 
-        if (steps.value.length === 0) {
+      if (steps.value.length === 0) {
         steps.value = [createEmptyStep()]
       }
 
@@ -520,11 +520,7 @@ async function handleSaveAndStart() {
 </script>
 
 <template>
-  <Modal
-    v-model="visible"
-    :title="t('components.planRunner.modal.title')"
-    width="720px"
-  >
+  <Modal v-model="visible" :title="t('components.planRunner.modal.title')" width="720px">
     <div class="plan-form">
       <div v-if="loadedFromDraft" class="draft-banner">
         <i class="codicon codicon-save"></i>
@@ -533,17 +529,14 @@ async function handleSaveAndStart() {
 
       <div class="form-row">
         <label class="form-label">{{ t('components.planRunner.modal.planTitle') }}</label>
-        <input v-model="title" class="form-input" :placeholder="t('components.planRunner.modal.planTitlePlaceholder')" />
+        <input v-model="title" class="form-input"
+          :placeholder="t('components.planRunner.modal.planTitlePlaceholder')" />
       </div>
 
       <div class="form-row">
         <label class="form-label">{{ t('components.planRunner.modal.goal') }}</label>
-        <textarea
-          v-model="goal"
-          class="form-textarea"
-          rows="3"
-          :placeholder="t('components.planRunner.modal.goalPlaceholder')"
-        />
+        <textarea v-model="goal" class="form-textarea" rows="3"
+          :placeholder="t('components.planRunner.modal.goalPlaceholder')" />
       </div>
 
       <div class="form-row">
@@ -552,64 +545,50 @@ async function handleSaveAndStart() {
         </div>
 
         <div ref="stepsContainerRef" class="steps">
-          <div
-            v-for="(s, idx) in steps"
-            :key="s.id"
-            class="step"
-            @paste="handlePasteStep(s.id, $event)"
-          >
+          <div v-for="(s, idx) in steps" :key="s.id" class="step" @paste="handlePasteStep(s.id, $event)">
             <div class="step-header">
               <span class="step-index">{{ idx + 1 }}.</span>
-              <input
-                v-model="s.title"
-                class="form-input step-title"
-                :placeholder="t('components.planRunner.modal.stepTitle')"
-              />
-              <button class="icon-btn" :title="t('components.planRunner.modal.attachImage')" @click="handleAttachStep(s.id)">
+              <input v-model="s.title" class="form-input step-title"
+                :placeholder="t('components.planRunner.modal.stepTitle')" />
+              <button class="icon-btn" :title="t('components.planRunner.modal.attachImage')"
+                @click="handleAttachStep(s.id)">
                 <i class="codicon codicon-attach"></i>
               </button>
               <button class="icon-btn" :title="t('components.planRunner.modal.removeStep')" @click="removeStep(s.id)">
                 <i class="codicon codicon-trash"></i>
               </button>
             </div>
-            <textarea
-              v-model="s.instruction"
-              class="form-textarea step-instruction"
-              rows="3"
-              :placeholder="t('components.planRunner.modal.stepInstruction')"
-            />
+            <textarea v-model="s.instruction" class="form-textarea step-instruction" rows="3"
+              :placeholder="t('components.planRunner.modal.stepInstruction')" />
+
+            <!-- Attachments should stay close to the step description for better scanning -->
+            <div v-if="s.attachments.length > 0" class="step-attachments">
+              <div class="step-attachments-label">
+                <i class="codicon codicon-attach"></i>
+                <span>{{ t('components.planRunner.modal.attachmentsLabel') }}</span>
+              </div>
+              <div class="step-attachments-list">
+                <div v-for="attachment in s.attachments" :key="attachment.id" class="step-attachment"
+                  :title="attachment.name">
+                  <img v-if="attachment.thumbnail" :src="attachment.thumbnail" :alt="attachment.name"
+                    class="step-attachment-thumb" />
+                  <i v-else class="codicon codicon-file step-attachment-icon"></i>
+                  <div class="step-attachment-meta">
+                    <div class="step-attachment-name">{{ attachment.name }}</div>
+                    <div class="step-attachment-size">{{ formatFileSize(attachment.size) }}</div>
+                  </div>
+                  <button class="icon-btn" :title="t('components.planRunner.modal.removeAttachment')"
+                    @click="removeStepAttachment(s.id, attachment.id)">
+                    <i class="codicon codicon-close"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div class="step-acceptance">
               <div class="step-acceptance-label">{{ t('components.planRunner.modal.acceptanceCriteria') }}</div>
-              <textarea
-                v-model="s.acceptanceCriteria"
-                class="form-textarea step-acceptance-textarea"
-                rows="2"
-                :placeholder="t('components.planRunner.modal.acceptanceCriteriaPlaceholder')"
-              />
-            </div>
-
-            <div v-if="s.attachments.length > 0" class="step-attachments">
-              <div v-for="attachment in s.attachments" :key="attachment.id" class="step-attachment" :title="attachment.name">
-                <img
-                  v-if="attachment.thumbnail"
-                  :src="attachment.thumbnail"
-                  :alt="attachment.name"
-                  class="step-attachment-thumb"
-                />
-                <i v-else class="codicon codicon-file step-attachment-icon"></i>
-                <div class="step-attachment-meta">
-                  <div class="step-attachment-name">{{ attachment.name }}</div>
-                  <div class="step-attachment-size">{{ formatFileSize(attachment.size) }}</div>
-                </div>
-                <button
-                  class="icon-btn"
-                  :title="t('components.planRunner.modal.removeAttachment')"
-                  @click="removeStepAttachment(s.id, attachment.id)"
-                >
-                  <i class="codicon codicon-close"></i>
-                </button>
-              </div>
+              <textarea v-model="s.acceptanceCriteria" class="form-textarea step-acceptance-textarea" rows="2"
+                :placeholder="t('components.planRunner.modal.acceptanceCriteriaPlaceholder')" />
             </div>
           </div>
         </div>
@@ -764,41 +743,56 @@ async function handleSaveAndStart() {
 
 .step-attachments {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-attachments-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.step-attachments-list {
+  display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .step-attachment {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 6px;
+  padding: 3px 6px;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 8px;
+  border-radius: 6px;
   max-width: 100%;
 }
 
 .step-attachment-thumb {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
   object-fit: cover;
 }
 
 .step-attachment-icon {
-  width: 32px;
-  height: 32px;
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 4px;
   background: rgba(127, 127, 127, 0.08);
+  font-size: 12px;
 }
 
 .step-attachment-meta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -808,12 +802,13 @@ async function handleSaveAndStart() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 320px;
+  max-width: 220px;
 }
 
 .step-attachment-size {
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
 }
 
 .btn {
