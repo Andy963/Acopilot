@@ -2,6 +2,17 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.3] - 2026-01-24
+
+### Fixed
+  - Plan & Run：工具执行后点击“继续”不再重复执行工具/命令，避免死循环与 token 浪费。
+  - PlanRunner：自动 continue 改为安全补全（不再重复跑工具），并降低自动 continue 次数，减少重复步骤。
+  - 视图标题栏：设置按钮恢复为直接可点击的标题栏按钮（不再进入 “...” 子菜单）。
+  - Plan：步骤附件展示移动到“步骤说明”下方，并缩小附件缩略图占用空间。
+
+### Improved
+  - 顶部图标按钮：增大按钮间距，减少误触。
+
 ## [1.0.58-pre.2] - 2026-01-23
 
 ### Added
