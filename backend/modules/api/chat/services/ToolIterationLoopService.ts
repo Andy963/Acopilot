@@ -101,6 +101,17 @@ function createOpenAIResponsesPromptCacheKey(conversationId: string, configId: s
     return `acopilot:${configId}:${conversationId}:${nanoid(10)}`;
 }
 
+function sanitizeHeaderValue(value: string): string {
+    return value.replace(/[\r\n]+/g, '').trim();
+}
+
+function createXSessionId(conversationId: string, configId: string, scope: string): string {
+    const cid = sanitizeHeaderValue(conversationId);
+    const cfg = sanitizeHeaderValue(configId);
+    const sc = sanitizeHeaderValue(scope);
+    return `acopilot:${cfg}:${cid}:${sc}`.slice(0, 256);
+}
+
 function getApiErrorText(error: ChannelError): string {
     const rawDetails = error.details as any;
     const details = (rawDetails &&
@@ -981,12 +992,13 @@ export class ToolIterationLoopService {
 
                 let sawAnyChunk = false;
                 try {
-                    const response = await this.channelManager.generate({
-                        configId,
-                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(
-                            ToolIterationLoopService.injectTaskContextIntoHistory(requestHistory, taskContext),
-                            selectionReferences
-                        ),
+	                    const response = await this.channelManager.generate({
+	                        configId,
+	                        xSessionId: createXSessionId(conversationId, configId, 'chat'),
+	                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(
+	                            ToolIterationLoopService.injectTaskContextIntoHistory(requestHistory, taskContext),
+	                            selectionReferences
+	                        ),
                         abortSignal,
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
@@ -1656,12 +1668,13 @@ export class ToolIterationLoopService {
 
             while (true) {
                 try {
-                    response = await this.channelManager.generate({
-                        configId,
-                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(
-                            ToolIterationLoopService.injectTaskContextIntoHistory(requestHistory, taskContext),
-                            selectionReferences
-                        ),
+	                    response = await this.channelManager.generate({
+	                        configId,
+	                        xSessionId: createXSessionId(conversationId, configId, 'chat'),
+	                        history: ToolIterationLoopService.injectSelectionReferencesIntoHistory(
+	                            ToolIterationLoopService.injectTaskContextIntoHistory(requestHistory, taskContext),
+	                            selectionReferences
+	                        ),
                         dynamicSystemPrompt,
                         previousResponseId: requestPreviousResponseId,
                         promptCacheKey: requestPromptCacheKey,

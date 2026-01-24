@@ -198,6 +198,7 @@ export class SummarizeService {
             // 8. 调用 AI 生成总结
             const generateOptions: {
                 configId: string;
+                xSessionId?: string;
                 history: Content[];
                 abortSignal?: AbortSignal;
                 skipTools: boolean;
@@ -205,6 +206,9 @@ export class SummarizeService {
                 modelOverride?: string;
             } = {
                 configId: actualConfigId,
+                xSessionId: `acopilot:${actualConfigId}:${request.conversationId}:summarize`
+                    .replace(/[\r\n]+/g, '')
+                    .slice(0, 256),
                 history: summaryRequestHistory,
                 abortSignal: request.abortSignal,
                 skipTools: true,

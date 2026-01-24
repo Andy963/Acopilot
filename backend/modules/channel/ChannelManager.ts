@@ -187,6 +187,34 @@ export class ChannelManager {
         return this.isApiErrorDetailsWrapper(details) ? (details as any).body : details;
     }
 
+    private getHeaderValue(headers: Record<string, string>, name: string): string | undefined {
+        const target = name.toLowerCase();
+        for (const [key, value] of Object.entries(headers)) {
+            if (key.toLowerCase() === target) {
+                return value;
+            }
+        }
+        return undefined;
+    }
+
+    private ensureXSessionIdHeader(httpRequest: HttpRequestOptions, request: GenerateRequest): void {
+        const configured = this.getHeaderValue(httpRequest.headers, 'x-session-id');
+        if (typeof configured === 'string' && configured.trim()) {
+            return;
+        }
+
+        const raw =
+            (typeof request.xSessionId === 'string' && request.xSessionId.trim()) ? request.xSessionId :
+                (typeof request.promptCacheKey === 'string' && request.promptCacheKey.trim()) ? request.promptCacheKey :
+                    undefined;
+        if (!raw) return;
+
+        const sessionId = raw.replace(/[\r\n]+/g, '').trim();
+        if (!sessionId) return;
+
+        httpRequest.headers['x-session-id'] = sessionId;
+    }
+
     private getHttpStatusFromErrorDetails(details: unknown, depth = 0): number | undefined {
         if (!details || depth > 2) return undefined;
 
@@ -350,6 +378,8 @@ export class ChannelManager {
                 error
             );
         }
+
+        this.ensureXSessionIdHeader(httpRequest, nonStreamRequest);
         
         // 7. 获取重试配置
         // 如果请求指定 skipRetry，则禁用重试
@@ -529,6 +559,7 @@ export class ChannelManager {
         
         // 5. 构建请求
         const httpRequest = formatter.buildRequest(streamRequest, config, tools);
+        this.ensureXSessionIdHeader(httpRequest, streamRequest);
         
         // 6. 获取重试配置
         // 如果请求指定 skipRetry，则禁用重试

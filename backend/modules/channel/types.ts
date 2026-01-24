@@ -93,6 +93,14 @@ export interface GenerateRequest {
      * 用于提升 prompt cache 命中率，降低重复输入的 token 成本。
      */
     promptCacheKey?: string;
+
+    /**
+     * Gateway session id（可选，HTTP header: x-session-id）
+     *
+     * 用于让上游网关/代理将同一对话线程的请求归为同一会话，从而提升缓存命中率（例如 thought_signature 等）。
+     * 如果不提供，网关可能会退化为使用 token / 首条用户消息等方式推断会话，存在跨会话碰撞风险。
+     */
+    xSessionId?: string;
 }
 
 /**
