@@ -4,7 +4,7 @@
  * 扁平化设计，底部栏布局：左侧附件按钮，右侧发送按钮
  */
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import InputBox from './InputBox.vue'
 import FilePickerPanel from './FilePickerPanel.vue'
 import SendButton from './SendButton.vue'
@@ -19,7 +19,7 @@ import { formatModelName, formatNumber } from '../../utils/format'
 import type { Attachment, ContextInjectionOverrides } from '../../types'
 import { useI18n } from '../../i18n'
 
-const { t } = useI18n()
+const { t, actualLanguage } = useI18n()
 
 // 固定文件项类型
 interface PinnedFileItem {
@@ -276,6 +276,7 @@ const canSend = computed(() => {
 
 // 处理发送
 function handleSend() {
+  stopVoiceDictation()
   if (!canSend.value) return
   
   const content = inputValue.value.trim()
@@ -321,6 +322,188 @@ function handleCompositionEnd() {
 function handlePasteFiles(files: File[]) {
   emit('pasteFiles', files)
 }
+
+// ==================== Voice Dictation (Speech-to-Text) ====================
+
+const isVoiceDictating = ref(false)
+const voiceInterimText = ref('')
+
+let speechRecognition: any | null = null
+let voiceAnchorText = ''
+let voiceFinalText = ''
+
+const speechRecognitionSupported = computed(() => {
+  const w = window as any
+  return typeof w.SpeechRecognition === 'function' || typeof w.webkitSpeechRecognition === 'function'
+})
+
+const speechRecognitionLang = computed(() => {
+  const uiLang = actualLanguage.value
+  if (uiLang === 'zh-CN') return 'zh-CN'
+  if (uiLang === 'ja') return 'ja-JP'
+  if (uiLang === 'en') return 'en-US'
+  return navigator.language || 'zh-CN'
+})
+
+function getDictationSeparator(base: string): string {
+  if (!base) return ''
+  if (/\s$/.test(base)) return ''
+  return ' '
+}
+
+function resetVoiceDictationState(): void {
+  isVoiceDictating.value = false
+  voiceInterimText.value = ''
+  speechRecognition = null
+  voiceAnchorText = ''
+  voiceFinalText = ''
+}
+
+async function ensureMicrophonePermission(): Promise<boolean> {
+  const mediaDevices = navigator.mediaDevices
+  if (!mediaDevices || typeof mediaDevices.getUserMedia !== 'function') {
+    return true
+  }
+
+  try {
+    const stream = await mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach((t) => t.stop())
+    return true
+  } catch {
+    await showNotification(t('components.input.voiceInputPermissionDenied'), 'error')
+    return false
+  }
+}
+
+async function startVoiceDictation(): Promise<void> {
+  if (isVoiceDictating.value) return
+  if (!speechRecognitionSupported.value) {
+    await showNotification(t('components.input.voiceInputNotSupported'), 'warning')
+    return
+  }
+
+  const hasPermission = await ensureMicrophonePermission()
+  if (!hasPermission) return
+
+  const w = window as any
+  const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition
+  if (typeof Ctor !== 'function') {
+    await showNotification(t('components.input.voiceInputNotSupported'), 'warning')
+    return
+  }
+
+  stopVoiceDictation()
+
+  voiceAnchorText = inputValue.value
+  voiceFinalText = ''
+  voiceInterimText.value = ''
+
+  const recognition: any = new Ctor()
+  recognition.continuous = true
+  recognition.interimResults = true
+  recognition.lang = speechRecognitionLang.value
+
+  recognition.onresult = (event: any) => {
+    try {
+      let interim = ''
+      let nextFinal = voiceFinalText
+
+      const results = event?.results
+      const startIndex = typeof event?.resultIndex === 'number' ? event.resultIndex : 0
+
+      for (let i = startIndex; results && i < results.length; i++) {
+        const res = results[i]
+        const transcript = String(res?.[0]?.transcript ?? '').trim()
+        if (!transcript) continue
+
+        if (res.isFinal) {
+          nextFinal = nextFinal ? `${nextFinal} ${transcript}` : transcript
+        } else {
+          interim = interim ? `${interim} ${transcript}` : transcript
+        }
+      }
+
+      voiceFinalText = nextFinal
+      voiceInterimText.value = interim
+
+      const dictationText = [voiceFinalText, voiceInterimText.value].filter(Boolean).join(' ')
+      inputValue.value = dictationText ? `${voiceAnchorText}${getDictationSeparator(voiceAnchorText)}${dictationText}` : voiceAnchorText
+    } catch (e) {
+      console.error('SpeechRecognition onresult failed:', e)
+    }
+  }
+
+  recognition.onerror = async (event: any) => {
+    const error = String(event?.error ?? '').trim()
+    if (error && error !== 'no-speech') {
+      await showNotification(t('components.input.voiceInputError', { error }), 'error')
+    }
+    stopVoiceDictation()
+  }
+
+  recognition.onend = () => {
+    resetVoiceDictationState()
+  }
+
+  try {
+    recognition.start()
+    speechRecognition = recognition
+    isVoiceDictating.value = true
+  } catch (e) {
+    console.error('SpeechRecognition start failed:', e)
+    await showNotification(t('components.input.voiceInputNotSupported'), 'warning')
+    resetVoiceDictationState()
+  }
+}
+
+function stopVoiceDictation(): void {
+  const recognition = speechRecognition
+  if (!recognition) {
+    resetVoiceDictationState()
+    return
+  }
+
+  try {
+    recognition.onresult = null
+    recognition.onerror = null
+    recognition.onend = null
+    recognition.stop()
+  } catch {
+    // ignore
+  } finally {
+    resetVoiceDictationState()
+  }
+}
+
+async function toggleVoiceDictation(): Promise<void> {
+  if (isVoiceDictating.value) {
+    stopVoiceDictation()
+    return
+  }
+  await startVoiceDictation()
+}
+
+watch(
+  () => chatStore.isWaitingForResponse,
+  (waiting) => {
+    if (waiting && isVoiceDictating.value) {
+      stopVoiceDictation()
+    }
+  }
+)
+
+watch(
+  () => props.uploading,
+  (uploading) => {
+    if (uploading && isVoiceDictating.value) {
+      stopVoiceDictation()
+    }
+  }
+)
+
+onBeforeUnmount(() => {
+  stopVoiceDictation()
+})
 
 // 是否正在总结
 const isSummarizing = ref(false)
@@ -1216,6 +1399,23 @@ watch(pinPanelTab, (tab) => {
             @click="handleAttachFile"
           />
         </Tooltip>
+        <Tooltip
+          :content="
+            speechRecognitionSupported
+              ? (isVoiceDictating ? t('components.input.voiceInputStop') : t('components.input.voiceInputStart'))
+              : t('components.input.voiceInputNotSupported')
+          "
+          placement="top-left"
+        >
+          <IconButton
+            :icon="isVoiceDictating ? 'codicon-mic-filled' : 'codicon-mic'"
+            size="small"
+            :disabled="uploading || chatStore.isWaitingForResponse || !speechRecognitionSupported"
+            class="voice-button"
+            :class="{ active: isVoiceDictating }"
+            @click="toggleVoiceDictation"
+          />
+        </Tooltip>
         <Tooltip :content="t('components.input.pinnedFiles')" placement="top">
           <div class="pinned-files-button-wrapper">
             <IconButton
@@ -1344,7 +1544,7 @@ watch(pinPanelTab, (tab) => {
           <InputBox
             ref="inputBoxRef"
             :value="inputValue"
-            :disabled="false"
+            :disabled="isVoiceDictating"
             :placeholder="placeholder"
             variant="embedded"
             :history-navigation-active="historyNavigationActive"
@@ -1703,6 +1903,15 @@ watch(pinPanelTab, (tab) => {
 /* 附件按钮图标放大 1.2 倍 */
 .attach-button :deep(i.codicon) {
   font-size: 17px !important; /* 14px * 1.2 ≈ 17px */
+}
+
+.voice-button :deep(i.codicon) {
+  font-size: 17px !important;
+}
+
+.voice-button.active {
+  opacity: 1;
+  color: var(--vscode-testing-iconFailed);
 }
 
 /* 压缩按钮 */
