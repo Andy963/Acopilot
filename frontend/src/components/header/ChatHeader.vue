@@ -68,6 +68,6 @@ defineEmits<{
   display: flex;
   align-items: center;
   /* Make icon buttons easier to hit on touchpads / high-DPI screens */
-  gap: var(--spacing-sm, 8px);
+  gap: var(--spacing-md, 16px);
 }
 </style>

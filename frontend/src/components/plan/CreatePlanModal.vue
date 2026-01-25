@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Modal } from '../common'
 import { useChatStore } from '../../stores'
 import { generateId } from '../../utils/format'
-import { createThumbnail, formatFileSize, getFileType, inferMimeType, readFileAsBase64, validateFile } from '../../utils/file'
+import { createThumbnail, getFileType, inferMimeType, readFileAsBase64, validateFile } from '../../utils/file'
 import type { PlanRunnerCreateInput } from '../../stores/chat/planRunnerActions'
 import { useI18n } from '../../i18n'
 import { sendToExtension } from '../../utils/vscode'
@@ -565,7 +565,7 @@ async function handleSaveAndStart() {
             <div v-if="s.attachments.length > 0" class="step-attachments">
               <div class="step-attachments-label">
                 <i class="codicon codicon-attach"></i>
-                <span>{{ t('components.planRunner.modal.attachmentsLabel') }}</span>
+                <span>{{ t('components.planRunner.attachmentsLabel') }}</span>
               </div>
               <div class="step-attachments-list">
                 <div v-for="attachment in s.attachments" :key="attachment.id" class="step-attachment"
@@ -575,7 +575,6 @@ async function handleSaveAndStart() {
                   <i v-else class="codicon codicon-file step-attachment-icon"></i>
                   <div class="step-attachment-meta">
                     <div class="step-attachment-name">{{ attachment.name }}</div>
-                    <div class="step-attachment-size">{{ formatFileSize(attachment.size) }}</div>
                   </div>
                   <button class="icon-btn" :title="t('components.planRunner.modal.removeAttachment')"
                     @click="removeStepAttachment(s.id, attachment.id)">
@@ -768,7 +767,14 @@ async function handleSaveAndStart() {
   padding: 3px 6px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 6px;
-  max-width: 100%;
+  flex: 0 1 auto;
+  max-width: 120px;
+  min-width: 0;
+}
+
+.step-attachment .icon-btn {
+  padding: 2px;
+  border-radius: 4px;
 }
 
 .step-attachment-thumb {
@@ -794,20 +800,16 @@ async function handleSaveAndStart() {
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+  flex: 1;
 }
 
 .step-attachment-name {
+  flex: 1;
+  min-width: 0;
   font-size: 11px;
   color: var(--vscode-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 220px;
-}
-
-.step-attachment-size {
-  font-size: 10px;
-  color: var(--vscode-descriptionForeground);
   white-space: nowrap;
 }
 

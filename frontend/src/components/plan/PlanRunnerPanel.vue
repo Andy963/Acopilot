@@ -58,9 +58,26 @@ const canStart = computed(() => plan.value && (plan.value.status === 'idle' || p
 const canPause = computed(() => plan.value && plan.value.status === 'running')
 const canCancel = computed(() => plan.value && (plan.value.status === 'running' || plan.value.status === 'paused'))
 
+const canContinue = computed(() => {
+  const p = plan.value
+  if (!p) return false
+  if (p.status !== 'paused') return false
+  if (p.currentStepIndex < 0 || p.currentStepIndex >= p.steps.length) return false
+  const step = p.steps[p.currentStepIndex]
+  return step?.status === 'error' && (step?.errorCode === 'MAX_TOOL_ITERATIONS' || step?.errorCode === 'NEEDS_CONTINUE')
+})
+
 async function handleStartOrResume() {
   if (!plan.value) return
   if (plan.value.status === 'paused') {
+    // If the runner was paused because the model needs to "continue" (e.g. tool results are ready
+    // but the final reply wasn't generated yet), the resume button should continue the reply instead
+    // of restarting the step.
+    if (canContinue.value) {
+      await chatStore.continuePlanRunner()
+      return
+    }
+
     await chatStore.resumePlanRunner()
     return
   }
@@ -78,6 +95,7 @@ async function handleCancel() {
 async function handleClear() {
   await chatStore.clearPlanRunner()
 }
+
 
 function canRunStep(idx: number): boolean {
   if (!plan.value) return false
@@ -102,29 +120,18 @@ async function handleRunStep(idx: number) {
       <span class="plan-status">{{ statusLabel }}</span>
 
       <div class="plan-actions" @click.stop>
-        <button
-          v-if="canStart"
-          class="plan-btn primary"
-          @click="handleStartOrResume"
-        >
+        <button v-if="canStart" class="plan-btn primary" @click="handleStartOrResume">
           <i class="codicon codicon-play"></i>
-          {{ plan.status === 'paused' ? t('components.planRunner.actions.resume') : t('components.planRunner.actions.start') }}
+          {{ plan.status === 'paused' ? t('components.planRunner.actions.resume') :
+            t('components.planRunner.actions.start') }}
         </button>
 
-        <button
-          v-if="canPause"
-          class="plan-btn"
-          @click="handlePause"
-        >
+        <button v-if="canPause" class="plan-btn" @click="handlePause">
           <i class="codicon codicon-debug-pause"></i>
           {{ t('components.planRunner.actions.pause') }}
         </button>
 
-        <button
-          v-if="canCancel"
-          class="plan-btn danger"
-          @click="handleCancel"
-        >
+        <button v-if="canCancel" class="plan-btn danger" @click="handleCancel">
           <i class="codicon codicon-circle-slash"></i>
           {{ t('components.planRunner.actions.cancel') }}
         </button>
@@ -147,18 +154,11 @@ async function handleRunStep(idx: number) {
       </div>
 
       <div class="plan-steps">
-        <div
-          v-for="(step, idx) in plan.steps"
-          :key="step.id"
-          class="plan-step"
-          :class="stepClass(step)"
-        >
+        <div v-for="(step, idx) in plan.steps" :key="step.id" class="plan-step" :class="stepClass(step)">
           <div class="step-row">
             <span class="step-index">{{ idx + 1 }}.</span>
-            <i
-              class="codicon step-icon"
-              :class="[stepIcon(step), { 'codicon-modifier-spin': step.status === 'running' }]"
-            ></i>
+            <i class="codicon step-icon"
+              :class="[stepIcon(step), { 'codicon-modifier-spin': step.status === 'running' }]"></i>
             <span class="step-title">{{ step.title }}</span>
 
             <div class="step-right">
@@ -166,12 +166,8 @@ async function handleRunStep(idx: number) {
                 {{ t('components.planRunner.current') }}
               </span>
               <span v-if="step.error" class="step-error" :title="step.error">{{ step.error }}</span>
-              <button
-                class="step-icon-btn"
-                :disabled="!canRunStep(idx)"
-                :title="t('components.planRunner.actions.runStep')"
-                @click.stop="handleRunStep(idx)"
-              >
+              <button class="step-icon-btn" :disabled="!canRunStep(idx)"
+                :title="t('components.planRunner.actions.runStep')" @click.stop="handleRunStep(idx)">
                 <i class="codicon codicon-play"></i>
               </button>
             </div>
@@ -180,12 +176,7 @@ async function handleRunStep(idx: number) {
           <div v-if="step.attachments && step.attachments.length > 0" class="step-attachments-row">
             <span class="attachments-label">{{ t('components.planRunner.attachmentsLabel') }}:</span>
             <div class="attachments-chips">
-              <span
-                v-for="(att, aIdx) in step.attachments"
-                :key="att.id"
-                class="attachment-chip"
-                :title="att.name"
-              >
+              <span v-for="(att, aIdx) in step.attachments" :key="att.id" class="attachment-chip" :title="att.name">
                 <code class="attachment-alias">{{ attachmentAlias(idx, aIdx) }}</code>
                 <span class="attachment-name">{{ att.name }}</span>
               </span>
@@ -270,7 +261,8 @@ async function handleRunStep(idx: number) {
 }
 
 .plan-btn.danger {
-  border-color: rgba(255, 0, 0, 0.3);
+  /* Use a clear, true red to avoid the odd tinted border. */
+  border-color: #ff0000;
 }
 
 .plan-body {
