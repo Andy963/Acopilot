@@ -14,6 +14,7 @@
  */
 
 import { t } from '../../i18n';
+import { debugLog } from '../../core/logger';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -260,7 +261,7 @@ export class CheckpointManager {
                     }
                 }
                 
-                console.log(`[CheckpointManager] Incremental backup: ${added.length} added, ${modified.length} modified, ${deleted.length} deleted`);
+                debugLog(`[CheckpointManager] Incremental backup: ${added.length} added, ${modified.length} modified, ${deleted.length} deleted`);
             }
             
             // 如果不是增量备份，进行完整备份
@@ -289,7 +290,7 @@ export class CheckpointManager {
                     }
                 }
                 
-                console.log(`[CheckpointManager] Full backup: ${fileCount} files`);
+                debugLog(`[CheckpointManager] Full backup: ${fileCount} files`);
             }
             
             // 创建检查点记录
@@ -836,7 +837,7 @@ export class CheckpointManager {
             }
             vscode.window.setStatusBarMessage(message, 5000);
             
-            console.log(`[CheckpointManager] Restore from chain: ${chain.length} checkpoints, restored=${restored}, deleted=${deleted}, skipped=${skipped}`);
+            debugLog(`[CheckpointManager] Restore from chain: ${chain.length} checkpoints, restored=${restored}, deleted=${deleted}, skipped=${skipped}`);
             
             return { success: true, restored, deleted, skipped };
             

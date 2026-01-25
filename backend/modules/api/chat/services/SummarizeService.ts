@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../../i18n';
+import { debugLog } from '../../../../core/logger';
 import { redactSensitiveText } from '../../../../core/redaction';
 import type { ConfigManager } from '../../../config/ConfigManager';
 import type {ChannelManager } from '../../../channel/ChannelManager';
@@ -99,9 +100,9 @@ export class SummarizeService {
                     if (summarizeModelId) {
                         actualModelId = summarizeModelId;
                     }
-                    console.log(`[Summarize] Using dedicated model: channel=${summarizeChannelId}, model=${summarizeModelId || 'default'}`);
+                    debugLog(`[Summarize] Using dedicated model: channel=${summarizeChannelId}, model=${summarizeModelId || 'default'}`);
                 } else {
-                    console.log(`[Summarize] Dedicated channel not available, falling back to chat config`);
+                    debugLog(`[Summarize] Dedicated channel not available, falling back to chat config`);
                 }
             }
 

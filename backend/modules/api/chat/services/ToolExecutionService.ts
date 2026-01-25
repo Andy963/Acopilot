@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../../i18n';
+import { debugLog } from '../../../../core/logger';
 import { redactSensitiveText } from '../../../../core/redaction';
 import type { ToolRegistry } from '../../../../tools/ToolRegistry';
 import type { CheckpointRecord } from '../../../checkpoint';
@@ -487,7 +488,7 @@ export class ToolExecutionService {
                 });
             } else {
                 // 渠道不支持 function_call 模式的多模态（如 OpenAI）
-                console.log(`[Multimodal] Channel ${channelType} does not support function_call multimodal, image data will be discarded`);
+                debugLog(`[Multimodal] Channel ${channelType} does not support function_call multimodal, image data will be discarded`);
                 delete (response as any).multimodal;
 
                 // 构建函数响应 part

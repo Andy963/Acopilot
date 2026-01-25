@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import { ChatViewProvider } from './webview/ChatViewProvider';
+import { debugLog } from './backend/core/logger';
 
 // 保存 ChatViewProvider 实例以便在停用时清理
 let chatViewProvider: ChatViewProvider | undefined;
@@ -90,7 +91,7 @@ function buildFileReferencePayload(
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Acopilot extension is now active!');
+    debugLog('Acopilot extension is now active!');
 
     // 注册聊天视图提供者
     chatViewProvider = new ChatViewProvider(context);
@@ -192,11 +193,11 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    console.log('Acopilot extension activated successfully!');
+    debugLog('Acopilot extension activated successfully!');
 }
 
 export function deactivate() {
-    console.log('Acopilot extension deactivating...');
+    debugLog('Acopilot extension deactivating...');
     
     // 清理 ChatViewProvider 资源（取消所有流式请求、断开 MCP 连接等）
     if (chatViewProvider) {
@@ -204,5 +205,5 @@ export function deactivate() {
         chatViewProvider = undefined;
     }
     
-    console.log('Acopilot extension deactivated');
+    debugLog('Acopilot extension deactivated');
 }

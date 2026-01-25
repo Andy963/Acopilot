@@ -19,6 +19,7 @@
  */
 
 import { t } from '../../../i18n';
+import { debugLog } from '../../../core/logger';
 import { BaseFormatter } from './base';
 import type { Content, ContentPart } from '../../conversation/types';
 import type { OpenAIConfig } from '../../config/types';
@@ -859,7 +860,7 @@ export class OpenAIFormatter extends BaseFormatter {
             if (delta?.tool_calls && Array.isArray(delta.tool_calls)) {
                 for (const toolCall of delta.tool_calls) {
                     if (toolCall.function) {
-                        console.log('[OpenAI Stream] tool_call chunk:', JSON.stringify({
+                        debugLog('[OpenAI Stream] tool_call chunk:', JSON.stringify({
                             index: toolCall.index,
                             id: toolCall.id,
                             name: toolCall.function.name,

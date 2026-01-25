@@ -9,6 +9,7 @@ import type {
     IModuleRegistry
 } from './types';
 import { t } from '../../i18n';
+import { debugLog } from '../logger';
 
 /**
  * 模块注册表
@@ -34,7 +35,7 @@ export class ModuleRegistry implements IModuleRegistry {
         }
 
         this.modules.set(module.id, module);
-        console.log(t('core.registry.registeringModule', { moduleId: module.id, moduleName: module.name, version: module.version }));
+        debugLog(t('core.registry.registeringModule', { moduleId: module.id, moduleName: module.name, version: module.version }));
     }
 
     /**
@@ -47,7 +48,7 @@ export class ModuleRegistry implements IModuleRegistry {
         }
 
         this.modules.delete(moduleId);
-        console.log(t('core.registry.unregisteringModule', { moduleId }));
+        debugLog(t('core.registry.unregisteringModule', { moduleId }));
     }
 
     /**

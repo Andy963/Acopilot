@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { t, setLanguage as setBackendLanguage } from '../backend/i18n';
 import type { SupportedLanguage } from '../backend/i18n';
+import { debugLog } from '../backend/core/logger';
 import {
     ConversationManager,
     FileSystemStorageAdapter
@@ -267,8 +268,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.sendError.bind(this)
         );
 
-        console.log('Acopilot backend initialized with global context');
-        console.log('Effective data path:', this.storagePathManager.getEffectiveDataPath());
+        debugLog('Acopilot backend initialized with global context');
+        debugLog('Effective data path:', this.storagePathManager.getEffectiveDataPath());
     }
 
     /**
@@ -527,7 +528,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
      */
     public cancelAllStreams(): void {
         this.messageRouter?.cancelAllStreams();
-        console.log('All active streams cancelled');
+        debugLog('All active streams cancelled');
     }
 
     /**
@@ -563,7 +564,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         // 释放 MCP 管理器资源（断开所有连接）
         this.mcpManager?.dispose();
 
-        console.log('ChatViewProvider disposed');
+        debugLog('ChatViewProvider disposed');
     }
 
     /**
