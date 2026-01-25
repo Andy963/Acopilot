@@ -37,6 +37,7 @@ import {
 import { DiffStorageManager } from '../backend/modules/conversation';
 import { MessageRouter } from './MessageRouter';
 import type { HandlerContext, DiffPreviewContentProvider as IDiffPreviewContentProvider } from './types';
+import { isRecord, parseWebviewRequest } from './protocol';
 
 /**
  * Diff 预览内容提供者
@@ -59,19 +60,6 @@ class DiffPreviewContentProvider implements vscode.TextDocumentContentProvider, 
         this.contents.clear();
         this.onDidChangeEmitter.dispose();
     }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function parseWebviewRequest(message: unknown): { type: string; requestId: string; data: unknown } | null {
-    if (!isRecord(message)) return null;
-    const type = typeof message.type === 'string' ? message.type : undefined;
-    const requestId = typeof message.requestId === 'string' ? message.requestId : undefined;
-    if (!type || !requestId) return null;
-    const data = Object.prototype.hasOwnProperty.call(message, 'data') ? message.data : undefined;
-    return { type, requestId, data };
 }
 
 function getNonce(length: number = 32): string {
