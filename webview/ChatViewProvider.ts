@@ -61,12 +61,34 @@ class DiffPreviewContentProvider implements vscode.TextDocumentContentProvider, 
     }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseWebviewRequest(message: unknown): { type: string; requestId: string; data: unknown } | null {
+    if (!isRecord(message)) return null;
+    const type = typeof message.type === 'string' ? message.type : undefined;
+    const requestId = typeof message.requestId === 'string' ? message.requestId : undefined;
+    if (!type || !requestId) return null;
+    const data = Object.prototype.hasOwnProperty.call(message, 'data') ? message.data : undefined;
+    return { type, requestId, data };
+}
+
+function getNonce(length: number = 32): string {
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let nonce = '';
+    for (let i = 0; i < length; i++) {
+        nonce += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return nonce;
+}
+
 export class ChatViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
 
     // Webview readiness handshake
     private webviewReady = false;
-    private pendingWebviewMessages: any[] = [];
+    private pendingWebviewMessages: unknown[] = [];
 
     // Diff 预览内容提供者
     private diffPreviewProvider: DiffPreviewContentProvider;
@@ -392,7 +414,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
         // 监听来自 webview 的消息
         webviewView.webview.onDidReceiveMessage(
-            async (message) => {
+            async (message: unknown) => {
                 await this.handleMessage(message);
             },
             undefined,
@@ -431,17 +453,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     /**
      * 处理来自前端的消息
      */
-    private async handleMessage(message: any) {
-        const { type, data, requestId } = message;
+    private async handleMessage(message: unknown) {
+        const parsed = parseWebviewRequest(message);
+        if (!parsed) {
+            console.warn('Ignoring invalid webview message');
+            return;
+        }
+
+        const { type, data, requestId } = parsed;
 
         try {
             // Webview ready handshake: flush any queued commands
             if (type === 'webviewReady') {
                 this.webviewReady = true;
                 this.flushPendingWebviewMessages();
-                if (requestId) {
-                    this.sendResponse(requestId, { success: true });
-                }
+                this.sendResponse(requestId, { success: true });
                 return;
             }
 
@@ -458,13 +484,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 console.warn('Unknown message type:', type);
                 this.sendError(requestId, 'UNKNOWN_TYPE', `Unknown message type: ${type}`);
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error handling message:', error);
-            this.sendError(requestId, error.code || 'HANDLER_ERROR', error.message);
+            const code = isRecord(error) && typeof error.code === 'string' ? error.code : 'HANDLER_ERROR';
+            const errMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(requestId, code, errMessage);
         }
     }
 
-    private enqueueWebviewMessage(message: any): void {
+    private enqueueWebviewMessage(message: unknown): void {
         if (this._view?.webview && this.webviewReady) {
             this._view.webview.postMessage(message);
             return;
@@ -553,7 +581,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     /**
      * 发送响应到前端
      */
-    private sendResponse(requestId: string, data: any) {
+    private sendResponse(requestId: string, data: unknown) {
         this._view?.webview.postMessage({
             type: 'response',
             requestId,
@@ -580,7 +608,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     /**
      * 发送命令到 Webview
      */
-    public sendCommand(command: string, data?: any): void {
+    public sendCommand(command: string, data?: unknown): void {
         this.enqueueWebviewMessage({
             type: 'command',
             command,
@@ -592,6 +620,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
      * 生成webview的HTML
      */
     private getHtmlForWebview(webview: vscode.Webview): string {
+        const nonce = getNonce();
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist', 'index.js'))
         );
@@ -607,14 +636,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data: blob:; media-src ${webview.cspSource} data: blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data: blob:; media-src ${webview.cspSource} data: blob:;">
     <link href="${codiconsUri}" rel="stylesheet">
     <link href="${styleUri}" rel="stylesheet">
     <title>Acopilot Chat</title>
 </head>
 <body>
     <div id="app"></div>
-    <script src="${scriptUri}"></script>
+    <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
     }

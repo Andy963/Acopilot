@@ -104,8 +104,11 @@ export class MessageRouter {
         break;
         
       case 'cancelStream':
-        const { conversationId } = data;
-        this.streamHandler.cancelStream(conversationId, requestId);
+        if (!isRecord(data) || typeof data.conversationId !== 'string') {
+          this.sendError(requestId, 'INVALID_PAYLOAD', 'cancelStream requires data.conversationId (string)');
+          return;
+        }
+        this.streamHandler.cancelStream(data.conversationId, requestId);
         break;
     }
   }
@@ -123,4 +126,8 @@ export class MessageRouter {
   getAbortManager(): StreamAbortManager {
     return this.abortManager;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
