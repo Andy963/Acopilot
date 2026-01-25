@@ -11,9 +11,6 @@ npm install --no-package-lock
 echo "📦 安装前端依赖..."
 (cd frontend && pnpm install --frozen-lockfile=false)
 
-echo "🔨 编译项目..."
-npm run build
-
 echo "📦 打包插件..."
 npx @vscode/vsce package --dependencies
 
