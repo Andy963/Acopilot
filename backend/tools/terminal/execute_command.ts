@@ -23,9 +23,10 @@ import { getGlobalSettingsManager } from '../../core/settingsContext';
 import { getDefaultExecuteCommandConfig } from '../../modules/settings';
 import type { ShellConfig } from '../../modules/settings';
 import { TaskManager, type TaskEvent } from '../taskManager';
-import { getAllWorkspaces, isBinaryFile, parseWorkspacePath, toRelativePath } from '../utils';
+import { getAllWorkspaces, isBinaryFile, toRelativePath } from '../utils';
 import { t } from '../../i18n';
 import { getDiffStorageManager } from '../../modules/conversation/DiffStorageManager';
+import { resolveExecuteCommandWorkingDir } from './cwdValidation';
 
 /** 终端任务类型常量 */
 const TASK_TYPE_TERMINAL = 'terminal';
@@ -873,9 +874,9 @@ export function createExecuteCommandTool(): Tool {
     }
     
     // cwd 参数描述
-    let cwdDescription = 'Working directory (relative to workspace root), defaults to workspace root';
+    let cwdDescription = 'Working directory (relative to workspace root and must stay within the workspace), defaults to workspace root';
     if (isMultiRoot) {
-        cwdDescription = `Working directory, must use "workspace_name/path" format. Available workspaces: ${workspaceRoots.map(w => w.name).join(', ')}`;
+        cwdDescription = `Working directory, must use "workspace_name/path" format and must stay within that workspace. Available workspaces: ${workspaceRoots.map(w => w.name).join(', ')}`;
     }
     
     return {
@@ -971,24 +972,16 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                 };
             }
 
-            // 计算工作目录（支持多工作区）
-            let workingDir: string;
-            let workspaceName: string | undefined;
-            
-            if (cwd) {
-                // 解析带工作区前缀的路径
-                const { workspace, relativePath } = parseWorkspacePath(cwd);
-                if (workspace) {
-                    workingDir = path.join(workspace.fsPath, relativePath);
-                    workspaceName = workspaces.length > 1 ? workspace.name : undefined;
-                } else {
-                    // 使用默认工作区
-                    workingDir = path.join(workspaces[0].fsPath, cwd);
-                }
-            } else {
-                // 默认使用第一个工作区
-                workingDir = workspaces[0].fsPath;
+            // Compute and validate working directory: disallow leaving the currently-open workspace(s).
+            const resolvedWorkingDir = await resolveExecuteCommandWorkingDir(
+                workspaces.map(w => ({ name: w.name, fsPath: w.fsPath })),
+                cwd
+            );
+            if (resolvedWorkingDir.ok === false) {
+                return { success: false, error: resolvedWorkingDir.error };
             }
+
+            const workingDir = resolvedWorkingDir.workingDir;
 
             // 获取 shell 配置
             const shellConfig = getShellConfig(shell);
