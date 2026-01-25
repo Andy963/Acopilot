@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode';
 import type { Tool, ToolResult } from '../types';
-import { resolveUri, getAllWorkspaces } from '../utils';
+import { resolveUriWithInfo, getAllWorkspaces } from '../utils';
 
 /**
  * 删除结果
@@ -68,12 +68,12 @@ export function createDeleteFileTool(): Tool {
             let failCount = 0;
 
             for (const filePath of pathList) {
-                const uri = resolveUri(filePath);
+                const { uri, error } = resolveUriWithInfo(filePath);
                 if (!uri) {
                     results.push({
                         path: filePath,
                         success: false,
-                        error: 'No workspace folder open'
+                        error: error || 'No workspace folder open'
                     });
                     failCount++;
                     continue;
