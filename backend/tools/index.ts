@@ -6,6 +6,7 @@
 
 import type { Tool } from './types';
 import { DependencyManager } from '../modules/dependencies';
+import { debugLog } from '../core/logger';
 
 // 导出设置上下文（从 core 模块重新导出）
 export { setGlobalSettingsManager, getGlobalSettingsManager } from '../core/settingsContext';
@@ -108,7 +109,7 @@ export function initializeToolSystem(
         });
     } catch (e) {
         // DependencyManager 可能未初始化，忽略错误
-        console.log('DependencyManager not initialized yet, skipping dependency checker setup');
+        debugLog('DependencyManager not initialized yet, skipping dependency checker setup');
     }
     
     // 注册所有工具

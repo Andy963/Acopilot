@@ -10,6 +10,7 @@ import type { StreamChunk, StreamUsageMetadata } from './types';
 import type { ToolMode } from '../config/configs/base';
 import { parseXMLToolCalls } from '../../tools/xmlFormatter';
 import { getGlobalSettingsManager, getGlobalConfigManager } from '../../core/settingsContext';
+import { debugLog } from '../../core/logger';
 
 // JSON 工具调用边界标记
 const TOOL_CALL_START = '<<<TOOL_CALL>>>';
@@ -205,7 +206,7 @@ export class StreamAccumulator {
             if (part.functionCall) {
                 const fc = part.functionCall as any;
                 
-                console.log('[Accumulator] Received FC part:', JSON.stringify({
+                debugLog('[Accumulator] Received FC part:', JSON.stringify({
                     index: fc.index,
                     id: fc.id,
                     name: fc.name,
@@ -228,23 +229,23 @@ export class StreamAccumulator {
                     // OpenAI 模式：优先使用 index 匹配（数字类型，包括 0）
                     if (typeof fc.index === 'number' && typeof lastFc.index === 'number') {
                         canMerge = fc.index === lastFc.index;
-                        console.log(`[Accumulator] Index match check: fc.index=${fc.index}, lastFc.index=${lastFc.index}, canMerge=${canMerge}`);
+                        debugLog(`[Accumulator] Index match check: fc.index=${fc.index}, lastFc.index=${lastFc.index}, canMerge=${canMerge}`);
                     }
                     // Anthropic 模式：使用 id 标识
                     else if (fc.id && lastFc.id) {
                         canMerge = fc.id === lastFc.id;
-                        console.log(`[Accumulator] ID match check: fc.id=${fc.id}, lastFc.id=${lastFc.id}, canMerge=${canMerge}`);
+                        debugLog(`[Accumulator] ID match check: fc.id=${fc.id}, lastFc.id=${lastFc.id}, canMerge=${canMerge}`);
                     }
                     // 纯增量模式：没有 id 也没有 index，但有 partialArgs，且是最后一个 FC
                     else if (!fc.id && typeof fc.index !== 'number' && fc.partialArgs !== undefined && i === this.parts.length - 1) {
                         canMerge = true;
-                        console.log(`[Accumulator] Pure increment mode, canMerge=true`);
+                        debugLog(`[Accumulator] Pure increment mode, canMerge=true`);
                     } else {
-                        console.log(`[Accumulator] No match: fc.index=${fc.index}(${typeof fc.index}), lastFc.index=${lastFc.index}(${typeof lastFc.index}), fc.id=${fc.id}, lastFc.id=${lastFc.id}`);
+                        debugLog(`[Accumulator] No match: fc.index=${fc.index}(${typeof fc.index}), lastFc.index=${lastFc.index}(${typeof lastFc.index}), fc.id=${fc.id}, lastFc.id=${lastFc.id}`);
                     }
                     
                     if (canMerge) {
-                        console.log(`[Accumulator] Merging into existing FC at index ${i}`);
+                        debugLog(`[Accumulator] Merging into existing FC at index ${i}`);
                         // 合并名称（如果有）
                         if (fc.name && !lastFc.name) {
                             lastFc.name = fc.name;
@@ -273,14 +274,14 @@ export class StreamAccumulator {
                         // 合并 partialArgs
                         if (fc.partialArgs !== undefined) {
                             lastFc.partialArgs = (lastFc.partialArgs || '') + fc.partialArgs;
-                            console.log(`[Accumulator] After merge, partialArgs length: ${lastFc.partialArgs.length}`);
+                            debugLog(`[Accumulator] After merge, partialArgs length: ${lastFc.partialArgs.length}`);
                             
                             // 尝试解析完整的 JSON 参数
                             if (lastFc.partialArgs.trim()) {
                                 try {
                                     const parsed = JSON.parse(lastFc.partialArgs);
                                     lastFc.args = parsed;
-                                    console.log(`[Accumulator] Successfully parsed args:`, JSON.stringify(parsed));
+                                    debugLog(`[Accumulator] Successfully parsed args:`, JSON.stringify(parsed));
                                 } catch (e) {
                                     // 解析失败（JSON 不完整），继续等待更多增量
                                 }
@@ -291,7 +292,7 @@ export class StreamAccumulator {
                 }
                 
                 // 找不到可合并的块，作为新块添加
-                console.log(`[Accumulator] No mergeable FC found, adding new FC part`);
+                debugLog(`[Accumulator] No mergeable FC found, adding new FC part`);
                 // 添加前尝试解析初始参数
                 if (fc.partialArgs) {
                     try {
@@ -315,7 +316,7 @@ export class StreamAccumulator {
                 }
                 
                 this.parts.push(newPart);
-                console.log(`[Accumulator] After adding, parts count: ${this.parts.length}`);
+                debugLog(`[Accumulator] After adding, parts count: ${this.parts.length}`);
                 return;
             }
             

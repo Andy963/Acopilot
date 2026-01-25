@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import * as childProcess from 'child_process';
 import { promisify } from 'util';
 import { t } from '../../i18n';
+import { debugLog } from '../../core/logger';
 
 const exec = promisify(childProcess.exec);
 const mkdir = promisify(fs.mkdir);
@@ -256,9 +257,9 @@ export class DependencyManager {
                 }
             );
             
-            console.log('npm install stdout:', stdout);
+            debugLog('npm install stdout:', stdout);
             if (stderr) {
-                console.log('npm install stderr:', stderr);
+                debugLog('npm install stderr:', stderr);
             }
             
             // 移动安装的依赖到目标目录
