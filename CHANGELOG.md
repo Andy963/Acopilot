@@ -5,15 +5,18 @@ All notable changes to the "Acopilot" extension will be documented in this file.
 ## [1.0.58-pre.8] - 2026-01-25
 
 ### Fixed
-  - 安全：渠道 `apiKey` 不再明文落盘，改用 VS Code SecretStorage 持久化。
-  - 安全：MCP stdio `env` 不再明文落盘，改用 VS Code SecretStorage 持久化。
-  - 安全：MCP stdio 首次连接/配置变更后需要显式确认，避免静默执行本地命令。
-  - 安全：统一对用户可见错误做脱敏，避免泄露 `Authorization`/`token`/`apiKey` 等敏感信息。
-  - 安全：Webview 消息协议入口增加运行时校验，拒绝非法 payload。
-  - 安全：文件工具路径解析增加 workspace 边界校验，阻止 `..`/符号链接逃逸。
+  - 安全：渠道 `apiKey` 改用 VS Code SecretStorage 持久化，不再明文写入配置；启动时自动迁移旧明文并清理，删除配置时同步清理 secret。
+  - 安全：MCP stdio `transport.env` 改用 VS Code SecretStorage 持久化，不再明文写入 MCP 配置；启动时自动迁移旧明文并清理，删除 server 时同步清理 secret。
+  - 安全：MCP stdio 连接前增加显式确认（基于 `command + args` 指纹信任），避免启动/自动连接时静默执行本地命令。
+  - 安全：对“用户可见”的错误信息统一脱敏，覆盖 `Authorization`/`Bearer`/`token`/`apiKey`/`proxyUrl`/URL basic auth 等常见敏感模式。
+  - 安全：Webview 消息入口增加运行时协议校验（request envelope + stream payload），拒绝非预期类型/结构的消息，避免 `any` 解构导致的异常或注入面。
+  - 安全：文件工具路径解析增加 workspace 边界校验，阻止 `..` 路径遍历与符号链接指向 workspace 外的逃逸。
+
+### Tests
+  - 新增/更新单测覆盖：SecretStorage 迁移、错误脱敏、Webview 协议校验、路径逃逸校验。
 
 ### Improved
-  - 安全：调试日志默认关闭，需设置 `ACOPILOT_DEBUG=1` 才会输出。
+  - 安全：调试日志默认关闭，需设置 `ACOPILOT_DEBUG=1` 才会输出（避免在生产日志中泄露对话/工具参数等内容）。
 
 ## [1.0.58-pre.4] - 2026-01-25
 
