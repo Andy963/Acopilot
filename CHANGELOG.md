@@ -2,6 +2,19 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.8] - 2026-01-25
+
+### Fixed
+  - 安全：渠道 `apiKey` 不再明文落盘，改用 VS Code SecretStorage 持久化。
+  - 安全：MCP stdio `env` 不再明文落盘，改用 VS Code SecretStorage 持久化。
+  - 安全：MCP stdio 首次连接/配置变更后需要显式确认，避免静默执行本地命令。
+  - 安全：统一对用户可见错误做脱敏，避免泄露 `Authorization`/`token`/`apiKey` 等敏感信息。
+  - 安全：Webview 消息协议入口增加运行时校验，拒绝非法 payload。
+  - 安全：文件工具路径解析增加 workspace 边界校验，阻止 `..`/符号链接逃逸。
+
+### Improved
+  - 安全：调试日志默认关闭，需设置 `ACOPILOT_DEBUG=1` 才会输出。
+
 ## [1.0.58-pre.4] - 2026-01-25
 
 ### Added
