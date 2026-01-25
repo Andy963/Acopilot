@@ -22,6 +22,14 @@ import type {
 import type { ConfigStorageAdapter } from './storage';
 import { nanoid } from 'nanoid';
 
+type SecretStorage = {
+    get(key: string): Thenable<string | undefined>;
+    store(key: string, value: string): Thenable<void>;
+    delete(key: string): Thenable<void>;
+};
+
+const CONFIG_API_KEY_SECRET_PREFIX = 'acopilot.config.apiKey.';
+
 /**
  * 配置管理器
  * 
@@ -35,8 +43,78 @@ export class ConfigManager {
     private loaded: boolean = false;
     
     constructor(
-        private storageAdapter: ConfigStorageAdapter
+        private storageAdapter: ConfigStorageAdapter,
+        private secretStorage?: SecretStorage
     ) {}
+
+    private getApiKeySecretKey(configId: string): string {
+        return `${CONFIG_API_KEY_SECRET_PREFIX}${configId}`;
+    }
+
+    private async tryStoreSecret(key: string, value: string): Promise<boolean> {
+        if (!this.secretStorage) return false;
+        try {
+            await this.secretStorage.store(key, value);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private async tryDeleteSecret(key: string): Promise<void> {
+        if (!this.secretStorage) return;
+        try {
+            await this.secretStorage.delete(key);
+        } catch {
+            return;
+        }
+    }
+
+    private async tryGetSecret(key: string): Promise<string | undefined> {
+        if (!this.secretStorage) return undefined;
+        try {
+            return await this.secretStorage.get(key);
+        } catch {
+            return undefined;
+        }
+    }
+
+    private stripApiKeyForStorage(config: ChannelConfig): ChannelConfig {
+        if (!this.secretStorage) return config;
+        if (!('apiKey' in (config as any))) return config;
+        return { ...(config as any), apiKey: '' } as ChannelConfig;
+    }
+
+    private async hydrateAndMigrateApiKey(config: ChannelConfig): Promise<ChannelConfig> {
+        if (!this.secretStorage) {
+            return config;
+        }
+
+        const apiKeySecretKey = this.getApiKeySecretKey(config.id);
+        const rawApiKey = typeof (config as any).apiKey === 'string' ? String((config as any).apiKey) : '';
+        const isRedacted = rawApiKey === '***REDACTED***';
+
+        // Migration: older versions store apiKey in globalState. Move it into SecretStorage and wipe plaintext.
+        if (rawApiKey.trim().length > 0 && !isRedacted) {
+            const stored = await this.tryStoreSecret(apiKeySecretKey, rawApiKey);
+            if (stored) {
+                await this.storageAdapter.save(this.stripApiKeyForStorage(config));
+            }
+            return config;
+        }
+
+        // Normal path: hydrate apiKey from SecretStorage.
+        const secretApiKey = await this.tryGetSecret(apiKeySecretKey);
+        if (secretApiKey && secretApiKey.trim().length > 0) {
+            return { ...(config as any), apiKey: secretApiKey } as ChannelConfig;
+        }
+
+        if (isRedacted) {
+            return { ...(config as any), apiKey: '' } as ChannelConfig;
+        }
+
+        return config;
+    }
     
     /**
      * 初始化管理器（加载所有配置到缓存）
@@ -51,7 +129,8 @@ export class ConfigManager {
         for (const id of configIds) {
             const config = await this.storageAdapter.load(id);
             if (config) {
-                this.configCache.set(id, config);
+                const hydrated = await this.hydrateAndMigrateApiKey(config);
+                this.configCache.set(id, hydrated);
             }
         }
         
@@ -225,9 +304,15 @@ export class ConfigManager {
             createdAt: now,
             updatedAt: now
         } as ChannelConfig;
-        
-        // 保存（不验证配置）
-        await this.storageAdapter.save(config);
+
+        const rawApiKey = typeof (config as any).apiKey === 'string' ? String((config as any).apiKey) : '';
+        let canStripApiKey = Boolean(this.secretStorage);
+        if (this.secretStorage && rawApiKey.trim().length > 0 && rawApiKey !== '***REDACTED***') {
+            canStripApiKey = await this.tryStoreSecret(this.getApiKeySecretKey(id), rawApiKey);
+        }
+
+        // Save without apiKey when SecretStorage is available.
+        await this.storageAdapter.save(canStripApiKey ? this.stripApiKeyForStorage(config) : config);
         this.configCache.set(id, config);
         
         return id;
@@ -269,19 +354,44 @@ export class ConfigManager {
         if (!existing) {
             throw new Error(t('modules.config.errors.configNotFound', { configId }));
         }
+
+        const updatesCopy: Record<string, unknown> = { ...(updates as any) };
+        const hasApiKeyUpdate = Object.prototype.hasOwnProperty.call(updatesCopy, 'apiKey');
+        const apiKeyUpdate = hasApiKeyUpdate ? updatesCopy.apiKey : undefined;
+
+        // Ignore redacted placeholder during import.
+        if (apiKeyUpdate === '***REDACTED***') {
+            delete updatesCopy.apiKey;
+        }
+
+        if (hasApiKeyUpdate && typeof apiKeyUpdate !== 'string') {
+            delete updatesCopy.apiKey;
+        }
         
         // 合并更新
         const updated: ChannelConfig = {
             ...existing,
-            ...updates,
+            ...updatesCopy,
             id: configId,  // 保持 ID 不变
             type: existing.type,  // 保持类型不变
             createdAt: existing.createdAt,  // 保持创建时间
             updatedAt: Date.now()  // 更新时间
         } as ChannelConfig;
+
+        let canStripApiKey = Boolean(this.secretStorage);
+        if (this.secretStorage && hasApiKeyUpdate && apiKeyUpdate !== '***REDACTED***') {
+            const secretKey = this.getApiKeySecretKey(configId);
+            if (typeof apiKeyUpdate === 'string') {
+                if (apiKeyUpdate.trim().length === 0) {
+                    await this.tryDeleteSecret(secretKey);
+                } else {
+                    canStripApiKey = await this.tryStoreSecret(secretKey, apiKeyUpdate);
+                }
+            }
+        }
         
         // 保存（不验证配置）
-        await this.storageAdapter.save(updated);
+        await this.storageAdapter.save(canStripApiKey ? this.stripApiKeyForStorage(updated) : updated);
         this.configCache.set(configId, updated);
     }
     
@@ -296,6 +406,8 @@ export class ConfigManager {
         if (!this.configCache.has(configId)) {
             throw new Error(t('modules.config.errors.configNotFound', { configId }));
         }
+
+        await this.tryDeleteSecret(this.getApiKeySecretKey(configId));
         
         await this.storageAdapter.delete(configId);
         this.configCache.delete(configId);
@@ -567,21 +679,26 @@ export class ConfigManager {
         options: ImportOptions = {}
     ): Promise<string> {
         await this.ensureLoaded();
+
+        const normalized = { ...(configData || {}) };
+        if (normalized.apiKey === '***REDACTED***') {
+            delete normalized.apiKey;
+        }
         
         // 检查是否已存在
-        if (configData.id && this.configCache.has(configData.id)) {
+        if (normalized.id && this.configCache.has(normalized.id)) {
             if (!options.overwrite) {
-                throw new Error(t('modules.config.errors.configExists', { configId: configData.id }));
+                throw new Error(t('modules.config.errors.configExists', { configId: normalized.id }));
             }
             
             // 覆盖现有配置
-            const { id, createdAt, ...updates } = configData;
+            const { id, createdAt, ...updates } = normalized;
             await this.updateConfig(id, updates);
             return id;
         }
         
         // 创建新配置
-        const { id, createdAt, updatedAt, ...input } = configData;
+        const { id, createdAt, updatedAt, ...input } = normalized;
         return this.createConfig(input);
     }
     
