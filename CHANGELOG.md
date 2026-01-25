@@ -2,6 +2,22 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.4] - 2026-01-25
+
+### Added
+  - PlanRunner：步骤支持 `errorCode`（机器可读），用于识别需要 continue / 工具迭代上限等中断类型。
+  - PlanRunner：支持在暂停态继续执行当前步骤，并在满足验收/完成后自动推进到下一步。
+  - PlanRunner：步骤可选配置验收标准，并要求模型在回复末尾输出 `ACCEPTANCE: PASS` 或 `ACCEPTANCE: FAIL - <reason>`。
+  - 测试：新增 `handleToolIteration` 回归测试，确保 functionResponse 后追加新的 assistant 占位并保留 modelVersion。
+
+### Fixed
+  - Plan & Run：命中 `MAX_TOOL_ITERATIONS` 等工具迭代中断时，“继续”将补全回复而不重复执行工具/命令。
+  - 流式工具迭代：合并消息时正确保留原消息的 `modelVersion`。
+
+### Improved
+  - PlanRunner UI：附件展示更紧凑，操作按钮与间距优化。
+  - 打包：`vscode:prepublish` 改为 `build`，新增 `package:vsix`，并移除 `build.sh` 中重复 build。
+
 ## [1.0.58-pre.3] - 2026-01-24
 
 ### Fixed
