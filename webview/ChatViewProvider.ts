@@ -168,7 +168,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this.context.globalState,
             'acopilot.configs'
         );
-        this.configManager = new ConfigManager(configStorage);
+        this.configManager = new ConfigManager(configStorage, this.context.secrets);
 
         // 8. 创建默认配置（如果不存在）
         await this.ensureDefaultConfig();
