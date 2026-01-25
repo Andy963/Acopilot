@@ -31,6 +31,13 @@ export type CancelStreamCallback = () => Promise<void>
 
 export interface SendMessageOptions {
   taskContext?: string
+  /**
+   * Hide this user message from the UI (kept in allMessages to preserve indexing).
+   * Intended for system-generated control prompts like "continue".
+   */
+  internalUserMessage?: boolean
+  /** Avoid updating conversation preview for internal/control messages. */
+  skipConversationPreview?: boolean
 }
 
 /**
@@ -53,17 +60,17 @@ export async function sendMessage(
   if (!effectiveMessageText.trim() && (!attachments || attachments.length === 0)) return
 
   const locateModelOverride = isLocateCommand ? await getLocateModelOverride() : undefined
-  
+
   state.error.value = null
   if (state.isWaitingForResponse.value) return
 
   // 新一轮对话开始前，隐藏“改动后校验”提示（上一轮的提示不应阻塞后续对话）
   state.postEditValidationPending.value = false
-  
+
   state.isLoading.value = true
   state.isStreaming.value = true
   state.isWaitingForResponse.value = true
-  
+
   try {
     if (!state.currentConversationId.value) {
       const newId = await createAndPersistConversation(state, messageText)
@@ -87,16 +94,17 @@ export async function sendMessage(
         }
       }
     }
-    
+
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
       content: effectiveMessageText,
       timestamp: Date.now(),
-      attachments: attachments && attachments.length > 0 ? attachments : undefined
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
+      metadata: options?.internalUserMessage ? { internal: true } : undefined
     }
     state.allMessages.value.push(userMessage)
-    
+
     const assistantMessageId = generateId()
     const assistantMessage: Message = {
       id: assistantMessageId,
@@ -110,27 +118,29 @@ export async function sendMessage(
     }
     state.allMessages.value.push(assistantMessage)
     state.streamingMessageId.value = assistantMessageId
-    
+
     const conv = state.conversations.value.find(c => c.id === state.currentConversationId.value)
     if (conv) {
       conv.updatedAt = Date.now()
       conv.messageCount = state.allMessages.value.length
-      conv.preview = messageText.slice(0, 50)
+      if (!options?.skipConversationPreview) {
+        conv.preview = messageText.slice(0, 50)
+      }
     }
-    
+
     state.toolCallBuffer.value = ''
     state.inToolCall.value = null
-    
+
     const attachmentData: AttachmentData[] | undefined = attachments && attachments.length > 0
       ? attachments.map(att => ({
-          id: att.id,
-          name: att.name,
-          type: att.type,
-          size: att.size,
-          mimeType: att.mimeType,
-          data: att.data || '',
-          thumbnail: att.thumbnail
-        }))
+        id: att.id,
+        name: att.name,
+        type: att.type,
+        size: att.size,
+        mimeType: att.mimeType,
+        data: att.data || '',
+        thumbnail: att.thumbnail
+      }))
       : undefined
 
     const contextOverrides = state.messageContextOverrides.value
@@ -151,7 +161,7 @@ export async function sendMessage(
         modelOverride: locateModelOverride
       }
     }
-    
+
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
       configId: state.configId.value,
@@ -166,7 +176,7 @@ export async function sendMessage(
     // 仅本条消息生效：发送后清空（避免影响下一条消息）
     state.messageContextOverrides.value = {}
     state.selectionReferences.value = []
-    
+
   } catch (err: any) {
     if (state.isStreaming.value) {
       state.error.value = {
@@ -214,19 +224,19 @@ export async function retryFromMessage(
 ): Promise<void> {
   if (!state.currentConversationId.value || state.allMessages.value.length === 0) return
   if (messageIndex < 0 || messageIndex >= state.allMessages.value.length) return
-  
+
   if (state.isStreaming.value) {
     await cancelStream()
   }
-  
+
   state.error.value = null
   state.isLoading.value = true
   state.isStreaming.value = true
   state.isWaitingForResponse.value = true
-  
+
   state.allMessages.value = state.allMessages.value.slice(0, messageIndex)
   clearCheckpointsFromIndex(state, messageIndex)
-  
+
   try {
     await sendToExtension('deleteMessage', {
       conversationId: state.currentConversationId.value,
@@ -235,10 +245,10 @@ export async function retryFromMessage(
   } catch (err) {
     console.error('Failed to delete messages from backend:', err)
   }
-  
+
   state.toolCallBuffer.value = ''
   state.inToolCall.value = null
-  
+
   const assistantMessageId = generateId()
   const assistantMessage: Message = {
     id: assistantMessageId,
@@ -252,7 +262,7 @@ export async function retryFromMessage(
   }
   state.allMessages.value.push(assistantMessage)
   state.streamingMessageId.value = assistantMessageId
-  
+
   try {
     await sendToExtension('retryStream', {
       conversationId: state.currentConversationId.value,
@@ -282,15 +292,15 @@ export async function retryAfterError(
 ): Promise<void> {
   if (!state.currentConversationId.value) return
   if (state.isLoading.value || state.isStreaming.value) return
-  
+
   state.error.value = null
   state.isLoading.value = true
   state.isStreaming.value = true
   state.isWaitingForResponse.value = true
-  
+
   state.toolCallBuffer.value = ''
   state.inToolCall.value = null
-  
+
   const assistantMessageId = generateId()
   const assistantMessage: Message = {
     id: assistantMessageId,
@@ -304,7 +314,7 @@ export async function retryAfterError(
   }
   state.allMessages.value.push(assistantMessage)
   state.streamingMessageId.value = assistantMessageId
-  
+
   try {
     await sendToExtension('retryStream', {
       conversationId: state.currentConversationId.value,
@@ -357,7 +367,10 @@ export async function continueAfterToolExecution(
   state.selectionReferences.value = []
 
   try {
-    await sendMessage(state, computed, continuePrompt, undefined)
+    await sendMessage(state, computed, continuePrompt, undefined, {
+      internalUserMessage: true,
+      skipConversationPreview: true,
+    })
   } finally {
     state.messageContextOverrides.value = previousOverrides
     state.selectionReferences.value = previousSelectionRefs
@@ -377,27 +390,27 @@ export async function editAndRetry(
 ): Promise<void> {
   if ((!newMessage.trim() && (!attachments || attachments.length === 0)) || !state.currentConversationId.value) return
   if (messageIndex < 0 || messageIndex >= state.allMessages.value.length) return
-  
+
   if (state.isStreaming.value) {
     await cancelStream()
   }
-  
+
   state.error.value = null
   state.isLoading.value = true
   state.isStreaming.value = true
   state.isWaitingForResponse.value = true
-  
+
   const targetMessage = state.allMessages.value[messageIndex]
   targetMessage.content = newMessage
   targetMessage.parts = [{ text: newMessage }]
   targetMessage.attachments = attachments && attachments.length > 0 ? attachments : undefined
-  
+
   state.allMessages.value = state.allMessages.value.slice(0, messageIndex + 1)
   clearCheckpointsFromIndex(state, messageIndex)
-  
+
   state.toolCallBuffer.value = ''
   state.inToolCall.value = null
-  
+
   const assistantMessageId = generateId()
   const assistantMessage: Message = {
     id: assistantMessageId,
@@ -411,19 +424,19 @@ export async function editAndRetry(
   }
   state.allMessages.value.push(assistantMessage)
   state.streamingMessageId.value = assistantMessageId
-  
+
   const attachmentData: AttachmentData[] | undefined = attachments && attachments.length > 0
     ? attachments.map(att => ({
-        id: att.id,
-        name: att.name,
-        type: att.type,
-        size: att.size,
-        mimeType: att.mimeType,
-        data: att.data || '',
-        thumbnail: att.thumbnail
-      }))
+      id: att.id,
+      name: att.name,
+      type: att.type,
+      size: att.size,
+      mimeType: att.mimeType,
+      data: att.data || '',
+      thumbnail: att.thumbnail
+    }))
     : undefined
-  
+
   try {
     await sendToExtension('editAndRetryStream', {
       conversationId: state.currentConversationId.value,
@@ -457,17 +470,17 @@ export async function deleteMessage(
 ): Promise<void> {
   if (!state.currentConversationId.value) return
   if (targetIndex < 0 || targetIndex >= state.allMessages.value.length) return
-  
+
   if (state.isStreaming.value) {
     await cancelStream()
   }
-  
+
   try {
     const response = await sendToExtension<{ success: boolean; deletedCount: number }>('deleteMessage', {
       conversationId: state.currentConversationId.value,
       targetIndex
     })
-    
+
     if (response.success) {
       state.allMessages.value = state.allMessages.value.slice(0, targetIndex)
       clearCheckpointsFromIndex(state, targetIndex)
@@ -490,17 +503,17 @@ export async function deleteSingleMessage(
 ): Promise<void> {
   if (!state.currentConversationId.value) return
   if (targetIndex < 0 || targetIndex >= state.allMessages.value.length) return
-  
+
   if (state.isStreaming.value) {
     await cancelStream()
   }
-  
+
   try {
     const response = await sendToExtension<{ success: boolean }>('deleteSingleMessage', {
       conversationId: state.currentConversationId.value,
       targetIndex
     })
-    
+
     if (response.success) {
       state.allMessages.value = [
         ...state.allMessages.value.slice(0, targetIndex),

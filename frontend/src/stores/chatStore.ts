@@ -115,6 +115,7 @@ import {
   cancelPlanRunner as cancelPlanRunnerFn,
   rerunPlanRunnerFromStep as rerunPlanRunnerFromStepFn,
   runSinglePlanRunnerStep as runSinglePlanRunnerStepFn,
+  continuePlanRunner as continuePlanRunnerFn,
   type PlanRunnerCreateInput
 } from './chat/planRunnerActions'
 
@@ -126,41 +127,41 @@ export type { Conversation, WorkspaceFilter } from './chat/types'
 export const useChatStore = defineStore('chat', () => {
   // ============ 状态 ============
   const state = createChatState()
-  
+
   // ============ 计算属性 ============
   const computed = createChatComputed(state)
-  
+
   // ============ 工具操作 ============
-  
+
   const getToolResponseById = (toolCallId: string) => getToolResponseByIdFn(state, toolCallId)
   const hasToolResponse = (toolCallId: string) => hasToolResponseFn(state, toolCallId)
   const getActualIndex = (displayIndex: number) => getActualIndexFn(state, computed, displayIndex)
-  
+
   const cancelStreamAndRejectTools = () => cancelStreamAndRejectToolsFn(state, computed)
   const cancelStream = () => cancelStreamFn(state, computed)
-  const rejectPendingToolsWithAnnotation = (annotation: string) => 
+  const rejectPendingToolsWithAnnotation = (annotation: string) =>
     rejectPendingToolsWithAnnotationFn(state, computed, annotation)
 
   // ============ 消息操作 ============
-  
+
   const sendMessage = (messageText: string, attachments?: Attachment[], options?: SendMessageOptions) =>
     sendMessageFn(state, computed, messageText, attachments, options)
-  
+
   const retryLastMessage = () => retryLastMessageFn(state, computed, cancelStream)
-  const retryFromMessage = (messageIndex: number) => 
+  const retryFromMessage = (messageIndex: number) =>
     retryFromMessageFn(state, computed, messageIndex, cancelStream)
   const retryAfterError = () => retryAfterErrorFn(state, computed)
   const continueAfterToolExecution = (prompt?: string) => continueAfterToolExecutionFn(state, computed, prompt)
-  
+
   const editAndRetry = (messageIndex: number, newMessage: string, attachments?: Attachment[]) =>
     editAndRetryFn(state, computed, messageIndex, newMessage, attachments, cancelStream)
-  
+
   const deleteMessage = (targetIndex: number) => deleteMessageFn(state, targetIndex, cancelStream)
   const deleteSingleMessage = (targetIndex: number) => deleteSingleMessageFn(state, targetIndex, cancelStream)
   const clearMessages = () => clearMessagesFn(state)
 
   // ============ 对话操作 ============
-  
+
   const createNewConversation = () => createNewConvAction(state, cancelStreamAndRejectTools)
   const loadConversations = () => loadConvsAction(state)
   const switchConversation = async (id: string) => {
@@ -173,9 +174,9 @@ export const useChatStore = defineStore('chat', () => {
     switchConversation,
     createNewConversation
   )
-  
+
   // ============ 配置操作 ============
-  
+
   const setConfigId = (newConfigId: string) => setConfigIdAction(state, newConfigId)
   const setWorkspaceFilter = (filter: 'current' | 'all') => setWorkspaceFilterAction(state, filter)
   const setInputValue = (value: string) => setInputValueAction(state, value)
@@ -198,9 +199,9 @@ export const useChatStore = defineStore('chat', () => {
   const clearMessageContextOverrides = (): void => {
     state.messageContextOverrides.value = {}
   }
-  
+
   // ============ 检查点操作 ============
-  
+
   const getCheckpointsForMessage = (messageIndex: number) => getCheckpointsFn(state, messageIndex)
   const hasCheckpoint = (messageIndex: number) => hasCheckpointFn(state, messageIndex)
   const addCheckpoint = (checkpoint: any) => addCheckpointFn(state, checkpoint)
@@ -230,6 +231,7 @@ export const useChatStore = defineStore('chat', () => {
   const cancelPlanRunner = () => cancelPlanRunnerFn(state, computed)
   const rerunPlanRunnerFromStep = (stepIndex: number) => rerunPlanRunnerFromStepFn(state, computed, stepIndex)
   const runSinglePlanRunnerStep = (stepIndex: number) => runSinglePlanRunnerStepFn(state, computed, stepIndex)
+  const continuePlanRunner = () => continuePlanRunnerFn(state, computed)
 
   // ============ 改动后校验 ============
 
@@ -237,7 +239,7 @@ export const useChatStore = defineStore('chat', () => {
     runPostEditValidationCommandFn(state, preset)
 
   // ============ 流式处理 ============
-  
+
   function handleStreamChunkWrapper(chunk: StreamChunk): void {
     handleStreamChunk(chunk, {
       state,
@@ -248,7 +250,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // ============ 初始化 ============
-  
+
   async function initialize(): Promise<void> {
     onMessageFromExtension((message) => {
       if (message.type === 'streamChunk') {
@@ -259,25 +261,25 @@ export const useChatStore = defineStore('chat', () => {
         handleRetryStatus(state, message.data)
       }
     })
-    
+
     try {
       const uri = await sendToExtension<string | null>('getWorkspaceUri', {})
       setCurrentWorkspaceUri(state, uri)
     } catch {
       // 忽略错误
     }
-    
+
     await loadSavedConfigId(state)
     await loadCurrentConfig(state)
     await loadCheckpointConfig(state)
     await loadConversations()
-    
+
     state.currentConversationId.value = null
     state.allMessages.value = []
   }
 
   // ============ 返回 ============
-  
+
   return {
     // 状态
     conversations: state.conversations,
@@ -301,7 +303,7 @@ export const useChatStore = defineStore('chat', () => {
     contextInspectorData: state.contextInspectorData,
     contextInspectorError: state.contextInspectorError,
     contextInspectorSource: state.contextInspectorSource,
-    
+
     // 计算属性
     currentConversation: computed.currentConversation,
     sortedConversations: computed.sortedConversations,
@@ -322,7 +324,7 @@ export const useChatStore = defineStore('chat', () => {
     switchConversation,
     deleteConversation,
     isDeletingConversation: (id: string) => isDeletingConversation(state, id),
-    
+
     // 消息管理
     loadHistory: () => loadHistory(state),
     sendMessage,
@@ -352,20 +354,21 @@ export const useChatStore = defineStore('chat', () => {
     cancelPlanRunner,
     rerunPlanRunnerFromStep,
     runSinglePlanRunnerStep,
+    continuePlanRunner,
 
     // 改动后校验
     runPostEditValidationCommand,
-    
+
     // 配置管理
     setConfigId,
     loadCurrentConfig: () => loadCurrentConfig(state),
-    
+
     // 工具
     formatTime,
     getToolResponseById,
     hasToolResponse,
     getActualIndex,
-    
+
     // 检查点
     checkpoints: state.checkpoints,
     mergeUnchangedCheckpoints: state.mergeUnchangedCheckpoints,
@@ -379,13 +382,13 @@ export const useChatStore = defineStore('chat', () => {
     restoreAndRetry,
     restoreAndEdit,
     restoreAndDelete,
-    
+
     // 工作区
     currentWorkspaceUri: state.currentWorkspaceUri,
     workspaceFilter: state.workspaceFilter,
     setCurrentWorkspaceUri: (uri: string | null) => setCurrentWorkspaceUri(state, uri),
     setWorkspaceFilter,
-    
+
     // 输入框
     inputValue: state.inputValue,
     setInputValue,
@@ -405,10 +408,10 @@ export const useChatStore = defineStore('chat', () => {
     messageContextOverrides: state.messageContextOverrides,
     setMessageContextOverride,
     clearMessageContextOverrides,
-    
+
     // 上下文总结
     summarizeContext,
-    
+
     // 初始化
     initialize
   }

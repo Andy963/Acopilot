@@ -71,10 +71,10 @@ const enhancedVisibleMessages = computed<EnhancedMessage[]>(() => {
   const count = visibleCount.value
   const total = props.messages.length
   const startIndex = Math.max(0, total - count)
-  
+
   // 仅对可见的消息进行切片
   const visibleSlice = props.messages.slice(startIndex)
-  
+
   // 预先建立 ID 到 allMessages 索引的映射，提高 getActualIndex 效率
   const idToActualIndex = new Map<string, number>()
   chatStore.allMessages.forEach((m, idx) => {
@@ -95,7 +95,7 @@ const enhancedVisibleMessages = computed<EnhancedMessage[]>(() => {
   return visibleSlice.map(message => {
     const actualIndex = idToActualIndex.get(message.id) ?? -1
     const cpGroup = actualIndex !== -1 ? checkpointsByMsgIndex.get(actualIndex) : null
-    
+
     return {
       message,
       actualIndex,
@@ -134,7 +134,7 @@ function loadMore() {
 function handleScroll(e: Event) {
   const container = e.target as HTMLElement
   if (!container) return
-  
+
   // 当滚动到距离顶部 100px 以内时自动加载
   if (hasMore.value && !isLoadingMore.value && container.scrollTop < 100) {
     loadMore()
@@ -173,10 +173,10 @@ watch(() => props.messages, (newMessages) => {
 // 尝试滚动到底部（会检查容器是否准备好）
 function tryScrollToBottom() {
   if (!scrollbarRef.value) return
-  
+
   const container = scrollbarRef.value.getContainer()
   if (!container) return
-  
+
   // 检查容器是否有尺寸（可见状态）
   if (container.scrollHeight > 0 && container.clientHeight > 0) {
     if (needsScrollToBottom.value) {
@@ -192,17 +192,17 @@ onMounted(() => {
   // 使用 nextTick 确保 scrollbarRef 已经绑定
   nextTick(() => {
     if (!scrollbarRef.value) return
-    
+
     const container = scrollbarRef.value.getContainer()
     if (!container) return
-    
+
     // 添加滚动事件监听以支持自动加载
     container.addEventListener('scroll', handleScroll, { passive: true })
-    
+
     resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { height } = entry.contentRect
-        
+
         // 当容器从 0 高度变为有高度时，尝试滚动
         if (height > 0 && needsScrollToBottom.value) {
           // 使用 requestAnimationFrame 确保布局完成
@@ -212,7 +212,7 @@ onMounted(() => {
         }
       }
     })
-    
+
     resizeObserver.observe(container)
   })
 })
@@ -292,10 +292,10 @@ function cancelDelete() {
 // 与重试使用相同的策略
 const deleteCheckpoints = computed<CheckpointRecord[]>(() => {
   if (!pendingDeleteMessageId.value) return []
-  
+
   const messageIndex = chatStore.allMessages.findIndex(m => m.id === pendingDeleteMessageId.value)
   if (messageIndex === -1) return []
-  
+
   // 返回所有 messageIndex <= 当前消息 且 phase === 'before' 的检查点
   return chatStore.checkpoints
     .filter(cp => cp.messageIndex <= messageIndex && cp.phase === 'before')
@@ -304,10 +304,10 @@ const deleteCheckpoints = computed<CheckpointRecord[]>(() => {
 // 处理回档并删除
 async function handleRestoreAndDelete(checkpointId: string) {
   if (!pendingDeleteMessageId.value) return
-  
+
   const actualIndex = chatStore.allMessages.findIndex(m => m.id === pendingDeleteMessageId.value)
   if (actualIndex === -1) return
-  
+
   // 调用 restoreAndDelete 方法
   await chatStore.restoreAndDelete(actualIndex, checkpointId)
   pendingDeleteMessageId.value = null
@@ -333,6 +333,21 @@ function handleErrorRetry() {
 
 // 处理继续对话（工具执行后中断时）
 async function handleContinue() {
+  // If PlanRunner is paused and waiting for a "continue" to finish the current step,
+  // continue through PlanRunner so it can advance to the next step.
+  const plan = chatStore.planRunner
+  const step = plan && plan.currentStepIndex >= 0 && plan.currentStepIndex < plan.steps.length
+    ? plan.steps[plan.currentStepIndex]
+    : null
+
+  const canContinuePlan = !!plan && plan.status === 'paused' && step?.status === 'error' &&
+    (step?.errorCode === 'NEEDS_CONTINUE' || step?.errorCode === 'MAX_TOOL_ITERATIONS')
+
+  if (canContinuePlan) {
+    await chatStore.continuePlanRunner()
+    return
+  }
+
   await chatStore.continueAfterToolExecution()
 }
 
@@ -349,7 +364,7 @@ async function handleRestoreAndRetry(messageId: string, checkpointId: string) {
   // 找到消息在 allMessages 中的索引
   const actualIndex = chatStore.allMessages.findIndex(m => m.id === messageId)
   if (actualIndex === -1) return
-  
+
   // 调用 restoreAndRetry 方法
   await chatStore.restoreAndRetry(actualIndex, checkpointId)
 }
@@ -359,7 +374,7 @@ async function handleRestoreAndEdit(messageId: string, newContent: string, attac
   // 找到消息在 allMessages 中的索引
   const actualIndex = chatStore.allMessages.findIndex(m => m.id === messageId)
   if (actualIndex === -1) return
-  
+
   // 调用 restoreAndEdit 方法
   await chatStore.restoreAndEdit(actualIndex, newContent, attachments, checkpointId)
 }
@@ -370,7 +385,7 @@ function shouldMergeForTool(messageIndex: number, toolName: string): boolean {
   if (!chatStore.mergeUnchangedCheckpoints) {
     return false
   }
-  
+
   // 查找该工具名称的 before 和 after 检查点
   const beforeCp = chatStore.checkpoints.find(cp =>
     cp.messageIndex === messageIndex && cp.phase === 'before' && cp.toolName === toolName
@@ -378,10 +393,10 @@ function shouldMergeForTool(messageIndex: number, toolName: string): boolean {
   const afterCp = chatStore.checkpoints.find(cp =>
     cp.messageIndex === messageIndex && cp.phase === 'after' && cp.toolName === toolName
   )
-  
+
   // 必须同时存在 before 和 after 才能合并
   if (!beforeCp || !afterCp) return false
-  
+
   return Boolean(beforeCp.contentHash && afterCp.contentHash && beforeCp.contentHash === afterCp.contentHash)
 }
 
@@ -432,31 +447,31 @@ function formatCheckpointTime(timestamp: number): string {
   const date = new Date(timestamp)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
-  
+
   // 判断是否是今天
   const isToday = date.toDateString() === now.toDateString()
-  
+
   // 时间部分 HH:mm:ss
   const timeStr = formatTime(timestamp, 'HH:mm:ss')
-  
+
   if (isToday) {
     // 今天：只显示时间
     return timeStr
   }
-  
+
   // 计算天数差
   const daysDiff = Math.floor(diff / (1000 * 60 * 60 * 24))
-  
+
   if (daysDiff === 1) {
     // 昨天
     return `${t('components.message.checkpoint.yesterday')} ${timeStr}`
   }
-  
+
   if (daysDiff < 7) {
     // 一周内
     return `${t('components.message.checkpoint.daysAgo', { days: daysDiff })} ${timeStr}`
   }
-  
+
   // 超过一周：显示完整日期
   return formatTime(timestamp, 'YYYY-MM-DD HH:mm:ss')
 }
@@ -474,22 +489,22 @@ function formatCheckpointTime(timestamp: number): string {
         <template v-for="item in enhancedVisibleMessages" :key="item.message.id">
           <!-- 消息前的检查点（或合并显示） -->
           <template v-if="item.beforeCheckpoints.length > 0">
-            <div
-              v-for="cp in item.beforeCheckpoints"
-              :key="cp.id"
-              class="checkpoint-bar"
-              :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'checkpoint-merged' : 'checkpoint-before'"
-            >
+            <div v-for="cp in item.beforeCheckpoints" :key="cp.id" class="checkpoint-bar"
+              :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'checkpoint-merged' : 'checkpoint-before'">
               <div class="checkpoint-icon">
-                <i class="codicon" :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'codicon-check' : 'codicon-archive'"></i>
+                <i class="codicon"
+                  :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'codicon-check' : 'codicon-archive'"></i>
               </div>
               <div class="checkpoint-info">
                 <span class="checkpoint-label">
-                  {{ shouldMergeForTool(item.actualIndex, cp.toolName) ? getMergedLabel(cp) : getCheckpointLabel(cp, 'before') }}
+                  {{ shouldMergeForTool(item.actualIndex, cp.toolName) ? getMergedLabel(cp) : getCheckpointLabel(cp,
+                  'before') }}
                 </span>
-                <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount }) }}</span>
+                <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount })
+                  }}</span>
               </div>
-              <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp) }}</span>
+              <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp)
+                }}</span>
               <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
                 <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
                   <i class="codicon codicon-discard"></i>
@@ -497,44 +512,30 @@ function formatCheckpointTime(timestamp: number): string {
               </Tooltip>
             </div>
           </template>
-          
+
           <!-- 总结消息使用专用组件 -->
-          <SummaryMessage
-            v-if="item.message.isSummary"
-            :message="item.message"
-            :message-index="item.actualIndex"
-          />
-          
+          <SummaryMessage v-if="item.message.isSummary" :message="item.message" :message-index="item.actualIndex" />
+
           <!-- 普通消息使用 MessageItem -->
-          <MessageItem
-            v-else
-            :message="item.message"
-            :message-index="item.actualIndex"
-            @edit="handleEdit"
-            @delete="handleDelete"
-            @retry="handleRetry"
-            @copy="handleCopy"
-            @restore-checkpoint="handleRestoreCheckpoint"
-            @restore-and-retry="handleRestoreAndRetry"
-            @restore-and-edit="handleRestoreAndEdit"
-          />
-          
+          <MessageItem v-else :message="item.message" :message-index="item.actualIndex" @edit="handleEdit"
+            @delete="handleDelete" @retry="handleRetry" @copy="handleCopy" @restore-checkpoint="handleRestoreCheckpoint"
+            @restore-and-retry="handleRestoreAndRetry" @restore-and-edit="handleRestoreAndEdit" />
+
           <!-- 消息后的检查点（仅当该工具的内容有变化时显示） -->
           <template v-if="item.afterCheckpoints.length > 0">
             <template v-for="cp in item.afterCheckpoints" :key="cp.id">
               <!-- 只有当该工具没有被合并时才显示 after 检查点 -->
-              <div
-                v-if="!shouldMergeForTool(item.actualIndex, cp.toolName)"
-                class="checkpoint-bar checkpoint-after"
-              >
+              <div v-if="!shouldMergeForTool(item.actualIndex, cp.toolName)" class="checkpoint-bar checkpoint-after">
                 <div class="checkpoint-icon">
                   <i class="codicon codicon-archive"></i>
                 </div>
                 <div class="checkpoint-info">
                   <span class="checkpoint-label">{{ getCheckpointLabel(cp, 'after') }}</span>
-                  <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount }) }}</span>
+                  <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount })
+                    }}</span>
                 </div>
-                <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp) }}</span>
+                <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{
+                  formatCheckpointTime(cp.timestamp) }}</span>
                 <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
                   <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
                     <i class="codicon codicon-discard"></i>
@@ -546,13 +547,11 @@ function formatCheckpointTime(timestamp: number): string {
         </template>
 
         <!-- 改动后校验提示（不写入 allMessages，避免索引错位） -->
-        <div
-          v-if="chatStore.postEditValidationPending && !chatStore.isWaitingForResponse && !chatStore.isStreaming"
-          class="post-edit-validation"
-        >
+        <div v-if="chatStore.postEditValidationPending && !chatStore.isWaitingForResponse && !chatStore.isStreaming"
+          class="post-edit-validation">
           <ValidationCardMessage />
         </div>
-        
+
         <PlanRunnerPanel />
 
         <!-- 继续对话提示 - 当最后一条是工具响应时显示 -->
@@ -571,7 +570,7 @@ function formatCheckpointTime(timestamp: number): string {
             </button>
           </div>
         </div>
-        
+
         <!-- 错误提示 - 显示在消息末尾 -->
         <div v-if="chatStore.error" class="error-message">
           <div class="error-header">
@@ -581,14 +580,12 @@ function formatCheckpointTime(timestamp: number): string {
               <button class="error-retry" @click="handleErrorRetry" :title="t('components.message.error.retry')">
                 <span class="codicon codicon-refresh"></span>
               </button>
-              <button
-                class="error-copy"
-                @click="copyErrorDetails"
-                :title="errorCopied ? t('common.copied') : t('components.message.error.copy')"
-              >
+              <button class="error-copy" @click="copyErrorDetails"
+                :title="errorCopied ? t('common.copied') : t('components.message.error.copy')">
                 <span :class="['codicon', errorCopied ? 'codicon-check' : 'codicon-copy']"></span>
               </button>
-              <button class="error-dismiss" @click="chatStore.error = null" :title="t('components.message.error.dismiss')">
+              <button class="error-dismiss" @click="chatStore.error = null"
+                :title="t('components.message.error.dismiss')">
                 ✕
               </button>
             </div>
@@ -601,27 +598,16 @@ function formatCheckpointTime(timestamp: number): string {
         </div>
       </div>
     </CustomScrollbar>
-    
+
     <!-- 删除确认对话框 -->
-    <DeleteDialog
-      v-model="showDeleteConfirm"
-      :checkpoints="deleteCheckpoints"
-      :delete-count="deleteCount"
-      @delete="confirmDelete"
-      @restore-and-delete="handleRestoreAndDelete"
-      @cancel="cancelDelete"
-    />
-    
+    <DeleteDialog v-model="showDeleteConfirm" :checkpoints="deleteCheckpoints" :delete-count="deleteCount"
+      @delete="confirmDelete" @restore-and-delete="handleRestoreAndDelete" @cancel="cancelDelete" />
+
     <!-- 恢复检查点确认对话框 -->
-    <ConfirmDialog
-      v-model="showRestoreConfirm"
-      :title="t('components.message.checkpoint.restoreConfirmTitle')"
+    <ConfirmDialog v-model="showRestoreConfirm" :title="t('components.message.checkpoint.restoreConfirmTitle')"
       :message="t('components.message.checkpoint.restoreConfirmMessage')"
-      :confirm-text="t('components.message.checkpoint.restoreConfirmBtn')"
-      is-danger
-      @confirm="confirmRestore"
-    />
-    
+      :confirm-text="t('components.message.checkpoint.restoreConfirmBtn')" is-danger @confirm="confirmRestore" />
+
   </div>
 </template>
 

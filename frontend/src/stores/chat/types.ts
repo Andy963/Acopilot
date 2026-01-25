@@ -24,6 +24,13 @@ export interface PlanRunnerStep {
   startedAt?: number
   endedAt?: number
   error?: string
+  /**
+   * Optional machine-readable error code.
+   *
+   * Used by PlanRunner to offer a sensible resume/continue behavior for certain
+   * interruption types (e.g. MAX_TOOL_ITERATIONS).
+   */
+  errorCode?: string
 }
 
 export interface PlanRunnerData {

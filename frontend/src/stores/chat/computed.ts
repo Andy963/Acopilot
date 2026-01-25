@@ -10,15 +10,15 @@ import type { ChatStoreState, ChatStoreComputed } from './types'
  */
 export function createChatComputed(state: ChatStoreState): ChatStoreComputed {
   /** 当前对话 */
-  const currentConversation = computed(() => 
+  const currentConversation = computed(() =>
     state.conversations.value.find(c => c.id === state.currentConversationId.value) || null
   )
-  
+
   /** 排序后的对话列表（按更新时间降序） */
   const sortedConversations = computed(() =>
     [...state.conversations.value].sort((a, b) => b.updatedAt - a.updatedAt)
   )
-  
+
   /** 按工作区筛选后的对话列表 */
   const filteredConversations = computed(() => {
     if (state.workspaceFilter.value === 'all' || !state.currentWorkspaceUri.value) {
@@ -27,26 +27,26 @@ export function createChatComputed(state: ChatStoreState): ChatStoreComputed {
     // 筛选当前工作区的对话
     return sortedConversations.value.filter(c => c.workspaceUri === state.currentWorkspaceUri.value)
   })
-  
+
   /**
    * 用于显示的消息列表（过滤掉纯 functionResponse 消息）
    */
   const messages = computed(() =>
-    state.allMessages.value.filter(m => !m.isFunctionResponse)
+    state.allMessages.value.filter(m => !m.isFunctionResponse && !m.metadata?.internal)
   )
-  
+
   /** 是否有消息 */
   const hasMessages = computed(() => state.allMessages.value.length > 0)
-  
+
   /** 是否显示空状态 */
   const showEmptyState = computed(() => state.allMessages.value.length === 0 && !state.isLoading.value)
-  
+
   /** 当前模型名称（用于显示） */
   const currentModelName = computed(() => state.currentConfig.value?.model || state.configId.value)
-  
+
   /** 最大上下文 Tokens（从配置获取） */
   const maxContextTokens = computed(() => state.currentConfig.value?.maxContextTokens || 128000)
-  
+
   /** 当前使用的 Tokens（从最后一条助手消息获取） */
   const usedTokens = computed(() => {
     // 从后往前找最后一条助手消息
@@ -58,7 +58,7 @@ export function createChatComputed(state: ChatStoreState): ChatStoreComputed {
     }
     return 0
   })
-  
+
   /**
    * 检测是否需要显示"继续对话"按钮
    *
@@ -69,13 +69,15 @@ export function createChatComputed(state: ChatStoreState): ChatStoreComputed {
   const needsContinueButton = computed(() => {
     if (state.allMessages.value.length === 0) return false
     if (state.isStreaming.value || state.isWaitingForResponse.value) return false
-    if (state.error.value) return false  // 有错误时显示错误面板，不显示继续按钮
+    // Allow "continue" when we hit the tool-iteration limit: user can still ask the model
+    // to finish the reply without calling more tools.
+    if (state.error.value && state.error.value.code !== 'MAX_TOOL_ITERATIONS') return false
     if (state.retryStatus.value?.isRetrying) return false  // 正在重试
-    
+
     const lastMessage = state.allMessages.value[state.allMessages.value.length - 1]
     return lastMessage.isFunctionResponse === true
   })
-  
+
   /** Token 使用百分比 */
   const tokenUsagePercent = computed(() => {
     if (maxContextTokens.value === 0) return 0

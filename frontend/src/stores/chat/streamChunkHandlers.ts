@@ -254,12 +254,14 @@ export function handleToolIteration(
     }
   }
   const hasCancelledTools = cancelledToolIds.size > 0
+
+  let existingModelVersion: string | undefined
   
   if (messageIndex !== -1) {
     const message = state.allMessages.value[messageIndex]
     // 保存原有的 tools 信息和 modelVersion
     const existingTools = message.tools
-    const existingModelVersion = message.metadata?.modelVersion
+    existingModelVersion = message.metadata?.modelVersion
     
     const finalMessage = contentToMessage(chunk.content!, message.id)
     
