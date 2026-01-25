@@ -4,8 +4,61 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import { t } from '../../backend/i18n';
 import type { HandlerContext, MessageHandler } from '../types';
+
+const MCP_STDIO_TRUST_SECRET_PREFIX = 'acopilot.mcp.stdio.trust.';
+
+function getStdioTrustSecretKey(serverId: string): string {
+  return `${MCP_STDIO_TRUST_SECRET_PREFIX}${serverId}`;
+}
+
+function computeStdioTrustFingerprint(command: string, args: string[] | undefined): string {
+  const normalizedArgs = Array.isArray(args) ? args : [];
+  return createHash('sha256')
+    .update(String(command || ''))
+    .update('\0')
+    .update(normalizedArgs.join('\0'))
+    .digest('hex');
+}
+
+async function ensureStdioTransportTrusted(config: any, ctx: HandlerContext): Promise<void> {
+  if (!config || !config.transport || config.transport.type !== 'stdio') {
+    return;
+  }
+
+  const command = String(config.transport.command || '');
+  const args: string[] = Array.isArray(config.transport.args) ? config.transport.args.map((a: any) => String(a)) : [];
+  const fingerprint = computeStdioTrustFingerprint(command, args);
+  const trustKey = getStdioTrustSecretKey(String(config.id || ''));
+
+  const existing = await ctx.context.secrets.get(trustKey);
+  if (existing === fingerprint) {
+    return;
+  }
+
+  const envKeys = config.transport.env && typeof config.transport.env === 'object'
+    ? Object.keys(config.transport.env as Record<string, unknown>).sort()
+    : [];
+
+  const argsText = args.length > 0 ? args.join(' ') : '(none)';
+  const envText = envKeys.length > 0 ? envKeys.join(', ') : '(none)';
+  const detail = `Command: ${command}\nArgs: ${argsText}\nEnv keys: ${envText}`;
+
+  const choice = await vscode.window.showWarningMessage(
+    `Connecting "${String(config.name || config.id || 'MCP server')}" will run a local command.\n\n${detail}\n\nOnly connect if you trust this configuration.`,
+    { modal: true },
+    'Connect',
+    'Cancel'
+  );
+
+  if (choice !== 'Connect') {
+    throw new Error('User cancelled MCP stdio connection');
+  }
+
+  await ctx.context.secrets.store(trustKey, fingerprint);
+}
 
 /**
  * 打开 MCP 配置文件
@@ -80,6 +133,17 @@ export const createMcpServer: MessageHandler = async (data, requestId, ctx) => {
   try {
     const { input, customId } = data;
     const serverId = await ctx.mcpManager.createServer(input, customId);
+
+    if (input?.enabled === true && input?.autoConnect === true) {
+      (async () => {
+        const config = await ctx.mcpManager.getServer(serverId);
+        if (config) {
+          await ensureStdioTransportTrusted(config, ctx);
+        }
+        await ctx.mcpManager.connect(serverId);
+      })().catch(() => {});
+    }
+
     ctx.sendResponse(requestId, { success: true, serverId });
   } catch (error: any) {
     ctx.sendError(requestId, 'CREATE_MCP_SERVER_ERROR', error.message || t('webview.errors.createMcpServerFailed'));
@@ -118,6 +182,12 @@ export const deleteMcpServer: MessageHandler = async (data, requestId, ctx) => {
 export const connectMcpServer: MessageHandler = async (data, requestId, ctx) => {
   try {
     const { serverId } = data;
+
+    const config = await ctx.mcpManager.getServer(serverId);
+    if (config) {
+      await ensureStdioTransportTrusted(config, ctx);
+    }
+
     await ctx.mcpManager.connect(serverId);
     ctx.sendResponse(requestId, { success: true });
   } catch (error: any) {

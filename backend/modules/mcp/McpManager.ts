@@ -26,11 +26,31 @@ import type {
 import { StdioMcpClient } from './StdioClient';
 import { HttpMcpClient } from './HttpClient';
 
+type SecretStorage = {
+    get(key: string): Thenable<string | undefined>;
+    store(key: string, value: string): Thenable<void>;
+    delete(key: string): Thenable<void>;
+};
+
+const MCP_STDIO_ENV_SECRET_PREFIX = 'acopilot.mcp.stdio.env.';
+
 /**
  * 生成唯一 ID
  */
 function generateId(): string {
     return `mcp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+    if (!isRecord(value)) return false;
+    for (const v of Object.values(value)) {
+        if (typeof v !== 'string') return false;
+    }
+    return true;
 }
 
 /**
@@ -44,7 +64,9 @@ function generateId(): string {
 export class McpManager {
     /** 存储适配器 */
     private storageAdapter: McpStorageAdapter;
-    
+
+    private secretStorage?: SecretStorage;
+
     /** 服务器运行时信息 */
     private servers: Map<string, McpServerInfo> = new Map();
     
@@ -57,8 +79,123 @@ export class McpManager {
     /** 是否已初始化 */
     private initialized: boolean = false;
 
-    constructor(storageAdapter: McpStorageAdapter) {
+    constructor(storageAdapter: McpStorageAdapter, secretStorage?: SecretStorage) {
         this.storageAdapter = storageAdapter;
+        this.secretStorage = secretStorage;
+    }
+
+    private getStdioEnvSecretKey(serverId: string): string {
+        return `${MCP_STDIO_ENV_SECRET_PREFIX}${serverId}`;
+    }
+
+    private async tryStoreSecret(key: string, value: string): Promise<boolean> {
+        if (!this.secretStorage) return false;
+        try {
+            await this.secretStorage.store(key, value);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private async tryDeleteSecret(key: string): Promise<void> {
+        if (!this.secretStorage) return;
+        try {
+            await this.secretStorage.delete(key);
+        } catch {
+            return;
+        }
+    }
+
+    private async tryGetSecret(key: string): Promise<string | undefined> {
+        if (!this.secretStorage) return undefined;
+        try {
+            return await this.secretStorage.get(key);
+        } catch {
+            return undefined;
+        }
+    }
+
+    private stripStdioEnvForStorage(config: McpServerConfig): McpServerConfig {
+        if (!this.secretStorage) return config;
+        if (config.transport.type !== 'stdio') return config;
+
+        const { env: _env, ...transport } = config.transport;
+        return { ...config, transport: transport as McpServerConfig['transport'] };
+    }
+
+    private hasPlaintextStdioEnv(config: McpServerConfig): boolean {
+        if (config.transport.type !== 'stdio') return false;
+        const env = config.transport.env;
+        if (!isStringRecord(env)) return false;
+        return Object.values(env).some(v => String(v || '').trim().length > 0 && v !== '***REDACTED***');
+    }
+
+    private async migrateAndHydrateStdioEnv(config: McpServerConfig): Promise<McpServerConfig> {
+        if (!this.secretStorage) {
+            return config;
+        }
+
+        if (config.transport.type !== 'stdio') {
+            return config;
+        }
+
+        const secretKey = this.getStdioEnvSecretKey(config.id);
+        const envFromConfig = config.transport.env;
+
+        if (this.hasPlaintextStdioEnv(config)) {
+            const stored = await this.tryStoreSecret(secretKey, JSON.stringify(envFromConfig));
+            if (stored) {
+                await this.storageAdapter.saveConfig(this.stripStdioEnvForStorage(config));
+            }
+        }
+
+        const secretValue = await this.tryGetSecret(secretKey);
+        if (!secretValue) {
+            return config;
+        }
+
+        try {
+            const parsed = JSON.parse(secretValue);
+            if (!isStringRecord(parsed)) {
+                return config;
+            }
+
+            return {
+                ...config,
+                transport: {
+                    ...config.transport,
+                    env: parsed
+                }
+            };
+        } catch {
+            return config;
+        }
+    }
+
+    private async prepareConfigForStorage(config: McpServerConfig): Promise<McpServerConfig> {
+        if (!this.secretStorage) {
+            return config;
+        }
+
+        if (config.transport.type !== 'stdio') {
+            await this.tryDeleteSecret(this.getStdioEnvSecretKey(config.id));
+            return config;
+        }
+
+        const env = config.transport.env;
+        const secretKey = this.getStdioEnvSecretKey(config.id);
+
+        if (isStringRecord(env) && Object.keys(env).length > 0) {
+            const stored = await this.tryStoreSecret(secretKey, JSON.stringify(env));
+            if (stored) {
+                return this.stripStdioEnvForStorage(config);
+            }
+            return config;
+        }
+
+        await this.tryDeleteSecret(secretKey);
+        return this.stripStdioEnvForStorage(config);
     }
 
     /**
@@ -97,8 +234,9 @@ export class McpManager {
      */
     private async reloadFromStorage(): Promise<void> {
         const configs = await this.storageAdapter.getAllConfigs();
-        const configMap = new Map(configs.map(c => [c.id, c]));
-        
+        const hydratedConfigs = await Promise.all(configs.map(c => this.migrateAndHydrateStdioEnv(c)));
+        const configMap = new Map(hydratedConfigs.map(c => [c.id, c]));
+
         // 更新已存在的服务器配置
         for (const [serverId, info] of this.servers) {
             const newConfig = configMap.get(serverId);
@@ -187,20 +325,13 @@ export class McpManager {
             updatedAt: now
         };
 
-        await this.storageAdapter.saveConfig(config);
+        const persisted = await this.prepareConfigForStorage(config);
+        await this.storageAdapter.saveConfig(persisted);
         
         this.servers.set(config.id, {
             config,
             status: 'disconnected'
         });
-        
-        // 如果启用了自动连接，立即尝试连接
-        if (config.enabled && config.autoConnect) {
-            // 异步连接，不阻塞创建流程
-            this.connect(config.id).catch(() => {
-                // 忽略自动连接失败
-            });
-        }
         
         return config.id;
     }
@@ -210,7 +341,9 @@ export class McpManager {
      */
     async getServer(serverId: string): Promise<McpServerConfig | null> {
         // 直接从文件读取，确保获取最新配置
-        return await this.storageAdapter.getConfig(serverId);
+        const config = await this.storageAdapter.getConfig(serverId);
+        if (!config) return null;
+        return await this.migrateAndHydrateStdioEnv(config);
     }
 
     /**
@@ -218,7 +351,8 @@ export class McpManager {
      * 配置从文件读取，运行时状态从内存获取
      */
     async getServerInfo(serverId: string): Promise<McpServerInfo | null> {
-        const config = await this.storageAdapter.getConfig(serverId);
+        const rawConfig = await this.storageAdapter.getConfig(serverId);
+        const config = rawConfig ? await this.migrateAndHydrateStdioEnv(rawConfig) : null;
         if (!config) {
             return null;
         }
@@ -251,8 +385,9 @@ export class McpManager {
             updatedAt: Date.now()
         };
 
-        await this.storageAdapter.saveConfig(updatedConfig);
-        info.config = updatedConfig;
+        const persisted = await this.prepareConfigForStorage(updatedConfig);
+        await this.storageAdapter.saveConfig(persisted);
+        info.config = await this.migrateAndHydrateStdioEnv(updatedConfig);
     }
 
     /**
@@ -270,6 +405,7 @@ export class McpManager {
         }
 
         await this.storageAdapter.deleteConfig(serverId);
+        await this.tryDeleteSecret(this.getStdioEnvSecretKey(serverId));
         this.servers.delete(serverId);
     }
 
@@ -278,8 +414,9 @@ export class McpManager {
      */
     async listServers(): Promise<McpServerInfo[]> {
         const configs = await this.storageAdapter.getAllConfigs();
+        const hydratedConfigs = await Promise.all(configs.map(c => this.migrateAndHydrateStdioEnv(c)));
         
-        return configs.map(config => {
+        return hydratedConfigs.map(config => {
             const runtimeInfo = this.servers.get(config.id);
             return {
                 config,
@@ -298,7 +435,8 @@ export class McpManager {
      * 列出所有服务器配置（直接从文件读取）
      */
     async listServerConfigs(): Promise<McpServerConfig[]> {
-        return await this.storageAdapter.getAllConfigs();
+        const configs = await this.storageAdapter.getAllConfigs();
+        return await Promise.all(configs.map(c => this.migrateAndHydrateStdioEnv(c)));
     }
 
     /**
