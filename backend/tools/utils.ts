@@ -7,6 +7,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { t } from '../i18n';
+import { isPathWithinRoot } from './pathSafety';
 
 // ==================== 多工作区支持 ====================
 
@@ -172,11 +173,7 @@ export function parseWorkspacePath(pathStr: string): {
  * @returns URI，如果无法解析则返回 undefined
  */
 export function resolveUri(relativePath: string): vscode.Uri | undefined {
-    const { workspace, relativePath: actualPath } = parseWorkspacePath(relativePath);
-    if (!workspace) {
-        return undefined;
-    }
-    return vscode.Uri.joinPath(workspace.uri, actualPath);
+    return resolveUriWithInfo(relativePath).uri;
 }
 
 /**
@@ -195,6 +192,16 @@ export function resolveUriWithInfo(relativePath: string): {
     const { workspace, relativePath: actualPath, isExplicit, error } = parseWorkspacePath(relativePath);
     if (!workspace) {
         return { uri: undefined, workspace: undefined, relativePath: actualPath, isExplicit, error };
+    }
+    const candidateFsPath = path.resolve(workspace.fsPath, actualPath);
+    if (!isPathWithinRoot(workspace.fsPath, candidateFsPath)) {
+        return {
+            uri: undefined,
+            workspace,
+            relativePath: actualPath,
+            isExplicit,
+            error: 'Path resolves outside the workspace folder'
+        };
     }
     return {
         uri: vscode.Uri.joinPath(workspace.uri, actualPath),

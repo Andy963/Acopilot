@@ -188,7 +188,7 @@ export function createListFilesTool(): Tool {
 
             for (const dirPath of pathList) {
                 try {
-                    const { uri: dirUri, workspace, relativePath, isExplicit } = resolveUriWithInfo(dirPath);
+                    const { uri: dirUri, workspace, relativePath, isExplicit, error } = resolveUriWithInfo(dirPath);
                     if (!dirUri) {
                         results.push({
                             path: dirPath,
@@ -196,7 +196,7 @@ export function createListFilesTool(): Tool {
                             fileCount: 0,
                             dirCount: 0,
                             success: false,
-                            error: 'No workspace folder open'
+                            error: error || 'No workspace folder open'
                         });
                         continue;
                     }

@@ -41,12 +41,12 @@ interface WriteResult {
 async function writeSingleFile(entry: WriteFileEntry): Promise<WriteResult> {
     const { path: filePath, content } = entry;
     
-    const { uri } = resolveUriWithInfo(filePath);
+    const { uri, error } = resolveUriWithInfo(filePath);
     if (!uri) {
         return {
             path: filePath,
             success: false,
-            error: 'No workspace folder open'
+            error: error || 'No workspace folder open'
         };
     }
 

@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode';
 import type { Tool, ToolResult } from '../types';
-import { resolveUri, getAllWorkspaces } from '../utils';
+import { resolveUriWithInfo, getAllWorkspaces } from '../utils';
 
 /**
  * 单个目录创建结果
@@ -22,12 +22,12 @@ interface CreateResult {
  * 创建单个目录
  */
 async function createSingleDirectory(dirPath: string): Promise<CreateResult> {
-    const uri = resolveUri(dirPath);
+    const { uri, error } = resolveUriWithInfo(dirPath);
     if (!uri) {
         return {
             path: dirPath,
             success: false,
-            error: 'No workspace folder open'
+            error: error || 'No workspace folder open'
         };
     }
 

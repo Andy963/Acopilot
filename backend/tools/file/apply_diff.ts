@@ -108,9 +108,9 @@ Important:
                 return { success: false, error: 'Diffs array is required and must not be empty' };
             }
             
-            const { uri, workspace } = resolveUriWithInfo(filePath);
+            const { uri, workspace, error } = resolveUriWithInfo(filePath);
             if (!uri) {
-                return { success: false, error: 'No workspace folder open' };
+                return { success: false, error: error || 'No workspace folder open' };
             }
             
             const absolutePath = uri.fsPath;
