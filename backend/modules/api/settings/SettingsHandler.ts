@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../i18n';
+import { redactSensitiveText } from '../../../core/redaction';
 import type { SettingsManager } from '../../settings/SettingsManager';
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import { TokenCountService } from '../../channel/TokenCountService';
@@ -70,7 +71,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.getSettingsFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getSettingsFailed'))
                 }
             };
         }
@@ -94,7 +95,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateSettingsFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateSettingsFailed'))
                 }
             };
         }
@@ -118,7 +119,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.setActiveChannelFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.setActiveChannelFailed'))
                 }
             };
         }
@@ -142,7 +143,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.setToolStatusFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.setToolStatusFailed'))
                 }
             };
         }
@@ -166,7 +167,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.batchSetToolStatusFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.batchSetToolStatusFailed'))
                 }
             };
         }
@@ -190,7 +191,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.setDefaultToolModeFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.setDefaultToolModeFailed'))
                 }
             };
         }
@@ -214,7 +215,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateUISettingsFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateUISettingsFailed'))
                 }
             };
         }
@@ -238,7 +239,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateProxySettingsFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateProxySettingsFailed'))
                 }
             };
         }
@@ -262,7 +263,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.resetSettingsFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.resetSettingsFailed'))
                 }
             };
         }
@@ -304,7 +305,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.getToolsListFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getToolsListFailed'))
                 }
             };
         }
@@ -395,7 +396,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.getToolConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getToolConfigFailed'))
                 }
             };
         }
@@ -460,7 +461,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateToolConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateToolConfigFailed'))
                 }
             };
         }
@@ -484,7 +485,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateListFilesConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateListFilesConfigFailed'))
                 }
             };
         }
@@ -508,7 +509,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateApplyDiffConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateApplyDiffConfigFailed'))
                 }
             };
         }
@@ -530,7 +531,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.getCheckpointConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getCheckpointConfigFailed'))
                 }
             };
         }
@@ -554,7 +555,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateCheckpointConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateCheckpointConfigFailed'))
                 }
             };
         }
@@ -576,7 +577,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.getSummarizeConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getSummarizeConfigFailed'))
                 }
             };
         }
@@ -600,7 +601,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateSummarizeConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateSummarizeConfigFailed'))
                 }
             };
         }
@@ -622,7 +623,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.getGenerateImageConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getGenerateImageConfigFailed'))
                 }
             };
         }
@@ -646,7 +647,7 @@ export class SettingsHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.settings.errors.updateGenerateImageConfigFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateGenerateImageConfigFailed'))
                 }
             };
         }
@@ -724,7 +725,7 @@ export class SettingsHandler {
                 totalTokens: Math.ceil((request.text || '').length / 4),
                 error: {
                     code: err.code || 'TOKEN_COUNT_FALLBACK',
-                    message: err.message || 'Token count failed, falling back to estimation'
+                    message: redactSensitiveText(err.message || 'Token count failed, falling back to estimation')
                 }
             };
         }

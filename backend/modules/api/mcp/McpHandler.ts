@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../i18n';
+import { redactSensitiveText } from '../../../core/redaction';
 import type { McpManager } from '../../mcp/McpManager';
 import type { McpServerConfig, CreateMcpServerInput } from '../../mcp/types';
 import type {
@@ -54,7 +55,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.listServersFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.listServersFailed'))
                 }
             };
         }
@@ -87,7 +88,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.getServerFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.getServerFailed'))
                 }
             };
         }
@@ -112,7 +113,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.createServerFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.createServerFailed'))
                 }
             };
         }
@@ -136,7 +137,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.updateServerFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.updateServerFailed'))
                 }
             };
         }
@@ -158,7 +159,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.deleteServerFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.deleteServerFailed'))
                 }
             };
         }
@@ -182,7 +183,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.setServerStatusFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.setServerStatusFailed'))
                 }
             };
         }
@@ -206,7 +207,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'CONNECTION_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.connectServerFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.connectServerFailed'))
                 }
             };
         }
@@ -230,7 +231,7 @@ export class McpHandler {
                 success: false,
                 error: {
                     code: err.code || 'DISCONNECTION_ERROR',
-                    message: err.message || t('modules.api.mcp.errors.disconnectServerFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.mcp.errors.disconnectServerFailed'))
                 }
             };
         }

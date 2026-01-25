@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../i18n';
+import { redactSensitiveText } from '../../../core/redaction';
 import type { ConfigManager } from '../../config/ConfigManager';
 import type {
     GetAllChannelsRequest,
@@ -50,7 +51,7 @@ export class ChannelHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.channel.errors.listChannelsFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.channel.errors.listChannelsFailed'))
                 }
             };
         }
@@ -83,7 +84,7 @@ export class ChannelHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.channel.errors.getChannelFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.channel.errors.getChannelFailed'))
                 }
             };
         }
@@ -123,7 +124,7 @@ export class ChannelHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.channel.errors.createChannelFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.channel.errors.createChannelFailed'))
                 }
             };
         }
@@ -162,7 +163,7 @@ export class ChannelHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.channel.errors.updateChannelFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.channel.errors.updateChannelFailed'))
                 }
             };
         }
@@ -197,7 +198,7 @@ export class ChannelHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.channel.errors.deleteChannelFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.channel.errors.deleteChannelFailed'))
                 }
             };
         }
@@ -238,7 +239,7 @@ export class ChannelHandler {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.channel.errors.setChannelStatusFailed')
+                    message: redactSensitiveText(err.message || t('modules.api.channel.errors.setChannelStatusFailed'))
                 }
             };
         }
