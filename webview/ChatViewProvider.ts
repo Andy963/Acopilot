@@ -245,7 +245,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
         const mcpConfigFile = vscode.Uri.joinPath(mcpConfigDir, 'servers.json');
         const mcpStorage = new VSCodeFileSystemMcpStorageAdapter(mcpConfigFile, vscode.workspace.fs);
-        this.mcpManager = new McpManager(mcpStorage);
+        this.mcpManager = new McpManager(mcpStorage, this.context.secrets);
         await this.mcpManager.initialize();
 
         // 23. 将 MCP 管理器连接到 ChannelManager（用于工具声明）
