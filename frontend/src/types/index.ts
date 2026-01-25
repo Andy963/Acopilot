@@ -71,19 +71,19 @@ export interface UsageMetadata {
    * 仅在支持 prompt cache 的提供商上有值。
    */
   cachedPromptTokenCount?: number
-  
+
   /** 候选输出内容的 token 数量 */
   candidatesTokenCount?: number
-  
+
   /** 总 token 数量 */
   totalTokenCount?: number
-  
+
   /** 思考部分的 token 数量 */
   thoughtsTokenCount?: number
-  
+
   /** Prompt token 详情（按模态分类） */
   promptTokensDetails?: TokenDetailsEntry[]
-  
+
   /** 候选输出 token 详情（按模态分类，如 IMAGE、TEXT 等） */
   candidatesTokensDetails?: TokenDetailsEntry[]
 }
@@ -220,6 +220,12 @@ export interface Message {
 }
 
 export interface MessageMetadata {
+  /**
+   * Internal/system-generated message.
+   *
+   * Kept in allMessages for correct backend indexing, but hidden from the UI.
+   */
+  internal?: boolean
   /** 模型版本，如 "gemini-2.5-flash" */
   modelVersion?: string
   /** @deprecated 使用 modelVersion */
@@ -391,7 +397,7 @@ export interface VSCodeMessage<T = any> {
 
 export interface VSCodeRequest {
   type: 'chat' | 'chatStream' | 'retry' | 'retryStream' | 'editAndRetry' | 'editAndRetryStream' |
-        'deleteMessage' | 'getHistory' | 'getConfig' | 'updateConfig'
+  'deleteMessage' | 'getHistory' | 'getConfig' | 'updateConfig'
   data: any
   requestId: string
 }
@@ -654,39 +660,39 @@ export const SUPPORTED_AUDIO_TYPES = ['audio/mp3', 'audio/wav', 'audio/ogg']
 export interface CheckpointRecord {
   /** 检查点唯一 ID */
   id: string
-  
+
   /** 关联的对话 ID */
   conversationId: string
-  
+
   /**
    * 关联的消息索引
    *
    * 表示此检查点是在处理该索引消息时创建的
    */
   messageIndex: number
-  
+
   /** 触发备份的工具名称 */
   toolName: string
-  
+
   /**
    * 备份阶段
    * - before: 工具执行前
    * - after: 工具执行后
    */
   phase: 'before' | 'after'
-  
+
   /** 创建时间戳 */
   timestamp: number
-  
+
   /** 备份目录名 */
   backupDir: string
-  
+
   /** 备份的文件数量 */
   fileCount: number
-  
+
   /** 内容签名（用于比较两个检查点是否内容一致） */
   contentHash: string
-  
+
   /** 描述信息 */
   description?: string
 }
@@ -699,16 +705,16 @@ export interface CheckpointRecord {
 export interface ModelInfo {
   /** 模型 ID */
   id: string
-  
+
   /** 模型名称 */
   name?: string
-  
+
   /** 模型描述 */
   description?: string
-  
+
   /** 上下文窗口大小 */
   contextWindow?: number
-  
+
   /** 最大输出token */
   maxOutputTokens?: number
 }
