@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../../i18n';
+import { redactSensitiveText } from '../../../../core/redaction';
 import type { ToolRegistry } from '../../../../tools/ToolRegistry';
 import type { CheckpointRecord } from '../../../checkpoint';
 import type { SettingsManager } from '../../../settings/SettingsManager';
@@ -217,6 +218,11 @@ export class ToolExecutionService {
                     success: false,
                     error: err.message || t('modules.api.chat.errors.toolExecutionFailed')
                 };
+            }
+
+            const rawError = (response as any).error;
+            if (typeof rawError === 'string') {
+                (response as any).error = redactSensitiveText(rawError);
             }
 
             // 添加到工具结果（使用深拷贝，保留完整数据供前端显示）

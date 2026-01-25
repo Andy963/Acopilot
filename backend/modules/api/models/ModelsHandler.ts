@@ -3,6 +3,7 @@
  */
 
 import { t } from '../../../i18n';
+import { redactSensitiveText } from '../../../core/redaction';
 import type { ConfigManager } from '../../config/ConfigManager';
 import { getModels, type ModelInfo } from '../../channel/modelList';
 import type {
@@ -43,7 +44,7 @@ export class ModelsHandler {
         } catch (error: any) {
             return {
                 success: false,
-                error: error.message || t('modules.api.models.errors.getModelsFailed')
+                error: redactSensitiveText(error.message || t('modules.api.models.errors.getModelsFailed'))
             };
         }
     }
@@ -80,7 +81,7 @@ export class ModelsHandler {
         } catch (error: any) {
             return {
                 success: false,
-                error: error.message || t('modules.api.models.errors.addModelsFailed')
+                error: redactSensitiveText(error.message || t('modules.api.models.errors.addModelsFailed'))
             };
         }
     }
@@ -121,7 +122,7 @@ export class ModelsHandler {
         } catch (error: any) {
             return {
                 success: false,
-                error: error.message || t('modules.api.models.errors.removeModelFailed')
+                error: redactSensitiveText(error.message || t('modules.api.models.errors.removeModelFailed'))
             };
         }
     }
@@ -161,7 +162,7 @@ export class ModelsHandler {
         } catch (error: any) {
             return {
                 success: false,
-                error: error.message || t('modules.api.models.errors.setActiveModelFailed')
+                error: redactSensitiveText(error.message || t('modules.api.models.errors.setActiveModelFailed'))
             };
         }
     }

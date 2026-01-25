@@ -5,6 +5,7 @@
  */
 
 import { t } from '../../../../i18n';
+import { redactSensitiveText } from '../../../../core/redaction';
 import type { ConfigManager } from '../../../config/ConfigManager';
 import type {ChannelManager } from '../../../channel/ChannelManager';
 import type { ConversationManager } from '../../../conversation/ConversationManager';
@@ -310,7 +311,7 @@ export class SummarizeService {
                 success: false,
                 error: {
                     code: err.code || 'UNKNOWN_ERROR',
-                    message: err.message || t('modules.api.chat.errors.unknownError')
+                    message: redactSensitiveText(err.message || t('modules.api.chat.errors.unknownError'))
                 }
             };
         }
