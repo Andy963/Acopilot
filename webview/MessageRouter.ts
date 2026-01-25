@@ -9,6 +9,7 @@ import { createMessageHandlerRegistry } from './handlers';
 import { StreamRequestHandler, StreamAbortManager } from './stream';
 import type { ChatHandler } from '../backend/modules/api/chat';
 import type * as vscode from 'vscode';
+import { isRecord, parseStreamPayload, type StreamMessageType } from './protocol';
 
 /**
  * 流式消息类型
@@ -20,8 +21,6 @@ const STREAM_MESSAGE_TYPES = [
   'toolConfirmation',
   'cancelStream'
 ] as const;
-
-type StreamMessageType = typeof STREAM_MESSAGE_TYPES[number];
 
 /**
  * 消息路由器
@@ -66,6 +65,10 @@ export class MessageRouter {
     // 检查注册表中是否有处理器
     const handler = this.registry.get(type);
     if (handler) {
+      if (!isRecord(data)) {
+        this.sendError(requestId, 'INVALID_PAYLOAD', `${type} requires an object payload`);
+        return true;
+      }
       await handler(data, requestId, ctx);
       return true;
     }
@@ -86,30 +89,68 @@ export class MessageRouter {
    */
   private async handleStreamMessage(type: StreamMessageType, data: any, requestId: string): Promise<void> {
     switch (type) {
-      case 'chatStream':
+      case 'chatStream': {
         // 不阻塞消息循环，流式处理在后台进行
-        this.streamHandler.handleChatStream(data, requestId).catch(console.error);
-        break;
-        
-      case 'retryStream':
-        this.streamHandler.handleRetryStream(data, requestId).catch(console.error);
-        break;
-        
-      case 'editAndRetryStream':
-        this.streamHandler.handleEditAndRetryStream(data, requestId).catch(console.error);
-        break;
-        
-      case 'toolConfirmation':
-        this.streamHandler.handleToolConfirmationStream(data, requestId).catch(console.error);
-        break;
-        
-      case 'cancelStream':
-        if (!isRecord(data) || typeof data.conversationId !== 'string') {
-          this.sendError(requestId, 'INVALID_PAYLOAD', 'cancelStream requires data.conversationId (string)');
+        const parsed = parseStreamPayload('chatStream', data);
+        if (parsed.ok === false) {
+          this.sendError(requestId, 'INVALID_PAYLOAD', parsed.error);
           return;
         }
-        this.streamHandler.cancelStream(data.conversationId, requestId);
+        this.streamHandler.handleChatStream(parsed.value, requestId).catch((error: unknown) => {
+          console.error('chatStream handler failed:', error);
+          this.sendError(requestId, 'STREAM_HANDLER_ERROR', error instanceof Error ? error.message : String(error));
+        });
         break;
+      }
+        
+      case 'retryStream': {
+        const parsed = parseStreamPayload('retryStream', data);
+        if (parsed.ok === false) {
+          this.sendError(requestId, 'INVALID_PAYLOAD', parsed.error);
+          return;
+        }
+        this.streamHandler.handleRetryStream(parsed.value, requestId).catch((error: unknown) => {
+          console.error('retryStream handler failed:', error);
+          this.sendError(requestId, 'STREAM_HANDLER_ERROR', error instanceof Error ? error.message : String(error));
+        });
+        break;
+      }
+        
+      case 'editAndRetryStream': {
+        const parsed = parseStreamPayload('editAndRetryStream', data);
+        if (parsed.ok === false) {
+          this.sendError(requestId, 'INVALID_PAYLOAD', parsed.error);
+          return;
+        }
+        this.streamHandler.handleEditAndRetryStream(parsed.value, requestId).catch((error: unknown) => {
+          console.error('editAndRetryStream handler failed:', error);
+          this.sendError(requestId, 'STREAM_HANDLER_ERROR', error instanceof Error ? error.message : String(error));
+        });
+        break;
+      }
+        
+      case 'toolConfirmation': {
+        const parsed = parseStreamPayload('toolConfirmation', data);
+        if (parsed.ok === false) {
+          this.sendError(requestId, 'INVALID_PAYLOAD', parsed.error);
+          return;
+        }
+        this.streamHandler.handleToolConfirmationStream(parsed.value, requestId).catch((error: unknown) => {
+          console.error('toolConfirmation handler failed:', error);
+          this.sendError(requestId, 'STREAM_HANDLER_ERROR', error instanceof Error ? error.message : String(error));
+        });
+        break;
+      }
+        
+      case 'cancelStream': {
+        const parsed = parseStreamPayload('cancelStream', data);
+        if (parsed.ok === false) {
+          this.sendError(requestId, 'INVALID_PAYLOAD', parsed.error);
+          return;
+        }
+        this.streamHandler.cancelStream(parsed.value.conversationId, requestId);
+        break;
+      }
     }
   }
 
@@ -126,8 +167,4 @@ export class MessageRouter {
   getAbortManager(): StreamAbortManager {
     return this.abortManager;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

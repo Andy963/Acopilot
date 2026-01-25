@@ -9,6 +9,12 @@ import type { ChatHandler } from '../../backend/modules/api/chat';
 import { StreamAbortManager } from './StreamAbortManager';
 import { StreamChunkProcessor } from './StreamChunkProcessor';
 import { t } from '../../backend/i18n';
+import type {
+  ChatStreamPayload,
+  EditAndRetryStreamPayload,
+  RetryStreamPayload,
+  ToolConfirmationStreamPayload
+} from '../protocol';
 
 export interface StreamHandlerDeps {
   chatHandler: ChatHandler;
@@ -27,7 +33,7 @@ export class StreamRequestHandler {
   /**
    * 处理普通聊天流
    */
-  async handleChatStream(data: any, requestId: string): Promise<void> {
+  async handleChatStream(data: ChatStreamPayload, requestId: string): Promise<void> {
     const { conversationId, message, configId, mode, attachments, selectionReferences, contextOverrides, taskContext } = data;
     
     const controller = this.deps.abortManager.create(conversationId);
@@ -63,7 +69,7 @@ export class StreamRequestHandler {
   /**
    * 处理重试流
    */
-  async handleRetryStream(data: any, requestId: string): Promise<void> {
+  async handleRetryStream(data: RetryStreamPayload, requestId: string): Promise<void> {
     const { conversationId, configId } = data;
     
     const controller = this.deps.abortManager.create(conversationId);
@@ -93,7 +99,7 @@ export class StreamRequestHandler {
   /**
    * 处理编辑并重试流
    */
-  async handleEditAndRetryStream(data: any, requestId: string): Promise<void> {
+  async handleEditAndRetryStream(data: EditAndRetryStreamPayload, requestId: string): Promise<void> {
     const { conversationId, messageIndex, newMessage, configId, attachments } = data;
     
     const controller = this.deps.abortManager.create(conversationId);
@@ -126,7 +132,7 @@ export class StreamRequestHandler {
   /**
    * 处理工具确认流
    */
-  async handleToolConfirmationStream(data: any, requestId: string): Promise<void> {
+  async handleToolConfirmationStream(data: ToolConfirmationStreamPayload, requestId: string): Promise<void> {
     const { conversationId, toolResponses, annotation, configId } = data;
     
     const controller = this.deps.abortManager.create(conversationId);
