@@ -475,6 +475,10 @@ const showContextUsedCard = computed(() => {
   if (isUser.value || isTool.value || isSummary.value) return false
   if (!props.message.metadata?.contextSnapshot) return false
 
+  // 当前消息自己带有工具调用时不展示
+  const hasFunctionCall = (m: Message) => m.parts?.some(p => p.functionCall)
+  if (hasFunctionCall(props.message)) return false
+
   const all = chatStore.allMessages.value
   const currentIndex = props.messageIndex
   if (!Array.isArray(all) || currentIndex <= 0 || currentIndex >= all.length) return true
@@ -497,17 +501,19 @@ const showContextUsedCard = computed(() => {
       if (!m || m.role !== 'assistant') continue
       if (m.isFunctionResponse === true) continue
       if (m.isSummary === true) continue
+      if (hasFunctionCall(m)) continue
       return false
     }
     return true
   }
 
-  // 若在 lastUserIndex 之后已经出现过任何一条助手消息，则不是首条
+  // 若在 lastUserIndex 之后已经出现过任何一条无工具调用的助手消息，则不是首条
   for (let i = lastUserIndex + 1; i < currentIndex; i++) {
     const m = all[i]
     if (!m || m.role !== 'assistant') continue
     if (m.isFunctionResponse === true) continue
     if (m.isSummary === true) continue
+    if (hasFunctionCall(m)) continue
     return false
   }
 
