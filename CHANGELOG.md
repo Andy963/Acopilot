@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.9] - 2026-01-26
+
+### Fixed
+  - UI：Context Used 卡片仅在工具循环结束后的最终助手回复展示，避免每次工具调用都重复显示。
+
 ## [1.0.58-pre.8] - 2026-01-25
 
 ### Fixed
