@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.10] - 2026-01-26
+
+### Fixed
+  - 工具：修复 `search_in_files` 在 XML 解析出空 `replace` 时误判为替换模式，导致把匹配内容替换为空的问题。
+
 ## [1.0.58-pre.9] - 2026-01-26
 
 ### Fixed
