@@ -11,6 +11,7 @@ import type { Tool, ToolResult } from '../types';
 import { getWorkspaceRoot, getAllWorkspaces, parseWorkspacePath, toRelativePath } from '../utils';
 import { getGlobalSettingsManager } from '../../core/settingsContext';
 import { getDiffStorageManager } from '../../modules/conversation';
+import { normalizeReplacementArg } from './search_in_files_utils';
 
 /**
  * 默认排除模式
@@ -378,15 +379,15 @@ export function createSearchInFilesTool(): Tool {
                 required: ['query']
             }
         },
-        handler: async (args): Promise<ToolResult> => {
-            const query = args.query as string;
-            const searchPath = (args.path as string) || '.';
-            const filePattern = (args.pattern as string) || '**/*';
-            const isRegex = (args.isRegex as boolean) || false;
-            const replacement = args.replace as string | undefined;
-            const dryRun = (args.dryRun as boolean) || false;
-            const maxResults = (args.maxResults as number) || 100;
-            const maxFiles = (args.maxFiles as number) || 50;
+	        handler: async (args): Promise<ToolResult> => {
+	            const query = args.query as string;
+	            const searchPath = (args.path as string) || '.';
+	            const filePattern = (args.pattern as string) || '**/*';
+	            const isRegex = (args.isRegex as boolean) || false;
+	            const replacement = normalizeReplacementArg(args.replace);
+	            const dryRun = (args.dryRun as boolean) || false;
+	            const maxResults = (args.maxResults as number) || 100;
+	            const maxFiles = (args.maxFiles as number) || 50;
 
             if (!query) {
                 return { success: false, error: 'query is required' };
@@ -397,7 +398,7 @@ export function createSearchInFilesTool(): Tool {
                 return { success: false, error: 'No workspace folder open' };
             }
 
-            const isReplaceMode = replacement !== undefined;
+	            const isReplaceMode = replacement !== undefined;
 
             try {
                 // 创建搜索正则表达式
