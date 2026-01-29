@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.13] - 2026-01-29
+
+### Fixed
+  - Settings：修正“启用/禁用渠道配置”按钮的眼睛图标语义，使其与实际状态一致（启用=eye，禁用=eye-closed）。
+
 ## [1.0.58-pre.12] - 2026-01-29
 
 ### Added
