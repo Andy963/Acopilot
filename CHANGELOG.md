@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.12] - 2026-01-29
+
+### Added
+  - Settings：配置选择器支持“启用/禁用”渠道配置；禁用后会从统一模型选择中隐藏，并在当前配置被禁用时自动切换到一个仍启用的配置。
+
+### Improved
+  - UI：输入区模型选择器的下拉宽度改为跟随容器，避免窄屏下出现溢出或遮挡。
+
 ## [1.0.58-pre.11] - 2026-01-29
 
 ### Fixed
