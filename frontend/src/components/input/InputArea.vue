@@ -549,6 +549,15 @@ const selectionReferences = computed(() => {
 
 const selectionReferencesCount = computed(() => selectionReferences.value.length)
 
+function getBasenameFromPath(inputPath: string): string {
+  const path = String(inputPath || '').trim()
+  if (!path) return ''
+
+  // Split on both POSIX and Windows separators.
+  const parts = path.split(/[/\\]+/).filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : path
+}
+
 async function openSelectionReference(selection: any) {
   const path = String(selection?.path || '').trim()
   const line = Number(selection?.startLine)
@@ -1273,7 +1282,7 @@ watch(pinPanelTab, (tab) => {
             @click="openSelectionReference(r)"
           >
             <i class="codicon codicon-references attachment-icon reference-chip-icon"></i>
-            <code class="reference-chip-text">{{ r.path }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
+            <code class="reference-chip-text">{{ getBasenameFromPath(r.path) }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
             <span v-if="r.truncated" class="reference-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
             <IconButton
               icon="codicon-close"
