@@ -135,6 +135,19 @@ async function loadConfigs() {
     }
     
     configs.value = loadedConfigs
+
+    // Ensure the active config is enabled; otherwise switch to any enabled config
+    // so the unified model selector never points to a disabled provider.
+    const activeConfigId = chatStore.configId
+    if (activeConfigId) {
+      const activeConfig = loadedConfigs.find(c => c?.id === activeConfigId)
+      if (activeConfig?.enabled === false) {
+        const fallback = loadedConfigs.find(c => c?.enabled !== false)
+        if (fallback?.id && fallback.id !== activeConfigId) {
+          await chatStore.setConfigId(String(fallback.id))
+        }
+      }
+    }
   } catch (error) {
     console.error('Failed to load configs:', error)
   } finally {
@@ -1517,9 +1530,9 @@ watch(pinPanelTab, (tab) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 240px;
+  flex: 0 1 190px;
   min-width: 0;
-  max-width: 240px;
+  max-width: 190px;
 }
 
 .composer-footer-actions {
