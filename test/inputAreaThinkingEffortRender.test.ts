@@ -8,7 +8,8 @@ describe('InputArea thinking effort integration (static)', () => {
     const filePath = resolve(__dirname, '../frontend/src/components/input/InputArea.vue');
     const content = readFileSync(filePath, 'utf8');
 
-    expect(content).toContain("v-if=\"isThinkingEffortVisible\"");
+    expect(content).toContain('const showThinkingEffortSelector');
+    expect(content).toContain("v-if=\"showThinkingEffortSelector\"");
     expect(content).toContain("class=\"thinking-effort-wrapper\"");
     expect(content).toContain('<CustomSelect');
     expect(content).toContain('@update:model-value="handleThinkingEffortChange"');
@@ -24,4 +25,3 @@ describe('InputArea thinking effort integration (static)', () => {
     expect(content).toContain("options: nextOptions");
   });
 });
-
