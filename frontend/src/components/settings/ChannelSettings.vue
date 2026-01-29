@@ -196,7 +196,7 @@ const configOptions = computed<SelectOption[]>(() =>
   configs.value.map(config => ({
     value: config.id,
     label: config.name,
-    description: config.type
+    description: `${config.type}${config.enabled === false ? ` · ${t('common.disabled')}` : ''}`
   }))
 )
 
@@ -538,6 +538,44 @@ function onConfirmDialogConfirm() {
   confirmDialogAction.value()
 }
 
+function isConfigDisabled(configId: string): boolean {
+  const config = configs.value.find(c => c.id === configId)
+  return config?.enabled === false
+}
+
+async function toggleConfigEnabledById(configId: string) {
+  const configIndex = configs.value.findIndex(c => c.id === configId)
+  if (configIndex === -1) return
+
+  const nextEnabled = configs.value[configIndex]?.enabled === false
+
+  try {
+    await sendToExtension('config.updateConfig', {
+      configId,
+      updates: { enabled: nextEnabled }
+    })
+
+    configs.value[configIndex] = {
+      ...configs.value[configIndex],
+      enabled: nextEnabled
+    }
+
+    if (!nextEnabled && configId === chatStore.configId) {
+      const fallbackId = configs.value.find(c => c.id !== configId && c?.enabled !== false)?.id
+      if (fallbackId) {
+        currentConfigId.value = fallbackId
+        await chatStore.setConfigId(fallbackId)
+      } else {
+        await chatStore.loadCurrentConfig()
+      }
+    } else {
+      await chatStore.loadCurrentConfig()
+    }
+  } catch (error) {
+    console.error('Failed to toggle config enabled:', error)
+  }
+}
+
 // 删除指定配置
 async function deleteConfigById(configId: string) {
   const config = configs.value.find(c => c.id === configId)
@@ -814,6 +852,19 @@ onMounted(async () => {
         <CustomSelect v-model="currentConfigId" :options="configOptions"
           :placeholder="t('components.settings.channelSettings.selector.placeholder')">
           <template #option-actions="{ option }">
+            <button
+              type="button"
+              class="icon-btn option-toggle-btn"
+              :title="isConfigDisabled(String(option.value)) ? t('common.enable') : t('common.disable')"
+              @click="toggleConfigEnabledById(String(option.value))"
+            >
+              <i
+                :class="[
+                  'codicon',
+                  isConfigDisabled(String(option.value)) ? 'codicon-eye' : 'codicon-eye-closed'
+                ]"
+              ></i>
+            </button>
             <button type="button" class="icon-btn danger option-delete-btn"
               :title="t('components.settings.channelSettings.selector.delete')" :disabled="configs.length <= 1"
               @click="deleteConfigById(String(option.value))">
