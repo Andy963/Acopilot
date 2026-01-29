@@ -11,11 +11,12 @@ import SendButton from './SendButton.vue'
 import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
 import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
-import { IconButton, Tooltip } from '../common'
+import { CustomSelect, IconButton, Tooltip, type SelectOption } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
 import { formatFileSize } from '../../utils/file'
 import { formatModelName, formatNumber } from '../../utils/format'
+import { isThinkingEffort, isThinkingEffortVisibleForModel, THINKING_EFFORT_OPTIONS, type ThinkingEffort } from '../../utils/thinking'
 import type { Attachment, ContextInjectionOverrides } from '../../types'
 import { useI18n } from '../../i18n'
 
@@ -165,11 +166,104 @@ const currentModel = computed(() => {
   return currentConfig.value?.model || ''
 })
 
+function getCurrentModelDisplayName(config: any): string {
+  const modelId = String(config?.model || '').trim()
+  if (!modelId) return ''
+
+  const models: any[] = Array.isArray(config?.models) ? config.models : []
+  const found = models.find(m => String((m && typeof m === 'object') ? m.id : m).trim() === modelId)
+
+  if (found && typeof found === 'object') {
+    return String(found.name || found.id || modelId)
+  }
+
+  return modelId
+}
+
 function getProviderLabel(config: any): string {
   const type = String(config?.type || '').trim()
   if (!type) return String(config?.name || '').trim() || 'unknown'
   if (type === 'openai-responses') return 'openai'
   return type
+}
+
+const isThinkingEffortVisible = computed(() => {
+  const config = currentConfig.value
+  if (!config) return false
+  if (getProviderLabel(config) !== 'openai') return false
+
+  return isThinkingEffortVisibleForModel({
+    configType: config.type,
+    modelId: config.model,
+    modelName: getCurrentModelDisplayName(config)
+  })
+})
+
+const thinkingEffortOptions = computed<SelectOption[]>(() => {
+  const prefix = currentConfig.value?.type === 'openai-responses'
+    ? 'components.channels.openai-responses.thinking'
+    : 'components.channels.openai.thinking'
+
+  return THINKING_EFFORT_OPTIONS.map((value) => {
+    const suffix = value === 'xhigh'
+      ? 'XHigh'
+      : value[0].toUpperCase() + value.slice(1)
+    return {
+      value,
+      label: t(`${prefix}.effort${suffix}`)
+    }
+  })
+})
+
+const thinkingEffortValue = computed<ThinkingEffort>(() => {
+  const raw = currentConfig.value?.options?.reasoning?.effort
+  return isThinkingEffort(raw) ? raw : 'high'
+})
+
+async function handleThinkingEffortChange(value: string) {
+  if (!chatStore.configId) return
+  if (!isThinkingEffort(value)) return
+
+  const config = currentConfig.value
+  if (!config) return
+
+  const currentOptions = config.options || {}
+  const currentReasoning = currentOptions.reasoning || {}
+  const nextOptions = {
+    ...currentOptions,
+    reasoning: {
+      ...currentReasoning,
+      effort: value
+    }
+  }
+
+  const currentOptionsEnabled = config.optionsEnabled || {}
+  const nextOptionsEnabled = {
+    ...currentOptionsEnabled,
+    // The footer selector is meant for quick switching; ensure it actually affects requests.
+    reasoning: true
+  }
+
+  try {
+    await sendToExtension('config.updateConfig', {
+      configId: chatStore.configId,
+      updates: {
+        options: nextOptions,
+        optionsEnabled: nextOptionsEnabled
+      }
+    })
+
+    const idx = configs.value.findIndex(c => c?.id === chatStore.configId)
+    if (idx >= 0) {
+      configs.value[idx] = {
+        ...configs.value[idx],
+        options: nextOptions,
+        optionsEnabled: nextOptionsEnabled
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update thinking effort:', error)
+  }
 }
 
 // 统一模型列表（跨渠道）
@@ -1386,7 +1480,7 @@ watch(pinPanelTab, (tab) => {
 
       <!-- 底部：模型/渠道 + Token圆环 + Summary（同一行） -->
       <div class="composer-footer">
-        <div class="composer-selectors">
+        <div class="composer-selectors" :class="{ 'with-thinking-effort': isThinkingEffortVisible }">
           <div class="model-selector-wrapper">
             <UnifiedModelSelector
               :model-value="unifiedModelValue"
@@ -1394,6 +1488,18 @@ watch(pinPanelTab, (tab) => {
               :disabled="isLoadingConfigs || unifiedModelOptions.length === 0"
               :drop-up="true"
               @update:model-value="handleUnifiedModelChange"
+            />
+          </div>
+
+          <div v-if="isThinkingEffortVisible" class="thinking-effort-wrapper">
+            <CustomSelect
+              :model-value="thinkingEffortValue"
+              :options="thinkingEffortOptions"
+              :disabled="isLoadingConfigs"
+              :drop-up="true"
+              :compact="true"
+              :placeholder="t('components.channels.openai.thinking.effortLabel')"
+              @update:model-value="handleThinkingEffortChange"
             />
           </div>
         </div>
@@ -1544,6 +1650,11 @@ watch(pinPanelTab, (tab) => {
   max-width: 190px;
 }
 
+.composer-selectors.with-thinking-effort {
+  flex: 0 1 320px;
+  max-width: 320px;
+}
+
 .composer-footer-actions {
   display: flex;
   align-items: center;
@@ -1562,6 +1673,15 @@ watch(pinPanelTab, (tab) => {
 }
 
 .model-selector-wrapper :deep(.unified-model-selector) {
+  width: 100%;
+}
+
+.thinking-effort-wrapper {
+  flex: 0 0 112px;
+  min-width: 112px;
+}
+
+.thinking-effort-wrapper :deep(.custom-select) {
   width: 100%;
 }
 
