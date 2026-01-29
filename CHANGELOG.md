@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.17] - 2026-01-29
+
+### Improved
+  - UI：连续只读工具调用（如 `read_file`、`execute_command` 的 `git diff` 等）支持自动聚合展示，减少刷屏；当中间出现非同类型工具/消息或命令导致工作区变更时不聚合。
+  - 工具：强化 `read_file` 的批量读取与“先搜索再读取”指引，减少重复工具调用与上下文噪音。
+
 ## [1.0.58-pre.16] - 2026-01-29
 
 ### Improved
