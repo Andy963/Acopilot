@@ -14,6 +14,7 @@ import { ref, computed, Component, h, watchEffect, onBeforeUnmount } from 'vue'
 import type { ToolUsage, Message } from '../../types'
 import { getToolConfig } from '../../utils/toolRegistry'
 import { ensureMcpToolRegistered } from '../../utils/tools'
+import { isReadOnlyShellCommand } from '../../utils/commandReadOnly'
 import { useChatStore } from '../../stores'
 import { sendToExtension } from '../../utils/vscode'
 import { useI18n } from '../../i18n'
@@ -464,7 +465,7 @@ function getReadFileResultEntries(tool: ToolUsage): any[] {
   return Array.isArray(results) ? results : []
 }
 
-function mergeStatusForReadFileGroup(tools: ToolUsage[]): ToolUsage['status'] {
+function mergeStatusForGroup(tools: ToolUsage[]): ToolUsage['status'] {
   const statuses = tools
     .map(t => t.status)
     .filter((s): s is NonNullable<ToolUsage['status']> => !!s)
@@ -488,7 +489,7 @@ function buildReadFileGroup(tools: DisplayToolUsage[]): DisplayToolUsage {
   const files = tools.flatMap(t => getReadFileArgsFiles(t))
   const results = tools.flatMap(t => getReadFileResultEntries(t))
 
-  const status = mergeStatusForReadFileGroup(tools)
+  const status = mergeStatusForGroup(tools)
   const isRunning = status === 'running' || status === 'pending'
 
   const totalCount = files.length > 0
@@ -581,6 +582,82 @@ function mergeConsecutiveReadFileTools(tools: DisplayToolUsage[]): DisplayToolUs
   return merged
 }
 
+function didExecuteCommandChangeWorkspace(tool: ToolUsage): boolean | null {
+  const summary = (tool.result as any)?.data?.changesSummary as any
+  if (!summary || typeof summary !== 'object') return false
+  if (summary.unsupportedReason) return null
+  const total = Number(summary.totalFiles)
+  if (!Number.isFinite(total)) return null
+  return total > 0
+}
+
+function isGroupableExecuteCommand(tool: ToolUsage): boolean {
+  if (tool.name !== 'execute_command') return false
+  if (!tool.result) return false
+  if (tool.status === 'running' || tool.status === 'pending') return false
+
+  const { command } = getExecuteCommandArgs(tool)
+  if (!isReadOnlyShellCommand(command)) return false
+
+  const changed = didExecuteCommandChangeWorkspace(tool)
+  if (changed === null) return false
+  return changed === false
+}
+
+function buildExecuteCommandGroup(tools: DisplayToolUsage[]): DisplayToolUsage {
+  const groupId = `execute_command_group:${tools[0]?.id || 'unknown'}`
+  const commands = tools.map(t => getExecuteCommandArgs(t))
+  const items = tools.map(t => ({
+    id: t.id,
+    args: t.args,
+    status: t.status,
+    error: t.error,
+    result: t.result
+  }))
+
+  const group: DisplayToolUsage = {
+    id: groupId,
+    name: 'execute_command_group',
+    args: { commands, items },
+    status: mergeStatusForGroup(tools),
+    description: '',
+    descriptionText: '',
+    readFileHeaderStats: null
+  }
+
+  const description = getToolDescription(group)
+  const parsed = parseRiskPrefix(description)
+  group.description = description
+  group.descriptionText = parsed ? parsed.text : description
+  group.riskBadge = parsed?.badge
+
+  return group
+}
+
+function mergeConsecutiveExecuteCommandTools(tools: DisplayToolUsage[]): DisplayToolUsage[] {
+  const merged: DisplayToolUsage[] = []
+  let buffer: DisplayToolUsage[] = []
+
+  const flush = () => {
+    if (buffer.length === 0) return
+    if (buffer.length === 1) merged.push(buffer[0])
+    else merged.push(buildExecuteCommandGroup(buffer))
+    buffer = []
+  }
+
+  for (const tool of tools) {
+    if (isGroupableExecuteCommand(tool)) {
+      buffer.push(tool)
+      continue
+    }
+    flush()
+    merged.push(tool)
+  }
+
+  flush()
+  return merged
+}
+
 const displayTools = computed<DisplayToolUsage[]>(() => {
   const base = enhancedTools.value.map((tool) => {
     const description = getToolDescription(tool)
@@ -596,7 +673,7 @@ const displayTools = computed<DisplayToolUsage[]>(() => {
     }
   })
 
-  return mergeConsecutiveReadFileTools(base)
+  return mergeConsecutiveExecuteCommandTools(mergeConsecutiveReadFileTools(base))
 })
 
 function getExecuteCommandArgs(tool: ToolUsage): { command: string; cwd?: string; shell?: string } {
