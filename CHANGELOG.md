@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.15] - 2026-01-29
+
+### Added
+  - UI：输入区模型选择器右侧新增“思考强度”下拉（low/medium/high/xhigh），仅在 OpenAI 协议且模型名包含 `gpt` 时显示；切换会自动启用 reasoning 并写入对应 effort。
+
 ## [1.0.58-pre.14] - 2026-01-29
 
 ### Improved
