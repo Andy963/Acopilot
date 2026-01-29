@@ -861,7 +861,7 @@ onMounted(async () => {
               <i
                 :class="[
                   'codicon',
-                  isConfigDisabled(String(option.value)) ? 'codicon-eye' : 'codicon-eye-closed'
+                  isConfigDisabled(String(option.value)) ? 'codicon-eye-closed' : 'codicon-eye'
                 ]"
               ></i>
             </button>
