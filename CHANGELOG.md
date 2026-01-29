@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.16] - 2026-01-29
+
+### Improved
+  - UI：输入区底部“思考强度”选择器改为仅显示英文值（low/medium/high/xhigh）并进一步缩窄宽度；当面板宽度不足时会自动隐藏该选择器以避免布局换行。
+
 ## [1.0.58-pre.15] - 2026-01-29
 
 ### Added

@@ -4,7 +4,7 @@
  * 扁平化设计，底部栏布局：左侧附件按钮，右侧发送按钮
  */
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import InputBox from './InputBox.vue'
 import FilePickerPanel from './FilePickerPanel.vue'
 import SendButton from './SendButton.vue'
@@ -199,18 +199,63 @@ const isThinkingEffortVisible = computed(() => {
   })
 })
 
-const thinkingEffortOptions = computed<SelectOption[]>(() => {
-  const prefix = currentConfig.value?.type === 'openai-responses'
-    ? 'components.channels.openai-responses.thinking'
-    : 'components.channels.openai.thinking'
+const composerFooterRef = ref<HTMLElement | null>(null)
+const composerFooterActionsRef = ref<HTMLElement | null>(null)
+const composerFooterWidth = ref(0)
+const composerFooterActionsWidth = ref(0)
+let composerFooterResizeObserver: ResizeObserver | null = null
 
+function updateComposerFooterMetrics(): void {
+  const footer = composerFooterRef.value
+  if (footer) {
+    composerFooterWidth.value = footer.clientWidth
+  }
+
+  const actions = composerFooterActionsRef.value
+  if (actions) {
+    composerFooterActionsWidth.value = actions.getBoundingClientRect().width
+  }
+}
+
+onMounted(() => {
+  updateComposerFooterMetrics()
+
+  if (typeof ResizeObserver === 'undefined') return
+
+  composerFooterResizeObserver = new ResizeObserver(() => {
+    requestAnimationFrame(() => {
+      updateComposerFooterMetrics()
+    })
+  })
+
+  if (composerFooterRef.value) composerFooterResizeObserver.observe(composerFooterRef.value)
+  if (composerFooterActionsRef.value) composerFooterResizeObserver.observe(composerFooterActionsRef.value)
+})
+
+onBeforeUnmount(() => {
+  composerFooterResizeObserver?.disconnect()
+  composerFooterResizeObserver = null
+})
+
+const showThinkingEffortSelector = computed(() => {
+  if (!isThinkingEffortVisible.value) return false
+
+  // During initial render we may not have stable measurements yet; avoid hiding eagerly.
+  if (composerFooterWidth.value <= 0 || composerFooterActionsWidth.value <= 0) return true
+
+  // Reserve some space for `gap` and padding; hide effort first because it is rarely changed.
+  const reserved = 24
+  const availableForSelectors = composerFooterWidth.value - composerFooterActionsWidth.value - reserved
+  const minSelectorsWidthWithEffort = 220
+  return availableForSelectors >= minSelectorsWidthWithEffort
+})
+
+const thinkingEffortOptions = computed<SelectOption[]>(() => {
   return THINKING_EFFORT_OPTIONS.map((value) => {
-    const suffix = value === 'xhigh'
-      ? 'XHigh'
-      : value[0].toUpperCase() + value.slice(1)
     return {
       value,
-      label: t(`${prefix}.effort${suffix}`)
+      // Keep it compact for the footer selector (narrow panels); always show English ids.
+      label: value
     }
   })
 })
@@ -1479,8 +1524,8 @@ watch(pinPanelTab, (tab) => {
       </div>
 
       <!-- 底部：模型/渠道 + Token圆环 + Summary（同一行） -->
-      <div class="composer-footer">
-        <div class="composer-selectors" :class="{ 'with-thinking-effort': isThinkingEffortVisible }">
+      <div ref="composerFooterRef" class="composer-footer">
+        <div class="composer-selectors" :class="{ 'with-thinking-effort': showThinkingEffortSelector }">
           <div class="model-selector-wrapper">
             <UnifiedModelSelector
               :model-value="unifiedModelValue"
@@ -1491,7 +1536,7 @@ watch(pinPanelTab, (tab) => {
             />
           </div>
 
-          <div v-if="isThinkingEffortVisible" class="thinking-effort-wrapper">
+          <div v-if="showThinkingEffortSelector" class="thinking-effort-wrapper">
             <CustomSelect
               :model-value="thinkingEffortValue"
               :options="thinkingEffortOptions"
@@ -1504,7 +1549,7 @@ watch(pinPanelTab, (tab) => {
           </div>
         </div>
 
-        <div class="composer-footer-actions">
+        <div ref="composerFooterActionsRef" class="composer-footer-actions">
           <!-- 本条消息上下文开关 -->
           <Tooltip :content="t('components.input.messageContextOverrides.title')" placement="top">
             <div class="context-overrides-button-wrapper">
@@ -1635,7 +1680,7 @@ watch(pinPanelTab, (tab) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   padding: 0 6px;
   min-width: 0;
@@ -1644,15 +1689,15 @@ watch(pinPanelTab, (tab) => {
 .composer-selectors {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 0 1 190px;
+  gap: 6px;
+  flex: 0 1 170px;
   min-width: 0;
-  max-width: 190px;
+  max-width: 170px;
 }
 
 .composer-selectors.with-thinking-effort {
-  flex: 0 1 320px;
-  max-width: 320px;
+  flex: 0 1 280px;
+  max-width: 280px;
 }
 
 .composer-footer-actions {
@@ -1661,7 +1706,7 @@ watch(pinPanelTab, (tab) => {
   gap: 4px;
   flex: 0 1 auto;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   margin-left: auto;
 }
@@ -1677,8 +1722,8 @@ watch(pinPanelTab, (tab) => {
 }
 
 .thinking-effort-wrapper {
-  flex: 0 0 112px;
-  min-width: 112px;
+  flex: 0 0 78px;
+  min-width: 78px;
 }
 
 .thinking-effort-wrapper :deep(.custom-select) {
