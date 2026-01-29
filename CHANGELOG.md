@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.14] - 2026-01-29
+
+### Improved
+  - UI：Pinned refs 展示改为仅显示文件名（basename），减少长路径占用与视觉噪音。
+
 ## [1.0.58-pre.13] - 2026-01-29
 
 ### Fixed
