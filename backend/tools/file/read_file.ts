@@ -383,6 +383,12 @@ export function createReadFileTool(
     
     // 行号格式说明
     const lineNumberNote = '\n\n**Note**: Text files return content with line number prefixes (e.g., "   1 | code here"). The numbers and "|" are line markers and not part of the file content. Please ignore these prefixes when editing files.';
+
+    // Batching guidance (reduces tool-iteration loops and UI noise)
+    const batchingNote = '\n\n**Batching**: When you need to read multiple files, prefer ONE `read_file` call and include all targets in the `files` array. This reduces tool-iteration loops. If the list is large, split into a few batched calls (e.g., <= 10 files per call).';
+
+    // Search first, then read (reduces token cost and unnecessary file reads)
+    const efficiencyNote = '\n\n**Efficiency**: If you are unsure which files/lines are relevant, use search_in_files/find_files/get_symbols (or LSP tools like goto_definition/find_references) first, then read only the necessary files or precise line ranges.';
     
     // 数组格式强调说明
     const arrayFormatNote = '\n\n**IMPORTANT**: The `files` parameter MUST be an array, even for a single file. Example: `{"files": [{"path": "file.txt"}]}` or `{"files": [{"path": "file.txt", "startLine": 100, "endLine": 200}]}`.';
@@ -392,19 +398,19 @@ export function createReadFileTool(
     
     if (!multimodalEnabled) {
         // 未启用多模态时，只支持文本文件
-        description = 'Read the content of one or more files in the workspace. Supported types: text files.' + lineNumberNote + arrayFormatNote + lineRangeNote;
+        description = 'Read the content of one or more files in the workspace. Supported types: text files.' + batchingNote + efficiencyNote + lineNumberNote + arrayFormatNote + lineRangeNote;
     } else if (channelType === 'openai') {
         // OpenAI 格式有特殊限制
         if (toolMode === 'function_call') {
             // OpenAI function_call 模式不支持多模态
-            description = 'Read the content of one or more files in the workspace. Supported types: text files.' + lineNumberNote + arrayFormatNote + lineRangeNote;
+            description = 'Read the content of one or more files in the workspace. Supported types: text files.' + batchingNote + efficiencyNote + lineNumberNote + arrayFormatNote + lineRangeNote;
         } else {
             // OpenAI xml/json 模式只支持图片
-            description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP). Images are returned as multimodal data.' + lineNumberNote + arrayFormatNote + lineRangeNote;
+            description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP). Images are returned as multimodal data.' + batchingNote + efficiencyNote + lineNumberNote + arrayFormatNote + lineRangeNote;
         }
     } else {
         // Gemini 和 Anthropic 全面支持
-        description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP), documents (PDF). Images and documents are returned as multimodal data.' + lineNumberNote + arrayFormatNote + lineRangeNote;
+        description = 'Read the content of one or more files in the workspace. Supported types: text files, images (PNG/JPEG/WebP), documents (PDF). Images and documents are returned as multimodal data.' + batchingNote + efficiencyNote + lineNumberNote + arrayFormatNote + lineRangeNote;
     }
     
     // 多工作区说明

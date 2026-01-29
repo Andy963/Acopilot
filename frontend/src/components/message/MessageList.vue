@@ -8,6 +8,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { CustomScrollbar, DeleteDialog, Tooltip, ConfirmDialog } from '../common'
 import MessageItem from './MessageItem.vue'
 import SummaryMessage from './SummaryMessage.vue'
+import ReadFileGroupMessage from './ReadFileGroupMessage.vue'
 import PlanRunnerPanel from '../plan/PlanRunnerPanel.vue'
 import ValidationCardMessage from './ValidationCardMessage.vue'
 import { useChatStore } from '../../stores'
@@ -66,8 +67,28 @@ interface EnhancedMessage {
   afterCheckpoints: CheckpointRecord[]
 }
 
+interface MessageRenderItem extends EnhancedMessage {
+  kind: 'message'
+}
+
+interface ReadFileGroupRenderItem {
+  kind: 'readFileGroup'
+  id: string
+  messages: Message[]
+}
+
+type RenderItem = MessageRenderItem | ReadFileGroupRenderItem
+
+function isReadFileOnlyMessage(message: Message): boolean {
+  if (message.role !== 'assistant') return false
+  if (message.isSummary) return false
+  if (typeof message.content === 'string' && message.content.trim()) return false
+  if (!Array.isArray(message.tools) || message.tools.length === 0) return false
+  return message.tools.every(t => t?.name === 'read_file')
+}
+
 // 预计算可见消息的增强信息，避免在模板中进行昂贵的计算
-const enhancedVisibleMessages = computed<EnhancedMessage[]>(() => {
+const renderItems = computed<RenderItem[]>(() => {
   const count = visibleCount.value
   const total = props.messages.length
   const startIndex = Math.max(0, total - count)
@@ -92,7 +113,7 @@ const enhancedVisibleMessages = computed<EnhancedMessage[]>(() => {
     else group.after.push(cp)
   })
 
-  return visibleSlice.map(message => {
+  const enhanced: EnhancedMessage[] = visibleSlice.map(message => {
     const actualIndex = idToActualIndex.get(message.id) ?? -1
     const cpGroup = actualIndex !== -1 ? checkpointsByMsgIndex.get(actualIndex) : null
 
@@ -103,6 +124,37 @@ const enhancedVisibleMessages = computed<EnhancedMessage[]>(() => {
       afterCheckpoints: cpGroup?.after || []
     }
   })
+
+  const grouped: RenderItem[] = []
+  let buffer: EnhancedMessage[] = []
+
+  const flush = () => {
+    if (buffer.length === 0) return
+    if (buffer.length === 1) {
+      grouped.push({ kind: 'message', ...buffer[0] })
+      buffer = []
+      return
+    }
+
+    grouped.push({
+      kind: 'readFileGroup',
+      id: `read_file_msg_group:${buffer[0].message.id}`,
+      messages: buffer.map(b => b.message)
+    })
+    buffer = []
+  }
+
+  for (const item of enhanced) {
+    if (isReadFileOnlyMessage(item.message)) {
+      buffer.push(item)
+      continue
+    }
+    flush()
+    grouped.push({ kind: 'message', ...item })
+  }
+
+  flush()
+  return grouped
 })
 
 // 是否正在加载更多（用于节流）
@@ -486,56 +538,29 @@ function formatCheckpointTime(timestamp: number): string {
           <i class="codicon codicon-loading codicon-modifier-spin"></i>
         </div>
 
-        <template v-for="item in enhancedVisibleMessages" :key="item.message.id">
-          <!-- 消息前的检查点（或合并显示） -->
-          <template v-if="item.beforeCheckpoints.length > 0">
-            <div v-for="cp in item.beforeCheckpoints" :key="cp.id" class="checkpoint-bar"
-              :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'checkpoint-merged' : 'checkpoint-before'">
-              <div class="checkpoint-icon">
-                <i class="codicon"
-                  :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'codicon-check' : 'codicon-archive'"></i>
-              </div>
-              <div class="checkpoint-info">
-                <span class="checkpoint-label">
-                  {{ shouldMergeForTool(item.actualIndex, cp.toolName) ? getMergedLabel(cp) : getCheckpointLabel(cp,
-                  'before') }}
-                </span>
-                <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount })
-                  }}</span>
-              </div>
-              <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp)
-                }}</span>
-              <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
-                  <i class="codicon codicon-discard"></i>
-                </button>
-              </Tooltip>
-            </div>
-          </template>
-
-          <!-- 总结消息使用专用组件 -->
-          <SummaryMessage v-if="item.message.isSummary" :message="item.message" :message-index="item.actualIndex" />
-
-          <!-- 普通消息使用 MessageItem -->
-          <MessageItem v-else :message="item.message" :message-index="item.actualIndex" @edit="handleEdit"
-            @delete="handleDelete" @retry="handleRetry" @copy="handleCopy" @restore-checkpoint="handleRestoreCheckpoint"
-            @restore-and-retry="handleRestoreAndRetry" @restore-and-edit="handleRestoreAndEdit" />
-
-          <!-- 消息后的检查点（仅当该工具的内容有变化时显示） -->
-          <template v-if="item.afterCheckpoints.length > 0">
-            <template v-for="cp in item.afterCheckpoints" :key="cp.id">
-              <!-- 只有当该工具没有被合并时才显示 after 检查点 -->
-              <div v-if="!shouldMergeForTool(item.actualIndex, cp.toolName)" class="checkpoint-bar checkpoint-after">
+        <template
+          v-for="item in renderItems"
+          :key="item.kind === 'message' ? item.message.id : item.id"
+        >
+          <template v-if="item.kind === 'message'">
+            <!-- 消息前的检查点（或合并显示） -->
+            <template v-if="item.beforeCheckpoints.length > 0">
+              <div v-for="cp in item.beforeCheckpoints" :key="cp.id" class="checkpoint-bar"
+                :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'checkpoint-merged' : 'checkpoint-before'">
                 <div class="checkpoint-icon">
-                  <i class="codicon codicon-archive"></i>
+                  <i class="codicon"
+                    :class="shouldMergeForTool(item.actualIndex, cp.toolName) ? 'codicon-check' : 'codicon-archive'"></i>
                 </div>
                 <div class="checkpoint-info">
-                  <span class="checkpoint-label">{{ getCheckpointLabel(cp, 'after') }}</span>
+                  <span class="checkpoint-label">
+                    {{ shouldMergeForTool(item.actualIndex, cp.toolName) ? getMergedLabel(cp) : getCheckpointLabel(cp,
+                    'before') }}
+                  </span>
                   <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount })
                     }}</span>
                 </div>
-                <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{
-                  formatCheckpointTime(cp.timestamp) }}</span>
+                <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp)
+                  }}</span>
                 <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
                   <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
                     <i class="codicon codicon-discard"></i>
@@ -543,7 +568,44 @@ function formatCheckpointTime(timestamp: number): string {
                 </Tooltip>
               </div>
             </template>
+
+            <!-- 总结消息使用专用组件 -->
+            <SummaryMessage v-if="item.message.isSummary" :message="item.message" :message-index="item.actualIndex" />
+
+            <!-- 普通消息使用 MessageItem -->
+            <MessageItem v-else :message="item.message" :message-index="item.actualIndex" @edit="handleEdit"
+              @delete="handleDelete" @retry="handleRetry" @copy="handleCopy" @restore-checkpoint="handleRestoreCheckpoint"
+              @restore-and-retry="handleRestoreAndRetry" @restore-and-edit="handleRestoreAndEdit" />
+
+            <!-- 消息后的检查点（仅当该工具的内容有变化时显示） -->
+            <template v-if="item.afterCheckpoints.length > 0">
+              <template v-for="cp in item.afterCheckpoints" :key="cp.id">
+                <!-- 只有当该工具没有被合并时才显示 after 检查点 -->
+                <div v-if="!shouldMergeForTool(item.actualIndex, cp.toolName)" class="checkpoint-bar checkpoint-after">
+                  <div class="checkpoint-icon">
+                    <i class="codicon codicon-archive"></i>
+                  </div>
+                  <div class="checkpoint-info">
+                    <span class="checkpoint-label">{{ getCheckpointLabel(cp, 'after') }}</span>
+                    <span class="checkpoint-meta">{{ t('components.message.checkpoint.fileCount', { count: cp.fileCount })
+                      }}</span>
+                  </div>
+                  <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{
+                    formatCheckpointTime(cp.timestamp) }}</span>
+                  <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
+                    <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                      <i class="codicon codicon-discard"></i>
+                    </button>
+                  </Tooltip>
+                </div>
+              </template>
+            </template>
           </template>
+
+          <ReadFileGroupMessage
+            v-else
+            :messages="item.messages"
+          />
         </template>
 
         <!-- 改动后校验提示（不写入 allMessages，避免索引错位） -->
