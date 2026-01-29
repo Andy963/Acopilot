@@ -18,6 +18,7 @@ import './search/search_in_files'
 
 // 终端工具
 import './terminal/execute_command'
+import './terminal/execute_command_group'
 
 // 媒体工具
 import './media/generate_image'

@@ -8,13 +8,14 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { CustomScrollbar, DeleteDialog, Tooltip, ConfirmDialog } from '../common'
 import MessageItem from './MessageItem.vue'
 import SummaryMessage from './SummaryMessage.vue'
-import ReadFileGroupMessage from './ReadFileGroupMessage.vue'
+import ToolGroupMessage from './ToolGroupMessage.vue'
 import PlanRunnerPanel from '../plan/PlanRunnerPanel.vue'
 import ValidationCardMessage from './ValidationCardMessage.vue'
 import { useChatStore } from '../../stores'
 import { formatTime } from '../../utils/format'
+import { isReadOnlyShellCommand } from '../../utils/commandReadOnly'
 import { useI18n } from '../../i18n'
-import type { Message, CheckpointRecord, Attachment } from '../../types'
+import type { Message, CheckpointRecord, Attachment, ToolUsage } from '../../types'
 
 const { t } = useI18n()
 
@@ -71,20 +72,81 @@ interface MessageRenderItem extends EnhancedMessage {
   kind: 'message'
 }
 
-interface ReadFileGroupRenderItem {
-  kind: 'readFileGroup'
+interface ToolGroupRenderItem {
+  kind: 'toolGroup'
   id: string
+  toolName: string
   messages: Message[]
 }
 
-type RenderItem = MessageRenderItem | ReadFileGroupRenderItem
+type RenderItem = MessageRenderItem | ToolGroupRenderItem
 
-function isReadFileOnlyMessage(message: Message): boolean {
+const READ_ONLY_TOOL_NAMES = new Set<string>([
+  'read_file',
+  'list_files',
+  'search_in_files',
+  'find_files',
+  'get_symbols',
+  'goto_definition',
+  'find_references',
+  'get_usages',
+  'get_errors',
+  'open_file'
+])
+
+function isToolOnlyMessage(message: Message): boolean {
   if (message.role !== 'assistant') return false
   if (message.isSummary) return false
   if (typeof message.content === 'string' && message.content.trim()) return false
   if (!Array.isArray(message.tools) || message.tools.length === 0) return false
-  return message.tools.every(t => t?.name === 'read_file')
+  return true
+}
+
+function getSingleToolName(message: Message): string | null {
+  if (!Array.isArray(message.tools) || message.tools.length === 0) return null
+  const first = message.tools[0]?.name
+  if (typeof first !== 'string' || !first) return null
+  if (!message.tools.every(t => t?.name === first)) return null
+  return first
+}
+
+function didExecuteCommandChangeWorkspace(result: Record<string, unknown> | null | undefined): boolean | null {
+  const summary = (result as any)?.data?.changesSummary as any
+  if (!summary || typeof summary !== 'object') return false
+  if (summary.unsupportedReason) return null
+  const total = Number(summary.totalFiles)
+  if (!Number.isFinite(total)) return null
+  return total > 0
+}
+
+function isReadOnlyExecuteCommandTool(tool: ToolUsage): boolean {
+  if (tool.name !== 'execute_command') return false
+  if (tool.status === 'running' || tool.status === 'pending') return false
+  const args = (tool.args ?? {}) as Record<string, any>
+  const command = typeof args.command === 'string' ? args.command : ''
+  if (!isReadOnlyShellCommand(command)) return false
+
+  const effectiveResult = (tool.result as Record<string, unknown> | undefined)
+    ?? (tool.id ? (chatStore.getToolResponseById(tool.id) as Record<string, unknown> | null) : null)
+
+  if (!effectiveResult) return false
+
+  const changed = didExecuteCommandChangeWorkspace(effectiveResult)
+  if (changed === null) return false
+  return changed === false
+}
+
+function getGroupableToolName(message: Message): string | null {
+  if (!isToolOnlyMessage(message)) return null
+  const name = getSingleToolName(message)
+  if (!name) return null
+
+  if (name === 'execute_command') {
+    const tools = message.tools || []
+    return tools.length > 0 && tools.every(isReadOnlyExecuteCommandTool) ? name : null
+  }
+
+  return READ_ONLY_TOOL_NAMES.has(name) ? name : null
 }
 
 // 预计算可见消息的增强信息，避免在模板中进行昂贵的计算
@@ -127,26 +189,39 @@ const renderItems = computed<RenderItem[]>(() => {
 
   const grouped: RenderItem[] = []
   let buffer: EnhancedMessage[] = []
+  let bufferToolName = ''
 
   const flush = () => {
     if (buffer.length === 0) return
     if (buffer.length === 1) {
       grouped.push({ kind: 'message', ...buffer[0] })
       buffer = []
+      bufferToolName = ''
       return
     }
 
     grouped.push({
-      kind: 'readFileGroup',
-      id: `read_file_msg_group:${buffer[0].message.id}`,
+      kind: 'toolGroup',
+      id: `tool_msg_group:${bufferToolName}:${buffer[0].message.id}`,
+      toolName: bufferToolName,
       messages: buffer.map(b => b.message)
     })
     buffer = []
+    bufferToolName = ''
   }
 
   for (const item of enhanced) {
-    if (isReadFileOnlyMessage(item.message)) {
+    const toolName = getGroupableToolName(item.message)
+    if (toolName) {
+      if (buffer.length === 0 || bufferToolName === toolName) {
+        buffer.push(item)
+        bufferToolName = toolName
+        continue
+      }
+
+      flush()
       buffer.push(item)
+      bufferToolName = toolName
       continue
     }
     flush()
@@ -602,9 +677,10 @@ function formatCheckpointTime(timestamp: number): string {
             </template>
           </template>
 
-          <ReadFileGroupMessage
+          <ToolGroupMessage
             v-else
             :messages="item.messages"
+            :tool-name="item.toolName"
           />
         </template>
 

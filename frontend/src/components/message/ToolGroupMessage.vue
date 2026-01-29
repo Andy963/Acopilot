@@ -5,6 +5,7 @@ import ToolMessage from './ToolMessage.vue'
 
 const props = defineProps<{
   messages: Message[]
+  toolName: string
 }>()
 
 const tools = computed<ToolUsage[]>(() => {
@@ -12,7 +13,7 @@ const tools = computed<ToolUsage[]>(() => {
   for (const m of props.messages) {
     if (Array.isArray(m.tools)) {
       for (const t of m.tools) {
-        if (t?.name === 'read_file') all.push(t)
+        if (t?.name === props.toolName) all.push(t)
       }
     }
   }
@@ -21,13 +22,13 @@ const tools = computed<ToolUsage[]>(() => {
 </script>
 
 <template>
-  <div class="readfile-group">
+  <div class="tool-group">
     <ToolMessage :tools="tools" />
   </div>
 </template>
 
 <style scoped>
-.readfile-group {
+.tool-group {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm, 8px);
@@ -36,4 +37,3 @@ const tools = computed<ToolUsage[]>(() => {
   border-bottom: 1px solid var(--vscode-panel-border);
 }
 </style>
-
