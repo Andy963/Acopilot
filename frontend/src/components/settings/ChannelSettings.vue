@@ -1504,7 +1504,7 @@ onMounted(async () => {
 
 .performance-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1512,6 +1512,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .perf-item label {
@@ -1529,6 +1530,9 @@ onMounted(async () => {
   font-size: 13px;
   appearance: textfield;
   -moz-appearance: textfield;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .perf-item input::-webkit-outer-spin-button,
@@ -1545,6 +1549,12 @@ onMounted(async () => {
 
 .perf-hint {
   margin-top: -4px;
+}
+
+@media (max-width: 520px) {
+  .performance-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .field-hint {
