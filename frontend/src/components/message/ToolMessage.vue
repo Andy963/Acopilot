@@ -289,9 +289,17 @@ function getReadFileHeaderStats(tool: ToolUsage): ReadFileHeaderStats | null {
 
   const results = result?.data?.results
   const hasResults = Array.isArray(results)
-  const total = hasResults
-    ? results.length
-    : (Array.isArray(args.files) ? args.files.length : 0)
+  const totalFromResult =
+    typeof result?.data?.totalCount === 'number'
+      ? (result.data.totalCount as number)
+      : undefined
+
+  const totalFromArgs = Array.isArray(args.files) ? args.files.length : 0
+  const totalFromResults = hasResults ? results.length : 0
+
+  const total =
+    totalFromResult ??
+    (totalFromArgs > 0 ? totalFromArgs : totalFromResults)
 
   const success =
     typeof result?.data?.successCount === 'number'
@@ -313,6 +321,8 @@ function getBasename(filePath: string): string {
 
 function getReadFileSinglePath(tool: ToolUsage): string | null {
   if (tool.name !== 'read_file') return null
+  const stats = getReadFileHeaderStats(tool)
+  if (!stats || stats.total !== 1) return null
   const args = (tool.args ?? {}) as Record<string, unknown>
   const result = tool.result as Record<string, any> | undefined
 
@@ -339,6 +349,8 @@ function getReadFileSingleDisplayName(tool: ToolUsage): string | null {
 
 function getReadFileSingleLineCount(tool: ToolUsage): number | null {
   if (tool.name !== 'read_file') return null
+  const stats = getReadFileHeaderStats(tool)
+  if (!stats || stats.total !== 1) return null
   const result = tool.result as Record<string, any> | undefined
   const results = result?.data?.results
   if (!Array.isArray(results) || results.length !== 1) return null
@@ -368,6 +380,8 @@ function markReadFileCopied(toolId: string) {
 
 function getReadFileSingleContent(tool: ToolUsage): string | null {
   if (tool.name !== 'read_file') return null
+  const stats = getReadFileHeaderStats(tool)
+  if (!stats || stats.total !== 1) return null
   const result = tool.result as Record<string, any> | undefined
   const results = result?.data?.results
   if (!Array.isArray(results) || results.length !== 1) return null
@@ -439,8 +453,136 @@ interface DisplayToolUsage extends ToolUsage {
   readFileHeaderStats?: ReadFileHeaderStats | null
 }
 
+function getReadFileArgsFiles(tool: ToolUsage): any[] {
+  const args = (tool.args ?? {}) as Record<string, any>
+  return Array.isArray(args.files) ? args.files : []
+}
+
+function getReadFileResultEntries(tool: ToolUsage): any[] {
+  const result = tool.result as Record<string, any> | undefined
+  const results = result?.data?.results
+  return Array.isArray(results) ? results : []
+}
+
+function mergeStatusForReadFileGroup(tools: ToolUsage[]): ToolUsage['status'] {
+  const statuses = tools
+    .map(t => t.status)
+    .filter((s): s is NonNullable<ToolUsage['status']> => !!s)
+
+  if (statuses.some(s => s === 'running' || s === 'pending')) return 'running'
+
+  const hasError = statuses.some(s => s === 'error')
+  const hasSuccess = statuses.some(s => s === 'success')
+  const hasWarning = statuses.some(s => s === 'warning')
+
+  if (hasWarning) return 'warning'
+  if (hasError && hasSuccess) return 'warning'
+  if (hasError) return 'error'
+  if (hasSuccess) return 'success'
+  return undefined
+}
+
+function buildReadFileGroup(tools: DisplayToolUsage[]): DisplayToolUsage {
+  const groupId = `read_file_group:${tools[0]?.id || 'unknown'}`
+
+  const files = tools.flatMap(t => getReadFileArgsFiles(t))
+  const results = tools.flatMap(t => getReadFileResultEntries(t))
+
+  const status = mergeStatusForReadFileGroup(tools)
+  const isRunning = status === 'running' || status === 'pending'
+
+  const totalCount = files.length > 0
+    ? files.length
+    : results.length
+
+  let successCount: number | undefined
+  let failCount: number | undefined
+
+  if (!isRunning) {
+    let ok = 0
+    let fail = 0
+
+    for (const t of tools) {
+      const r = t.result as any
+      if (typeof r?.data?.successCount === 'number' && typeof r?.data?.failCount === 'number') {
+        ok += r.data.successCount
+        fail += r.data.failCount
+        continue
+      }
+
+      const entries = getReadFileResultEntries(t)
+      if (entries.length > 0) {
+        ok += entries.filter((e: any) => !!e?.success).length
+        fail += entries.filter((e: any) => !e?.success).length
+        continue
+      }
+
+      const reqs = getReadFileArgsFiles(t)
+      if (t.error && reqs.length > 0) {
+        fail += reqs.length
+      }
+    }
+
+    successCount = ok
+    failCount = fail
+  }
+
+  const result: Record<string, any> = {
+    success: failCount ? failCount === 0 : undefined,
+    data: {
+      results,
+      totalCount,
+      ...(typeof successCount === 'number' ? { successCount } : {}),
+      ...(typeof failCount === 'number' ? { failCount } : {})
+    }
+  }
+
+  const description = tools[0]?.description ?? ''
+  const descriptionText = tools[0]?.descriptionText ?? ''
+  const riskBadge = tools[0]?.riskBadge
+
+  const group: DisplayToolUsage = {
+    id: groupId,
+    name: 'read_file',
+    args: { files },
+    status,
+    result,
+    description,
+    descriptionText,
+    riskBadge,
+    readFileHeaderStats: null
+  }
+
+  group.readFileHeaderStats = getReadFileHeaderStats(group)
+  return group
+}
+
+function mergeConsecutiveReadFileTools(tools: DisplayToolUsage[]): DisplayToolUsage[] {
+  const merged: DisplayToolUsage[] = []
+  let buffer: DisplayToolUsage[] = []
+
+  const flush = () => {
+    if (buffer.length === 0) return
+    if (buffer.length === 1) merged.push(buffer[0])
+    else merged.push(buildReadFileGroup(buffer))
+    buffer = []
+  }
+
+  for (const tool of tools) {
+    if (tool.name === 'read_file') {
+      buffer.push(tool)
+      continue
+    }
+    flush()
+    merged.push(tool)
+  }
+
+  flush()
+  return merged
+}
+
 const displayTools = computed<DisplayToolUsage[]>(() => {
-  return enhancedTools.value.map((tool) => {
+  const base = enhancedTools.value.map((tool) => {
     const description = getToolDescription(tool)
     const parsed = parseRiskPrefix(description)
     const readFileHeaderStats = getReadFileHeaderStats(tool)
@@ -453,6 +595,8 @@ const displayTools = computed<DisplayToolUsage[]>(() => {
       readFileHeaderStats
     }
   })
+
+  return mergeConsecutiveReadFileTools(base)
 })
 
 function getExecuteCommandArgs(tool: ToolUsage): { command: string; cwd?: string; shell?: string } {
