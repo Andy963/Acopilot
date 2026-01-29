@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58-pre.11] - 2026-01-29
+
+### Fixed
+  - UI：Settings 的 Performance 区域在窄屏下布局溢出的问题（grid + input 宽度/最小宽度修正，520px 以下单列显示）。
+
 ## [1.0.58-pre.10] - 2026-01-26
 
 ### Fixed
