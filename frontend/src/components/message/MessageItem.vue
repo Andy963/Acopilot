@@ -902,29 +902,68 @@ function handleOpenContextUsed() {
 
 @supports (-webkit-background-clip: text) or (background-clip: text) {
   .role-label.marquee {
+    --lc-role-label-rainbow-red: color-mix(
+      in srgb,
+      var(--vscode-charts-red, #f48771) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-orange: color-mix(
+      in srgb,
+      var(--vscode-charts-orange, #e69500) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-yellow: color-mix(
+      in srgb,
+      var(--vscode-charts-yellow, #f0c674) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-green: color-mix(
+      in srgb,
+      var(--vscode-charts-green, #89d185) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-cyan: color-mix(
+      in srgb,
+      var(--vscode-charts-green, #89d185) 50%,
+      var(--vscode-charts-blue, #3794ff) 50%
+    );
+    --lc-role-label-rainbow-blue: color-mix(
+      in srgb,
+      var(--vscode-charts-blue, #3794ff) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-purple: color-mix(
+      in srgb,
+      var(--vscode-charts-purple, #a855f7) 84%,
+      var(--lc-role-label-color) 16%
+    );
     background-image: linear-gradient(
       90deg,
-      var(--lc-role-label-color) 0%,
-      var(--lc-role-label-color) 35%,
-      var(--vscode-textLink-foreground) 50%,
-      var(--lc-role-label-color) 65%,
-      var(--lc-role-label-color) 100%
+      var(--lc-role-label-rainbow-red, var(--vscode-charts-red, #f48771)) 0%,
+      var(--lc-role-label-rainbow-orange, var(--vscode-charts-orange, #e69500)) 14%,
+      var(--lc-role-label-rainbow-yellow, var(--vscode-charts-yellow, #f0c674)) 28%,
+      var(--lc-role-label-rainbow-green, var(--vscode-charts-green, #89d185)) 42%,
+      var(--lc-role-label-rainbow-cyan, #2dc7c7) 56%,
+      var(--lc-role-label-rainbow-blue, var(--vscode-charts-blue, #3794ff)) 70%,
+      var(--lc-role-label-rainbow-purple, var(--vscode-charts-purple, #a855f7)) 84%,
+      var(--lc-role-label-rainbow-red, var(--vscode-charts-red, #f48771)) 100%
     );
-    background-size: 220% 100%;
-    background-position: 100% 0;
+    background-size: 200% 100%;
+    background-position: 0% 0;
+    background-repeat: repeat;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    animation: role-label-marquee 1.4s linear infinite;
+    animation: role-label-marquee 2.2s linear infinite;
   }
 }
 
 @keyframes role-label-marquee {
   0% {
-    background-position: 120% 0;
+    background-position: 0% 0;
   }
   100% {
-    background-position: -120% 0;
+    background-position: 200% 0;
   }
 }
 
@@ -1010,6 +1049,14 @@ function handleOpenContextUsed() {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .role-label.marquee {
+    animation: none;
+    background-image: none;
+    color: var(--lc-role-label-color);
+  }
+}
+
+@media (forced-colors: active) {
   .role-label.marquee {
     animation: none;
     background-image: none;
