@@ -5,12 +5,6 @@
 import { registerTool } from '../../toolRegistry'
 import ReadFileComponent from '../../../components/tools/file/read_file.vue'
 
-interface FileRequest {
-  path: string
-  startLine?: number
-  endLine?: number
-}
-
 // 注册 read_file 工具
 registerTool('read_file', {
   name: 'read_file',

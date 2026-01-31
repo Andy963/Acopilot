@@ -608,6 +608,9 @@ export interface ContextInjectionOverrides {
   includePinnedFiles?: boolean
   includePinnedPrompt?: boolean
   includeTools?: boolean
+  toolAllowList?: string[]
+  modelOverride?: string
+  mode?: 'locate'
 }
 
 // ============ 错误类型 ============

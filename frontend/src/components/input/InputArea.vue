@@ -54,7 +54,6 @@ const emit = defineEmits<{
 
 const {
   inputValue,
-  isComposing,
   historyNavigationActive,
   canSend,
   pushPromptToHistory,

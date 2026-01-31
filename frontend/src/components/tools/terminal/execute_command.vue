@@ -42,7 +42,7 @@ const props = defineProps<{
   args: Record<string, unknown>
   result?: Record<string, unknown>
   error?: string
-  status?: 'pending' | 'running' | 'success' | 'error'
+  status?: 'pending' | 'running' | 'success' | 'error' | 'warning'
   toolId?: string
   embedded?: boolean
 }>()

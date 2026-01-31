@@ -15,9 +15,6 @@ import { sendMessage, continueAfterToolExecution } from './messageActions'
 import { cancelStream as cancelStreamFn } from './toolActions'
 
 const PLAN_RUNNER_METADATA_KEY = 'planRunner'
-// Previously used for auto-continue after tool execution. We now pause and let the user click
-// "Continue" to avoid injecting duplicate assistant/user turns.
-const MAX_AUTO_CONTINUE = 0
 
 let loopInProgress = false
 
@@ -408,7 +405,10 @@ async function runPlanLoop(state: ChatStoreState, computed: ChatStoreComputed): 
     }
 
     // 取消：当前步标记为 cancelled
-    if (runner.status === 'cancelled') {
+    // Note: The runner status can be changed asynchronously by user actions, so we must not rely on
+    // the narrowed type from earlier "status === 'running'" checks.
+    const latestRunner = state.planRunner.value as PlanRunnerData | null
+    if (latestRunner?.status === 'cancelled') {
       step.status = 'cancelled'
       step.endedAt = Date.now()
       await persistPlanRunnerState(state)

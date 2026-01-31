@@ -301,32 +301,6 @@ const isPartial = computed(() => {
   return !props.error && data && data.appliedCount > 0 && data.failedCount > 0
 })
 
-// 获取文件名
-function getFileName(filePath: string): string {
-  const parts = filePath.split(/[/\\]/)
-  return parts[parts.length - 1] || filePath
-}
-
-// 获取文件扩展名
-function getFileExtension(filePath: string): string {
-  const fileName = getFileName(filePath)
-  const lastDotIndex = fileName.lastIndexOf('.')
-  if (lastDotIndex > 0) {
-    return fileName.substring(lastDotIndex + 1)
-  }
-  return ''
-}
-
-// 获取不含扩展名的文件名
-function getFileNameWithoutExt(filePath: string): string {
-  const fileName = getFileName(filePath)
-  const lastDotIndex = fileName.lastIndexOf('.')
-  if (lastDotIndex > 0) {
-    return fileName.substring(0, lastDotIndex)
-  }
-  return fileName
-}
-
 // 计算差异行
 interface DiffLine {
   type: 'unchanged' | 'deleted' | 'added'

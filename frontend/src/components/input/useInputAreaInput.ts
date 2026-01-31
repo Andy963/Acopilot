@@ -67,8 +67,8 @@ export function useInputAreaInput(params: {
   }
 
   const canSend = computed(() => {
-    const hasContent = inputValue.value.trim().length > 0 ||
-      (params.attachments && params.attachments.length > 0)
+    const hasAttachments = (params.attachments?.length ?? 0) > 0
+    const hasContent = inputValue.value.trim().length > 0 || hasAttachments
 
     if (chatStore.hasPendingToolConfirmation && hasContent) {
       return true

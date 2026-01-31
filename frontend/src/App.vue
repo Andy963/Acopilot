@@ -32,7 +32,7 @@ const settingsStore = useSettingsStore()
 const terminalStore = useTerminalStore()
 
 const conversationTitle = computed(() => {
-  const title = chatStore.currentConversation.value?.title?.trim()
+  const title = chatStore.currentConversation?.title?.trim()
   if (title) return title
 
   const fallbackTitle = generateConversationTitleFromMessages(chatStore.messages)

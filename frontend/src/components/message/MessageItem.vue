@@ -468,6 +468,7 @@ const hasUsage = computed(() =>
   (usageMetadata.value.totalTokenCount || usageMetadata.value.promptTokenCount || usageMetadata.value.candidatesTokenCount)
 )
 
+const contextSnapshot = computed(() => props.message.metadata?.contextSnapshot)
 const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
 
 // Context Used：仅在“本轮用户消息”的首条助手回复展示，避免工具循环重复占位。
@@ -479,7 +480,7 @@ const showContextUsedCard = computed(() => {
   const hasFunctionCall = (m: Message) => m.parts?.some(p => p.functionCall)
   if (hasFunctionCall(props.message)) return false
 
-  const all = chatStore.allMessages.value
+  const all = chatStore.allMessages
   const currentIndex = props.messageIndex
   if (!Array.isArray(all) || currentIndex <= 0 || currentIndex >= all.length) return true
 
@@ -673,18 +674,19 @@ function handleOpenContextUsed() {
           :attachments="message.attachments"
         />
         
-        <!-- 显示模式 -->
-        <div class="message-content">
-        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
-        <ContextUsedMessage
-          v-if="showContextUsedCard"
-          :snapshot="message.metadata.contextSnapshot"
-          @open-details="handleOpenContextUsed"
-        />
-
-        <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
-        <template v-if="displayBlocks.length > 0">
-          <template v-for="(block, index) in displayBlocks" :key="index">
+	        <!-- 显示模式 -->
+	        <div class="message-content">
+	        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
+	        <template v-if="showContextUsedCard && contextSnapshot">
+	          <ContextUsedMessage
+	            :snapshot="contextSnapshot"
+	            @open-details="handleOpenContextUsed"
+	          />
+	        </template>
+	
+	        <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
+	        <template v-if="displayBlocks.length > 0">
+	          <template v-for="(block, index) in displayBlocks" :key="index">
             <!-- 思考块 + 工具调用块：合并显示为一个整体 -->
             <div v-if="block.type === 'thoughtTool'" class="thought-tool-block">
               <div

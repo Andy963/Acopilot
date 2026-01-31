@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { CustomSelect, ConfirmDialog, type SelectOption } from '../common'
+import { CustomSelect, ConfirmDialog } from '../common'
 import ModelManager from './ModelManager.vue'
 import {
   GeminiOptions,
@@ -117,8 +117,6 @@ const currentConfig = computed(() =>
 )
 
 const {
-  getTypeName,
-  multimodalSummaryTypes,
   multimodalSummaryText,
   providerIcon,
   toolModeDisplayName,
