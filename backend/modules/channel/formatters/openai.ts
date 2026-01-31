@@ -54,6 +54,7 @@ import {
     isImageMimeType,
     isTextMimeType
 } from './inlineDataUtils';
+import { convertOpenAITools, convertOpenAIThoughtSignatures } from './openaiTooling';
 
 /**
  * OpenAI 格式转换器
@@ -956,21 +957,7 @@ export class OpenAIFormatter extends BaseFormatter {
      * 类似于 GeminiFormatter.convertThoughtSignatures 的处理
      */
     private convertThoughtSignatures(history: Content[]): Content[] {
-        return history.map(content => ({
-            role: content.role,
-            parts: content.parts.map(part => {
-                // 移除 thoughtSignatures 字段
-                // 未来如果 OpenAI 支持签名，可以像 Gemini 一样：
-                // if (part.thoughtSignatures?.openai) {
-                //     return { ...restPart, signature: thoughtSignatures.openai };
-                // }
-                if (part.thoughtSignatures) {
-                    const { thoughtSignatures, ...restPart } = part;
-                    return restPart;
-                }
-                return part;
-            })
-        }));
+        return convertOpenAIThoughtSignatures(history);
     }
     
     /**
@@ -987,19 +974,6 @@ export class OpenAIFormatter extends BaseFormatter {
      * }]
      */
     convertTools(tools: ToolDeclaration[]): any {
-        if (!tools || tools.length === 0) {
-            return undefined;
-        }
-        
-        // 转换为 OpenAI 格式
-        return tools.map(tool => ({
-            type: 'function',
-            function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters,
-                strict: false  // OpenAI 的 strict 模式
-            }
-        }));
+        return convertOpenAITools(tools);
     }
 }

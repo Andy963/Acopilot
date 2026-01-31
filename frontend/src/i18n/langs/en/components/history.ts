@@ -1,0 +1,20 @@
+export const enComponentsHistory = {
+    title: 'Chat History',
+    empty: 'No conversations yet',
+    deleteConfirm: 'Are you sure you want to delete this conversation?',
+    searchPlaceholder: 'Search conversations...',
+    clearSearch: 'Clear search',
+    noSearchResults: 'No matching conversations',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    thisWeek: 'This Week',
+    earlier: 'Earlier',
+    noTitle: 'Untitled',
+    currentWorkspace: 'Current Workspace',
+    allWorkspaces: 'All Workspaces',
+    backToChat: 'Back to Chat',
+    showHistory: 'Show history:',
+    revealInExplorer: 'Reveal in Explorer',
+    deleteConversation: 'Delete Conversation',
+    messages: 'messages'
+};

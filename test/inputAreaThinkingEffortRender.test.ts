@@ -5,18 +5,18 @@ import { resolve } from 'node:path';
 
 describe('InputArea thinking effort integration (static)', () => {
   it('renders the effort selector behind a visibility gate', () => {
-    const filePath = resolve(__dirname, '../frontend/src/components/input/InputArea.vue');
+    const filePath = resolve(__dirname, '../frontend/src/components/input/InputAreaFooter.vue');
     const content = readFileSync(filePath, 'utf8');
 
     expect(content).toContain('const showThinkingEffortSelector');
     expect(content).toContain("v-if=\"showThinkingEffortSelector\"");
     expect(content).toContain("class=\"thinking-effort-wrapper\"");
     expect(content).toContain('<CustomSelect');
-    expect(content).toContain('@update:model-value="handleThinkingEffortChange"');
+    expect(content).toContain("emit('updateThinkingEffort'");
   });
 
   it('ensures effort changes actually affect requests by enabling reasoning', () => {
-    const filePath = resolve(__dirname, '../frontend/src/components/input/InputArea.vue');
+    const filePath = resolve(__dirname, '../frontend/src/components/input/useInputAreaConfig.ts');
     const content = readFileSync(filePath, 'utf8');
 
     // The footer control should not be a no-op; it must flip the enabled flag.

@@ -1,0 +1,20 @@
+export const jaComponentsHistory = {
+    title: '会話履歴',
+    empty: '会話履歴がありません',
+    deleteConfirm: 'この会話を削除してもよろしいですか？',
+    searchPlaceholder: '会話を検索...',
+    clearSearch: '検索をクリア',
+    noSearchResults: '一致する会話がありません',
+    today: '今日',
+    yesterday: '昨日',
+    thisWeek: '今週',
+    earlier: 'それ以前',
+    noTitle: 'タイトルなし',
+    currentWorkspace: '現在のワークスペース',
+    allWorkspaces: 'すべてのワークスペース',
+    backToChat: '会話に戻る',
+    showHistory: '履歴を表示：',
+    revealInExplorer: 'エクスプローラーで表示',
+    deleteConversation: '会話を削除',
+    messages: '件のメッセージ'
+};

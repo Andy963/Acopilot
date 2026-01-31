@@ -39,12 +39,7 @@ import type {
 
 import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
-import {
-  LOCATE_CARRYOVER_METADATA_KEY,
-  buildLocateCarryoverTaskContext,
-  createLocateCarryoverState,
-  parseLocateCarryoverState,
-} from './locateCarryover';
+import { resolveLocateModeParams } from './locateMode';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 import type { ToolIterationLoopService } from './ToolIterationLoopService';
@@ -85,47 +80,6 @@ export class ChatFlowService {
     return this.settingsManager?.getMaxToolIterations() ?? 20;
   }
 
-  private static readonly LOCATE_TOOL_ALLOWLIST = [
-    'search_in_files',
-    'find_files',
-    'read_file',
-    'get_errors',
-    'get_usages',
-    'open_file'
-  ] as const;
-
-  private static readonly LOCATE_TASK_CONTEXT = [
-    'LOCATE MODE:',
-    '- Goal: quickly locate the relevant file/line and open it.',
-    '- Do NOT modify code and do NOT propose patches.',
-    '- Use tools (read/search/lsp) to narrow down the location.',
-    '- Once confident, call open_file(path, start_line, start_column) to open the best match.',
-    '- After opening, reply with a short note of what you opened (file:line) and wait for the user to edit.'
-  ].join('\n');
-
-  private async applyPendingLocateCarryover(
-    conversationId: string,
-    isLocateMode: boolean,
-    taskContext: string | undefined
-  ): Promise<string | undefined> {
-    if (isLocateMode) return taskContext;
-
-    const raw = await this.conversationManager.getCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY);
-    const state = parseLocateCarryoverState(raw);
-    if (!state || !state.pending) return taskContext;
-
-    const carryoverBlock = buildLocateCarryoverTaskContext(state);
-    const nextTaskContext = [carryoverBlock, taskContext?.trim() ? taskContext.trim() : ''].filter(Boolean).join('\n\n');
-
-    await this.conversationManager.setCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY, {
-      ...state,
-      pending: false,
-      updatedAt: Date.now(),
-    });
-
-    return nextTaskContext;
-  }
-
   /**
    * 确保对话存在（不存在则创建）
    */
@@ -164,46 +118,21 @@ export class ChatFlowService {
       };
     }
 
-    const isLocateMode = request.mode === 'locate';
-    const effectiveMessage = isLocateMode ? String(message || '').replace(/^\s*\/locate\b\s*/i, '') : message;
+    const locate = await resolveLocateModeParams({
+      conversationManager: this.conversationManager,
+      settingsManager: this.settingsManager,
+      conversationId,
+      mode: request.mode,
+      message,
+      contextOverrides: request.contextOverrides,
+      taskContext: request.taskContext,
+    });
 
-    let effectiveContextOverrides = request.contextOverrides;
-    let effectiveTaskContext = request.taskContext;
-
-    if (isLocateMode) {
-      if (this.settingsManager && this.settingsManager.isToolEnabled('locate') === false) {
-        return {
-          success: false,
-          error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' }
-        };
-      }
-
-      const locateModel = (() => {
-        const cfg = this.settingsManager?.getToolsConfig?.();
-        const raw = (cfg as any)?.locate?.model;
-        return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
-      })();
-
-      effectiveContextOverrides = {
-        ...(effectiveContextOverrides || {}),
-        mode: 'locate',
-        includeTools: true,
-        toolAllowList: [...ChatFlowService.LOCATE_TOOL_ALLOWLIST],
-        ...(locateModel ? { modelOverride: locateModel } : {}),
-      };
-
-      const userTaskContext = typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
-        ? effectiveTaskContext.trim()
-        : '';
-      effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\n\n');
-
-      const carryover = createLocateCarryoverState(effectiveMessage);
-      if (carryover) {
-        await this.conversationManager.setCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY, carryover);
-      }
+    if (locate.ok === false) {
+      return { success: false, error: locate.error };
     }
 
-    effectiveTaskContext = await this.applyPendingLocateCarryover(conversationId, isLocateMode, effectiveTaskContext);
+    const { effectiveMessage, effectiveContextOverrides, effectiveTaskContext } = locate;
 
     // 3. 添加用户消息到历史（包含附件）
     const userParts = this.messageBuilderService.buildUserMessageParts(effectiveMessage, request.attachments);
@@ -447,47 +376,22 @@ export class ChatFlowService {
       return;
     }
 
-    const isLocateMode = request.mode === 'locate';
-    const effectiveMessage = isLocateMode ? String(message || '').replace(/^\s*\/locate\b\s*/i, '') : message;
+    const locate = await resolveLocateModeParams({
+      conversationManager: this.conversationManager,
+      settingsManager: this.settingsManager,
+      conversationId,
+      mode: request.mode,
+      message,
+      contextOverrides: request.contextOverrides,
+      taskContext: request.taskContext,
+    });
 
-    let effectiveContextOverrides = request.contextOverrides;
-    let effectiveTaskContext = request.taskContext;
-
-    if (isLocateMode) {
-      if (this.settingsManager && this.settingsManager.isToolEnabled('locate') === false) {
-        yield {
-          conversationId,
-          error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' }
-        };
-        return;
-      }
-
-      const locateModel = (() => {
-        const cfg = this.settingsManager?.getToolsConfig?.();
-        const raw = (cfg as any)?.locate?.model;
-        return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
-      })();
-
-      effectiveContextOverrides = {
-        ...(effectiveContextOverrides || {}),
-        mode: 'locate',
-        includeTools: true,
-        toolAllowList: [...ChatFlowService.LOCATE_TOOL_ALLOWLIST],
-        ...(locateModel ? { modelOverride: locateModel } : {})
-      };
-
-      const userTaskContext = typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
-        ? effectiveTaskContext.trim()
-        : '';
-      effectiveTaskContext = [ChatFlowService.LOCATE_TASK_CONTEXT, userTaskContext].filter(Boolean).join('\n\n');
-
-      const carryover = createLocateCarryoverState(effectiveMessage);
-      if (carryover) {
-        await this.conversationManager.setCustomMetadata(conversationId, LOCATE_CARRYOVER_METADATA_KEY, carryover);
-      }
+    if (locate.ok === false) {
+      yield { conversationId, error: locate.error };
+      return;
     }
 
-    effectiveTaskContext = await this.applyPendingLocateCarryover(conversationId, isLocateMode, effectiveTaskContext);
+    const { effectiveMessage, effectiveContextOverrides, effectiveTaskContext } = locate;
 
     // 3. 中断之前未完成的 diff 等待
     this.diffInterruptService.markUserInterrupt();

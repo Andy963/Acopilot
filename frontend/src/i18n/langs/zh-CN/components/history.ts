@@ -1,0 +1,20 @@
+export const zhCNComponentsHistory = {
+    title: '对话历史',
+    empty: '暂无对话记录',
+    deleteConfirm: '确定要删除这条对话吗？',
+    searchPlaceholder: '搜索对话...',
+    clearSearch: '清除搜索',
+    noSearchResults: '没有匹配的对话',
+    today: '今天',
+    yesterday: '昨天',
+    thisWeek: '本周',
+    earlier: '更早',
+    noTitle: '无标题',
+    currentWorkspace: '当前工作区',
+    allWorkspaces: '全部工作区',
+    backToChat: '返回对话',
+    showHistory: '显示对话历史：',
+    revealInExplorer: '在文件管理器中显示',
+    deleteConversation: '删除对话',
+    messages: '条消息'
+};

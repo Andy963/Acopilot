@@ -6,12 +6,34 @@
  * 返回图片和文字解释作为工具响应
  */
 
-import * as vscode from 'vscode';
 import * as path from 'path';
 import type { Tool, ToolResult, MultimodalData, ToolContext } from '../types';
-import { resolveUri, getAllWorkspaces, calculateAspectRatio } from '../utils';
-import { createProxyFetch } from '../../modules/channel/proxyFetch';
+import { getAllWorkspaces, calculateAspectRatio } from '../utils';
 import { TaskManager, type TaskEvent } from '../taskManager';
+
+import {
+    SUPPORTED_ASPECT_RATIOS,
+    SUPPORTED_IMAGE_SIZES,
+    type AspectRatio,
+    type GenerateImageConfig,
+    type GeneratedImage,
+    type ImageSize,
+    type ImageTask,
+    type ReferenceImage,
+    type TaskResult,
+    type ToolParamsConfig
+} from './generateImageTypes';
+
+import {
+    callGeminiImageApi,
+    callTogetherImagesApi,
+    detectImageProvider,
+    extractFromResponse,
+    extractFromTogetherResponse,
+    getExtensionFromMimeType,
+    readReferenceImage,
+    saveImage
+} from './generateImageHelpers';
 
 /** 图像生成任务类型常量 */
 const TASK_TYPE_IMAGE_GEN = 'image_generation';
@@ -82,521 +104,6 @@ export function getActiveImageTasks(): Array<{
 }
 
 /**
- * 支持的宽高比
- */
-const SUPPORTED_ASPECT_RATIOS = [
-    '1:1', '3:2', '2:3', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'
-] as const;
-
-type AspectRatio = typeof SUPPORTED_ASPECT_RATIOS[number];
-
-/**
- * 支持的图片尺寸
- */
-const SUPPORTED_IMAGE_SIZES = ['1K', '2K', '4K'] as const;
-type ImageSize = typeof SUPPORTED_IMAGE_SIZES[number];
-
-/**
- * 单个图像生成任务
- */
-interface ImageTask {
-    /** 图片生成的自然语言提示词 */
-    prompt: string;
-    /** 参考图片路径数组 */
-    reference_images?: string[];
-    /** 图片宽高比 */
-    aspect_ratio?: AspectRatio;
-    /** 图片分辨率 */
-    image_size?: ImageSize;
-    /** 输出文件路径 */
-    output_path: string;
-}
-
-/**
- * 图像生成工具配置（从 context.config 获取）
- */
-interface GenerateImageConfig {
-    /** API URL */
-    url?: string;
-    /** API Key */
-    apiKey?: string;
-    /** 模型名称 */
-    model?: string;
-    /** 是否启用宽高比参数 */
-    enableAspectRatio?: boolean;
-    /** 默认宽高比（启用时生效） */
-    defaultAspectRatio?: string;
-    /** 是否启用图片尺寸参数 */
-    enableImageSize?: boolean;
-    /** 默认图片尺寸（启用时生效） */
-    defaultImageSize?: string;
-    /** 单次调用允许的最大任务数（批量模式） */
-    maxBatchTasks?: number;
-    /** 单个任务的最大图片数 */
-    maxImagesPerTask?: number;
-    /** 代理 URL */
-    proxyUrl?: string;
-    /** 取消信号 */
-    abortSignal?: AbortSignal;
-    /** 是否将图片返回给 AI */
-    returnImageToAI?: boolean;
-}
-
-/**
- * 工具参数配置（传递给 createGenerateImageTool）
- */
-interface ToolParamsConfig {
-    /** 是否启用宽高比参数 */
-    enableAspectRatio: boolean;
-    /** 强制宽高比（如果设置，AI 不能更改） */
-    forcedAspectRatio?: string;
-    /** 是否启用图片尺寸参数 */
-    enableImageSize: boolean;
-    /** 强制图片尺寸（如果设置，AI 不能更改） */
-    forcedImageSize?: string;
-}
-
-/**
- * 单个任务的生成结果
- */
-interface TaskResult {
-    /** 任务索引 */
-    index: number;
-    /** 是否成功 */
-    success: boolean;
-    /** 错误信息 */
-    error?: string;
-    /** 保存的文件路径 */
-    paths?: string[];
-    /** 生成的图片数量 */
-    count?: number;
-    /** 图片尺寸信息 */
-    dimensions?: Array<{ width: number; height: number; aspectRatio: string }>;
-    /** 模型描述文本 */
-    description?: string;
-    /** 多模态数据 */
-    multimodal?: MultimodalData[];
-    /** 是否被用户取消 */
-    cancelled?: boolean;
-}
-
-/**
- * Gemini Image API 响应
- */
-interface GeminiImageResponse {
-    candidates?: Array<{
-        content?: {
-            parts?: Array<{
-                text?: string;
-                inlineData?: {
-                    mimeType: string;
-                    data: string;
-                };
-            }>;
-        };
-    }>;
-    error?: {
-        code: number;
-        message: string;
-    };
-}
-
-/**
- * Together Images API 响应（OpenAI-like）
- */
-interface TogetherImageResponse {
-    data?: Array<{
-        b64_json?: string;
-        // Some providers might return url instead; we don't support it currently.
-        url?: string;
-    }>;
-    error?: {
-        message?: string;
-        type?: string;
-        code?: unknown;
-    };
-}
-
-type ImageProvider = 'gemini' | 'together';
-
-function detectImageProvider(config: GenerateImageConfig): ImageProvider {
-    const url = (config.url || '').toLowerCase();
-    const model = (config.model || '').toLowerCase();
-
-    // Together models are typically namespaced (e.g. "google/flash-image-2.5").
-    if (url.includes('together.xyz') || model.includes('/')) {
-        return 'together';
-    }
-    return 'gemini';
-}
-
-function getTogetherImagesEndpoint(configUrl?: string): string {
-    const defaultBase = 'https://api.together.xyz/v1';
-    const raw = (configUrl && configUrl.trim()) ? configUrl.trim() : '';
-
-    // Allow both base URL (".../v1") and full endpoint (".../v1/images/generations").
-    const normalized = (raw || defaultBase).replace(/\/+$/, '');
-
-    // Common misconfiguration: user left Gemini base URL while selecting Together model.
-    // In this case, fall back to the official Together endpoint.
-    if (normalized.includes('generativelanguage.googleapis.com')) {
-        return `${defaultBase}/images/generations`;
-    }
-    if (normalized.endsWith('/images/generations')) {
-        return normalized;
-    }
-    return `${normalized}/images/generations`;
-}
-
-/**
- * 读取参考图片
- */
-async function readReferenceImage(imgPath: string): Promise<{ data: string; mimeType: string } | null> {
-    const uri = resolveUri(imgPath);
-    if (!uri) {
-        return null;
-    }
-
-    try {
-        const content = await vscode.workspace.fs.readFile(uri);
-        const ext = path.extname(imgPath).toLowerCase();
-        let mimeType = 'image/png';
-        if (ext === '.jpg' || ext === '.jpeg') {
-            mimeType = 'image/jpeg';
-        } else if (ext === '.webp') {
-            mimeType = 'image/webp';
-        }
-
-        return {
-            data: Buffer.from(content).toString('base64'),
-            mimeType
-        };
-    } catch (error) {
-        return null;
-    }
-}
-
-/**
- * 调用 Gemini Image API 生成图片
- */
-async function callGeminiImageApi(
-    prompt: string,
-    referenceImages: Array<{ data: string; mimeType: string }>,
-    aspectRatio: string | undefined,
-    imageSize: string | undefined,
-    config: GenerateImageConfig,
-    abortSignal?: AbortSignal
-): Promise<GeminiImageResponse> {
-    const apiKey = config.apiKey;
-    if (!apiKey) {
-        throw new Error('API Key not configured. Please configure generate_image tool in settings.');
-    }
-
-    const model = config.model || 'gemini-3-pro-image-preview';
-    const baseUrl = config.url || 'https://generativelanguage.googleapis.com/v1beta';
-    const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
-
-    // 构建 parts
-    const parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = [];
-
-    // 添加文本提示
-    parts.push({ text: prompt });
-
-    // 添加参考图片
-    if (referenceImages && referenceImages.length > 0) {
-        for (const img of referenceImages) {
-            parts.push({
-                inline_data: {
-                    mime_type: img.mimeType,
-                    data: img.data
-                }
-            });
-        }
-    }
-
-    // 构建请求体
-    const requestBody: Record<string, unknown> = {
-        contents: [{
-            parts
-        }],
-        generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE']
-        }
-    };
-
-    // 配置图片选项
-    // 只有当参数有值时才传入 imageConfig
-    if (aspectRatio || imageSize) {
-        const imageConfig: Record<string, string> = {};
-        if (aspectRatio) {
-            imageConfig.aspectRatio = aspectRatio;
-        }
-        if (imageSize) {
-            imageConfig.imageSize = imageSize;
-        }
-        if (Object.keys(imageConfig).length > 0) {
-            (requestBody.generationConfig as Record<string, unknown>).imageConfig = imageConfig;
-        }
-    }
-
-    // 检查是否已取消
-    if (abortSignal?.aborted) {
-        throw new Error('Request cancelled');
-    }
-
-    // 创建 fetch 函数（支持代理）
-    const fetchFn = createProxyFetch(config.proxyUrl);
-
-    // 发送请求（传递取消信号）
-    const response = await fetchFn(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody),
-        signal: abortSignal
-    });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} ${errorText}`);
-    }
-
-    return await response.json() as GeminiImageResponse;
-}
-
-/**
- * 调用 Together Images API 生成图片
- */
-async function callTogetherImagesApi(
-    prompt: string,
-    config: GenerateImageConfig,
-    abortSignal?: AbortSignal
-): Promise<TogetherImageResponse> {
-    const apiKey = config.apiKey;
-    if (!apiKey) {
-        throw new Error('API Key not configured. Please configure generate_image tool in settings.');
-    }
-
-    const model = config.model || 'google/flash-image-2.5';
-    const url = getTogetherImagesEndpoint(config.url);
-
-    if (abortSignal?.aborted) {
-        throw new Error('Request cancelled');
-    }
-
-    const fetchFn = createProxyFetch(config.proxyUrl);
-
-    const requestHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-    };
-
-    // Prefer base64 responses for chat rendering; fall back if upstream rejects this parameter.
-    const requestBodyWithFormat = {
-        model,
-        prompt,
-        response_format: 'b64_json'
-    };
-
-    let response = await fetchFn(url, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: JSON.stringify(requestBodyWithFormat),
-        signal: abortSignal
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        const maybeUnsupportedResponseFormat =
-            response.status === 400 &&
-            /response_format/i.test(errorText) &&
-            /(unsupported|unknown|unrecognized|invalid)/i.test(errorText);
-
-        if (maybeUnsupportedResponseFormat) {
-            response = await fetchFn(url, {
-                method: 'POST',
-                headers: requestHeaders,
-                body: JSON.stringify({ model, prompt }),
-                signal: abortSignal
-            });
-        } else {
-            throw new Error(`API request failed: ${response.status} ${errorText}`);
-        }
-    }
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} ${errorText}`);
-    }
-
-    return await response.json() as TogetherImageResponse;
-}
-
-/**
- * 解析 base64 图片数据获取尺寸（支持 PNG, JPEG, WebP）
- */
-function parseImageDimensionsFromBase64(base64Data: string, mimeType: string): { width: number; height: number } | null {
-    try {
-        const buffer = Buffer.from(base64Data, 'base64');
-        
-        if (mimeType === 'image/png') {
-            // PNG: 宽度在偏移 16-19，高度在 20-23（大端序）
-            if (buffer.length >= 24 &&
-                buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
-                const width = (buffer[16] << 24) | (buffer[17] << 16) | (buffer[18] << 8) | buffer[19];
-                const height = (buffer[20] << 24) | (buffer[21] << 16) | (buffer[22] << 8) | buffer[23];
-                if (width > 0 && height > 0) {
-                    return { width, height };
-                }
-            }
-        } else if (mimeType === 'image/jpeg') {
-            // JPEG: 需要查找 SOF0/SOF2 标记
-            let offset = 2;  // 跳过 FFD8
-            while (offset < buffer.length - 9) {
-                if (buffer[offset] !== 0xFF) {
-                    offset++;
-                    continue;
-                }
-                const marker = buffer[offset + 1];
-                // SOF0 (0xC0) 或 SOF2 (0xC2) 标记包含尺寸
-                if (marker === 0xC0 || marker === 0xC2) {
-                    const height = (buffer[offset + 5] << 8) | buffer[offset + 6];
-                    const width = (buffer[offset + 7] << 8) | buffer[offset + 8];
-                    if (width > 0 && height > 0) {
-                        return { width, height };
-                    }
-                    break;
-                }
-                // 跳到下一个标记
-                const length = (buffer[offset + 2] << 8) | buffer[offset + 3];
-                offset += 2 + length;
-            }
-        } else if (mimeType === 'image/webp') {
-            // WebP: 检查 RIFF 头
-            if (buffer.length >= 30 &&
-                buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
-                buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
-                // VP8X (扩展格式)
-                if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x58) {
-                    const width = ((buffer[24] | (buffer[25] << 8) | (buffer[26] << 16)) + 1);
-                    const height = ((buffer[27] | (buffer[28] << 8) | (buffer[29] << 16)) + 1);
-                    if (width > 0 && height > 0) {
-                        return { width, height };
-                    }
-                }
-                // VP8 (有损格式)
-                else if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x20) {
-                    if (buffer.length >= 30) {
-                        const width = (buffer[26] | (buffer[27] << 8)) & 0x3FFF;
-                        const height = (buffer[28] | (buffer[29] << 8)) & 0x3FFF;
-                        if (width > 0 && height > 0) {
-                            return { width, height };
-                        }
-                    }
-                }
-            }
-        }
-    } catch {
-        // 解析失败
-    }
-    return null;
-}
-
-/**
- * 从响应中提取图片和文本
- */
-function extractFromResponse(response: GeminiImageResponse): {
-    images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }>;
-    texts: string[];
-} {
-    const images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }> = [];
-    const texts: string[] = [];
-
-    if (response.candidates) {
-        for (const candidate of response.candidates) {
-            if (candidate.content?.parts) {
-                for (const part of candidate.content.parts) {
-                    if (part.inlineData) {
-                        const dimensions = parseImageDimensionsFromBase64(part.inlineData.data, part.inlineData.mimeType);
-                        images.push({
-                            data: part.inlineData.data,
-                            mimeType: part.inlineData.mimeType,
-                            dimensions: dimensions || undefined
-                        });
-                    }
-                    if (part.text) {
-                        texts.push(part.text);
-                    }
-                }
-            }
-        }
-    }
-
-    return { images, texts };
-}
-
-function extractFromTogetherResponse(response: TogetherImageResponse): {
-    images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }>;
-    texts: string[];
-} {
-    const images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }> = [];
-    const texts: string[] = [];
-
-    const data = response.data || [];
-    for (const item of data) {
-        if (item.b64_json) {
-            // Together returns base64 image data without mime type. Most models return PNG.
-            const mimeType = 'image/png';
-            const dimensions = parseImageDimensionsFromBase64(item.b64_json, mimeType);
-            images.push({ data: item.b64_json, mimeType, dimensions: dimensions || undefined });
-        }
-    }
-
-    if (images.length === 0) {
-        if (data.some(d => d.url)) {
-            texts.push('Together API returned image URLs, but this tool only supports base64 (b64_json) responses.');
-        }
-    }
-
-    return { images, texts };
-}
-
-/**
- * 保存图片到文件
- */
-async function saveImage(base64Data: string, outputPath: string): Promise<void> {
-    const uri = resolveUri(outputPath);
-    if (!uri) {
-        throw new Error('No workspace folder open');
-    }
-
-    // 确保目录存在
-    const dirUri = vscode.Uri.joinPath(uri, '..');
-    try {
-        await vscode.workspace.fs.createDirectory(dirUri);
-    } catch {
-        // 目录可能已存在
-    }
-
-    // 写入文件
-    const buffer = Buffer.from(base64Data, 'base64');
-    await vscode.workspace.fs.writeFile(uri, buffer);
-}
-
-/**
- * 获取文件扩展名
- */
-function getExtensionFromMimeType(mimeType: string): string {
-    const mimeToExt: Record<string, string> = {
-        'image/png': '.png',
-        'image/jpeg': '.jpg',
-        'image/webp': '.webp'
-    };
-    return mimeToExt[mimeType] || '.png';
-}
-
-/**
  * 执行单个图像生成任务
  */
 async function executeImageTask(
@@ -659,7 +166,7 @@ async function executeImageTask(
         }
 
         // 读取参考图片（仅 Gemini 模式支持）
-        const referenceImages: Array<{ data: string; mimeType: string }> = [];
+        const referenceImages: ReferenceImage[] = [];
         if (provider === 'gemini' && reference_images && reference_images.length > 0) {
             for (const imgPath of reference_images) {
                 // 检查是否已取消
@@ -698,7 +205,7 @@ async function executeImageTask(
         }
 
         // 调用 API 生成图片（传递取消信号）
-        let images: Array<{ data: string; mimeType: string; dimensions?: { width: number; height: number } }> = [];
+        let images: GeneratedImage[] = [];
         let texts: string[] = [];
 
         if (provider === 'together') {
