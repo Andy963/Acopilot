@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.58] - 2026-01-31
+
+### Improved
+  - UI：消息底部模型名跑马灯改为彩虹渐变流动效果（仅流式时显示）；在 `prefers-reduced-motion` / `forced-colors` 下自动降级为纯文本色。
+
 ## [1.0.58-pre.17] - 2026-01-29
 
 ### Improved
