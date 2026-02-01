@@ -12,6 +12,7 @@ import type {
     SearchInFilesToolConfig,
     ApplyDiffToolConfig,
     DeleteFileToolConfig,
+    LocateToolConfig,
     ExecuteCommandToolConfig,
     ShellConfig,
     CheckpointConfig,
@@ -37,6 +38,7 @@ import {
     DEFAULT_SEARCH_IN_FILES_CONFIG,
     DEFAULT_APPLY_DIFF_CONFIG,
     DEFAULT_DELETE_FILE_CONFIG,
+    DEFAULT_LOCATE_CONFIG,
     DEFAULT_CHECKPOINT_CONFIG,
     DEFAULT_TOOL_AUTO_EXEC_CONFIG,
     DEFAULT_SUMMARIZE_CONFIG,
@@ -104,6 +106,29 @@ export class SettingsManager {
         });
 
         return newConfig;
+    }
+
+    private static normalizeLocateConfig(config: LocateToolConfig): LocateToolConfig {
+        const model = typeof config.model === 'string' ? config.model.trim() : '';
+        const autoTriggerEnabled =
+            typeof config.autoTriggerEnabled === 'boolean'
+                ? config.autoTriggerEnabled
+                : (DEFAULT_LOCATE_CONFIG.autoTriggerEnabled ?? true);
+
+        const triggerKeywords = Array.isArray(config.triggerKeywords)
+            ? Array.from(new Set(
+                config.triggerKeywords
+                    .map((k) => typeof k === 'string' ? k.trim() : '')
+                    .filter(Boolean)
+            )).slice(0, 200)
+            : undefined;
+
+        return {
+            ...config,
+            model,
+            autoTriggerEnabled,
+            triggerKeywords: triggerKeywords ?? [...(DEFAULT_LOCATE_CONFIG.triggerKeywords || [])]
+        };
     }
 
     async initialize(): Promise<void> {
@@ -292,6 +317,32 @@ export class SettingsManager {
 
     async updateSearchInFilesConfig(config: Partial<SearchInFilesToolConfig>): Promise<void> {
         await this.updateToolsConfigEntry('search_in_files', this.getSearchInFilesConfig(), config);
+    }
+
+    getLocateConfig(): Readonly<LocateToolConfig> {
+        const stored = (this.settings.toolsConfig as any)?.locate;
+        const merged: LocateToolConfig = {
+            ...DEFAULT_LOCATE_CONFIG,
+            ...(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {})
+        };
+        return SettingsManager.normalizeLocateConfig(merged);
+    }
+
+    async updateLocateConfig(config: Partial<LocateToolConfig>): Promise<void> {
+        const oldConfig = this.getLocateConfig();
+        const newConfig = SettingsManager.normalizeLocateConfig({
+            ...oldConfig,
+            ...config
+        });
+
+        this.ensureToolsConfig().locate = newConfig as any;
+
+        await this.commitChange({
+            type: 'tools',
+            path: 'toolsConfig.locate',
+            oldValue: oldConfig,
+            newValue: newConfig
+        });
     }
 
     async updateToolConfig(toolName: string, config: Record<string, unknown>): Promise<void> {

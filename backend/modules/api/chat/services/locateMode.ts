@@ -1,5 +1,7 @@
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import type { SettingsManager } from '../../../settings/SettingsManager';
+import type { LocateToolConfig } from '../../../settings/types';
+import { DEFAULT_LOCATE_CONFIG } from '../../../settings/types';
 import type { ContextInjectionOverrides } from '../../../conversation/types';
 import {
   LOCATE_CARRYOVER_METADATA_KEY,
@@ -34,6 +36,75 @@ export type LocateModeResolution =
       effectiveTaskContext: string | undefined;
     }
   | { ok: false; error: { code: 'LOCATE_DISABLED'; message: string } };
+
+const LOCATE_SLASH_PREFIX = /^\s*\/locate\b/i;
+
+const LOCATE_EDIT_INTENT_KEYWORDS = [
+  'fix',
+  'modify',
+  'change',
+  'update',
+  'edit',
+  'implement',
+  'refactor',
+  'add',
+  'remove',
+  'delete',
+  'rename',
+  'rewrite',
+  'patch',
+  'apply',
+  'write',
+  'create',
+  'replace',
+  'bug',
+  '\u4fee\u590d',
+  '\u4fee\u6539',
+  '\u5b9e\u73b0',
+  '\u91cd\u6784',
+  '\u6539',
+  '\u5220\u9664',
+  '\u66ff\u6362',
+  '\u589e\u52a0',
+  '\u6dfb\u52a0'
+] as const;
+
+function normalizeForMatch(value: string): string {
+  return String(value || '').toLowerCase();
+}
+
+function hasAnyKeyword(haystack: string, keywords: readonly string[]): boolean {
+  const text = normalizeForMatch(haystack);
+  for (const raw of keywords) {
+    const k = String(raw || '').trim();
+    if (!k) continue;
+    if (text.includes(k.toLowerCase())) return true;
+  }
+  return false;
+}
+
+function getLocateConfig(settingsManager: SettingsManager | undefined): LocateToolConfig {
+  if (!settingsManager) return DEFAULT_LOCATE_CONFIG;
+  return settingsManager.getLocateConfig();
+}
+
+function shouldAutoEnterLocateMode(message: string, config: LocateToolConfig): boolean {
+  if (config.autoTriggerEnabled === false) return false;
+
+  const raw = String(message || '');
+  const trimmed = raw.trim();
+  if (!trimmed) return false;
+
+  // Do not infer locate mode for other slash commands.
+  if (/^\s*\/\w+/.test(trimmed)) return false;
+
+  if (hasAnyKeyword(trimmed, LOCATE_EDIT_INTENT_KEYWORDS)) return false;
+
+  const keywords = Array.isArray(config.triggerKeywords) ? config.triggerKeywords : [];
+  if (keywords.length === 0) return false;
+
+  return hasAnyKeyword(trimmed, keywords);
+}
 
 async function applyPendingLocateCarryover(input: {
   conversationManager: ConversationManager;
@@ -70,21 +141,29 @@ export async function resolveLocateModeParams(input: {
   contextOverrides: ContextInjectionOverrides | undefined;
   taskContext: string | undefined;
 }): Promise<LocateModeResolution> {
-  const isLocateMode = input.mode === 'locate';
   const rawMessage = String(input.message || '');
-  const effectiveMessage = isLocateMode ? rawMessage.replace(/^\s*\/locate\b\s*/i, '') : rawMessage;
+
+  const locateConfig = getLocateConfig(input.settingsManager);
+  const locateToolEnabled = input.settingsManager ? input.settingsManager.isToolEnabled('locate') !== false : true;
+
+  const explicitLocateMode = input.mode === 'locate' || LOCATE_SLASH_PREFIX.test(rawMessage);
+  const inferredLocateMode = !explicitLocateMode && locateToolEnabled && shouldAutoEnterLocateMode(rawMessage, locateConfig);
+  const isLocateMode = explicitLocateMode || inferredLocateMode;
+
+  if (explicitLocateMode && !locateToolEnabled) {
+    return { ok: false, error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' } };
+  }
+
+  const effectiveMessage = LOCATE_SLASH_PREFIX.test(rawMessage)
+    ? rawMessage.replace(/^\s*\/locate\b\s*/i, '')
+    : rawMessage;
 
   let effectiveContextOverrides = input.contextOverrides;
   let effectiveTaskContext = input.taskContext;
 
   if (isLocateMode) {
-    if (input.settingsManager && input.settingsManager.isToolEnabled('locate') === false) {
-      return { ok: false, error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' } };
-    }
-
     const locateModel = (() => {
-      const cfg = input.settingsManager?.getToolsConfig?.();
-      const raw = (cfg as any)?.locate?.model;
+      const raw = locateConfig.model;
       return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
     })();
 
@@ -120,4 +199,3 @@ export async function resolveLocateModeParams(input: {
     effectiveTaskContext,
   };
 }
-

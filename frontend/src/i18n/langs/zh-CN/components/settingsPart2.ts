@@ -552,11 +552,16 @@ export const zhCNComponentsSettingsPart2 = {
         },
         lsp: {
             locate: {
-                title: '定位（/locate）',
-                hint: '（可选）为 /locate 指定一个更快的模型，留空则使用当前对话模型',
+                title: '定位（Locate）',
+                hint: '（可选）可自动触发 Locate 模式；/locate 仍可作为兼容入口。可配置模型覆盖与触发关键词',
                 useChatModelOption: '跟随当前对话模型（不覆盖）',
                 modelLabel: '定位模型',
-                modelPlaceholder: '留空使用当前对话模型（例如：gemini-2.5-flash）'
+                modelPlaceholder: '留空使用当前对话模型（例如：gemini-2.5-flash）',
+                autoTriggerLabel: '自动触发',
+                autoTriggerHint: '开启后，当消息命中触发关键词时会自动进入 Locate 模式',
+                triggerKeywordsLabel: '触发关键词',
+                triggerKeywordsHint: '每行一个；大小写不敏感；子串匹配',
+                triggerKeywordsPlaceholder: '例如：\\n在哪\\n打开\\ndefinition\\nusages'
             }
         },
         terminal: {

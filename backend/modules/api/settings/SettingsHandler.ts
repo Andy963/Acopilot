@@ -342,6 +342,14 @@ export class SettingsHandler {
                 };
             }
 
+            if (toolName === 'locate') {
+                const config = this.settingsManager.getLocateConfig();
+                return {
+                    success: true,
+                    config
+                };
+            }
+
             if (toolName === 'generate_image') {
                 const config = this.settingsManager.getGenerateImageConfig();
                 return {
@@ -422,6 +430,8 @@ export class SettingsHandler {
                 await this.settingsManager.updateDeleteFileConfig(config);
             } else if (toolName === 'execute_command') {
                 await this.settingsManager.updateExecuteCommandConfig(config);
+            } else if (toolName === 'locate') {
+                await this.settingsManager.updateLocateConfig(config);
             } else if (toolName === 'checkpoint') {
                 await this.settingsManager.updateCheckpointConfig(config);
             } else if (toolName === 'summarize') {

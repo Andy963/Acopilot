@@ -4,6 +4,7 @@ import {
     DEFAULT_DELETE_FILE_CONFIG,
     DEFAULT_FIND_FILES_CONFIG,
     DEFAULT_LIST_FILES_CONFIG,
+    DEFAULT_LOCATE_CONFIG,
     DEFAULT_SEARCH_IN_FILES_CONFIG,
     getDefaultExecuteCommandConfig
 } from './toolConfigs';
@@ -76,6 +77,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
         list_files: DEFAULT_LIST_FILES_CONFIG,
         find_files: DEFAULT_FIND_FILES_CONFIG,
         search_in_files: DEFAULT_SEARCH_IN_FILES_CONFIG,
+        locate: DEFAULT_LOCATE_CONFIG,
         apply_diff: DEFAULT_APPLY_DIFF_CONFIG,
         delete_file: DEFAULT_DELETE_FILE_CONFIG,
         execute_command: getDefaultExecuteCommandConfig(),
@@ -102,4 +104,3 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
     },
     lastUpdated: Date.now()
 };
-

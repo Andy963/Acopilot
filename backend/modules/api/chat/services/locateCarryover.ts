@@ -78,7 +78,7 @@ export function buildLocateCarryoverTaskContext(state: LocateCarryoverState): st
     : '';
 
   return [
-    'PREVIOUS /locate CONTEXT (auto-carried):',
+    'PREVIOUS LOCATE CONTEXT (auto-carried):',
     `- query: ${state.query}`,
     opened ? `- opened: ${opened}` : '',
   ]
@@ -97,4 +97,3 @@ export function withOpenedFile(
     updatedAt: Date.now(),
   };
 }
-

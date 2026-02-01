@@ -552,11 +552,16 @@ export const jaComponentsSettingsPart2 = {
         },
         lsp: {
             locate: {
-                title: 'Locate（/locate）',
-                hint: '（任意）/locate 用の高速モデルを指定できます。空欄の場合は現在の会話モデルを使用します',
+                title: 'Locate',
+                hint: '（任意）Locate クエリを自動判定して起動します（/locate も利用可能）',
                 useChatModelOption: '現在の会話モデルに従う（上書きしない）',
-                modelLabel: '定位モデル',
-                modelPlaceholder: '空欄の場合は現在の会話モデル（例：gemini-2.5-flash）'
+                modelLabel: 'Locate モデル',
+                modelPlaceholder: '空欄の場合は現在の会話モデル（例：gemini-2.5-flash）',
+                autoTriggerLabel: '自動トリガー',
+                autoTriggerHint: '有効にすると、メッセージがキーワードに一致したとき Locate モードを自動で起動します',
+                triggerKeywordsLabel: 'トリガーキーワード',
+                triggerKeywordsHint: '1 行に 1 つ。大文字/小文字を区別しない部分一致',
+                triggerKeywordsPlaceholder: '例:\\nwhere is\\nopen file\\ndefinition\\nusages'
             }
         },
         terminal: {

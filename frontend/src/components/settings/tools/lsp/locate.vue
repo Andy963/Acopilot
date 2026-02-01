@@ -1,30 +1,55 @@
 <script setup lang="ts">
 /**
- * Locate（/locate）配置面板
+ * Locate tool configuration panel.
  *
- * 用于指定 locate 模式使用的模型：
- * - 留空：使用当前对话模型
- * - 填写：覆盖本次 /locate 请求使用的 model
+ * Configure:
+ * - Model override for Locate mode (optional)
+ * - Auto-trigger and trigger keywords
  */
 
 import { ref, onMounted } from 'vue'
 import { sendToExtension } from '@/utils/vscode'
-import { CustomSelect, type SelectOption } from '../../../common'
+import { CustomCheckbox, CustomSelect, type SelectOption } from '../../../common'
 import { t } from '@/i18n'
 
 const model = ref<string>('')
+const autoTriggerEnabled = ref<boolean>(true)
+const triggerKeywordsText = ref<string>('')
 const isLoading = ref(false)
 const isLoadingModels = ref(false)
 const isSaving = ref(false)
 const modelOptions = ref<SelectOption[]>([])
 
+function parseTriggerKeywords(text: string): string[] {
+  const raw = String(text || '')
+  const lines = raw.split(/\r?\n/)
+  const keywords: string[] = []
+  const seen = new Set<string>()
+
+  for (const line of lines) {
+    const keyword = line.trim()
+    if (!keyword) continue
+    if (seen.has(keyword)) continue
+    seen.add(keyword)
+    keywords.push(keyword)
+  }
+
+  return keywords
+}
+
 async function loadConfig() {
   isLoading.value = true
   try {
-    const resp = await sendToExtension<{ config: { model?: string } }>('tools.getToolConfig', {
+    const resp = await sendToExtension<{
+      config: { model?: string; autoTriggerEnabled?: boolean; triggerKeywords?: string[] }
+    }>('tools.getToolConfig', {
       toolName: 'locate'
     })
     model.value = typeof resp?.config?.model === 'string' ? resp.config.model : ''
+    autoTriggerEnabled.value = typeof resp?.config?.autoTriggerEnabled === 'boolean' ? resp.config.autoTriggerEnabled : true
+    triggerKeywordsText.value = Array.isArray(resp?.config?.triggerKeywords)
+      ? resp.config.triggerKeywords.filter((k): k is string => typeof k === 'string').join('\n')
+      : ''
   } catch (err) {
     console.error('Failed to load locate config:', err)
   } finally {
@@ -83,7 +108,9 @@ async function saveConfig() {
     await sendToExtension('tools.updateToolConfig', {
       toolName: 'locate',
       config: {
-        model: model.value.trim()
+        model: model.value.trim(),
+        autoTriggerEnabled: autoTriggerEnabled.value,
+        triggerKeywords: parseTriggerKeywords(triggerKeywordsText.value)
       }
     })
   } catch (err) {
@@ -95,6 +122,11 @@ async function saveConfig() {
 
 function handleModelChange(value: string) {
   model.value = value
+  saveConfig()
+}
+
+function handleAutoTriggerChange(value: boolean) {
+  autoTriggerEnabled.value = value
   saveConfig()
 }
 
@@ -118,21 +150,55 @@ onMounted(() => {
           <span>{{ t('components.settings.toolSettings.common.loading') }}</span>
         </div>
 
-        <div v-else class="row">
-          <label class="label">{{ t('components.settings.toolSettings.lsp.locate.modelLabel') }}</label>
-          <CustomSelect
-            class="select"
-            :model-value="model"
-            :options="modelOptions"
-            searchable
-            :disabled="isSaving || isLoadingModels"
-            :placeholder="t('components.settings.toolSettings.lsp.locate.modelPlaceholder')"
-            @update:modelValue="handleModelChange"
-          />
-          <button class="save-btn" :disabled="isSaving" @click="saveConfig">
-            <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
-          </button>
-        </div>
+        <template v-else>
+          <div class="row">
+            <label class="label">{{ t('components.settings.toolSettings.lsp.locate.modelLabel') }}</label>
+            <CustomSelect
+              class="select"
+              :model-value="model"
+              :options="modelOptions"
+              searchable
+              :disabled="isSaving || isLoadingModels"
+              :placeholder="t('components.settings.toolSettings.lsp.locate.modelPlaceholder')"
+              @update:modelValue="handleModelChange"
+            />
+            <button class="save-btn" :disabled="isSaving" @click="saveConfig">
+              <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
+            </button>
+          </div>
+
+          <div class="row">
+            <label class="label">{{ t('components.settings.toolSettings.lsp.locate.autoTriggerLabel') }}</label>
+            <div class="checkbox-line">
+              <CustomCheckbox
+                :modelValue="autoTriggerEnabled"
+                :disabled="isSaving"
+                @update:modelValue="handleAutoTriggerChange"
+              />
+              <span class="field-hint">{{ t('components.settings.toolSettings.lsp.locate.autoTriggerHint') }}</span>
+            </div>
+            <button class="save-btn" :disabled="isSaving" @click="saveConfig">
+              <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
+            </button>
+          </div>
+
+          <div class="row row--top">
+            <label class="label">{{ t('components.settings.toolSettings.lsp.locate.triggerKeywordsLabel') }}</label>
+            <div class="keywords">
+              <textarea
+                v-model="triggerKeywordsText"
+                class="textarea"
+                :disabled="isSaving"
+                :placeholder="t('components.settings.toolSettings.lsp.locate.triggerKeywordsPlaceholder')"
+                @blur="saveConfig"
+              />
+              <span class="field-hint">{{ t('components.settings.toolSettings.lsp.locate.triggerKeywordsHint') }}</span>
+            </div>
+            <button class="save-btn" :disabled="isSaving" @click="saveConfig">
+              <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -193,13 +259,34 @@ onMounted(() => {
   gap: 8px;
 }
 
+.row--top {
+  align-items: start;
+}
+
 .label {
   font-size: 12px;
   color: var(--vscode-foreground);
 }
 
-.input {
+.checkbox-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.select {
   width: 100%;
+}
+
+.keywords {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 90px;
   padding: 6px 8px;
   border: 1px solid var(--vscode-input-border);
   background: var(--vscode-input-background);
@@ -207,10 +294,13 @@ onMounted(() => {
   border-radius: 2px;
   font-size: 12px;
   font-family: var(--vscode-font-family);
+  resize: vertical;
 }
 
-.select {
-  width: 100%;
+.field-hint {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--vscode-descriptionForeground);
 }
 
 .save-btn {

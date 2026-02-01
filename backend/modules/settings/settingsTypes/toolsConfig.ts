@@ -1,4 +1,4 @@
-import type { ApplyDiffToolConfig, DeleteFileToolConfig, ExecuteCommandToolConfig, FindFilesToolConfig, ListFilesToolConfig, SearchInFilesToolConfig } from './toolConfigs';
+import type { ApplyDiffToolConfig, DeleteFileToolConfig, ExecuteCommandToolConfig, FindFilesToolConfig, ListFilesToolConfig, LocateToolConfig, SearchInFilesToolConfig } from './toolConfigs';
 import type { CheckpointConfig } from './checkpoints';
 import type { ContextAwarenessConfig } from './contextAwareness';
 import type { CropImageToolConfig, GenerateImageToolConfig, RemoveBackgroundToolConfig, ResizeImageToolConfig, RotateImageToolConfig } from './mediaTools';
@@ -11,6 +11,7 @@ export interface ToolsConfig {
     list_files?: ListFilesToolConfig;
     find_files?: FindFilesToolConfig;
     search_in_files?: SearchInFilesToolConfig;
+    locate?: LocateToolConfig;
     apply_diff?: ApplyDiffToolConfig;
     delete_file?: DeleteFileToolConfig;
     execute_command?: ExecuteCommandToolConfig;
@@ -27,4 +28,3 @@ export interface ToolsConfig {
     token_count?: TokenCountConfig;
     [toolName: string]: Record<string, unknown> | undefined;
 }
-

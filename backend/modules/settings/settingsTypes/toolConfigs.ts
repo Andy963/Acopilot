@@ -26,6 +26,13 @@ export interface DeleteFileToolConfig {
     [key: string]: unknown;
 }
 
+export interface LocateToolConfig {
+    model?: string;
+    autoTriggerEnabled?: boolean;
+    triggerKeywords?: string[];
+    [key: string]: unknown;
+}
+
 export interface ShellConfig {
     type: 'powershell' | 'cmd' | 'bash' | 'zsh' | 'sh' | 'gitbash' | 'wsl';
     enabled: boolean;
@@ -158,6 +165,29 @@ export const DEFAULT_DELETE_FILE_CONFIG: DeleteFileToolConfig = {
     autoExecute: false
 };
 
+export const DEFAULT_LOCATE_TRIGGER_KEYWORDS = [
+    'where is',
+    "where's",
+    'definition',
+    'go to definition',
+    'usages',
+    'references',
+    'open file',
+    'open the file',
+    'which file',
+    'what file',
+    '\u627e',
+    '\u5b9a\u4f4d',
+    '\u6253\u5f00',
+    '\u5728\u54ea'
+] as const;
+
+export const DEFAULT_LOCATE_CONFIG: LocateToolConfig = {
+    model: '',
+    autoTriggerEnabled: true,
+    triggerKeywords: [...DEFAULT_LOCATE_TRIGGER_KEYWORDS]
+};
+
 export function getDefaultExecuteCommandConfig(): ExecuteCommandToolConfig {
     const isWindows = process.platform === 'win32';
     const isMac = process.platform === 'darwin';
@@ -194,4 +224,3 @@ export function getDefaultExecuteCommandConfig(): ExecuteCommandToolConfig {
 }
 
 export const DEFAULT_EXECUTE_COMMAND_CONFIG: ExecuteCommandToolConfig = getDefaultExecuteCommandConfig();
-

@@ -552,11 +552,16 @@ export const enComponentsSettingsPart2 = {
         },
         lsp: {
             locate: {
-                title: 'Locate (/locate)',
-                hint: '(optional) Set a faster model for /locate; leave empty to use the current chat model',
+                title: 'Locate',
+                hint: '(optional) Auto-trigger Locate mode for locate-style queries; /locate is still supported',
                 useChatModelOption: 'Follow current chat model (no override)',
                 modelLabel: 'Locate model',
-                modelPlaceholder: 'Leave empty to use current chat model (e.g. gemini-2.5-flash)'
+                modelPlaceholder: 'Leave empty to use current chat model (e.g. gemini-2.5-flash)',
+                autoTriggerLabel: 'Auto trigger',
+                autoTriggerHint: 'Infer Locate mode when your message matches trigger keywords',
+                triggerKeywordsLabel: 'Trigger keywords',
+                triggerKeywordsHint: 'One per line; case-insensitive substring match',
+                triggerKeywordsPlaceholder: 'e.g.\\nwhere is\\nopen file\\ndefinition\\nusages'
             }
         },
         terminal: {
