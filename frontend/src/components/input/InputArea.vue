@@ -14,14 +14,10 @@ import ContextOverridesPanel from './ContextOverridesPanel.vue'
 import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { useChatStore } from '../../stores'
-import { showNotification } from '../../utils/vscode'
 import type { Attachment } from '../../types'
-import { useI18n } from '../../i18n'
 import { useInputAreaConfig } from './useInputAreaConfig'
 import { useInputAreaInput } from './useInputAreaInput'
 import { useAtFilePicker } from './useAtFilePicker'
-
-const { t } = useI18n()
 
 // 固定文件项类型
 const props = defineProps<{
@@ -135,32 +131,6 @@ function openPinnedFilesPanel() {
   showContextOverridesPanel.value = false
 }
 
-// 处理总结上下文
-async function handleSummarize() {
-  if (chatStore.isWaitingForResponse) return
-
-  try {
-    const result = await chatStore.summarizeContext()
-
-    if (!result.success) {
-      await showNotification(
-        t('components.input.notifications.summarizeFailed', { error: result.error || t('common.unknownError') }),
-        'warning'
-      )
-    } else if (result.summarizedMessageCount && result.summarizedMessageCount > 0) {
-      await showNotification(
-        t('components.input.notifications.summarizeSuccess', { count: result.summarizedMessageCount }),
-        'info'
-      )
-    }
-  } catch (error: any) {
-    await showNotification(
-      t('components.input.notifications.summarizeError', { error: error.message || t('common.unknownError') }),
-      'error'
-    )
-  }
-}
-
 function toggleContextOverridesPanel() {
   showContextOverridesPanel.value = !showContextOverridesPanel.value
   if (showContextOverridesPanel.value) {
@@ -257,7 +227,6 @@ function toggleContextOverridesPanel() {
         @update-thinking-effort="handleThinkingEffortChange"
         @toggle-context-overrides="toggleContextOverridesPanel"
         @open-context-inspector="(atts) => chatStore.openContextInspectorPreview(atts)"
-        @summarize="handleSummarize"
         @send="handleSend"
         @cancel="handleCancel"
       />
@@ -363,11 +332,6 @@ function toggleContextOverridesPanel() {
 
 .thinking-effort-wrapper :deep(.custom-select) {
   width: 100%;
-}
-
-/* 压缩按钮 */
-.summarize-button :deep(i.codicon) {
-  font-size: 15px !important;
 }
 
 /* Token 圆环 */

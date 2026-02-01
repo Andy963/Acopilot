@@ -151,8 +151,16 @@ onMounted(() => {
         </div>
 
         <template v-else>
-          <div class="row">
-            <label class="label">{{ t('components.settings.toolSettings.lsp.locate.modelLabel') }}</label>
+          <div class="config-item config-item-vertical">
+            <div class="item-header">
+              <div class="item-info">
+                <span class="item-label">{{ t('components.settings.toolSettings.lsp.locate.modelLabel') }}</span>
+              </div>
+              <button class="save-btn" :disabled="isSaving" @click="saveConfig">
+                <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
+              </button>
+            </div>
+
             <CustomSelect
               class="select"
               :model-value="model"
@@ -162,41 +170,43 @@ onMounted(() => {
               :placeholder="t('components.settings.toolSettings.lsp.locate.modelPlaceholder')"
               @update:modelValue="handleModelChange"
             />
+          </div>
+
+          <div class="config-item">
+            <div class="item-info">
+              <span class="item-label">{{ t('components.settings.toolSettings.lsp.locate.autoTriggerLabel') }}</span>
+              <span class="item-description">{{ t('components.settings.toolSettings.lsp.locate.autoTriggerHint') }}</span>
+            </div>
+
+            <CustomCheckbox
+              :modelValue="autoTriggerEnabled"
+              :disabled="isSaving"
+              @update:modelValue="handleAutoTriggerChange"
+            />
+
             <button class="save-btn" :disabled="isSaving" @click="saveConfig">
               <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
             </button>
           </div>
 
-          <div class="row">
-            <label class="label">{{ t('components.settings.toolSettings.lsp.locate.autoTriggerLabel') }}</label>
-            <div class="checkbox-line">
-              <CustomCheckbox
-                :modelValue="autoTriggerEnabled"
-                :disabled="isSaving"
-                @update:modelValue="handleAutoTriggerChange"
-              />
-              <span class="field-hint">{{ t('components.settings.toolSettings.lsp.locate.autoTriggerHint') }}</span>
+          <div class="config-item config-item-vertical">
+            <div class="item-header">
+              <div class="item-info">
+                <span class="item-label">{{ t('components.settings.toolSettings.lsp.locate.triggerKeywordsLabel') }}</span>
+                <span class="item-description">{{ t('components.settings.toolSettings.lsp.locate.triggerKeywordsHint') }}</span>
+              </div>
+              <button class="save-btn" :disabled="isSaving" @click="saveConfig">
+                <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
+              </button>
             </div>
-            <button class="save-btn" :disabled="isSaving" @click="saveConfig">
-              <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
-            </button>
-          </div>
 
-          <div class="row row--top">
-            <label class="label">{{ t('components.settings.toolSettings.lsp.locate.triggerKeywordsLabel') }}</label>
-            <div class="keywords">
-              <textarea
-                v-model="triggerKeywordsText"
-                class="textarea"
-                :disabled="isSaving"
-                :placeholder="t('components.settings.toolSettings.lsp.locate.triggerKeywordsPlaceholder')"
-                @blur="saveConfig"
-              />
-              <span class="field-hint">{{ t('components.settings.toolSettings.lsp.locate.triggerKeywordsHint') }}</span>
-            </div>
-            <button class="save-btn" :disabled="isSaving" @click="saveConfig">
-              <i class="codicon" :class="isSaving ? 'codicon-loading codicon-modifier-spin' : 'codicon-save'"></i>
-            </button>
+            <textarea
+              v-model="triggerKeywordsText"
+              class="textarea"
+              :disabled="isSaving"
+              :placeholder="t('components.settings.toolSettings.lsp.locate.triggerKeywordsPlaceholder')"
+              @blur="saveConfig"
+            />
           </div>
         </template>
       </div>
@@ -241,7 +251,7 @@ onMounted(() => {
 .section-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .loading-state {
@@ -252,36 +262,53 @@ onMounted(() => {
   color: var(--vscode-descriptionForeground);
 }
 
-.row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+.config-item {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
 }
 
-.row--top {
-  align-items: start;
+.config-item-vertical {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
 }
 
-.label {
+.item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.item-label {
   font-size: 12px;
+  font-weight: 500;
   color: var(--vscode-foreground);
 }
 
-.checkbox-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.item-description {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--vscode-descriptionForeground);
 }
 
 .select {
   width: 100%;
-}
-
-.keywords {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .textarea {
@@ -295,12 +322,31 @@ onMounted(() => {
   font-size: 12px;
   font-family: var(--vscode-font-family);
   resize: vertical;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
 }
 
-.field-hint {
-  font-size: 11px;
-  font-weight: normal;
-  color: var(--vscode-descriptionForeground);
+.textarea::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.textarea::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: var(--radius-sm, 2px);
+}
+
+.textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+.textarea::-webkit-resizer {
+  display: none;
 }
 
 .save-btn {

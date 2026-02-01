@@ -8,7 +8,6 @@ import { t } from '../../../i18n';
 import { redactSensitiveText } from '../../../core/redaction';
 import type { SettingsManager } from '../../settings/SettingsManager';
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
-import { TokenCountService } from '../../channel/TokenCountService';
 import type {
     GetSettingsRequest,
     GetSettingsResponse,
@@ -42,16 +41,10 @@ import type {
  * 4. 处理 UI 设置
  */
 export class SettingsHandler {
-    private tokenCountService: TokenCountService;
-    
     constructor(
         private settingsManager: SettingsManager,
         private toolRegistry?: ToolRegistry
     ) {
-        const proxySettings = this.settingsManager.getProxySettings();
-        this.tokenCountService = new TokenCountService(
-            proxySettings?.enabled ? proxySettings.url : undefined
-        );
     }
     
     /**
@@ -677,67 +670,9 @@ export class SettingsHandler {
         totalTokens?: number;
         error?: { code: string; message: string };
     }> {
-        try {
-            const { text, channelType } = request;
-            
-            // 获取 token 计数配置
-            const tokenCountConfig = this.settingsManager.getTokenCountConfig();
-
-            // 未启用或缺少配置时，直接回退到本地估算（避免让 UI 变成“必须配置 API 才能用”）。
-            const channelCfg = tokenCountConfig[channelType];
-            const hasRemoteConfig = !!(channelCfg?.enabled && channelCfg.apiKey && channelCfg.baseUrl);
-            if (!hasRemoteConfig) {
-                return {
-                    success: true,
-                    totalTokens: Math.ceil((text || '').length / 4)
-                };
-            }
-            
-            // 更新代理设置
-            const proxySettings = this.settingsManager.getProxySettings();
-            this.tokenCountService.setProxyUrl(
-                proxySettings?.enabled ? proxySettings.url : undefined
-            );
-            
-            // 构建一个简单的 Content 对象
-            const contents = [{
-                role: 'user' as const,
-                parts: [{ text }]
-            }];
-            
-            // 调用 token 计数服务
-            const result = await this.tokenCountService.countTokens(
-                channelType,
-                tokenCountConfig,
-                contents
-            );
-            
-            if (result.success) {
-                return {
-                    success: true,
-                    totalTokens: result.totalTokens
-                };
-            } else {
-                // 远端计数失败时回退本地估算，避免阻断设置页体验
-                return {
-                    success: true,
-                    totalTokens: Math.ceil((text || '').length / 4),
-                    error: {
-                        code: 'TOKEN_COUNT_FALLBACK',
-                        message: result.error || 'Token count failed, falling back to estimation'
-                    }
-                };
-            }
-        } catch (error) {
-            const err = error as any;
-            return {
-                success: true,
-                totalTokens: Math.ceil((request.text || '').length / 4),
-                error: {
-                    code: err.code || 'TOKEN_COUNT_FALLBACK',
-                    message: redactSensitiveText(err.message || 'Token count failed, falling back to estimation')
-                }
-            };
-        }
+        return {
+            success: true,
+            totalTokens: Math.ceil((request.text || '').length / 4)
+        };
     }
 }

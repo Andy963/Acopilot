@@ -31,7 +31,6 @@ const emit = defineEmits<{
   updateThinkingEffort: [value: string]
   toggleContextOverrides: []
   openContextInspector: [attachments?: Attachment[]]
-  summarize: []
   send: []
   cancel: []
 }>()
@@ -182,16 +181,6 @@ function emitOpenContextInspector() {
         </div>
       </div>
 
-      <Tooltip :content="t('components.input.summarizeContext')" placement="top">
-        <IconButton
-          icon="codicon-fold"
-          size="small"
-          :disabled="props.isWaitingForResponse || props.usedTokens === 0"
-          class="summarize-button"
-          @click="emit('summarize')"
-        />
-      </Tooltip>
-
       <SendButton
         :disabled="!props.canSend"
         :loading="props.isWaitingForResponse"
@@ -283,10 +272,6 @@ function emitOpenContextInspector() {
   color: var(--vscode-badge-foreground);
   background: var(--vscode-badge-background);
   border-radius: 7px;
-}
-
-.summarize-button :deep(i.codicon) {
-  font-size: 15px !important;
 }
 
 .token-ring-wrapper {
