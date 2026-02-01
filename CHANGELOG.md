@@ -2,6 +2,19 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.1] - 2026-02-01
+
+### Added
+  - Locate：支持自动/隐式触发模式，并支持在设置中自定义触发关键词；`/locate` 降级为兼容入口。
+
+### Improved
+  - Settings：修复 Locate 设置面板布局（输入框换行、保存按钮同行、滚动条更窄且与项目样式一致）。
+  - UI：移除 Locate 输入区的“总结上下文”按钮。
+  - Token：system prompt token 计数强制使用本地估算，避免额外 API 请求带来的延迟与费用。
+
+### Removed
+  - Settings：移除 Token Count 设置页/Tab。
+
 ## [1.0.58] - 2026-01-31
 
 ### Improved
