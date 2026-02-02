@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.2] - 2026-02-02
+
+### Improved
+  - UI：输入框底部选择器布局优化：Mode 移到 Model 前；Model 选中态仅展示模型名。
+  - UI：模型下拉弹窗宽度与对齐策略调整，避免多余空白与文本被裁切。
+
 ## [1.0.59-pre.1] - 2026-02-01
 
 ### Added
