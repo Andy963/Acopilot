@@ -28,6 +28,7 @@ import { convertToolsToJSON } from '../../../tools/jsonFormatter';
 import { convertToolsToXML } from '../../../tools/xmlFormatter';
 import type {
     ChatRequestData,
+    ChatMode,
     ChatSuccessData,
     ChatErrorData,
     ChatStreamChunkData,
@@ -64,6 +65,7 @@ import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
 import { getSelectionReferencesBlock, getSelectionReferencesInjectedInfo } from './services/selectionReferences';
 import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
+import { resolveChatModePolicy } from './services/chatMode';
 
 /** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
 const DEFAULT_MAX_TOOL_ITERATIONS = 20;
@@ -452,10 +454,15 @@ export class ChatHandler {
     /**
      * 获取 Context Inspector 预览数据（不发起模型请求）
      */
-    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; attachments?: unknown; selectionReferences?: SelectionReference[]; contextOverrides?: ContextInjectionOverrides }): Promise<ContextInspectorData> {
+    async handleGetContextInspectorData(request: { conversationId?: string; configId: string; chatMode?: ChatMode; attachments?: unknown; selectionReferences?: SelectionReference[]; contextOverrides?: ContextInjectionOverrides }): Promise<ContextInspectorData> {
         const conversationId = request.conversationId?.trim();
         const configId = request.configId;
-        const contextOverrides = request.contextOverrides;
+        const chatModePolicy = resolveChatModePolicy({
+            chatMode: request.chatMode ?? 'chat',
+            contextOverrides: request.contextOverrides,
+            taskContext: undefined,
+        });
+        const contextOverrides = chatModePolicy.effectiveContextOverrides;
         const selectionReferences = request.selectionReferences;
         const toolsEnabled = contextOverrides?.includeTools !== false;
         const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
@@ -488,9 +495,16 @@ export class ChatHandler {
 
         // 4. 工具预览（与实际过滤逻辑一致）
         const toolMode = ((config.toolMode || 'function_call') as ContextInspectorTools['toolMode']);
-        const declarations = toolsEnabled
+        let declarations = toolsEnabled
             ? this.channelManager.getToolDeclarationsForPreview(config as any)
             : [];
+        const toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
+            ? contextOverrides!.toolAllowList!.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim())
+            : undefined;
+        if (Array.isArray(toolAllowList) && toolAllowList.length > 0) {
+            const allowSet = new Set(toolAllowList);
+            declarations = declarations.filter((d) => allowSet.has(d.name));
+        }
         const mcpCount = ChatHandler.countMcpTools(declarations);
 
         let toolsDefinition = '';

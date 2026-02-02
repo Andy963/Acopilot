@@ -375,7 +375,9 @@ async function runPlanLoop(state: ChatStoreState, computed: ChatStoreComputed): 
     await waitForResponseDone(state)
     if (!state.planRunner.value || state.planRunner.value.status !== 'running') return
 
-    await sendMessage(state, computed, buildStepPrompt(runner, stepIndex, step), step.attachments)
+    await sendMessage(state, computed, buildStepPrompt(runner, stepIndex, step), step.attachments, {
+      chatMode: 'agent',
+    })
     await waitForResponseDone(state)
 
     const stepAcceptanceCriteria = step.acceptanceCriteria?.trim() || ''

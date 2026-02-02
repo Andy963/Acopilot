@@ -553,7 +553,7 @@ export const enComponentsSettingsPart2 = {
         lsp: {
             locate: {
                 title: 'Locate',
-                hint: '(optional) Auto-trigger Locate mode for locate-style queries; /locate is still supported',
+                hint: '(optional) Auto-trigger Locate mode for locate-style queries',
                 useChatModelOption: 'Follow current chat model (no override)',
                 modelLabel: 'Locate model',
                 modelPlaceholder: 'Leave empty to use current chat model (e.g. gemini-2.5-flash)',

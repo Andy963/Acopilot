@@ -412,10 +412,13 @@ export interface VSCodeResponse<T = any> {
 
 // ============ Chat API 请求类型 ============
 
+export type ChatMode = 'chat' | 'plan' | 'agent'
+
 export interface ChatRequest {
   conversationId: string
   configId: string
   message: string
+  chatMode?: ChatMode
   contextOverrides?: ContextInjectionOverrides
 }
 

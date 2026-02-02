@@ -45,22 +45,18 @@ export async function openContextInspectorPreview(state: ChatStoreState, attachm
         }))
       : undefined
 
-    const contextOverrides = state.messageContextOverrides.value
-    const hasContextOverrides = contextOverrides && Object.keys(contextOverrides).length > 0
-
     const selectionReferences = state.selectionReferences.value
     const hasSelectionReferences = Array.isArray(selectionReferences) && selectionReferences.length > 0
     const selectionReferencesPayload = hasSelectionReferences
       ? selectionReferences.map((r) => ({ ...r }))
       : undefined
-    const contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
 
     const data = await sendToExtension<ContextInspectorData>('getContextInspectorData', {
       conversationId: state.currentConversationId.value || undefined,
       configId: state.configId.value,
+      chatMode: state.chatMode.value,
       attachments: attachmentMeta,
       selectionReferences: selectionReferencesPayload,
-      contextOverrides: contextOverridesPayload
     })
     state.contextInspectorData.value = data || null
   } catch (error) {

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
 import SendButton from './SendButton.vue'
-import { CustomSelect, IconButton, Tooltip, type SelectOption } from '../common'
+import { CustomSelect, type SelectOption } from '../common'
 import { formatNumber } from '../../utils/format'
 import { useI18n } from '../../i18n'
 import type { Attachment } from '../../types'
@@ -15,9 +15,8 @@ const props = defineProps<{
   thinkingEffortValue: ThinkingEffort
   thinkingEffortOptions: SelectOption[]
   showThinkingEffortVisible: boolean
-  showContextOverridesPanel: boolean
-  hasMessageContextOverrides: boolean
-  messageContextOverridesCount: number
+  chatModeValue: string
+  chatModeOptions: SelectOption[]
   tokenUsagePercent: number
   usedTokens: number
   maxContextTokens: number
@@ -29,7 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   updateUnifiedModel: [value: string]
   updateThinkingEffort: [value: string]
-  toggleContextOverrides: []
+  updateChatMode: [value: string]
   openContextInspector: [attachments?: Attachment[]]
   send: []
   cancel: []
@@ -82,7 +81,7 @@ const showThinkingEffortSelector = computed(() => {
 
   const reserved = 24
   const availableForSelectors = composerFooterWidth.value - composerFooterActionsWidth.value - reserved
-  const minSelectorsWidthWithEffort = 220
+  const minSelectorsWidthWithEffort = 280
   return availableForSelectors >= minSelectorsWidthWithEffort
 })
 
@@ -105,8 +104,20 @@ function emitOpenContextInspector() {
 </script>
 
 <template>
-  <div ref="composerFooterRef" class="composer-footer">
+    <div ref="composerFooterRef" class="composer-footer">
     <div class="composer-selectors" :class="{ 'with-thinking-effort': showThinkingEffortSelector }">
+      <div class="chat-mode-wrapper">
+        <CustomSelect
+          :model-value="props.chatModeValue"
+          :options="props.chatModeOptions"
+          :disabled="props.isLoadingConfigs || props.chatModeOptions.length === 0"
+          :drop-up="true"
+          :compact="true"
+          placeholder="Mode"
+          @update:model-value="(value) => emit('updateChatMode', value)"
+        />
+      </div>
+
       <div class="model-selector-wrapper">
         <UnifiedModelSelector
           :model-value="props.unifiedModelValue"
@@ -131,21 +142,6 @@ function emitOpenContextInspector() {
     </div>
 
     <div ref="composerFooterActionsRef" class="composer-footer-actions">
-      <Tooltip :content="t('components.input.messageContextOverrides.title')" placement="top">
-        <div class="context-overrides-button-wrapper">
-          <IconButton
-            icon="codicon-filter"
-            size="small"
-            class="context-overrides-button"
-            :class="{ active: props.showContextOverridesPanel, 'has-overrides': props.hasMessageContextOverrides }"
-            @click="emit('toggleContextOverrides')"
-          />
-          <span v-if="props.hasMessageContextOverrides" class="context-overrides-badge">
-            {{ props.messageContextOverridesCount }}
-          </span>
-        </div>
-      </Tooltip>
-
       <div class="token-ring-wrapper" @click="emitOpenContextInspector">
         <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
           <circle
@@ -206,14 +202,14 @@ function emitOpenContextInspector() {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 0 1 170px;
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 170px;
+  max-width: 220px;
 }
 
 .composer-selectors.with-thinking-effort {
-  flex: 0 1 280px;
-  max-width: 280px;
+  flex: 0 1 auto;
+  max-width: 300px;
 }
 
 .composer-footer-actions {
@@ -228,12 +224,12 @@ function emitOpenContextInspector() {
 }
 
 .model-selector-wrapper {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
 .model-selector-wrapper :deep(.unified-model-selector) {
-  width: 100%;
+  max-width: 100%;
 }
 
 .thinking-effort-wrapper {
@@ -245,33 +241,13 @@ function emitOpenContextInspector() {
   width: 100%;
 }
 
-.context-overrides-button-wrapper {
-  position: relative;
-  display: inline-flex;
+.chat-mode-wrapper {
+  flex: 0 0 78px;
+  min-width: 78px;
 }
 
-.context-overrides-button.has-overrides :deep(i.codicon) {
-  color: var(--vscode-textLink-foreground);
-}
-
-.context-overrides-button.active {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-
-.context-overrides-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 14px;
-  text-align: center;
-  color: var(--vscode-badge-foreground);
-  background: var(--vscode-badge-background);
-  border-radius: 7px;
+.chat-mode-wrapper :deep(.custom-select) {
+  width: 100%;
 }
 
 .token-ring-wrapper {

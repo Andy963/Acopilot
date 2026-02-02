@@ -34,7 +34,7 @@ export class StreamRequestHandler {
    * 处理普通聊天流
    */
   async handleChatStream(data: ChatStreamPayload, requestId: string): Promise<void> {
-    const { conversationId, message, configId, mode, attachments, selectionReferences, contextOverrides, taskContext } = data;
+    const { conversationId, message, configId, chatMode, attachments, selectionReferences, contextOverrides, taskContext } = data;
     
     const controller = this.deps.abortManager.create(conversationId);
     const processor = new StreamChunkProcessor(this.deps.getView(), conversationId);
@@ -44,7 +44,7 @@ export class StreamRequestHandler {
         conversationId,
         message,
         configId,
-        mode,
+        chatMode,
         attachments,
         selectionReferences,
         contextOverrides,

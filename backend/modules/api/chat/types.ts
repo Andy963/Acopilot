@@ -36,6 +36,8 @@ export interface AttachmentData {
     thumbnail?: string;
 }
 
+export type ChatMode = 'chat' | 'plan' | 'agent';
+
 /**
  * 对话请求数据
  */
@@ -67,11 +69,13 @@ export interface ChatRequestData {
     contextOverrides?: ContextInjectionOverrides;
 
     /**
-     * 请求模式（可选）
+     * Chat mode (optional)
      *
-     * - locate: 只做定位 + 打开文件，不做修改
+     * - chat: minimal context + read-only tools, optimized for quick Q&A
+     * - plan: planning-first, still read-only tools
+     * - agent: full tools, optimized for execution
      */
-    mode?: 'locate';
+    chatMode?: ChatMode;
 
     /**
      * Task Context（可选）

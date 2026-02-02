@@ -31,7 +31,6 @@ describe('resolveLocateModeParams (auto inference)', () => {
       conversationManager: conversationManager as any,
       settingsManager,
       conversationId: 'c1',
-      mode: undefined,
       message: 'where is resolveLocateModeParams defined?',
       contextOverrides: undefined,
       taskContext: undefined,
@@ -58,7 +57,6 @@ describe('resolveLocateModeParams (auto inference)', () => {
       conversationManager: conversationManager as any,
       settingsManager,
       conversationId: 'c1',
-      mode: undefined,
       message: 'where is foo defined? please fix it',
       contextOverrides: undefined,
       taskContext: undefined,
@@ -81,7 +79,6 @@ describe('resolveLocateModeParams (auto inference)', () => {
       conversationManager: conversationManager as any,
       settingsManager,
       conversationId: 'c1',
-      mode: undefined,
       message: '/help where is foo',
       contextOverrides: undefined,
       taskContext: undefined,
@@ -104,7 +101,6 @@ describe('resolveLocateModeParams (auto inference)', () => {
       conversationManager: conversationManager as any,
       settingsManager,
       conversationId: 'c1',
-      mode: undefined,
       message: 'where is foo',
       contextOverrides: undefined,
       taskContext: undefined,
@@ -116,7 +112,7 @@ describe('resolveLocateModeParams (auto inference)', () => {
     expect(res.effectiveContextOverrides).toBeUndefined();
   });
 
-  it('still supports explicit /locate even when auto trigger is disabled', async () => {
+  it('does not infer locate mode for /locate (slash commands are not inferred)', async () => {
     const conversationManager = createConversationManagerStub();
     const settingsManager = createSettingsManagerStub({
       enabled: true,
@@ -127,7 +123,6 @@ describe('resolveLocateModeParams (auto inference)', () => {
       conversationManager: conversationManager as any,
       settingsManager,
       conversationId: 'c1',
-      mode: undefined,
       message: '/locate where is foo',
       contextOverrides: undefined,
       taskContext: undefined,
@@ -136,11 +131,11 @@ describe('resolveLocateModeParams (auto inference)', () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
-    expect(res.effectiveMessage).toBe('where is foo');
-    expect(res.effectiveContextOverrides?.mode).toBe('locate');
+    expect(res.effectiveMessage).toBe('/locate where is foo');
+    expect(res.effectiveContextOverrides).toBeUndefined();
   });
 
-  it('rejects explicit /locate when locate tool is disabled', async () => {
+  it('does not auto-enter locate mode when locate tool is disabled', async () => {
     const conversationManager = createConversationManagerStub();
     const settingsManager = createSettingsManagerStub({
       enabled: false,
@@ -151,15 +146,13 @@ describe('resolveLocateModeParams (auto inference)', () => {
       conversationManager: conversationManager as any,
       settingsManager,
       conversationId: 'c1',
-      mode: undefined,
-      message: '/locate where is foo',
+      message: 'where is foo',
       contextOverrides: undefined,
       taskContext: undefined,
     });
 
-    expect(res.ok).toBe(false);
-    if (res.ok) return;
-    expect(res.error.code).toBe('LOCATE_DISABLED');
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.effectiveContextOverrides).toBeUndefined();
   });
 });
-

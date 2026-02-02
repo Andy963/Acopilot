@@ -103,7 +103,7 @@ export type ChatStreamPayload = {
   conversationId: string;
   configId: string;
   message: string;
-  mode?: 'locate';
+  chatMode?: 'chat' | 'plan' | 'agent';
   attachments?: AttachmentData[];
   selectionReferences?: SelectionReference[];
   contextOverrides?: ContextInjectionOverrides;
@@ -210,13 +210,20 @@ export function parseStreamPayload(type: StreamMessageType, data: unknown): Pars
       const conversationId = asString(data.conversationId);
       const configId = asString(data.configId);
       const message = asString(data.message);
-      const mode = data.mode === undefined ? undefined : data.mode === 'locate' ? 'locate' : undefined;
+      const chatMode =
+        data.chatMode === undefined
+          ? undefined
+          : data.chatMode === 'chat' || data.chatMode === 'plan' || data.chatMode === 'agent'
+            ? data.chatMode
+            : undefined;
       const taskContext = data.taskContext === undefined ? undefined : asString(data.taskContext);
 
       if (!conversationId) return err('chatStream requires data.conversationId (string)');
       if (!configId) return err('chatStream requires data.configId (string)');
       if (message === undefined) return err('chatStream requires data.message (string)');
-      if (data.mode !== undefined && mode === undefined) return err('chatStream requires data.mode (\"locate\") when provided');
+      if (data.chatMode !== undefined && chatMode === undefined) {
+        return err('chatStream requires data.chatMode ("chat" | "plan" | "agent") when provided');
+      }
       if (data.taskContext !== undefined && taskContext === undefined) return err('chatStream requires data.taskContext (string) when provided');
 
       const attachmentsResult = parseAttachments(data.attachments);
@@ -235,7 +242,7 @@ export function parseStreamPayload(type: StreamMessageType, data: unknown): Pars
         conversationId,
         configId,
         message,
-        mode,
+        chatMode,
         attachments: attachmentsResult.value,
         selectionReferences: selectionReferencesResult.value,
         contextOverrides: contextOverrides as ContextInjectionOverrides | undefined,

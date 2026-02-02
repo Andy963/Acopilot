@@ -553,7 +553,7 @@ export const jaComponentsSettingsPart2 = {
         lsp: {
             locate: {
                 title: 'Locate',
-                hint: '（任意）Locate クエリを自動判定して起動します（/locate も利用可能）',
+                hint: '（任意）Locate クエリを自動判定して起動します',
                 useChatModelOption: '現在の会話モデルに従う（上書きしない）',
                 modelLabel: 'Locate モデル',
                 modelPlaceholder: '空欄の場合は現在の会話モデル（例：gemini-2.5-flash）',

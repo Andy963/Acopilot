@@ -48,6 +48,7 @@ import type { DiffInterruptService } from './DiffInterruptService';
 import type { OrphanedToolCallService } from './OrphanedToolCallService';
 import type { ToolExecutionService } from './ToolExecutionService';
 import type { ToolCallParserService } from './ToolCallParserService';
+import { resolveChatModePolicy } from './chatMode';
 
 export type ChatStreamOutput =
   | ChatStreamChunkData
@@ -118,14 +119,19 @@ export class ChatFlowService {
       };
     }
 
+    const chatModePolicy = resolveChatModePolicy({
+      chatMode: request.chatMode ?? 'chat',
+      contextOverrides: request.contextOverrides,
+      taskContext: request.taskContext,
+    });
+
     const locate = await resolveLocateModeParams({
       conversationManager: this.conversationManager,
       settingsManager: this.settingsManager,
       conversationId,
-      mode: request.mode,
       message,
-      contextOverrides: request.contextOverrides,
-      taskContext: request.taskContext,
+      contextOverrides: chatModePolicy.effectiveContextOverrides,
+      taskContext: chatModePolicy.effectiveTaskContext,
     });
 
     if (locate.ok === false) {
@@ -147,7 +153,7 @@ export class ChatFlowService {
     });
 
     // 4. 工具调用循环（委托给 ToolIterationLoopService，非流式）
-    const maxToolIterations = this.getMaxToolIterations();
+    const maxToolIterations = chatModePolicy.maxToolIterations ?? this.getMaxToolIterations();
     const loopResult = await this.toolIterationLoopService.runNonStreamLoop(
       conversationId,
       configId,
@@ -376,14 +382,19 @@ export class ChatFlowService {
       return;
     }
 
+    const chatModePolicy = resolveChatModePolicy({
+      chatMode: request.chatMode ?? 'chat',
+      contextOverrides: request.contextOverrides,
+      taskContext: request.taskContext,
+    });
+
     const locate = await resolveLocateModeParams({
       conversationManager: this.conversationManager,
       settingsManager: this.settingsManager,
       conversationId,
-      mode: request.mode,
       message,
-      contextOverrides: request.contextOverrides,
-      taskContext: request.taskContext,
+      contextOverrides: chatModePolicy.effectiveContextOverrides,
+      taskContext: chatModePolicy.effectiveTaskContext,
     });
 
     if (locate.ok === false) {
@@ -446,7 +457,7 @@ export class ChatFlowService {
     const isFirstMessage = currentHistoryCheck.length === 1; // 只有刚添加的用户消息
 
     // 9. 工具调用循环（委托给 ToolIterationLoopService）
-    const maxToolIterations = this.getMaxToolIterations();
+    const maxToolIterations = chatModePolicy.maxToolIterations ?? this.getMaxToolIterations();
 
     for await (const output of this.toolIterationLoopService.runToolLoop({
       conversationId,

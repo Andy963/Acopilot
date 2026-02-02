@@ -4,25 +4,14 @@
  * 包含消息发送、重试、编辑、删除等操作
  */
 
-import type { Message, Attachment } from '../../types'
+import type { Message, Attachment, ChatMode, ContextInjectionOverrides } from '../../types'
 import type { ChatStoreState, ChatStoreComputed, AttachmentData } from './types'
 import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
 import { createAndPersistConversation } from './conversationActions'
 import { clearCheckpointsFromIndex } from './checkpointActions'
 import { persistPinnedPromptForConversation } from './pinnedPromptActions'
-
-async function getLocateModelOverride(): Promise<string | undefined> {
-  try {
-    const resp = await sendToExtension<{ config: { model?: unknown } }>('tools.getToolConfig', {
-      toolName: 'locate'
-    })
-    const raw = resp?.config?.model
-    return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined
-  } catch {
-    return undefined
-  }
-}
+import { persistChatMode } from './chatModeActions'
 
 /**
  * 取消流式的回调类型
@@ -31,6 +20,8 @@ export type CancelStreamCallback = () => Promise<void>
 
 export interface SendMessageOptions {
   taskContext?: string
+  chatMode?: ChatMode
+  contextOverrides?: ContextInjectionOverrides
   /**
    * Hide this user message from the UI (kept in allMessages to preserve indexing).
    * Intended for system-generated control prompts like "continue".
@@ -51,15 +42,9 @@ export async function sendMessage(
   options?: SendMessageOptions
 ): Promise<void> {
   const originalText = String(messageText || '')
-  const isLocateCommand = /^\s*\/locate\b/i.test(originalText)
-  const requestMode = isLocateCommand ? 'locate' : undefined
-  const effectiveMessageText = isLocateCommand
-    ? originalText.replace(/^\s*\/locate\b\s*/i, '')
-    : originalText
+  const effectiveMessageText = originalText
 
   if (!effectiveMessageText.trim() && (!attachments || attachments.length === 0)) return
-
-  const locateModelOverride = isLocateCommand ? await getLocateModelOverride() : undefined
 
   state.error.value = null
   if (state.isWaitingForResponse.value) return
@@ -80,6 +65,9 @@ export async function sendMessage(
 
       // 对话创建后，将当前选择的固定提示词/技能持久化（用于首条消息生效）
       await persistPinnedPromptForConversation(state, newId)
+
+      // Persist per-conversation chat mode so reloads/restores keep the same behavior.
+      await persistChatMode(state, newId)
 
       // 对话创建后，若存在 Plan Runner 草稿，也一并持久化（用于重启后恢复）
       if (state.planRunner.value) {
@@ -113,7 +101,7 @@ export async function sendMessage(
       timestamp: Date.now(),
       streaming: true,
       metadata: {
-        modelVersion: locateModelOverride || computed.currentModelName.value
+        modelVersion: computed.currentModelName.value
       }
     }
     state.allMessages.value.push(assistantMessage)
@@ -143,38 +131,28 @@ export async function sendMessage(
       }))
       : undefined
 
-    const contextOverrides = state.messageContextOverrides.value
-    const hasContextOverrides = contextOverrides && Object.keys(contextOverrides).length > 0
-
     const selectionReferences = state.selectionReferences.value
     const hasSelectionReferences = Array.isArray(selectionReferences) && selectionReferences.length > 0
 
     const selectionReferencesPayload = hasSelectionReferences
       ? selectionReferences.map((r) => ({ ...r }))
       : undefined
-    let contextOverridesPayload = hasContextOverrides ? { ...contextOverrides } : undefined
+    const contextOverridesPayload =
+      options?.contextOverrides && Object.keys(options.contextOverrides).length > 0 ? { ...options.contextOverrides } : undefined
     const taskContextPayload = options?.taskContext?.trim() ? String(options.taskContext) : undefined
-
-    if (isLocateCommand && locateModelOverride) {
-      contextOverridesPayload = {
-        ...(contextOverridesPayload || {}),
-        modelOverride: locateModelOverride
-      }
-    }
+    const chatModePayload = options?.chatMode || state.chatMode.value || 'chat'
 
     await sendToExtension('chatStream', {
       conversationId: state.currentConversationId.value,
       configId: state.configId.value,
       message: effectiveMessageText,
-      mode: requestMode,
+      chatMode: chatModePayload,
       attachments: attachmentData,
       selectionReferences: selectionReferencesPayload,
       contextOverrides: contextOverridesPayload,
       taskContext: taskContextPayload
     })
 
-    // 仅本条消息生效：发送后清空（避免影响下一条消息）
-    state.messageContextOverrides.value = {}
     state.selectionReferences.value = []
 
   } catch (err: any) {
@@ -356,23 +334,20 @@ export async function continueAfterToolExecution(
     ? prompt.trim()
     : '继续完成上一条回复。不要重复执行任何工具/命令；仅基于已经产生的工具结果继续回答。'
 
-  // 保护用户准备的“下一条消息”上下文：continue 不应吞掉它们。
-  const previousOverrides = { ...(state.messageContextOverrides.value || {}) }
   const previousSelectionRefs = Array.isArray(state.selectionReferences.value)
     ? state.selectionReferences.value.map((r) => ({ ...r }))
     : []
 
   // 强制禁用工具，避免重复执行
-  state.messageContextOverrides.value = { includeTools: false }
   state.selectionReferences.value = []
 
   try {
     await sendMessage(state, computed, continuePrompt, undefined, {
       internalUserMessage: true,
       skipConversationPreview: true,
+      contextOverrides: { includeTools: false },
     })
   } finally {
-    state.messageContextOverrides.value = previousOverrides
     state.selectionReferences.value = previousSelectionRefs
   }
 }

@@ -142,12 +142,6 @@ onUnmounted(() => {
     >
       <span v-if="selectedOption" class="selected-value">
         <span class="selected-primary">{{ selectedOption.modelName }}</span>
-        <span
-          class="selected-secondary"
-          :title="`${selectedOption.channelName} · ${selectedOption.providerLabel}`"
-        >
-          via {{ selectedOption.channelName }}
-        </span>
       </span>
       <span v-else class="placeholder">{{ placeholder || t('components.input.modelSelector.placeholder') }}</span>
       <span :class="['select-arrow', isOpen ? 'arrow-up' : 'arrow-down']">▼</span>
@@ -202,7 +196,8 @@ onUnmounted(() => {
 <style scoped>
 .unified-model-selector {
   position: relative;
-  width: 100%;
+  display: inline-block;
+  max-width: 100%;
 }
 
 .unified-model-selector.disabled {
@@ -211,10 +206,11 @@ onUnmounted(() => {
 }
 
 .selector-trigger {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  width: auto;
+  max-width: var(--acopilot-unified-model-trigger-max-width, 140px);
   padding: 4px 8px;
   background: transparent;
   color: var(--vscode-descriptionForeground);
@@ -242,7 +238,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  flex: 1;
 }
 
 .selected-primary {
@@ -251,16 +246,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: inherit;
-}
-
-.selected-secondary {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  opacity: 0.8;
 }
 
 .placeholder {
@@ -285,10 +270,10 @@ onUnmounted(() => {
 .selector-dropdown {
   position: absolute;
   bottom: 100%;
-  right: 0;
-  width: 100%;
-  min-width: 180px;
-  max-width: 90vw;
+  left: 0;
+  right: auto;
+  width: max(100%, 200px);
+  max-width: min(260px, 90vw);
   margin-bottom: 4px;
   background: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-dropdown-border);

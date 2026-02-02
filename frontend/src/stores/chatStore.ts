@@ -26,7 +26,7 @@
  */
 
 import { defineStore } from 'pinia'
-import type { Attachment, StreamChunk, ContextInspectorData, ContextInjectionOverrides } from '../types'
+import type { Attachment, StreamChunk, ContextInspectorData, ChatMode } from '../types'
 import { sendToExtension, onMessageFromExtension } from '../utils/vscode'
 
 // 导入模块
@@ -94,6 +94,7 @@ import type { SendMessageOptions } from './chat/messageActions'
 
 import type { PinnedPromptState } from './chat/types'
 import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
+import { persistChatMode } from './chat/chatModeActions'
 import type { SelectionReference } from './chat/types'
 import {
   addSelectionReference as addSelectionReferenceFn,
@@ -186,18 +187,13 @@ export const useChatStore = defineStore('chat', () => {
   const removeSelectionReference = (id: string) => removeSelectionReferenceFn(state, id)
   const clearSelectionReferences = () => clearSelectionReferencesFn(state)
 
-  const setMessageContextOverride = (key: keyof ContextInjectionOverrides, value: boolean | undefined): void => {
-    const next: ContextInjectionOverrides = { ...(state.messageContextOverrides.value || {}) }
-    if (value === undefined) {
-      delete (next as any)[key]
-    } else {
-      (next as any)[key] = value
-    }
-    state.messageContextOverrides.value = next
-  }
+  const setChatMode = async (mode: ChatMode): Promise<void> => {
+    const next = mode === 'chat' || mode === 'plan' || mode === 'agent' ? mode : 'chat'
+    state.chatMode.value = next
 
-  const clearMessageContextOverrides = (): void => {
-    state.messageContextOverrides.value = {}
+    const conversationId = state.currentConversationId.value
+    if (!conversationId) return
+    await persistChatMode(state, conversationId)
   }
 
   // ============ 检查点操作 ============
@@ -389,6 +385,10 @@ export const useChatStore = defineStore('chat', () => {
     setCurrentWorkspaceUri: (uri: string | null) => setCurrentWorkspaceUri(state, uri),
     setWorkspaceFilter,
 
+    // Chat mode
+    chatMode: state.chatMode,
+    setChatMode,
+
     // 输入框
     inputValue: state.inputValue,
     setInputValue,
@@ -403,11 +403,6 @@ export const useChatStore = defineStore('chat', () => {
     addSelectionReference,
     removeSelectionReference,
     clearSelectionReferences,
-
-    // 本条消息级上下文覆写
-    messageContextOverrides: state.messageContextOverrides,
-    setMessageContextOverride,
-    clearMessageContextOverrides,
 
     // 上下文总结
     summarizeContext,

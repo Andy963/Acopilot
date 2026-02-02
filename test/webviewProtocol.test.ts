@@ -74,6 +74,7 @@ describe('webview protocol parsing', () => {
         conversationId: 'c1',
         configId: 'cfg',
         message: 'hi',
+        chatMode: 'nope',
         attachments: 'nope'
       }).ok
     ).toBe(false);
@@ -82,6 +83,7 @@ describe('webview protocol parsing', () => {
       conversationId: 'c1',
       configId: 'cfg',
       message: 'hi',
+      chatMode: 'chat',
       attachments: [
         {
           id: 'a1',
@@ -96,4 +98,3 @@ describe('webview protocol parsing', () => {
     expect(ok.ok).toBe(true);
   });
 });
-
