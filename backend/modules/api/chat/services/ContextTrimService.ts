@@ -69,6 +69,20 @@ export class ContextTrimService {
         return undefined;
     }
 
+    private static getLastUserOpenFileContext(history: Content[]): string | undefined {
+        for (let i = history.length - 1; i >= 0; i--) {
+            const msg = history[i];
+            if (!msg || msg.role !== 'user') continue;
+            if ((msg as any).isFunctionResponse === true) continue;
+            if ((msg as any).isSummary === true) continue;
+            const ctx = (msg as any).openFileContext;
+            if (typeof ctx !== 'string') return undefined;
+            const trimmed = ctx.trim();
+            return trimmed ? trimmed : undefined;
+        }
+        return undefined;
+    }
+
     /**
      * 识别对话回合
      *
@@ -288,6 +302,12 @@ export class ContextTrimService {
         const taskContextText = ContextTrimService.getLastUserTaskContext(fullHistory);
         const taskContextBlock = taskContextText ? `====\n\nTASK CONTEXT\n\n${taskContextText}` : '';
         const taskContextTokens = taskContextBlock ? Math.ceil(taskContextBlock.length / 4) : 0;
+
+        const openFileContextText = ContextTrimService.getLastUserOpenFileContext(fullHistory);
+        const openFileContextBlock = openFileContextText
+            ? (openFileContextText.startsWith('====') ? openFileContextText : `====\n\nOPEN FILE CONTEXT\n\n${openFileContextText}`)
+            : '';
+        const openFileContextTokens = openFileContextBlock ? Math.ceil(openFileContextBlock.length / 4) : 0;
         
         // 计算从 effectiveStartIndex 开始的消息 token 数
         // 这是解决上下文振荡问题的关键：使用累加的单条消息 token 数，而不是 API 返回的累计值
@@ -354,7 +374,8 @@ export class ContextTrimService {
             sendCurrentThoughtSignatures,
             systemPromptTokens,
             selectionReferencesTokens,
-            taskContextTokens
+            taskContextTokens,
+            openFileContextTokens
         );
         
         estimatedTotalTokens = tokenAccumulationResult.estimatedTotalTokens;
@@ -427,7 +448,8 @@ export class ContextTrimService {
         sendCurrentThoughtSignatures: boolean,
         systemPromptTokens: number,
         selectionReferencesTokens: number,
-        taskContextTokens: number
+        taskContextTokens: number,
+        openFileContextTokens: number
     ): { estimatedTotalTokens: number; hasEstimatedTokens: boolean; roundTokenInfos: RoundTokenInfo[] } {
         let estimatedTotalTokens = systemPromptTokens;
         let hasEstimatedTokens = systemPromptTokens > 0;
@@ -466,7 +488,13 @@ export class ContextTrimService {
                     !message.isFunctionResponse
                         ? taskContextTokens
                         : 0;
-                estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens;
+                const extraOpenFileTokens =
+                    openFileContextTokens > 0 &&
+                    i === lastNonFunctionResponseUserIndex &&
+                    !message.isFunctionResponse
+                        ? openFileContextTokens
+                        : 0;
+                estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens + extraOpenFileTokens;
                 hasEstimatedTokens = true;
             } else if (message.role === 'model' && message.usageMetadata) {
                 // model 消息：根据用户配置、消息内容和回合位置决定是否计算思考 token

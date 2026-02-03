@@ -26,7 +26,9 @@ import {
     getLastUserContextOverrides,
     getLastUserSelectionReferences,
     getLastUserTaskContext,
+    getLastUserOpenFileContext,
     getOrInitConversationStartTime,
+    injectOpenFileContextIntoHistory,
     injectSelectionReferencesIntoHistory,
     injectTaskContextIntoHistory,
     isOpenAIResponsesContinuationError,
@@ -97,6 +99,7 @@ export async function* runToolLoop(
         let contextOverrides = getLastUserContextOverrides(fullHistory);
         let selectionReferences = getLastUserSelectionReferences(fullHistory);
         let taskContext = getLastUserTaskContext(fullHistory);
+        let openFileContext = getLastUserOpenFileContext(fullHistory);
         let toolsEnabled = contextOverrides?.includeTools !== false;
         let pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
 
@@ -134,6 +137,7 @@ export async function* runToolLoop(
                 contextOverrides = getLastUserContextOverrides(fullHistory);
                 selectionReferences = getLastUserSelectionReferences(fullHistory);
                 taskContext = getLastUserTaskContext(fullHistory);
+                openFileContext = getLastUserOpenFileContext(fullHistory);
                 toolsEnabled = contextOverrides?.includeTools !== false;
                 pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
                 toolAllowList = Array.isArray(contextOverrides?.toolAllowList)
@@ -375,7 +379,10 @@ export async function* runToolLoop(
                 const response = await deps.channelManager.generate({
                     configId,
                     history: injectSelectionReferencesIntoHistory(
-                        injectTaskContextIntoHistory(requestHistory, taskContext),
+                        injectOpenFileContextIntoHistory(
+                            injectTaskContextIntoHistory(requestHistory, taskContext),
+                            openFileContext
+                        ),
                         selectionReferences
                     ),
                     abortSignal,

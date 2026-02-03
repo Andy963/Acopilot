@@ -4,11 +4,12 @@
  * 处理所有流式消息类型
  */
 
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import type { ChatHandler } from '../../backend/modules/api/chat';
 import { StreamAbortManager } from './StreamAbortManager';
 import { StreamChunkProcessor } from './StreamChunkProcessor';
 import { t } from '../../backend/i18n';
+import type { OpenFileContextInput } from '../../backend/modules/api/chat/services/FileContextCollector';
 import type {
   ChatStreamPayload,
   EditAndRetryStreamPayload,
@@ -22,6 +23,102 @@ export interface StreamHandlerDeps {
   getView: () => vscode.WebviewView | undefined;
   sendResponse: (requestId: string, data: any) => void;
   sendError: (requestId: string, code: string, message: string) => void;
+}
+
+async function collectOpenFilesForChat(maxFiles: number): Promise<OpenFileContextInput[]> {
+  const activeEditor = vscode.window.activeTextEditor;
+  const activeUri = activeEditor?.document?.uri;
+  const activeSelection = (() => {
+    if (!activeEditor) return undefined;
+    const nonEmpty = activeEditor.selections.filter((s) => !s.isEmpty);
+    if (nonEmpty.length === 0) return undefined;
+    return nonEmpty[0];
+  })();
+
+  const uris: vscode.Uri[] = [];
+  if (activeUri) uris.push(activeUri);
+
+  for (const tabGroup of vscode.window.tabGroups.all) {
+    for (const tab of tabGroup.tabs) {
+      if (tab.input instanceof vscode.TabInputText) {
+        uris.push(tab.input.uri);
+      }
+    }
+  }
+
+  const uniqueUris: vscode.Uri[] = [];
+  const seen = new Set<string>();
+  for (const uri of uris) {
+    const key = uri.toString();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    // Limit to workspace files to avoid leaking unrelated paths.
+    const ws = vscode.workspace.getWorkspaceFolder(uri);
+    if (!ws) continue;
+
+    uniqueUris.push(uri);
+    if (uniqueUris.length >= maxFiles) break;
+  }
+
+  const openFiles: OpenFileContextInput[] = [];
+  for (const uri of uniqueUris) {
+    try {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const relPath = vscode.workspace.asRelativePath(uri, false);
+      const languageId = doc.languageId;
+
+      const isActive = !!activeUri && uri.toString() === activeUri.toString();
+
+      if (isActive && activeSelection) {
+        const start = activeSelection.start;
+        const end = activeSelection.end;
+
+        const startLine = start.line + 1;
+        let endLine = end.line + 1;
+        if (end.character === 0 && end.line > start.line) {
+          endLine = end.line;
+        }
+
+        openFiles.push({
+          path: relPath,
+          uri: uri.toString(),
+          languageId,
+          text: doc.getText(activeSelection),
+          textStartLine: startLine,
+          startLine,
+          endLine,
+        });
+        continue;
+      }
+
+      if (doc.isDirty || uri.scheme !== 'file') {
+        const maxLines = 400;
+        const lastLineIndex = Math.min(Math.max(0, doc.lineCount - 1), maxLines - 1);
+        const endChar = doc.lineAt(lastLineIndex).text.length;
+        const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(lastLineIndex, endChar));
+
+        openFiles.push({
+          path: relPath,
+          uri: uri.toString(),
+          languageId,
+          text: doc.getText(range),
+          textStartLine: 1,
+        });
+      } else {
+        openFiles.push({
+          path: relPath,
+          uri: uri.toString(),
+          languageId,
+          absolutePath: uri.fsPath,
+        });
+      }
+    } catch {
+      // Ignore unreadable documents and continue.
+    }
+  }
+
+  return openFiles;
 }
 
 /**
@@ -40,6 +137,10 @@ export class StreamRequestHandler {
     const processor = new StreamChunkProcessor(this.deps.getView(), conversationId);
     
     try {
+      const openFiles = (chatMode ?? 'chat') === 'chat'
+        ? await collectOpenFilesForChat(5)
+        : undefined;
+
       const stream = this.deps.chatHandler.handleChatStream({
         conversationId,
         message,
@@ -49,6 +150,7 @@ export class StreamRequestHandler {
         selectionReferences,
         contextOverrides,
         taskContext,
+        openFiles,
         abortSignal: controller.signal
       });
       

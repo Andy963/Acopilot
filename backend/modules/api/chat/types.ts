@@ -7,6 +7,7 @@
 import type { Content, ContextInjectedInfo, ContextInjectionOverrides, SelectionReference } from '../../conversation/types';
 import type { StreamChunk } from '../../channel/types';
 import type { CheckpointRecord } from '../../checkpoint';
+import type { OpenFileContextInput } from './services/FileContextCollector';
 
 // ==================== 请求数据 ====================
 
@@ -87,6 +88,14 @@ export interface ChatRequestData {
      * 避免污染用户消息文本与后续轮次历史。
      */
     taskContext?: string;
+
+    /**
+     * Open files in editor (optional)
+     *
+     * Provided by the extension host based on current editor state (tabs / active editor).
+     * This data is used to build request-only Open File Context injected into the model prompt.
+     */
+    openFiles?: OpenFileContextInput[];
     
     /** 取消信号 */
     abortSignal?: AbortSignal;

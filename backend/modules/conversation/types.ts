@@ -655,6 +655,17 @@ export interface Content {
     taskContext?: string;
 
     /**
+     * Open File Context (user messages only)
+     *
+     * Collected by the extension host based on currently open editor tabs (and optional selection),
+     * then persisted in history for retry/reproducibility.
+     *
+     * Note: When sending to the model, this is injected as a request-only prefix on the user message.
+     * It is NOT written back into parts.text to avoid history bloat and double injection.
+     */
+    openFileContext?: string;
+
+    /**
      * 上下文注入覆写（仅 user 消息有值）
      *
      * 该字段由前端在发送消息时提供，并持久化到历史中，便于重试/复现。

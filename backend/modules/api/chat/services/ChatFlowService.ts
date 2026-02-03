@@ -40,6 +40,7 @@ import type {
 import type { MessageBuilderService } from './MessageBuilderService';
 import type { TokenEstimationService } from './TokenEstimationService';
 import { resolveLocateModeParams } from './locateMode';
+import { buildOpenFileContextBlock } from './openFileContext';
 
 const OPENAI_RESPONSES_CONTINUATION_KEY = 'openaiResponsesContinuation';
 import type { ToolIterationLoopService } from './ToolIterationLoopService';
@@ -140,6 +141,12 @@ export class ChatFlowService {
 
     const { effectiveMessage, effectiveContextOverrides, effectiveTaskContext } = locate;
 
+    const openFileContext = chatModePolicy.chatMode === 'chat'
+      ? await buildOpenFileContextBlock(request.openFiles, {
+        ignorePatterns: this.settingsManager?.getContextIgnorePatterns?.() ?? [],
+      })
+      : undefined;
+
     // 3. 添加用户消息到历史（包含附件）
     const userParts = this.messageBuilderService.buildUserMessageParts(effectiveMessage, request.attachments);
     await this.conversationManager.addContent(conversationId, {
@@ -149,6 +156,7 @@ export class ChatFlowService {
       taskContext: typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
         ? effectiveTaskContext
         : undefined,
+      openFileContext,
       contextOverrides: effectiveContextOverrides,
     });
 
@@ -404,6 +412,12 @@ export class ChatFlowService {
 
     const { effectiveMessage, effectiveContextOverrides, effectiveTaskContext } = locate;
 
+    const openFileContext = chatModePolicy.chatMode === 'chat'
+      ? await buildOpenFileContextBlock(request.openFiles, {
+        ignorePatterns: this.settingsManager?.getContextIgnorePatterns?.() ?? [],
+      })
+      : undefined;
+
     // 3. 中断之前未完成的 diff 等待
     this.diffInterruptService.markUserInterrupt();
 
@@ -430,6 +444,7 @@ export class ChatFlowService {
       taskContext: typeof effectiveTaskContext === 'string' && effectiveTaskContext.trim()
         ? effectiveTaskContext
         : undefined,
+      openFileContext,
       contextOverrides: effectiveContextOverrides,
     });
 
