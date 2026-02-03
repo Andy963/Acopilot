@@ -100,6 +100,33 @@
           "icon": "resources/icon.svg"
         }
       ]
+    },
+    "configuration": {
+      "title": "Acopilot",
+      "properties": {
+        "acopilot.settings": {
+          "type": "object",
+          "default": {},
+          "description": "Internal settings used by Acopilot. Do not edit manually.",
+          "additionalProperties": true
+        },
+        "acopilot.proxy": {
+          "type": "object",
+          "scope": "machine",
+          "default": {
+            "enabled": false
+          },
+          "description": "Proxy settings (machine-specific). Do not edit manually.",
+          "additionalProperties": true
+        },
+        "acopilot.storagePath": {
+          "type": "object",
+          "scope": "machine",
+          "default": {},
+          "description": "Storage path settings (machine-specific). Do not edit manually.",
+          "additionalProperties": true
+        }
+      }
     }
   },
   "scripts": {

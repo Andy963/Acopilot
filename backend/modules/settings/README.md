@@ -39,12 +39,27 @@ const settingsManager = new SettingsManager(storage);
 await settingsManager.initialize();
 ```
 
+在 VS Code 扩展中，推荐使用 `VSCodeSettingsStorage` 以便配合 VS Code Settings Sync 实现跨设备同步：
+
+```typescript
+import * as path from 'path';
+import type * as vscode from 'vscode';
+import { SettingsManager, VSCodeSettingsStorage } from './modules/settings';
+
+function createSettingsManager(context: vscode.ExtensionContext): SettingsManager {
+    const legacySettingsFilePath = path.join(context.globalStorageUri.fsPath, 'settings', 'settings.json');
+    const storage = new VSCodeSettingsStorage({ legacySettingsFilePath });
+    return new SettingsManager(storage);
+}
+```
+
 ### 2. SettingsStorage
 
 存储接口，支持不同的存储实现：
 
 - **FileSettingsStorage**: 基于文件系统的存储
 - **MemorySettingsStorage**: 基于内存的存储（测试用）
+- **VSCodeSettingsStorage**: 基于 VS Code Settings 的存储（支持 Settings Sync）
 
 ### 3. GlobalSettings
 
