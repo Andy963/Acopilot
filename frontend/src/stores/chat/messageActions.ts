@@ -5,13 +5,14 @@
  */
 
 import type { Message, Attachment, ChatMode, ContextInjectionOverrides } from '../../types'
-import type { ChatStoreState, ChatStoreComputed, AttachmentData } from './types'
+import type { ChatStoreState, ChatStoreComputed } from './types'
 import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
 import { createAndPersistConversation } from './conversationActions'
 import { clearCheckpointsFromIndex } from './checkpointActions'
 import { persistPinnedPromptForConversation } from './pinnedPromptActions'
 import { persistChatMode } from './chatModeActions'
+import { toAttachmentData } from './messageActions/attachmentData'
 
 /**
  * 取消流式的回调类型
@@ -119,17 +120,7 @@ export async function sendMessage(
     state.toolCallBuffer.value = ''
     state.inToolCall.value = null
 
-    const attachmentData: AttachmentData[] | undefined = attachments && attachments.length > 0
-      ? attachments.map(att => ({
-        id: att.id,
-        name: att.name,
-        type: att.type,
-        size: att.size,
-        mimeType: att.mimeType,
-        data: att.data || '',
-        thumbnail: att.thumbnail
-      }))
-      : undefined
+    const attachmentData = toAttachmentData(attachments)
 
     const selectionReferences = state.selectionReferences.value
     const hasSelectionReferences = Array.isArray(selectionReferences) && selectionReferences.length > 0
@@ -400,17 +391,7 @@ export async function editAndRetry(
   state.allMessages.value.push(assistantMessage)
   state.streamingMessageId.value = assistantMessageId
 
-  const attachmentData: AttachmentData[] | undefined = attachments && attachments.length > 0
-    ? attachments.map(att => ({
-      id: att.id,
-      name: att.name,
-      type: att.type,
-      size: att.size,
-      mimeType: att.mimeType,
-      data: att.data || '',
-      thumbnail: att.thumbnail
-    }))
-    : undefined
+  const attachmentData = toAttachmentData(attachments)
 
   try {
     await sendToExtension('editAndRetryStream', {
