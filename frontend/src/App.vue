@@ -15,7 +15,7 @@ import ContextInspectorModal from './components/common/ContextInspectorModal.vue
 import { useChatStore, useSettingsStore, useTerminalStore } from './stores'
 import { useAttachments } from './composables'
 import { useI18n, setLanguage } from './i18n'
-import { copyToClipboard } from './utils'
+import { copyToClipboard, formatErrorDetails } from './utils'
 import { generateConversationTitleFromMessages } from './utils/conversationTitle'
 import { sendToExtension, onMessageFromExtension } from './utils/vscode'
 import type { Attachment, Message } from './types'
@@ -155,20 +155,6 @@ async function handleAttachFile() {
 // 处理移除附件
 function handleRemoveAttachment(id: string) {
   removeAttachment(id)
-}
-
-// 格式化错误详情
-function formatErrorDetails(details: any): string {
-  if (typeof details === 'string') {
-    // 如果是字符串，尝试解析为 JSON
-    try {
-      const parsed = JSON.parse(details)
-      return JSON.stringify(parsed, null, 2)
-    } catch {
-      return details
-    }
-  }
-  return JSON.stringify(details, null, 2)
 }
 
 // 处理粘贴文件

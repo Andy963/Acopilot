@@ -129,6 +129,19 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+// Format potentially-stringified JSON details into a readable string.
+export function formatErrorDetails(details: any): string {
+  if (typeof details === 'string') {
+    try {
+      const parsed = JSON.parse(details)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return details
+    }
+  }
+  return JSON.stringify(details, null, 2)
+}
+
 // 防抖函数
 export function debounce<T extends (...args: any[]) => any>(
   fn: T,
