@@ -8,6 +8,7 @@
 import { ref, watch, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
 import { sendToExtension } from '../../utils/vscode'
 import { useI18n } from '../../i18n'
+import { DEFAULT_MAX_ROWS, DEFAULT_MIN_ROWS, computeTextareaHeight } from './textareaAutoResize'
 
 const { t } = useI18n()
 
@@ -37,12 +38,15 @@ const emit = defineEmits<{
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement>()
-const currentRows = ref(props.minRows || 2)
+const currentRows = ref(props.minRows || DEFAULT_MIN_ROWS)
 const lastSetHeight = ref('')
 const isManuallyResized = ref(false)
 
 // 调整高度时的检测状态
 const cachedLineHeight = ref(0)
+const cachedVerticalPadding = ref(0)
+const cachedVerticalBorder = ref(0)
+const cachedIsBorderBox = ref(true)
 const lastScrollHeight = ref(0)
 
 // 拖拽状态
@@ -68,21 +72,28 @@ function adjustHeight() {
   }
   if (isManuallyResized.value) return
 
-  const minRows = props.minRows || 2  // 默认最少两行
-  const maxRows = props.maxRows || 6
+  const minRows = props.minRows || DEFAULT_MIN_ROWS  // Default: 3 rows
+  const maxRows = props.maxRows || DEFAULT_MAX_ROWS
   
   // 获取并缓存行高，避免频繁读取 DOM
   if (!cachedLineHeight.value) {
-    cachedLineHeight.value = parseInt(getComputedStyle(textarea).lineHeight) || 20
+    const styles = getComputedStyle(textarea)
+    cachedLineHeight.value = parseFloat(styles.lineHeight) || 20
+    cachedVerticalPadding.value = (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0)
+    cachedVerticalBorder.value = (parseFloat(styles.borderTopWidth) || 0) + (parseFloat(styles.borderBottomWidth) || 0)
+    cachedIsBorderBox.value = styles.boxSizing === 'border-box'
   }
   
   const lineHeight = cachedLineHeight.value
-  const minHeight = minRows * lineHeight
+  const verticalPadding = cachedVerticalPadding.value
+  const verticalBorder = cachedVerticalBorder.value
+  const isBorderBox = cachedIsBorderBox.value
   
   // 核心优化：增加高度变化检测
   // 在固定高度模式下，scrollHeight 代表内容真实高度（即使被 height 限制）
   // 如果它没变，说明行数没变，不需要重设 height='auto'（这会强制重排）
-  if (textarea.scrollHeight === lastScrollHeight.value && lastScrollHeight.value !== 0) {
+  const scrollHeightBefore = textarea.scrollHeight
+  if (scrollHeightBefore === lastScrollHeight.value && lastScrollHeight.value !== 0) {
     return
   }
 
@@ -91,21 +102,22 @@ function adjustHeight() {
   textarea.style.height = 'auto'
   
   // 获取实际内容高度
-  const contentHeight = textarea.scrollHeight
-  
-  // 计算目标高度，确保不低于最小高度
-  const targetHeight = Math.max(contentHeight, minHeight)
-  
-  // 计算实际行数
-  const rows = Math.min(
-    Math.max(
-      Math.ceil(targetHeight / lineHeight),
-      minRows
-    ),
+  const contentHeightRaw = Math.max(0, textarea.scrollHeight - verticalPadding)
+  const minContentHeight = minRows * lineHeight
+  // `scrollHeight` is an integer and can slightly overshoot the theoretical `minRows * lineHeight`
+  // for border-box + fractional line-height, which would incorrectly bump 3 -> 4 rows on first input.
+  const overshootTolerancePx = Math.max(1, Math.ceil(lineHeight * 0.25))
+  const contentHeight = contentHeightRaw <= minContentHeight + overshootTolerancePx ? minContentHeight : contentHeightRaw
+
+  const { rows, heightPx } = computeTextareaHeight({
+    contentHeight,
+    lineHeight,
+    minRows,
     maxRows
-  )
-  
-  const finalHeight = `${rows * lineHeight}px`
+  })
+
+  const totalHeightPx = isBorderBox ? heightPx + verticalPadding + verticalBorder : heightPx
+  const finalHeight = `${totalHeightPx}px`
   
   // 只有当高度真正改变时才更新 DOM
   if (oldHeight !== finalHeight) {
@@ -118,7 +130,7 @@ function adjustHeight() {
   }
   
   // 记录本次的内容高度，用于下次对比
-  lastScrollHeight.value = contentHeight
+  lastScrollHeight.value = textarea.scrollHeight
   
   // 更新滚动条
   nextTick(() => updateScrollbar())
@@ -610,6 +622,7 @@ defineExpose({
   <div class="input-box" :class="{ 'drag-over': isDragOver, embedded: props.variant === 'embedded' }">
     <textarea
       ref="textareaRef"
+      :rows="props.minRows || DEFAULT_MIN_ROWS"
       :value="value"
       :disabled="disabled"
       :placeholder="placeholder || t('components.input.placeholderHint')"
@@ -656,7 +669,7 @@ defineExpose({
 
 .input-textarea {
   width: 100%;
-  min-height: 56px;  /* 确保至少两行高度 */
+  min-height: 56px;  /* Baseline height; JS controls the final height. */
   /* max-height: 160px; */
   padding: var(--spacing-sm, 8px);
   background: var(--vscode-input-background);

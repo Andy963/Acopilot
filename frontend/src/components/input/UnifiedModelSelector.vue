@@ -272,7 +272,9 @@ onUnmounted(() => {
   bottom: 100%;
   left: 0;
   right: auto;
-  width: max(100%, 200px);
+  /* Keep the dropdown compact to avoid trailing empty space. */
+  width: 180px;
+  min-width: 180px;
   max-width: min(260px, 90vw);
   margin-bottom: 4px;
   background: var(--vscode-dropdown-background);
