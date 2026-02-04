@@ -707,6 +707,7 @@ function handleOpenContextUsed() {
                 <MarkdownRenderer
                   :content="block.text || ''"
                   :latex-only="false"
+                  :streaming="isStreaming"
                   class="thought-text"
                 />
               </div>
@@ -738,6 +739,7 @@ function handleOpenContextUsed() {
                 <MarkdownRenderer
                   :content="block.text || ''"
                   :latex-only="false"
+                  :streaming="isStreaming"
                   class="thought-text"
                 />
               </div>
@@ -749,6 +751,7 @@ function handleOpenContextUsed() {
               v-else-if="block.type === 'text'"
               :content="block.text || ''"
               :latex-only="isUser"
+              :streaming="isStreaming"
               class="content-text"
             />
             
@@ -766,6 +769,7 @@ function handleOpenContextUsed() {
           v-else-if="message.content"
           :content="message.content"
           :latex-only="isUser"
+          :streaming="isStreaming"
           class="content-text"
         />
 

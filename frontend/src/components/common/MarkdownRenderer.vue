@@ -17,7 +17,13 @@ import type { Options } from 'markdown-it'
 import type Token from 'markdown-it/lib/token.mjs'
 import type Renderer from 'markdown-it/lib/renderer.mjs'
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import python from 'highlight.js/lib/languages/python'
+import go from 'highlight.js/lib/languages/go'
+import json from 'highlight.js/lib/languages/json'
+import bash from 'highlight.js/lib/languages/bash'
 import katex from 'katex'
 import { sendToExtension } from '@/utils/vscode'
 
@@ -29,8 +35,10 @@ import taskLists from 'markdown-it-task-lists'
 const props = withDefaults(defineProps<{
   content: string
   latexOnly?: boolean  // 仅渲染 LaTeX，不渲染 Markdown（用于用户消息）
+  streaming?: boolean  // Streaming mode: defer code highlighting until completion.
 }>(), {
-  latexOnly: false
+  latexOnly: false,
+  streaming: false
 })
 
 // 容器引用
@@ -42,10 +50,49 @@ const copyTimers = new Map<HTMLButtonElement, number>()
 // 图片加载状态
 const imageCache = new Map<string, string>()
 
+// Register a small set of languages to keep bundle size under control.
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('go', go)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('bash', bash)
+
+const AUTO_LANGUAGE_SUBSET = ['python', 'go', 'javascript', 'typescript', 'json', 'bash'] as const
+const LANGUAGE_ALIASES: Record<string, string> = {
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  tss: 'typescript',
+  py: 'python',
+  golang: 'go',
+  sh: 'bash',
+  shell: 'bash',
+  zsh: 'bash',
+  jsonc: 'json'
+}
+
+const MAX_EXPLICIT_HIGHLIGHT_CHARS = 100_000
+const MAX_AUTO_HIGHLIGHT_CHARS = 20_000
+
+function normalizeFenceLanguage(info: string): string | null {
+  const token = info.trim().split(/\s+/)[0] || ''
+  const normalized = (LANGUAGE_ALIASES[token.toLowerCase()] ?? token)
+    .toLowerCase()
+    .replace(/^language-/, '')
+    .replace(/^lang-/, '')
+
+  if (!normalized) return null
+  return hljs.getLanguage(normalized) ? normalized : null
+}
+
 /**
  * 创建并配置 markdown-it 实例
  */
-function createMarkdownIt() {
+function createMarkdownIt(enableCodeHighlight: boolean) {
   const md = new MarkdownIt({
     html: true,           // 允许 HTML 标签
     xhtmlOut: false,
@@ -53,26 +100,26 @@ function createMarkdownIt() {
     linkify: true,        // 自动检测链接
     typographer: true,    // 启用智能引号等排版功能
     highlight: function (str: string, lang: string) {
-      // 代码高亮
       let highlighted: string
-      let langClass = ''
-      
-      if (lang && hljs.getLanguage(lang)) {
-        try {
-          highlighted = hljs.highlight(str, { language: lang }).value
-          langClass = `language-${lang}`
-        } catch (e) {
-          highlighted = hljs.highlightAuto(str).value
-        }
+      const normalizedLang = lang ? normalizeFenceLanguage(lang) : null
+      const langClass = normalizedLang ? `language-${normalizedLang}` : ''
+
+      if (!enableCodeHighlight) {
+        highlighted = escapeHtml(str)
+      } else if (normalizedLang && str.length <= MAX_EXPLICIT_HIGHLIGHT_CHARS) {
+        highlighted = hljs.highlight(str, { language: normalizedLang, ignoreIllegals: true }).value
+      } else if (!normalizedLang && str.length <= MAX_AUTO_HIGHLIGHT_CHARS) {
+        highlighted = hljs.highlightAuto(str, [...AUTO_LANGUAGE_SUBSET]).value
       } else {
-        highlighted = hljs.highlightAuto(str).value
+        highlighted = escapeHtml(str)
       }
-      
+
       // 对原始代码进行 base64 编码以便复制时解码
       const encodedCode = btoa(encodeURIComponent(str))
       
       // 返回以 <pre 开头的字符串，避免 markdown-it 额外包裹
-      return `<pre class="hljs code-block-wrapper"><button class="code-copy-btn" data-code="${encodedCode}" title="复制代码"><span class="copy-icon codicon codicon-copy"></span><span class="check-icon codicon codicon-check"></span></button><code class="${langClass}">${highlighted}</code></pre>`
+      const codeClass = ['hljs', langClass].filter(Boolean).join(' ')
+      return `<pre class="code-block-wrapper"><button class="code-copy-btn" data-code="${encodedCode}" title="复制代码"><span class="copy-icon codicon codicon-copy"></span><span class="check-icon codicon codicon-check"></span></button><code class="${codeClass}">${highlighted}</code></pre>`
     }
   })
   
@@ -139,8 +186,8 @@ function createMarkdownIt() {
   return md
 }
 
-// 创建 markdown-it 实例
-const md = createMarkdownIt()
+const mdWithHighlight = createMarkdownIt(true)
+const mdWithoutHighlight = createMarkdownIt(false)
 
 /**
  * 处理 LaTeX 公式
@@ -269,7 +316,7 @@ function escapeHtml(text: string): string {
 /**
  * 渲染 Markdown 和 LaTeX
  */
-function renderContent(content: string, latexOnly: boolean): string {
+function renderContent(content: string, latexOnly: boolean, enableCodeHighlight: boolean): string {
   if (!content) return ''
   
   // 仅 LaTeX 模式（用户消息）
@@ -306,6 +353,7 @@ function renderContent(content: string, latexOnly: boolean): string {
   })
   
   // 6. 使用 markdown-it 渲染
+  const md = enableCodeHighlight ? mdWithHighlight : mdWithoutHighlight
   let html = md.render(processed)
   
   // 7. 保留多个连续空格（在段落内容中）
@@ -329,7 +377,8 @@ function renderContent(content: string, latexOnly: boolean): string {
 
 // 渲染结果
 const renderedContent = computed(() => {
-  return renderContent(props.content, props.latexOnly)
+  const enableCodeHighlight = props.streaming !== true
+  return renderContent(props.content, props.latexOnly, enableCodeHighlight)
 })
 
 /**

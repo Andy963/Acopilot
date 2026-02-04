@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.6] - 2026-02-04
+
+### Improved
+  - UI：代码块高亮改为 `highlight.js` core + language subset（`python/go/javascript/typescript/json/bash`），并在流式结束后再进行高亮，显著降低 webview bundle 体积并改善流式渲染性能。
+
 ## [1.0.59-pre.5] - 2026-02-04
 
 ### Fixed

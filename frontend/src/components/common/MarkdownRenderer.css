@@ -176,6 +176,44 @@
   overflow-wrap: normal;
 }
 
+/* Minimal Highlight.js theme (uses VS Code theme variables) */
+.markdown-content :deep(code.hljs) {
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
+  background: transparent;
+}
+
+.markdown-content :deep(.hljs-comment),
+.markdown-content :deep(.hljs-quote) {
+  color: var(--vscode-descriptionForeground, #6a737d);
+  font-style: italic;
+}
+
+.markdown-content :deep(.hljs-keyword),
+.markdown-content :deep(.hljs-selector-tag),
+.markdown-content :deep(.hljs-literal),
+.markdown-content :deep(.hljs-built_in),
+.markdown-content :deep(.hljs-type) {
+  color: var(--vscode-charts-blue, #4d8acb);
+}
+
+.markdown-content :deep(.hljs-string),
+.markdown-content :deep(.hljs-title),
+.markdown-content :deep(.hljs-section),
+.markdown-content :deep(.hljs-attribute),
+.markdown-content :deep(.hljs-addition) {
+  color: var(--vscode-charts-orange, #d19a66);
+}
+
+.markdown-content :deep(.hljs-number),
+.markdown-content :deep(.hljs-symbol),
+.markdown-content :deep(.hljs-bullet) {
+  color: var(--vscode-charts-yellow, #e5c07b);
+}
+
+.markdown-content :deep(.hljs-deletion) {
+  color: var(--vscode-errorForeground);
+}
+
 /* 行内代码 */
 .markdown-content :deep(code:not(.hljs)) {
   padding: 2px 6px;
