@@ -364,4 +364,5 @@ const {
   </div>
 </template>
 
-<style scoped src="./SettingsPanel.css"></style>
+<style scoped src="./SettingsPanel.part1.css"></style>
+<style scoped src="./SettingsPanel.part2.css"></style>

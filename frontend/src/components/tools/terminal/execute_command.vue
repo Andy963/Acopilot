@@ -997,4 +997,5 @@ watch(isRunning, (running) => {
   </div>
 </template>
 
-<style scoped src="./execute_command.css"></style>
+<style scoped src="./execute_command.part1.css"></style>
+<style scoped src="./execute_command.part2.css"></style>

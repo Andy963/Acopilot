@@ -494,4 +494,5 @@ const { t, chatStore, configs, currentConfigId, isLoading, isEditing, editingNam
   </div>
 </template>
 
-<style scoped src="./ChannelSettings.css"></style>
+<style scoped src="./ChannelSettings.part1.css"></style>
+<style scoped src="./ChannelSettings.part2.css"></style>

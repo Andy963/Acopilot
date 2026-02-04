@@ -902,4 +902,5 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped src="./CheckpointSettings.css"></style>
+<style scoped src="./CheckpointSettings.part1.css"></style>
+<style scoped src="./CheckpointSettings.part2.css"></style>

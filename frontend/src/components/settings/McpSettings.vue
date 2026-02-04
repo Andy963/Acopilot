@@ -372,4 +372,5 @@ const {
   </div>
 </template>
 
-<style scoped src="./McpSettings.css"></style>
+<style scoped src="./McpSettings.part1.css"></style>
+<style scoped src="./McpSettings.part2.css"></style>

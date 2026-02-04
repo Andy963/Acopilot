@@ -912,4 +912,5 @@ watch(selectedChannel, () => {
   </Modal>
 </template>
 
-<style scoped src="./PromptSettings.css"></style>
+<style scoped src="./PromptSettings.part1.css"></style>
+<style scoped src="./PromptSettings.part2.css"></style>

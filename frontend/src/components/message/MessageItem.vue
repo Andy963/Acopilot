@@ -841,4 +841,5 @@ function handleOpenContextUsed() {
   </div>
 </template>
 
-<style scoped src="./MessageItem.css"></style>
+<style scoped src="./MessageItem.part1.css"></style>
+<style scoped src="./MessageItem.part2.css"></style>
