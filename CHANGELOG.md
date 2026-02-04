@@ -2,6 +2,15 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.4] - 2026-02-04
+
+### Added
+  - Chat：chat 模式支持自动携带“当前打开文件上下文（Open File Context）”并注入到模型请求；支持选区范围、dirty buffer、预算限制与敏感路径过滤。
+
+### Improved
+  - Refactor：全仓库 TypeScript 源码按“单文件 <= 500 行”拆分，降低维护成本并提升可读性（以保持行为一致为主）。
+  - UI：输入框自动高度调整逻辑优化，减少抖动并提升稳定性。
+
 ## [1.0.59-pre.2] - 2026-02-02
 
 ### Improved
