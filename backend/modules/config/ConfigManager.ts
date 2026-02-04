@@ -17,18 +17,20 @@ import type {
     ConfigFilter,
     ConfigSortOptions,
     GeminiConfig,
-    OpenAIConfig
 } from './types';
 import type { ConfigStorageAdapter } from './storage';
 import { nanoid } from 'nanoid';
-
-type SecretStorage = {
-    get(key: string): Thenable<string | undefined>;
-    store(key: string, value: string): Thenable<void>;
-    delete(key: string): Thenable<void>;
-};
-
-const CONFIG_API_KEY_SECRET_PREFIX = 'acopilot.config.apiKey.';
+import { getDefaultConfig as getDefaultConfigImpl } from './configDefaults';
+import {
+    getApiKeySecretKey,
+    hydrateAndMigrateApiKey,
+    stripApiKeyForStorage,
+    tryDeleteSecret,
+    tryStoreSecret,
+    type SecretStorage
+} from './configSecrets';
+import { applyFilter, applySort } from './configQuery';
+import { validateGeminiConfig, validateOpenAIConfig } from './configValidation';
 
 /**
  * 配置管理器
@@ -46,75 +48,6 @@ export class ConfigManager {
         private storageAdapter: ConfigStorageAdapter,
         private secretStorage?: SecretStorage
     ) {}
-
-    private getApiKeySecretKey(configId: string): string {
-        return `${CONFIG_API_KEY_SECRET_PREFIX}${configId}`;
-    }
-
-    private async tryStoreSecret(key: string, value: string): Promise<boolean> {
-        if (!this.secretStorage) return false;
-        try {
-            await this.secretStorage.store(key, value);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    private async tryDeleteSecret(key: string): Promise<void> {
-        if (!this.secretStorage) return;
-        try {
-            await this.secretStorage.delete(key);
-        } catch {
-            return;
-        }
-    }
-
-    private async tryGetSecret(key: string): Promise<string | undefined> {
-        if (!this.secretStorage) return undefined;
-        try {
-            return await this.secretStorage.get(key);
-        } catch {
-            return undefined;
-        }
-    }
-
-    private stripApiKeyForStorage(config: ChannelConfig): ChannelConfig {
-        if (!this.secretStorage) return config;
-        if (!('apiKey' in (config as any))) return config;
-        return { ...(config as any), apiKey: '' } as ChannelConfig;
-    }
-
-    private async hydrateAndMigrateApiKey(config: ChannelConfig): Promise<ChannelConfig> {
-        if (!this.secretStorage) {
-            return config;
-        }
-
-        const apiKeySecretKey = this.getApiKeySecretKey(config.id);
-        const rawApiKey = typeof (config as any).apiKey === 'string' ? String((config as any).apiKey) : '';
-        const isRedacted = rawApiKey === '***REDACTED***';
-
-        // Migration: older versions store apiKey in globalState. Move it into SecretStorage and wipe plaintext.
-        if (rawApiKey.trim().length > 0 && !isRedacted) {
-            const stored = await this.tryStoreSecret(apiKeySecretKey, rawApiKey);
-            if (stored) {
-                await this.storageAdapter.save(this.stripApiKeyForStorage(config));
-            }
-            return config;
-        }
-
-        // Normal path: hydrate apiKey from SecretStorage.
-        const secretApiKey = await this.tryGetSecret(apiKeySecretKey);
-        if (secretApiKey && secretApiKey.trim().length > 0) {
-            return { ...(config as any), apiKey: secretApiKey } as ChannelConfig;
-        }
-
-        if (isRedacted) {
-            return { ...(config as any), apiKey: '' } as ChannelConfig;
-        }
-
-        return config;
-    }
     
     /**
      * 初始化管理器（加载所有配置到缓存）
@@ -129,7 +62,11 @@ export class ConfigManager {
         for (const id of configIds) {
             const config = await this.storageAdapter.load(id);
             if (config) {
-                const hydrated = await this.hydrateAndMigrateApiKey(config);
+                const hydrated = await hydrateAndMigrateApiKey({
+                    config,
+                    storageAdapter: this.storageAdapter,
+                    secretStorage: this.secretStorage
+                });
                 this.configCache.set(id, hydrated);
             }
         }
@@ -146,129 +83,7 @@ export class ConfigManager {
      * @returns 默认配置（不含 id、createdAt、updatedAt）
      */
     getDefaultConfig(type: ChannelType): Record<string, any> {
-        const baseDefaults = {
-            enabled: true,
-            timeout: 120000,
-            model: '',
-            models: [],
-            apiKey: '',
-            toolMode: 'function_call' as const,
-            retryEnabled: true,
-            retryCount: 3,
-            retryInterval: 3000,
-            contextThresholdEnabled: false,
-            contextThreshold: '80%',
-            autoSummarizeEnabled: false,
-            multimodalToolsEnabled: false,
-            customHeadersEnabled: false,
-            customHeaders: [],
-            customBodyEnabled: false,
-            customBody: { mode: 'simple' as const, items: [] },
-            sendHistoryThoughts: false,
-            sendHistoryThoughtSignatures: false,
-            options: {
-                stream: true
-            }
-        };
-        
-        switch (type) {
-            case 'gemini':
-                return {
-                    ...baseDefaults,
-                    url: 'https://generativelanguage.googleapis.com/v1beta',
-                    options: {
-                        ...baseDefaults.options,
-                        temperature: 1.0,
-                        maxOutputTokens: 65536,
-                        // Gemini 思考配置默认值
-                        thinkingConfig: {
-                            includeThoughts: true,
-                            mode: 'default',
-                            thinkingLevel: 'low',
-                            thinkingBudget: 1024
-                        }
-                    },
-                    optionsEnabled: {
-                        temperature: false,
-                        maxOutputTokens: false,
-                        thinkingConfig: true
-                    }
-                };
-            
-            case 'openai':
-                return {
-                    ...baseDefaults,
-                    url: 'https://api.openai.com/v1',
-                    options: {
-                        ...baseDefaults.options,
-                        temperature: 1.0,
-                        max_tokens: 16384,
-                        // OpenAI 思考配置默认值
-                        reasoning: {
-                            effort: 'high',
-                            summaryEnabled: false,
-                            summary: 'auto'
-                        }
-                    },
-                    optionsEnabled: {
-                        temperature: false,
-                        max_tokens: false,
-                        top_p: false,
-                        frequency_penalty: false,
-                        presence_penalty: false,
-                        reasoning: false
-                    }
-                };
-            
-            case 'anthropic':
-                return {
-                    ...baseDefaults,
-                    url: 'https://api.anthropic.com/v1',
-                    options: {
-                        ...baseDefaults.options,
-                        temperature: 1.0,
-                        max_tokens: 8192,
-                        // Anthropic 思考配置默认值
-                        thinking: {
-                            type: 'enabled',
-                            budget_tokens: 10000
-                        }
-                    },
-                    optionsEnabled: {
-                        temperature: false,
-                        max_tokens: false,
-                        top_p: false,
-                        top_k: false,
-                        thinking: false
-                    }
-                };
-            
-            case 'openai-responses':
-                return {
-                    ...baseDefaults,
-                    url: 'https://api.openai.com/v1',
-                    options: {
-                        ...baseDefaults.options,
-                        temperature: 1.0,
-                        max_output_tokens: 16384,
-                        truncation: 'auto',
-                        reasoning: {
-                            effort: 'medium',
-                            summaryEnabled: false,
-                            summary: 'auto'
-                        }
-                    },
-                    optionsEnabled: {
-                        temperature: false,
-                        max_output_tokens: false,
-                        top_p: false,
-                        reasoning: false
-                    }
-                };
-            
-            default:
-                return baseDefaults;
-        }
+        return getDefaultConfigImpl(type);
     }
     
     /**
@@ -308,11 +123,11 @@ export class ConfigManager {
         const rawApiKey = typeof (config as any).apiKey === 'string' ? String((config as any).apiKey) : '';
         let canStripApiKey = Boolean(this.secretStorage);
         if (this.secretStorage && rawApiKey.trim().length > 0 && rawApiKey !== '***REDACTED***') {
-            canStripApiKey = await this.tryStoreSecret(this.getApiKeySecretKey(id), rawApiKey);
+            canStripApiKey = await tryStoreSecret(this.secretStorage, getApiKeySecretKey(id), rawApiKey);
         }
 
         // Save without apiKey when SecretStorage is available.
-        await this.storageAdapter.save(canStripApiKey ? this.stripApiKeyForStorage(config) : config);
+        await this.storageAdapter.save(canStripApiKey ? stripApiKeyForStorage(config, this.secretStorage) : config);
         this.configCache.set(id, config);
         
         return id;
@@ -380,18 +195,18 @@ export class ConfigManager {
 
         let canStripApiKey = Boolean(this.secretStorage);
         if (this.secretStorage && hasApiKeyUpdate && apiKeyUpdate !== '***REDACTED***') {
-            const secretKey = this.getApiKeySecretKey(configId);
+            const secretKey = getApiKeySecretKey(configId);
             if (typeof apiKeyUpdate === 'string') {
                 if (apiKeyUpdate.trim().length === 0) {
-                    await this.tryDeleteSecret(secretKey);
+                    await tryDeleteSecret(this.secretStorage, secretKey);
                 } else {
-                    canStripApiKey = await this.tryStoreSecret(secretKey, apiKeyUpdate);
+                    canStripApiKey = await tryStoreSecret(this.secretStorage, secretKey, apiKeyUpdate);
                 }
             }
         }
         
         // 保存（不验证配置）
-        await this.storageAdapter.save(canStripApiKey ? this.stripApiKeyForStorage(updated) : updated);
+        await this.storageAdapter.save(canStripApiKey ? stripApiKeyForStorage(updated, this.secretStorage) : updated);
         this.configCache.set(configId, updated);
     }
     
@@ -407,7 +222,7 @@ export class ConfigManager {
             throw new Error(t('modules.config.errors.configNotFound', { configId }));
         }
 
-        await this.tryDeleteSecret(this.getApiKeySecretKey(configId));
+        await tryDeleteSecret(this.secretStorage, getApiKeySecretKey(configId));
         
         await this.storageAdapter.delete(configId);
         this.configCache.delete(configId);
@@ -430,12 +245,12 @@ export class ConfigManager {
         
         // 应用过滤
         if (filter) {
-            configs = this.applyFilter(configs, filter);
+            configs = applyFilter(configs, filter);
         }
         
         // 应用排序
         if (sort) {
-            configs = this.applySort(configs, sort);
+            configs = applySort(configs, sort);
         }
         
         // 返回深拷贝
@@ -495,15 +310,15 @@ export class ConfigManager {
         // 根据类型进行特定验证
         switch (config.type) {
             case 'gemini':
-                this.validateGeminiConfig(config as GeminiConfig, errors, warnings);
+                validateGeminiConfig(config as GeminiConfig, errors, warnings);
                 break;
             
             case 'openai':
-                this.validateOpenAIConfig(config as any, errors, warnings);
+                validateOpenAIConfig(config as any, errors, warnings);
                 break;
             
             case 'openai-responses':
-                this.validateOpenAIConfig(config as any, errors, warnings);
+                validateOpenAIConfig(config as any, errors, warnings);
                 break;
             
             case 'anthropic':
@@ -519,81 +334,6 @@ export class ConfigManager {
         };
     }
     
-    /**
-     * 验证 Gemini 配置
-     */
-    private validateGeminiConfig(
-        config: GeminiConfig,
-        errors: string[],
-        warnings: string[]
-    ): void {
-        // URL 验证
-        if (!config.url || !this.isValidUrl(config.url)) {
-            errors.push(t('modules.config.validation.invalidUrl'));
-        }
-        
-        // API Key 验证 - 仅警告，不阻止创建
-        if (!config.apiKey || config.apiKey.trim().length === 0) {
-            warnings.push(t('modules.config.validation.apiKeyEmpty'));
-        }
-        
-        // 模型名称验证（允许为空，表示未选择模型）
-        // 仅当有模型列表时，才检查是否选择了模型
-        const models = (config as any).models || [];
-        if (models.length > 0 && (!config.model || config.model.trim().length === 0)) {
-            warnings.push(t('modules.config.validation.modelNotSelected'));
-        }
-        
-        // 选项验证
-        if (config.options) {
-            const opts = config.options;
-            
-            // 温度参数
-            if (opts.temperature !== undefined) {
-                if (opts.temperature < 0 || opts.temperature > 2) {
-                    errors.push(t('modules.config.validation.temperatureRange'));
-                }
-            }
-            
-            // 最大输出 token
-            if (opts.maxOutputTokens !== undefined) {
-                if (opts.maxOutputTokens < 1) {
-                    errors.push(t('modules.config.validation.maxOutputTokensMin'));
-                }
-                
-                // 警告：过大的 token 数
-                if (opts.maxOutputTokens > 8192) {
-                    warnings.push(t('modules.config.validation.maxOutputTokensHigh'));
-                }
-            }
-        }
-    }
-    
-    /**
-     * 验证 OpenAI 配置
-     */
-    private validateOpenAIConfig(
-        config: any,
-        errors: string[],
-        warnings: string[]
-    ): void {
-        // URL 验证
-        if (!config.url || !this.isValidUrl(config.url)) {
-            errors.push(t('modules.config.validation.invalidUrl'));
-        }
-        
-        // API Key 验证
-        if (!config.apiKey || config.apiKey.trim().length === 0) {
-            warnings.push(t('modules.config.validation.apiKeyEmpty'));
-        }
-        
-        // 模型名称验证
-        const models = config.models || [];
-        if (models.length > 0 && (!config.model || config.model.trim().length === 0)) {
-            warnings.push(t('modules.config.validation.modelNotSelected'));
-        }
-    }
-
     /**
      * 获取统计信息
      * 
@@ -711,98 +451,5 @@ export class ConfigManager {
     async exists(configId: string): Promise<boolean> {
         await this.ensureLoaded();
         return this.configCache.has(configId);
-    }
-    
-    // ========== 辅助方法 ==========
-    
-    /**
-     * 应用过滤条件
-     */
-    private applyFilter(
-        configs: ChannelConfig[],
-        filter: ConfigFilter
-    ): ChannelConfig[] {
-        let result = configs;
-        
-        // 按类型过滤
-        if (filter.type) {
-            result = result.filter(c => c.type === filter.type);
-        }
-        
-        // 按启用状态过滤
-        if (filter.enabled !== undefined) {
-            result = result.filter(c => c.enabled === filter.enabled);
-        }
-        
-        // 按标签过滤
-        if (filter.tags && filter.tags.length > 0) {
-            result = result.filter(c =>
-                c.tags && filter.tags!.some(tag => c.tags!.includes(tag))
-            );
-        }
-        
-        // 按名称搜索
-        if (filter.nameSearch) {
-            const search = filter.nameSearch.toLowerCase();
-            result = result.filter(c =>
-                c.name.toLowerCase().includes(search)
-            );
-        }
-        
-        return result;
-    }
-    
-    /**
-     * 应用排序
-     */
-    private applySort(
-        configs: ChannelConfig[],
-        sort: ConfigSortOptions
-    ): ChannelConfig[] {
-        const sorted = [...configs];
-        
-        sorted.sort((a, b) => {
-            let aVal: any;
-            let bVal: any;
-            
-            switch (sort.field) {
-                case 'name':
-                    aVal = a.name.toLowerCase();
-                    bVal = b.name.toLowerCase();
-                    break;
-                case 'createdAt':
-                    aVal = a.createdAt;
-                    bVal = b.createdAt;
-                    break;
-                case 'updatedAt':
-                    aVal = a.updatedAt;
-                    bVal = b.updatedAt;
-                    break;
-                case 'type':
-                    aVal = a.type;
-                    bVal = b.type;
-                    break;
-            }
-            
-            if (sort.order === 'asc') {
-                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            } else {
-                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-            }
-        });
-        
-        return sorted;
-    }
-    
-    /**
-     * 验证 URL
-     */
-    private isValidUrl(url: string): boolean {
-        try {
-            new URL(url);
-            return true;
-        } catch {
-            return false;
-        }
     }
 }
