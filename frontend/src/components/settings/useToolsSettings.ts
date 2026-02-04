@@ -1,6 +1,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { sendToExtension } from '@/utils/vscode'
-import { getToolDependencies, TOOL_DEPENDENCIES, useDependency } from '@/composables/useDependency'
+import { getToolDependencies, hasToolDependencies, TOOL_DEPENDENCIES, useDependency } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
 
 export interface ToolInfo {
@@ -220,6 +220,21 @@ export function useToolsSettings() {
     }
   }
 
+  const confirmDangerDialogVisible = ref(false)
+  const confirmDangerDialogToolName = ref('')
+  const confirmDangerDialogNextValue = ref(false)
+
+  function requestToggleAutoExec(toolName: string, enabled: boolean) {
+    if (enabled && isDangerousTool(toolName)) {
+      confirmDangerDialogToolName.value = toolName
+      confirmDangerDialogNextValue.value = enabled
+      confirmDangerDialogVisible.value = true
+      return
+    }
+
+    void toggleAutoExec(toolName, enabled)
+  }
+
   async function enableAll() {
     const disabledTools = tools.value.filter(tool => !isMcpTool(tool) && !tool.enabled)
     for (const tool of disabledTools) {
@@ -308,6 +323,7 @@ export function useToolsSettings() {
     handleMaxIterationsChange,
     dependencyStatus,
     loadDependencies,
+    hasToolDependencies,
     hasConfigPanel,
     getMissingDependencies,
     areAllDependenciesInstalled,
@@ -327,8 +343,12 @@ export function useToolsSettings() {
     loadTools,
     toggleTool,
     toggleAutoExec,
+    requestToggleAutoExec,
     enableAll,
     disableAll,
+    confirmDangerDialogVisible,
+    confirmDangerDialogToolName,
+    confirmDangerDialogNextValue,
     confirmEnableDangerousAutoExecDialogVisible,
     enableAllAutoExec,
     confirmEnableAllAutoExec,
@@ -341,4 +361,3 @@ export function useToolsSettings() {
     getCategoryAutoExecCount,
   }
 }
-

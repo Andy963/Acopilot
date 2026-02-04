@@ -152,6 +152,23 @@
 .pinned-skill-select {
   flex: 1;
   min-width: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.pinned-skill-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-skill-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .pinned-skill-refresh {
