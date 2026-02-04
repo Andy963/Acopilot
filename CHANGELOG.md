@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.5] - 2026-02-04
+
+### Fixed
+  - Settings：修复 Tools/AutoExec 设置页分组无法展开（运行时异常导致内容区无法渲染）。
+  - UI：修复 Pinned Skills 下拉选择器样式与可用性（对齐 VS Code dropdown 主题变量）。
+
 ## [1.0.59-pre.4] - 2026-02-04
 
 ### Added
