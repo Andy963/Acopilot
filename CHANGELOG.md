@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.7] - 2026-02-05
+
+### Improved
+  - UI：代码块高亮配色更贴近 VS Code 编辑器（Dark Modern）的语义化风格（comment/keyword/type/function/variable/string/number 等）。
+  - UI：补全 highlight.js token class 的映射（operator/punctuation/literal/regexp/tag 等），减少“全都一个颜色”的观感。
+
 ## [1.0.59-pre.6] - 2026-02-04
 
 ### Improved

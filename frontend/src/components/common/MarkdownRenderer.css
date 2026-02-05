@@ -4,6 +4,23 @@
   line-height: 1.6;
   color: var(--vscode-foreground);
   word-break: break-word;
+
+  /*
+   * Code highlighting palette tuned to approximate VS Code editor colors (Dark Modern).
+   * Note: VS Code doesn't currently expose semantic token colors as CSS variables to webviews,
+   * so we use a curated palette with theme-aware fallbacks where possible.
+   */
+  --acopilot-code-fg: var(--vscode-textPreformat-foreground, var(--vscode-editor-foreground, #d4d4d4));
+  --acopilot-code-comment: #6a9955;
+  --acopilot-code-keyword: #c586c0;
+  --acopilot-code-constant: #569cd6;
+  --acopilot-code-type: #4ec9b0;
+  --acopilot-code-function: #dcdcaa;
+  --acopilot-code-variable: #9cdcfe;
+  --acopilot-code-string: #ce9178;
+  --acopilot-code-number: #b5cea8;
+  --acopilot-code-regexp: #d16969;
+  --acopilot-code-operator: var(--acopilot-code-fg);
 }
 
 /* 段落 */
@@ -178,36 +195,77 @@
 
 /* Minimal Highlight.js theme (uses VS Code theme variables) */
 .markdown-content :deep(code.hljs) {
-  color: var(--vscode-editor-foreground, var(--vscode-foreground));
+  color: var(--acopilot-code-fg);
   background: transparent;
 }
 
 .markdown-content :deep(.hljs-comment),
 .markdown-content :deep(.hljs-quote) {
-  color: var(--vscode-descriptionForeground, #6a737d);
-  font-style: italic;
+  color: var(--acopilot-code-comment);
 }
 
 .markdown-content :deep(.hljs-keyword),
 .markdown-content :deep(.hljs-selector-tag),
+.markdown-content :deep(.hljs-built_in) {
+  color: var(--acopilot-code-keyword);
+}
+
 .markdown-content :deep(.hljs-literal),
-.markdown-content :deep(.hljs-built_in),
+.markdown-content :deep(.hljs-symbol) {
+  color: var(--acopilot-code-constant);
+}
+
 .markdown-content :deep(.hljs-type) {
-  color: var(--vscode-charts-blue, #4d8acb);
+  color: var(--acopilot-code-type);
+}
+
+.markdown-content :deep(.hljs-title.class_),
+.markdown-content :deep(.hljs-class .hljs-title) {
+  color: var(--acopilot-code-type);
+}
+
+.markdown-content :deep(.hljs-title.function_),
+.markdown-content :deep(.hljs-function .hljs-title) {
+  color: var(--acopilot-code-function);
+}
+
+.markdown-content :deep(.hljs-variable),
+.markdown-content :deep(.hljs-params),
+.markdown-content :deep(.hljs-property),
+.markdown-content :deep(.hljs-attr),
+.markdown-content :deep(.hljs-attribute) {
+  color: var(--acopilot-code-variable);
 }
 
 .markdown-content :deep(.hljs-string),
+.markdown-content :deep(.hljs-addition) {
+  color: var(--acopilot-code-string);
+}
+
 .markdown-content :deep(.hljs-title),
 .markdown-content :deep(.hljs-section),
-.markdown-content :deep(.hljs-attribute),
-.markdown-content :deep(.hljs-addition) {
-  color: var(--vscode-charts-orange, #d19a66);
+.markdown-content :deep(.hljs-doctag) {
+  color: var(--acopilot-code-function);
 }
 
 .markdown-content :deep(.hljs-number),
-.markdown-content :deep(.hljs-symbol),
 .markdown-content :deep(.hljs-bullet) {
-  color: var(--vscode-charts-yellow, #e5c07b);
+  color: var(--acopilot-code-number);
+}
+
+.markdown-content :deep(.hljs-regexp) {
+  color: var(--acopilot-code-regexp);
+}
+
+.markdown-content :deep(.hljs-meta),
+.markdown-content :deep(.hljs-tag),
+.markdown-content :deep(.hljs-name) {
+  color: var(--acopilot-code-constant);
+}
+
+.markdown-content :deep(.hljs-operator),
+.markdown-content :deep(.hljs-punctuation) {
+  color: var(--acopilot-code-operator);
 }
 
 .markdown-content :deep(.hljs-deletion) {
@@ -221,6 +279,7 @@
   border-radius: 3px;
   font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
   font-size: 0.9em;
+  color: var(--acopilot-code-fg);
 }
 
 /* 链接 */
