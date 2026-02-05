@@ -55,6 +55,26 @@ export const setCustomMetadata: MessageHandler = async (data, requestId, ctx) =>
  */
 export const deleteConversation: MessageHandler = async (data, requestId, ctx) => {
   const { conversationId } = data;
+  // Delete large sidecar data first to avoid leaving orphaned storage.
+  try {
+    await ctx.diffStorageManager.deleteConversationDiffs(conversationId);
+  } catch (err) {
+    console.warn('[ConversationHandlers] Failed to delete conversation diffs:', err);
+  }
+
+  try {
+    const snapshotIds = await ctx.conversationManager.listSnapshots(conversationId);
+    for (const snapshotId of snapshotIds) {
+      try {
+        await ctx.conversationManager.deleteSnapshot(snapshotId);
+      } catch (err) {
+        console.warn('[ConversationHandlers] Failed to delete snapshot:', err);
+      }
+    }
+  } catch (err) {
+    console.warn('[ConversationHandlers] Failed to list/delete snapshots:', err);
+  }
+
   // 先删除该对话的所有检查点（包括备份目录）
   await ctx.checkpointManager.deleteAllCheckpoints(conversationId);
   // 再删除对话本身

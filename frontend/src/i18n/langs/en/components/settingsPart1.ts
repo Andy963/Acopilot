@@ -305,6 +305,10 @@ export const enComponentsSettingsPart1 = {
                     label: 'Maximum Checkpoints',
                     placeholder: '-1',
                     hint: 'Automatically clean up old checkpoints when exceeding this number, -1 means unlimited'
+                },
+                autoCleanup: {
+                    label: 'Auto-clean expired conversations on startup',
+                    hint: 'When enabled, deletes conversations not updated for more than 30 days, and cleans up checkpoints, attachments, diffs, and snapshots to free up storage'
                 }
             },
             cleanup: {

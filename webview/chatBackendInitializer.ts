@@ -19,6 +19,8 @@ import { McpManager, VSCodeFileSystemMcpStorageAdapter } from '../backend/module
 import { DependencyManager, type InstallProgressEvent } from '../backend/modules/dependencies';
 import { toolRegistry, registerAllTools, onTerminalOutput, onImageGenOutput, TaskManager } from '../backend/tools';
 import type { TerminalOutputEvent, ImageGenOutputEvent, TaskEvent } from '../backend/tools';
+import { cleanupExpiredConversations } from '../backend/modules/conversation/cleanupExpiredConversations';
+import { runStartupRetentionCleanup } from '../backend/modules/conversation/startupRetentionCleanup';
 import {
   setGlobalSettingsManager,
   setGlobalConfigManager,
@@ -114,6 +116,44 @@ export async function initializeChatBackend(params: {
 
   const modelsHandler = new ModelsHandler(configManager);
   const settingsHandler = new SettingsHandler(settingsManager, toolRegistry);
+
+  {
+    const checkpointConfig = settingsManager.getCheckpointConfig();
+    const enabled = checkpointConfig.cleanupExpiredConversationsOnStartup ?? false;
+    const retentionDays = checkpointConfig.expiredConversationRetentionDays ?? 30;
+    const nowMs = Date.now();
+
+    void runStartupRetentionCleanup({
+      enabled,
+      retentionDays,
+      nowMs,
+      cleanupExpiredConversations: async () => {
+        const result = await cleanupExpiredConversations({
+          nowMs,
+          retentionDays,
+          listConversationIds: () => conversationManager.listConversations(),
+          getConversationMetadata: (conversationId) => conversationManager.getMetadata(conversationId),
+          listSnapshotIds: (conversationId) => conversationManager.listSnapshots(conversationId),
+          deleteSnapshot: (snapshotId) => conversationManager.deleteSnapshot(snapshotId),
+          deleteAllCheckpoints: async (conversationId) => {
+            await checkpointManager.deleteAllCheckpoints(conversationId);
+          },
+          deleteConversationDiffs: (conversationId) => diffStorageManager.deleteConversationDiffs(conversationId),
+          deleteConversation: (conversationId) => conversationManager.deleteConversation(conversationId),
+        });
+
+        if (result.deletedConversations > 0 || result.deletedSnapshots > 0) {
+          debugLog(
+            `[RetentionCleanup] Deleted conversations=${result.deletedConversations}, snapshots=${result.deletedSnapshots}`
+          );
+        }
+
+        return result;
+      },
+    }).catch((err) => {
+      console.warn('[RetentionCleanup] Failed to cleanup expired conversations:', err);
+    });
+  }
 
   const terminalOutputUnsubscribe = onTerminalOutput(params.onTerminalOutputEvent);
   const imageGenOutputUnsubscribe = onImageGenOutput(params.onImageGenOutputEvent);
@@ -218,4 +258,3 @@ function syncLanguageToBackend(settingsManager: SettingsManager): void {
     console.error('Failed to sync language to backend:', error);
   }
 }
-

@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.8] - 2026-02-05
+
+### Added
+  - Storage：启动时可选自动清理超过 30 天未更新的对话；同时删除该对话的 `checkpoints` / `diffs` / `snapshots` / 对话 JSON，以防止存储空间持续增长。
+
 ## [1.0.59-pre.7] - 2026-02-05
 
 ### Improved

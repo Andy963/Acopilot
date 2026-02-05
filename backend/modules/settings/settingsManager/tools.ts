@@ -257,12 +257,17 @@ export class SettingsManagerTools extends SettingsManagerBase {
       return Array.from(new Set(tools.map((t) => this.normalizeCheckpointToolName(t)).filter(Boolean)));
     };
 
+    const retentionDaysRaw = (config as any).expiredConversationRetentionDays;
+    const retentionDays = Number.isFinite(retentionDaysRaw) ? Number(retentionDaysRaw) : 30;
+
     return {
       ...config,
       beforeTools: normalizeList(config.beforeTools),
       afterTools: normalizeList(config.afterTools),
       messageCheckpoint: config.messageCheckpoint ? { ...config.messageCheckpoint } : undefined,
       customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : [],
+      cleanupExpiredConversationsOnStartup: !!(config as any).cleanupExpiredConversationsOnStartup,
+      expiredConversationRetentionDays: Math.max(1, Math.floor(retentionDays)),
     };
   }
 
@@ -366,4 +371,3 @@ export class SettingsManagerTools extends SettingsManagerBase {
     });
   }
 }
-
