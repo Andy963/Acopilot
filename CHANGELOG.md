@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.9] - 2026-02-08
+
+### Improved
+  - Chat/Plan：chat/plan 模式的工具迭代上限不再固定为 3/10，而是遵循全局设置 `maxToolIterations`（默认 50，支持 -1 无限制）。
+
 ## [1.0.59-pre.8] - 2026-02-05
 
 ### Added

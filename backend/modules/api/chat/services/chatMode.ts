@@ -27,9 +27,6 @@ export const PLAN_MODE_TASK_CONTEXT = [
   '- You may use read-only tools if needed to understand the codebase.',
 ].join('\n');
 
-export const CHAT_MODE_MAX_TOOL_ITERATIONS = 3;
-export const PLAN_MODE_MAX_TOOL_ITERATIONS = 10;
-
 function normalizeTaskContext(value: string | undefined): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
@@ -78,7 +75,7 @@ function getPolicyForMode(chatMode: ChatMode): {
         toolAllowList: [...CHAT_MODE_TOOL_ALLOWLIST],
       },
       taskContextPrefix: CHAT_MODE_TASK_CONTEXT,
-      maxToolIterations: CHAT_MODE_MAX_TOOL_ITERATIONS,
+      maxToolIterations: undefined,
     };
   }
 
@@ -93,7 +90,7 @@ function getPolicyForMode(chatMode: ChatMode): {
         toolAllowList: [...CHAT_MODE_TOOL_ALLOWLIST],
       },
       taskContextPrefix: PLAN_MODE_TASK_CONTEXT,
-      maxToolIterations: PLAN_MODE_MAX_TOOL_ITERATIONS,
+      maxToolIterations: undefined,
     };
   }
 

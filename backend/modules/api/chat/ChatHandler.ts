@@ -13,6 +13,7 @@ import type { DiffStorageManager } from '../../conversation/DiffStorageManager';
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import type { CheckpointManager, CheckpointRecord } from '../../checkpoint';
 import type { SettingsManager } from '../../settings/SettingsManager';
+import { DEFAULT_MAX_TOOL_ITERATIONS } from '../../settings/types';
 import type { McpManager } from '../../mcp/McpManager';
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
@@ -29,9 +30,6 @@ import { generateToolCallId, type ConversationRound, type FunctionCallInfo } fro
 import { ToolCallParserService, MessageBuilderService, TokenEstimationService, ContextTrimService, ToolExecutionService, SummarizeService, ToolIterationLoopService, CheckpointService, OrphanedToolCallService, DiffInterruptService, ChatFlowService } from './services';
 import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
 import { buildContextInspectorData } from './contextInspector';
-
-/** 默认最大工具调用循环次数（当设置管理器不可用时使用） */
-const DEFAULT_MAX_TOOL_ITERATIONS = 20;
 
 /**
  * 对话处理器

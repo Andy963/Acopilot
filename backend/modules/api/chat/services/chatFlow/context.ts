@@ -1,6 +1,7 @@
 import type { ConfigManager } from '../../../../config/ConfigManager';
 import type { ConversationManager } from '../../../../conversation/ConversationManager';
 import type { SettingsManager } from '../../../../settings/SettingsManager';
+import { DEFAULT_MAX_TOOL_ITERATIONS } from '../../../../settings/types';
 
 import type { MessageBuilderService } from '../MessageBuilderService';
 import type { TokenEstimationService } from '../TokenEstimationService';
@@ -32,5 +33,5 @@ export async function ensureConversation(ctx: Pick<ChatFlowContext, 'conversatio
 }
 
 export function getMaxToolIterations(ctx: Pick<ChatFlowContext, 'settingsManager'>): number {
-  return ctx.settingsManager?.getMaxToolIterations() ?? 20;
+  return ctx.settingsManager?.getMaxToolIterations() ?? DEFAULT_MAX_TOOL_ITERATIONS;
 }
