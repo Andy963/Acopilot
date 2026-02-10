@@ -1,16 +1,4 @@
 <script setup lang="ts">
-/**
- * MarkdownRenderer - Markdown 和 LaTeX 渲染组件
- *
- * 使用 markdown-it 作为渲染引擎，支持：
- * - 完整 GFM 语法
- * - 脚注
- * - 定义列表
- * - 任务列表
- * - 代码高亮
- * - LaTeX 数学公式
- */
-
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
 import type { Options } from 'markdown-it'

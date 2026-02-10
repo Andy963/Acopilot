@@ -9,6 +9,7 @@ import { ref, watch, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
 import { sendToExtension } from '../../utils/vscode'
 import { useI18n } from '../../i18n'
 import { DEFAULT_MAX_ROWS, DEFAULT_MIN_ROWS, computeTextareaHeight } from './textareaAutoResize'
+import { createInputBoxFileDrop } from './inputBoxFileDrop'
 
 const { t } = useI18n()
 
@@ -51,6 +52,17 @@ const lastScrollHeight = ref(0)
 
 // 拖拽状态
 const isDragOver = ref(false)
+
+const { handleDrop } = createInputBoxFileDrop({
+  textareaRef,
+  getValue: () => props.value,
+  updateValue: (value) => emit('update:value', value),
+  onPathsDropped: (paths) => emit('file-path-drop', paths),
+  setDragOver: (value) => {
+    isDragOver.value = value
+  },
+  sendToExtension
+})
 
 // 滚动条状态
 const thumbHeight = ref(0)
@@ -358,192 +370,6 @@ function handleDragOver(e: DragEvent) {
   isDragOver.value = true
 }
 
-// 处理拖拽放置
-async function handleDrop(e: DragEvent) {
-  e.preventDefault()
-  e.stopPropagation()
-  isDragOver.value = false
-  
-  // 检查是否有文件或 URI 列表
-  const dt = e.dataTransfer
-  if (!dt) return
-  
-  // VSCode 使用自定义的数据类型
-  // 1. application/vnd.code.uri-list - VSCode 的 URI 列表
-  // 2. resourceurls - JSON 数组格式的文件 URI
-  // 3. text/uri-list - 标准 URI 列表（可能为空）
-  
-  // 优先使用 VSCode 的 application/vnd.code.uri-list
-  const vscodeUriList = dt.getData('application/vnd.code.uri-list')
-  
-  if (vscodeUriList) {
-    const uris = vscodeUriList.split('\n').filter(uri => uri.trim() && !uri.startsWith('#'))
-    if (uris.length > 0) {
-      await insertFilePathsFromUris(uris)
-      return
-    }
-  }
-  
-  // 尝试 resourceurls（JSON 数组格式）
-  const resourceUrls = dt.getData('resourceurls')
-  
-  if (resourceUrls) {
-    try {
-      const urls = JSON.parse(resourceUrls) as string[]
-      if (urls.length > 0) {
-        await insertFilePathsFromUris(urls)
-        return
-      }
-    } catch {
-      // 忽略解析错误
-    }
-  }
-  
-  // 尝试标准的 text/uri-list
-  const uriList = dt.getData('text/uri-list')
-  
-  if (uriList) {
-    const uris = uriList.split('\n').filter(uri => uri.trim() && !uri.startsWith('#'))
-    if (uris.length > 0) {
-      await insertFilePathsFromUris(uris)
-      return
-    }
-  }
-  
-  // 尝试 text/plain
-  const plainText = dt.getData('text/plain')
-  
-  if (plainText) {
-    const lines = plainText.split('\n').filter(line => line.trim())
-    const fileUris = lines.filter(line =>
-      line.startsWith('file://') ||
-      line.match(/^[a-zA-Z]:[\/\\]/) ||
-      line.startsWith('/')
-    )
-    
-    if (fileUris.length > 0) {
-      await insertFilePathsFromUris(fileUris)
-      return
-    }
-  }
-  
-  // 如果没有 URI 列表，尝试从 Files 获取
-  if (dt.files && dt.files.length > 0) {
-    const paths: string[] = []
-    for (let i = 0; i < dt.files.length; i++) {
-      const file = dt.files[i]
-      const filePath = (file as any).path || file.name
-      if (filePath) {
-        paths.push(filePath)
-      }
-    }
-    
-    if (paths.length > 0) {
-      await insertFilePathsFromPaths(paths)
-    }
-  }
-}
-
-// 从 URI 列表插入文件路径
-async function insertFilePathsFromUris(uris: string[]) {
-  const relativePaths: string[] = []
-  
-  for (const uri of uris) {
-    try {
-      // 调用后端 API 将 URI 转换为相对路径
-      const result = await sendToExtension<{ relativePath: string; isDirectory?: boolean }>('getRelativePath', {
-        absolutePath: uri.trim()
-      })
-      if (result.relativePath) {
-        // 文件夹末尾添加 /
-        const path = result.isDirectory ? `${result.relativePath}/` : result.relativePath
-        relativePaths.push(path)
-      }
-    } catch (err) {
-      console.error('获取相对路径失败:', err)
-      // 如果获取失败，尝试直接使用 URI 中的文件名
-      try {
-        const url = new URL(uri)
-        const pathName = decodeURIComponent(url.pathname)
-        const fileName = pathName.split('/').pop()
-        if (fileName) {
-          relativePaths.push(fileName)
-        }
-      } catch {
-        // 忽略无效 URI
-      }
-    }
-  }
-  
-  if (relativePaths.length > 0) {
-    insertPathsToTextarea(relativePaths)
-    emit('file-path-drop', relativePaths)
-  }
-}
-
-// 从本地路径插入文件路径
-async function insertFilePathsFromPaths(paths: string[]) {
-  const relativePaths: string[] = []
-  
-  for (const absolutePath of paths) {
-    try {
-      // 调用后端 API 将绝对路径转换为相对路径
-      const result = await sendToExtension<{ relativePath: string; isDirectory?: boolean }>('getRelativePath', {
-        absolutePath
-      })
-      if (result.relativePath) {
-        // 文件夹末尾添加 /
-        const path = result.isDirectory ? `${result.relativePath}/` : result.relativePath
-        relativePaths.push(path)
-      }
-    } catch (err) {
-      console.error('获取相对路径失败:', err)
-      // 如果获取失败，使用文件名
-      const fileName = absolutePath.split(/[/\\]/).pop()
-      if (fileName) {
-        relativePaths.push(fileName)
-      }
-    }
-  }
-  
-  if (relativePaths.length > 0) {
-    insertPathsToTextarea(relativePaths)
-    emit('file-path-drop', relativePaths)
-  }
-}
-
-// 在光标位置插入文件路径
-function insertPathsToTextarea(paths: string[]) {
-  if (!textareaRef.value) return
-  
-  const textarea = textareaRef.value
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const text = props.value
-  
-  // 格式化路径为 @path 格式，前后都加空格方便继续输入
-  const pathText = paths.map(p => `@${p}`).join(' ')
-  
-  // 在光标位置插入路径
-  const beforeCursor = text.substring(0, start)
-  const afterCursor = text.substring(end)
-  
-  // 前后都加空格，方便用户编辑
-  const insertText = ' ' + pathText + ' '
-  
-  const newValue = beforeCursor + insertText + afterCursor
-  emit('update:value', newValue)
-  
-  // 设置光标位置到插入内容之后（包括末尾的空格）
-  nextTick(() => {
-    if (textareaRef.value) {
-      const newCursorPos = start + insertText.length
-      textareaRef.value.setSelectionRange(newCursorPos, newCursorPos)
-      textareaRef.value.focus()
-    }
-  })
-}
-
 // 聚焦
 function focus() {
   textareaRef.value?.focus()
@@ -659,117 +485,4 @@ defineExpose({
   </div>
 </template>
 
-<style scoped>
-.input-box {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.input-textarea {
-  width: 100%;
-  min-height: 56px;  /* Baseline height; JS controls the final height. */
-  /* max-height: 160px; */
-  padding: var(--spacing-sm, 8px);
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: var(--radius-sm, 2px);
-  font-family: var(--vscode-font-family);
-  font-size: 13px;
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
-  transition: border-color var(--transition-fast, 0.1s);
-  overflow-y: auto;
-  /* 隐藏原生滚动条 */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.input-box.embedded .input-textarea {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 1px var(--spacing-sm, 8px) 0 var(--spacing-sm, 8px);
-  min-height: 32px;
-}
-
-.input-textarea::-webkit-scrollbar {
-  display: none;
-}
-
-.input-textarea::-webkit-resizer {
-  display: none;
-}
-
-.input-textarea:focus {
-  border-color: var(--vscode-focusBorder);
-}
-
-.input-textarea:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 拖拽悬停状态 */
-.input-box.drag-over .input-textarea {
-  border-color: var(--vscode-focusBorder);
-  background: var(--vscode-list-hoverBackground);
-}
-
-.input-textarea::placeholder {
-  color: var(--vscode-input-placeholderForeground);
-}
-
-/* 自定义滚动条 - 悬浮设计，不占用布局 */
-.scroll-track {
-  position: absolute;
-  top: 1px;
-  right: 3px;
-  width: 6px;
-  height: calc(100% - 2px);
-  border-radius: 0;
-  cursor: pointer;
-  background: transparent;
-  z-index: 10;
-  opacity: 1;
-}
-
-.scroll-thumb {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  border-radius: 0;
-  cursor: grab;
-  transition: background 0.18s ease, top 0.06s linear;
-  will-change: top;
-  background: var(--vscode-scrollbarSlider-background, rgba(100, 100, 100, 0.4));
-}
-
-.scroll-thumb:hover {
-  background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.55));
-}
-
-.scroll-thumb:active {
-  cursor: grabbing;
-  background: var(--vscode-scrollbarSlider-activeBackground, rgba(100, 100, 100, 0.7));
-}
-
-.char-count {
-  position: absolute;
-  right: var(--spacing-sm, 8px);
-  bottom: var(--spacing-xs, 4px);
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scroll-track,
-  .scroll-thumb {
-    transition: none !important;
-  }
-}
-</style>
+<style scoped src="./InputBox.css"></style>
