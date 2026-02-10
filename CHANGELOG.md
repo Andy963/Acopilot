@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.10] - 2026-02-10
+
+### Improved
+  - Refactor：拆分多个超大前端组件（Message/ToolMessage/ExecuteCommand/WriteFile/ApplyDiff/InputBox 等）为 composables + utils，并抽离部分样式到独立 CSS；以保持行为一致为主，便于后续维护与演进。
+
 ## [1.0.59-pre.9] - 2026-02-08
 
 ### Improved
