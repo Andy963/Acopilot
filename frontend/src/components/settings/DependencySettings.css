@@ -26,6 +26,10 @@
   background: var(--vscode-textBlockQuote-background);
   border-radius: 4px;
   font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .install-path .label {
@@ -35,6 +39,11 @@
 .install-path code {
   color: var(--vscode-textLink-foreground);
   font-family: var(--vscode-editor-font-family);
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dependencies-list {

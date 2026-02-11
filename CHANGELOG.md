@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59-pre.11] - 2026-02-11
+
+### Fixed
+  - Settings：修复“扩展依赖管理”的安装路径在窄屏下溢出，改为自动换行显示。
+
 ## [1.0.59-pre.10] - 2026-02-10
 
 ### Improved
