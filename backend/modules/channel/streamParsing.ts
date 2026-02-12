@@ -36,38 +36,51 @@ export function parseStreamBuffer(
     if (trimmedBuffer.startsWith('{') || trimmedBuffer.startsWith('[')) {
         const lines = buffer.split('\n');
         let remaining = '';
+        let currentChunkStr = '';
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
+            const line = lines[i];
 
-            // 处理 JSON 数组的开始/结束符号
-            let jsonStr = line;
-            if (jsonStr.startsWith('[')) {
-                jsonStr = jsonStr.slice(1);
+            // 累积行内容（保留换行符以维持格式）
+            // 注意：split('\n') 会移除换行符，需要根据位置补回，但最后一行如果不以换行符结尾则不补
+            let lineContent = line;
+            if (i < lines.length - 1) {
+                lineContent += '\n';
             }
-            if (jsonStr.endsWith(']')) {
-                jsonStr = jsonStr.slice(0, -1);
-            }
-            if (jsonStr.startsWith(',')) {
-                jsonStr = jsonStr.slice(1);
-            }
-            if (jsonStr.endsWith(',')) {
-                jsonStr = jsonStr.slice(0, -1);
-            }
-            jsonStr = jsonStr.trim();
+            currentChunkStr += lineContent;
 
-            if (!jsonStr) continue;
+            // 尝试解析累积的内容
+            let candidate = currentChunkStr.trim();
+            if (!candidate) continue;
+
+            // 处理 JSON 数组的开始/结束符号（启发式）
+            if (candidate.startsWith('[')) {
+                candidate = candidate.slice(1);
+            }
+            if (candidate.endsWith(']')) {
+                candidate = candidate.slice(0, -1);
+            }
+            if (candidate.startsWith(',')) {
+                candidate = candidate.slice(1);
+            }
+            if (candidate.endsWith(',')) {
+                candidate = candidate.slice(0, -1);
+            }
+            candidate = candidate.trim();
+
+            if (!candidate) continue;
 
             try {
-                chunks.push(JSON.parse(jsonStr));
+                chunks.push(JSON.parse(candidate));
+                // 解析成功，重置累积缓冲区
+                currentChunkStr = '';
             } catch {
-                // 如果是最后一行且不是 final，保留作为 remaining
-                if (i === lines.length - 1 && !final) {
-                    remaining = lines[i];
-                }
+                // 解析失败，继续累积
             }
         }
+
+        // 未解析成功的剩余内容
+        remaining = currentChunkStr;
 
         return { chunks, remaining };
     }
