@@ -112,6 +112,7 @@ async function previewAttachment(attachment: Attachment) {
         size="small"
         :disabled="uploading"
         class="attach-button"
+        :aria-label="t('components.input.attachFile')"
         @click="emitAttachFile"
       />
     </Tooltip>
@@ -122,6 +123,7 @@ async function previewAttachment(attachment: Attachment) {
           size="small"
           :class="{ 'has-files': props.enabledPinnedFilesCount > 0, 'has-prompt': props.hasPinnedPrompt }"
           class="pinned-files-button"
+          :aria-label="t('components.input.pinnedFiles')"
           @click="emitOpenPinnedPanel"
         />
         <span v-if="props.enabledPinnedFilesCount > 0" class="pinned-files-badge">
@@ -135,6 +137,7 @@ async function previewAttachment(attachment: Attachment) {
         icon="codicon-add"
         size="small"
         class="create-task-button"
+        aria-label="Create Task"
         @click="emitOpenTaskModal"
       />
     </Tooltip>
@@ -144,6 +147,7 @@ async function previewAttachment(attachment: Attachment) {
         icon="codicon-list-ordered"
         size="small"
         class="create-task-button"
+        :aria-label="t('components.input.createPlan')"
         @click="emitOpenPlanModal"
       />
     </Tooltip>
