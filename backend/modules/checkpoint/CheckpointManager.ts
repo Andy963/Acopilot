@@ -138,18 +138,36 @@ export class CheckpointManager {
             
             // 计算当前所有文件的哈希
             const currentHashes: Record<string, string> = {};
-            const hashParts: string[] = [];
             const sortedFiles = [...files].sort();
-            
+
+            // Parallel Hashing with Concurrency Limit
+            const concurrency = 50;
+            const hashQueue = [...sortedFiles];
+
+            const hashWorker = async () => {
+                while (hashQueue.length > 0) {
+                    const file = hashQueue.shift();
+                    if (!file) break;
+
+                    try {
+                        const relativePath = path.relative(workspaceRoot.fsPath, file);
+                        const content = await fs.readFile(file);
+                        const fileHash = crypto.createHash('md5').update(content).digest('hex');
+                        currentHashes[relativePath] = fileHash;
+                    } catch (err) {
+                        console.warn(`[CheckpointManager] Failed to hash ${file}:`, err);
+                    }
+                }
+            };
+
+            await Promise.all(Array.from({ length: concurrency }, () => hashWorker()));
+
+            // Construct hashParts in sorted order to ensure deterministic contentHash
+            const hashParts: string[] = [];
             for (const file of sortedFiles) {
-                try {
-                    const relativePath = path.relative(workspaceRoot.fsPath, file);
-                    const content = await fs.readFile(file);
-                    const fileHash = crypto.createHash('md5').update(content).digest('hex');
-                    currentHashes[relativePath] = fileHash;
-                    hashParts.push(`${relativePath}:${fileHash}`);
-                } catch (err) {
-                    console.warn(`[CheckpointManager] Failed to hash ${file}:`, err);
+                const relativePath = path.relative(workspaceRoot.fsPath, file);
+                if (currentHashes[relativePath]) {
+                    hashParts.push(`${relativePath}:${currentHashes[relativePath]}`);
                 }
             }
             
@@ -204,38 +222,54 @@ export class CheckpointManager {
                 ];
                 
                 // 只复制变更的文件（如果没有变更，则不复制任何文件）
-                for (const change of changes) {
-                    if (change.type === 'deleted') continue;
-                    
-                    const srcPath = path.join(workspaceRoot.fsPath, change.path);
-                    const destPath = path.join(backupDir, change.path);
-                    
-                    try {
-                        await fs.mkdir(path.dirname(destPath), { recursive: true });
-                        await fs.copyFile(srcPath, destPath);
-                        fileCount++;
-                    } catch (err) {
-                        console.warn(`[CheckpointManager] Failed to copy ${change.path}:`, err);
+                // Parallel Copying with Concurrency Limit
+                const copyQueue = changes.filter(change => change.type !== 'deleted');
+                const copyWorker = async () => {
+                    while (copyQueue.length > 0) {
+                        const change = copyQueue.shift();
+                        if (!change) break;
+
+                        const srcPath = path.join(workspaceRoot.fsPath, change.path);
+                        const destPath = path.join(backupDir, change.path);
+
+                        try {
+                            await fs.mkdir(path.dirname(destPath), { recursive: true });
+                            await fs.copyFile(srcPath, destPath);
+                            fileCount++;
+                        } catch (err) {
+                            console.warn(`[CheckpointManager] Failed to copy ${change.path}:`, err);
+                        }
                     }
-                }
+                };
+
+                await Promise.all(Array.from({ length: concurrency }, () => copyWorker()));
                 
                 debugLog(`[CheckpointManager] Incremental backup: ${added.length} added, ${modified.length} modified, ${deleted.length} deleted`);
             }
             
             // 如果不是增量备份，进行完整备份
             if (!isIncremental) {
-                for (const file of sortedFiles) {
-                    try {
-                        const relativePath = path.relative(workspaceRoot.fsPath, file);
-                        const destPath = path.join(backupDir, relativePath);
-                        
-                        await fs.mkdir(path.dirname(destPath), { recursive: true });
-                        await fs.copyFile(file, destPath);
-                        fileCount++;
-                    } catch (err) {
-                        console.warn(`[CheckpointManager] Failed to copy ${file}:`, err);
+                // Parallel Full Backup Copy
+                const fullBackupQueue = [...sortedFiles];
+                const fullBackupWorker = async () => {
+                    while (fullBackupQueue.length > 0) {
+                        const file = fullBackupQueue.shift();
+                        if (!file) break;
+
+                        try {
+                            const relativePath = path.relative(workspaceRoot.fsPath, file);
+                            const destPath = path.join(backupDir, relativePath);
+
+                            await fs.mkdir(path.dirname(destPath), { recursive: true });
+                            await fs.copyFile(file, destPath);
+                            fileCount++;
+                        } catch (err) {
+                            console.warn(`[CheckpointManager] Failed to copy ${file}:`, err);
+                        }
                     }
-                }
+                };
+
+                await Promise.all(Array.from({ length: concurrency }, () => fullBackupWorker()));
                 
                 // 备份空目录
                 for (const dir of dirs) {
