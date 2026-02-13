@@ -25,6 +25,7 @@ import { getDiffManager } from '../../tools/file/diffManager';
 import { cleanupEmptyDirsRecursive, collectFilesAndDirsWithPatterns, loadAllGitignorePatterns } from './checkpointFs';
 import type { CheckpointRecord, FileChange } from './checkpointTypes';
 import { restoreCheckpointLegacy } from './checkpointLegacyRestore';
+import { getCheckpointIoConcurrency, runWithConcurrency } from './concurrency';
 
 export type { CheckpointRecord, FileChange } from './checkpointTypes';
 
@@ -138,18 +139,26 @@ export class CheckpointManager {
             
             // 计算当前所有文件的哈希
             const currentHashes: Record<string, string> = {};
-            const hashParts: string[] = [];
             const sortedFiles = [...files].sort();
-            
-            for (const file of sortedFiles) {
+
+            const hashConcurrency = getCheckpointIoConcurrency(sortedFiles.length);
+            await runWithConcurrency(sortedFiles, hashConcurrency, async (file) => {
                 try {
                     const relativePath = path.relative(workspaceRoot.fsPath, file);
                     const content = await fs.readFile(file);
                     const fileHash = crypto.createHash('md5').update(content).digest('hex');
                     currentHashes[relativePath] = fileHash;
-                    hashParts.push(`${relativePath}:${fileHash}`);
                 } catch (err) {
                     console.warn(`[CheckpointManager] Failed to hash ${file}:`, err);
+                }
+            });
+
+            const hashParts: string[] = [];
+            for (const file of sortedFiles) {
+                const relativePath = path.relative(workspaceRoot.fsPath, file);
+                const fileHash = currentHashes[relativePath];
+                if (fileHash) {
+                    hashParts.push(`${relativePath}:${fileHash}`);
                 }
             }
             
@@ -204,12 +213,12 @@ export class CheckpointManager {
                 ];
                 
                 // 只复制变更的文件（如果没有变更，则不复制任何文件）
-                for (const change of changes) {
-                    if (change.type === 'deleted') continue;
-                    
+                const incrementalCopyChanges = changes.filter(change => change.type !== 'deleted');
+                const incrementalCopyConcurrency = getCheckpointIoConcurrency(incrementalCopyChanges.length);
+                await runWithConcurrency(incrementalCopyChanges, incrementalCopyConcurrency, async (change) => {
                     const srcPath = path.join(workspaceRoot.fsPath, change.path);
                     const destPath = path.join(backupDir, change.path);
-                    
+
                     try {
                         await fs.mkdir(path.dirname(destPath), { recursive: true });
                         await fs.copyFile(srcPath, destPath);
@@ -217,25 +226,26 @@ export class CheckpointManager {
                     } catch (err) {
                         console.warn(`[CheckpointManager] Failed to copy ${change.path}:`, err);
                     }
-                }
+                });
                 
                 debugLog(`[CheckpointManager] Incremental backup: ${added.length} added, ${modified.length} modified, ${deleted.length} deleted`);
             }
             
             // 如果不是增量备份，进行完整备份
             if (!isIncremental) {
-                for (const file of sortedFiles) {
+                const fullCopyConcurrency = getCheckpointIoConcurrency(sortedFiles.length);
+                await runWithConcurrency(sortedFiles, fullCopyConcurrency, async (file) => {
                     try {
                         const relativePath = path.relative(workspaceRoot.fsPath, file);
                         const destPath = path.join(backupDir, relativePath);
-                        
+
                         await fs.mkdir(path.dirname(destPath), { recursive: true });
                         await fs.copyFile(file, destPath);
                         fileCount++;
                     } catch (err) {
                         console.warn(`[CheckpointManager] Failed to copy ${file}:`, err);
                     }
-                }
+                });
                 
                 // 备份空目录
                 for (const dir of dirs) {
