@@ -65,9 +65,15 @@ function normalizeCommand(command: string): string {
   return (command || '').trim();
 }
 
+function stripQuotesAndEscapes(command: string): string {
+  // Remove single quotes, double quotes, and backslashes to prevent bypass
+  return command.replace(/['"\\]/g, '');
+}
+
 function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'matchedAllowPattern' | 'matchedDenyPattern'> {
   const cmd = normalizeCommand(command);
-  const lower = cmd.toLowerCase();
+  const strippedCmd = stripQuotesAndEscapes(cmd);
+  const lower = strippedCmd.toLowerCase();
 
   const categories: CommandRiskCategory[] = [];
   const reasons: string[] = [];
