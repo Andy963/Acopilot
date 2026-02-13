@@ -32,44 +32,24 @@ export function parseStreamBuffer(
     // 非 SSE：检测格式并解析 JSON
     const trimmedBuffer = buffer.trim();
 
-    // JSON 格式：每行一个完整的 JSON 对象，或 JSON 数组分片
-    if (trimmedBuffer.startsWith('{') || trimmedBuffer.startsWith('[')) {
-        const lines = buffer.split('\n');
-        let remaining = '';
-
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-
-            // 处理 JSON 数组的开始/结束符号
-            let jsonStr = line;
-            if (jsonStr.startsWith('[')) {
-                jsonStr = jsonStr.slice(1);
-            }
-            if (jsonStr.endsWith(']')) {
-                jsonStr = jsonStr.slice(0, -1);
-            }
-            if (jsonStr.startsWith(',')) {
-                jsonStr = jsonStr.slice(1);
-            }
-            if (jsonStr.endsWith(',')) {
-                jsonStr = jsonStr.slice(0, -1);
-            }
-            jsonStr = jsonStr.trim();
-
-            if (!jsonStr) continue;
-
-            try {
-                chunks.push(JSON.parse(jsonStr));
-            } catch {
-                // 如果是最后一行且不是 final，保留作为 remaining
-                if (i === lines.length - 1 && !final) {
-                    remaining = lines[i];
-                }
-            }
+    // JSON 格式：JSONL（每行一个完整 JSON 值）、数组分片（逐行元素），或单个（可能跨多行）JSON 值。
+    if (trimmedBuffer.startsWith('{')) {
+        const jsonlParsed = parseJsonLinesBuffer(buffer, final);
+        if (jsonlParsed) {
+            return jsonlParsed;
         }
 
-        return { chunks, remaining };
+        // Not JSONL: keep the entire buffer until it becomes a valid JSON value.
+        try {
+            const parsed = JSON.parse(trimmedBuffer);
+            return { chunks: [parsed], remaining: '' };
+        } catch {
+            return { chunks: [], remaining: buffer };
+        }
+    }
+
+    if (trimmedBuffer.startsWith('[')) {
+        return parseJsonArrayFragmentsBuffer(buffer, final);
     }
 
     // 无法识别的格式，尝试直接解析为 JSON
@@ -80,6 +60,82 @@ export function parseStreamBuffer(
         // 保留等待更多数据
         return { chunks: [], remaining: buffer };
     }
+}
+
+function parseJsonLinesBuffer(
+    buffer: string,
+    final: boolean
+): { chunks: any[]; remaining: string } | undefined {
+    const lines = buffer.split('\n');
+    const chunks: any[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        try {
+            chunks.push(JSON.parse(line));
+        } catch {
+            const tail = lines.slice(i).join('\n');
+
+            // If we already parsed at least one line, we must not drop the unparsed tail.
+            if (chunks.length > 0) {
+                return { chunks, remaining: tail };
+            }
+
+            // If this looks like an incomplete last line, treat it as JSONL and keep it.
+            if (i === lines.length - 1 && !final) {
+                return { chunks, remaining: rawLine };
+            }
+
+            // Otherwise, this is likely a multiline JSON value (pretty-printed); let caller handle it.
+            return undefined;
+        }
+    }
+
+    return { chunks, remaining: '' };
+}
+
+function parseJsonArrayFragmentsBuffer(buffer: string, final: boolean): { chunks: any[]; remaining: string } {
+    const chunks: any[] = [];
+    const lines = buffer.split('\n');
+    let remaining = '';
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        let jsonStr = line;
+        if (jsonStr.startsWith('[')) {
+            jsonStr = jsonStr.slice(1);
+        }
+        if (jsonStr.endsWith(']')) {
+            jsonStr = jsonStr.slice(0, -1);
+        }
+        if (jsonStr.startsWith(',')) {
+            jsonStr = jsonStr.slice(1);
+        }
+        if (jsonStr.endsWith(',')) {
+            jsonStr = jsonStr.slice(0, -1);
+        }
+        jsonStr = jsonStr.trim();
+        if (!jsonStr) continue;
+
+        try {
+            chunks.push(JSON.parse(jsonStr));
+        } catch {
+            const tail = lines.slice(i).join('\n');
+            remaining = tail;
+            break;
+        }
+    }
+
+    if (remaining) {
+        return { chunks, remaining };
+    }
+
+    return { chunks, remaining: '' };
 }
 
 function parseSseStreamBuffer(buffer: string, final: boolean): { chunks: any[]; remaining: string } {

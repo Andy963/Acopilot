@@ -42,6 +42,37 @@ describe('parseStreamBuffer', () => {
     expect(remaining).toBe('');
   });
 
+  it('parses pretty-printed multiline JSON object as a single chunk', () => {
+    const input = `{
+  "a": 1,
+  "b": {
+    "c": 2
+  }
+}
+`;
+    const { chunks, remaining } = parseStreamBuffer(input);
+    expect(chunks).toEqual([{ a: 1, b: { c: 2 } }]);
+    expect(remaining).toBe('');
+  });
+
+  it('keeps multiline JSON object in remaining until it becomes valid JSON', () => {
+    const part1 = `{
+  "a": 1,
+  "b": `;
+    const part2 = `{
+    "c": 2
+  }
+}
+`;
+    const first = parseStreamBuffer(part1);
+    expect(first.chunks).toEqual([]);
+    expect(first.remaining).toBe(part1);
+
+    const second = parseStreamBuffer(first.remaining + part2);
+    expect(second.chunks).toEqual([{ a: 1, b: { c: 2 } }]);
+    expect(second.remaining).toBe('');
+  });
+
   it('parses JSON array fragments line-by-line', () => {
     const { chunks, remaining } = parseStreamBuffer('[{"a":1},\n{"b":2}]\n');
     expect(chunks).toEqual([{ a: 1 }, { b: 2 }]);
