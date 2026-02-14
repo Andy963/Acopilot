@@ -9,7 +9,6 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import MessageActions from './MessageActions.vue'
 import ToolMessage from './ToolMessage.vue'
 import MessageAttachments from './MessageAttachments.vue'
-import TaskCardMessage from './TaskCardMessage.vue'
 import ContextUsedMessage from './ContextUsedMessage.vue'
 import { MarkdownRenderer, RetryDialog, EditDialog, IconButton } from '../common'
 import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
@@ -48,9 +47,6 @@ const isSummary = computed(() => props.message.isSummary === true)
 
 // 用户/AI 消息：底部操作按钮始终显示；工具消息：hover 时显示（避免工具输出区过于拥挤）。
 const showFooterActions = computed(() => !isTool.value || isHovered.value)
-
-// 是否为 Task 卡片消息
-const taskCard = computed(() => props.message.metadata?.taskCard)
 
 // 是否为流式消息
 const isStreaming = computed(() => props.message.streaming === true)
@@ -569,6 +565,15 @@ const formattedTime = computed(() => {
   return formatTime(props.message.timestamp, 'HH:mm')
 })
 
+const contentForRender = computed(() => {
+  const content = String(props.message.content || '').trim()
+  if (content) return content
+
+  // Backward compatibility: legacy "task card" messages used an empty content with metadata.taskCard.prompt.
+  const taskCardPrompt = String((props.message as any)?.metadata?.taskCard?.prompt || '').trim()
+  return taskCardPrompt
+})
+
 // 开始编辑（显示编辑对话框）
 function startEdit() {
   showEditDialog.value = true
@@ -586,7 +591,7 @@ function handleRestoreAndEdit(newContent: string, attachments: Attachment[], che
 
 // 处理操作
 function handleCopy() {
-  emit('copy', props.message.content)
+  emit('copy', contentForRender.value)
 }
 
 function handleDelete() {
@@ -633,19 +638,15 @@ function handleOpenContextUsed() {
     <EditDialog
       v-model="showEditDialog"
       :checkpoints="checkpointsBeforeMessage"
-      :original-content="message.content"
+      :original-content="contentForRender"
       :original-attachments="message.attachments || []"
       @edit="handleEdit"
       @restore-and-edit="handleRestoreAndEdit"
     />
 
     <div class="message-body">
-      <!-- Task 卡片消息 -->
-      <div v-if="taskCard" class="task-card-block">
-        <TaskCardMessage :task="taskCard" />
-      </div>
       <!-- 总结消息特殊显示 -->
-      <div v-else-if="isSummary" class="summary-block">
+      <div v-if="isSummary" class="summary-block">
         <div
           class="summary-header"
           @click="isSummaryExpanded = !isSummaryExpanded"
@@ -763,8 +764,8 @@ function handleOpenContextUsed() {
         <!-- 无 parts 但有 content 时：直接渲染 content -->
         <!-- 用户消息仅渲染 LaTeX -->
         <MarkdownRenderer
-          v-else-if="message.content"
-          :content="message.content"
+          v-else-if="contentForRender"
+          :content="contentForRender"
           :latex-only="isUser"
           class="content-text"
         />

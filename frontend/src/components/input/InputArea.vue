@@ -11,7 +11,6 @@ import ComposerTopBar from './ComposerTopBar.vue'
 import InputAreaFooter from './InputAreaFooter.vue'
 import PinnedFilesPanel from './PinnedFilesPanel.vue'
 import ContextOverridesPanel from './ContextOverridesPanel.vue'
-import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { useChatStore } from '../../stores'
 import type { Attachment } from '../../types'
@@ -104,9 +103,6 @@ function handlePasteFiles(files: File[]) {
   emit('pasteFiles', files)
 }
 
-// Create Task Modal
-const showCreateTaskModal = ref(false)
-
 // Create Plan Modal
 const showCreatePlanModal = ref(false)
 
@@ -142,7 +138,6 @@ function toggleContextOverridesPanel() {
 
 <template>
   <div class="input-area">
-    <CreateTaskModal v-model="showCreateTaskModal" />
     <CreatePlanModal v-model="showCreatePlanModal" />
 
     <ContextOverridesPanel
@@ -168,7 +163,6 @@ function toggleContextOverridesPanel() {
         @remove-attachment="handleRemoveAttachment"
         @remove-selection-reference="chatStore.removeSelectionReference"
         @open-pinned-panel="openPinnedFilesPanel"
-        @open-task-modal="showCreateTaskModal = true"
         @open-plan-modal="showCreatePlanModal = true"
       />
 

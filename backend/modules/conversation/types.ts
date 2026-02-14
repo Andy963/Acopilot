@@ -647,7 +647,7 @@ export interface Content {
     /**
      * Task Context（仅 user 消息有值）
      *
-     * 由前端 Create Task / Issue 导入等功能提供，并持久化到历史中，便于重试/复现。
+     * 由前端提供，并持久化到历史中，便于重试/复现。
      *
      * 注意：发送给模型时会以“本轮 user message 前缀”的形式 request-only 注入，
      * 不会写回 parts.text，避免历史文本膨胀或重复注入。

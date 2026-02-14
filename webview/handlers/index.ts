@@ -18,7 +18,6 @@ import { registerDiffHandlers } from './DiffHandlers';
 import { registerPatchHandlers } from './PatchHandlers';
 import { registerGitHandlers } from './GitHandlers';
 import { registerChatHandlers } from './ChatHandlers';
-import { registerIssueHandlers } from './IssueHandlers';
 import { registerValidationHandlers } from './ValidationHandlers';
 
 // 重新导出各个模块
@@ -36,7 +35,6 @@ export * from './DiffHandlers';
 export * from './PatchHandlers';
 export * from './GitHandlers';
 export * from './ChatHandlers';
-export * from './IssueHandlers';
 export * from './ValidationHandlers';
 
 /**
@@ -60,7 +58,6 @@ export function createMessageHandlerRegistry(): Map<string, MessageHandler> {
   registerPatchHandlers(registry);
   registerGitHandlers(registry);
   registerChatHandlers(registry);
-  registerIssueHandlers(registry);
   registerValidationHandlers(registry);
   
   return registry;

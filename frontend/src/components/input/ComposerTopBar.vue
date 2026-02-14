@@ -20,7 +20,6 @@ const emit = defineEmits<{
   removeAttachment: [id: string]
   removeSelectionReference: [id: string]
   openPinnedPanel: []
-  openTaskModal: []
   openPlanModal: []
 }>()
 
@@ -38,10 +37,6 @@ function emitAttachFile() {
 
 function emitOpenPinnedPanel() {
   emit('openPinnedPanel')
-}
-
-function emitOpenTaskModal() {
-  emit('openTaskModal')
 }
 
 function emitOpenPlanModal() {
@@ -130,16 +125,6 @@ async function previewAttachment(attachment: Attachment) {
           {{ props.enabledPinnedFilesCount }}
         </span>
       </div>
-    </Tooltip>
-
-    <Tooltip content="Create Task" placement="top">
-      <IconButton
-        icon="codicon-add"
-        size="small"
-        class="create-task-button"
-        aria-label="Create Task"
-        @click="emitOpenTaskModal"
-      />
     </Tooltip>
 
     <Tooltip :content="t('components.input.createPlan')" placement="top">
