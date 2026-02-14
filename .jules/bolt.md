@@ -1,0 +1,3 @@
+## 2024-05-21 - Vue Computed Property Dependency Leak
+**Learning:** In `MessageList.vue`, expensive map computations (`idToActualIndex`, `checkpointsByMsgIndex`) were defined inside the `renderItems` computed property, which depended on `visibleCount`. This caused these O(N) maps to be rebuilt on every scroll event (whenever `visibleCount` changed), creating a performance bottleneck for long conversation lists.
+**Action:** Always extract invariant computations (those depending only on the full dataset, not the visible slice) into their own separate `computed` properties. This ensures they are cached and only re-evaluated when the underlying data changes, not when the view window shifts.
