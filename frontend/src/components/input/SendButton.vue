@@ -5,11 +5,12 @@
  * loading 状态下显示停止图标，点击可取消请求
  */
 
+import { computed } from 'vue'
 import { useI18n } from '../../i18n'
 
 const { t } = useI18n()
 
-defineProps<{
+const props = defineProps<{
   disabled?: boolean
   loading?: boolean
 }>()
@@ -19,37 +20,41 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const buttonState = computed(() => {
+  if (props.loading) {
+    return {
+      title: t('components.input.stopGenerating'),
+      icon: 'codicon codicon-primitive-square stop-icon',
+      disabled: false
+    }
+  }
+
+  return {
+    title: t('components.input.send'),
+    icon: 'codicon codicon-send send-icon',
+    disabled: props.disabled
+  }
+})
+
 // 处理点击
 function handleClick() {
-  emit('click')
-}
-
-// 处理取消
-function handleCancel() {
-  emit('cancel')
+  if (props.loading) {
+    emit('cancel')
+  } else {
+    emit('click')
+  }
 }
 </script>
 
 <template>
-  <!-- 取消按钮 - loading 状态下显示 -->
   <button
-    v-if="loading"
     class="send-button"
-    :title="t('components.input.stopGenerating')"
-    @click="handleCancel"
-  >
-    <i class="codicon codicon-primitive-square stop-icon"></i>
-  </button>
-  
-  <!-- 发送按钮 - 正常状态下显示 -->
-  <button
-    v-else
-    class="send-button"
-    :disabled="disabled"
-    :title="t('components.input.send')"
+    :disabled="buttonState.disabled"
+    :title="buttonState.title"
+    :aria-label="buttonState.title"
     @click="handleClick"
   >
-    <i class="codicon codicon-send send-icon"></i>
+    <i :class="buttonState.icon"></i>
   </button>
 </template>
 
