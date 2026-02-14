@@ -40,14 +40,11 @@ function redactInlineAssignments(text: string): string {
   );
 }
 
+const COMMON_TOKEN_PATTERN =
+  /\b(sk-[A-Za-z0-9]{10,}|sk-ant-[A-Za-z0-9_-]{10,}|AIza[0-9A-Za-z\-_]{10,}|ghp_[A-Za-z0-9]{10,}|glpat-[A-Za-z0-9_-]{10,})\b/g;
+
 function redactCommonTokenFormats(text: string): string {
-  let out = text;
-  out = replaceAll(out, /\bsk-[A-Za-z0-9]{10,}\b/g, REDACTED);
-  out = replaceAll(out, /\bsk-ant-[A-Za-z0-9_-]{10,}\b/g, REDACTED);
-  out = replaceAll(out, /\bAIza[0-9A-Za-z\-_]{10,}\b/g, REDACTED);
-  out = replaceAll(out, /\bghp_[A-Za-z0-9]{10,}\b/g, REDACTED);
-  out = replaceAll(out, /\bglpat-[A-Za-z0-9_-]{10,}\b/g, REDACTED);
-  return out;
+  return text.replace(COMMON_TOKEN_PATTERN, REDACTED);
 }
 
 export function redactSensitiveText(input: string): string {
