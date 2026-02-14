@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   variant?: 'default' | 'primary' | 'danger'
   size?: 'small' | 'medium' | 'large'
+  ariaLabel?: string
 }>(), {
   variant: 'default',
   size: 'medium'
@@ -55,12 +56,14 @@ function handleClick(event: MouseEvent) {
     :class="buttonClass"
     :disabled="disabled || loading"
     :title="tooltip"
+    :aria-label="ariaLabel || tooltip"
+    :aria-busy="loading"
     type="button"
     @click="handleClick"
   >
-    <span v-if="loading" class="spinner"></span>
-    <i v-else-if="isCodiconIcon" :class="codiconClass"></i>
-    <span v-else-if="icon" class="icon">{{ icon }}</span>
+    <span v-if="loading" class="spinner" aria-hidden="true"></span>
+    <i v-else-if="isCodiconIcon" :class="codiconClass" aria-hidden="true"></i>
+    <span v-else-if="icon" class="icon" aria-hidden="true">{{ icon }}</span>
     <slot v-else />
   </button>
 </template>

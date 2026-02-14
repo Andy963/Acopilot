@@ -23,17 +23,32 @@ defineEmits<{
     <div class="header-right">
       <!-- 新建对话 -->
       <Tooltip :content="t('components.header.newChat')" placement="bottom">
-        <IconButton icon="codicon-add" size="medium" @click="$emit('newChat')" />
+        <IconButton
+          icon="codicon-add"
+          size="medium"
+          :aria-label="t('components.header.newChat')"
+          @click="$emit('newChat')"
+        />
       </Tooltip>
 
       <!-- 对话历史 -->
       <Tooltip :content="t('components.header.history')" placement="bottom">
-        <IconButton icon="codicon-history" size="medium" @click="$emit('showHistory')" />
+        <IconButton
+          icon="codicon-history"
+          size="medium"
+          :aria-label="t('components.header.history')"
+          @click="$emit('showHistory')"
+        />
       </Tooltip>
 
       <!-- 设置 -->
       <Tooltip :content="t('components.header.settings')" placement="bottom">
-        <IconButton icon="codicon-settings-gear" size="medium" @click="$emit('showSettings')" />
+        <IconButton
+          icon="codicon-settings-gear"
+          size="medium"
+          :aria-label="t('components.header.settings')"
+          @click="$emit('showSettings')"
+        />
       </Tooltip>
     </div>
   </header>
