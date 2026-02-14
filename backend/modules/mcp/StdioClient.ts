@@ -84,6 +84,46 @@ interface McpPrompt {
 }
 
 /**
+ * 过滤敏感环境变量
+ *
+ * 防止将敏感信息（如 API Key）泄露给 MCP 服务器
+ */
+function filterSafeEnv(env: NodeJS.ProcessEnv): Record<string, string> {
+    const safeEnv: Record<string, string> = {};
+    const sensitiveKeys = /^(?:AZURE_|AWS_|GOOGLE_|OPENAI_|ANTHROPIC_|GITHUB_|GITLAB_|SLACK_|DISCORD_|STRIPE_|TWILIO_|SENDGRID_|PRIVATE_|SECRET_|KEY_|TOKEN_|PASSWORD_|AUTH_|ACCESS_|REFRESH_).*/i;
+    const sensitiveKeywords = /(?:key|token|secret|password|auth|credential)/i;
+
+    const systemBasics = [
+        'HOME', 'USERPROFILE', 'TEMP', 'TMP', 'TMPDIR',
+        'LANG', 'LC_ALL', 'TERM', 'SHELL',
+        'SYSTEMROOT', 'WINDIR', 'APPDATA', 'LOCALAPPDATA',
+        'PROGRAMFILES', 'PROGRAMFILES(X86)', 'COMMONPROGRAMFILES', 'COMSPEC',
+        'PATH', 'PATHEXT'
+    ];
+
+    for (const [key, value] of Object.entries(env)) {
+        if (!value) continue;
+
+        const upperKey = key.toUpperCase();
+
+        // Always allow system basics
+        if (systemBasics.includes(upperKey)) {
+            safeEnv[key] = value;
+            continue;
+        }
+
+        // Filter out sensitive
+        if (sensitiveKeys.test(key) || sensitiveKeywords.test(key)) {
+            continue;
+        }
+
+        // Allow other variables that are not explicitly sensitive
+        safeEnv[key] = value;
+    }
+    return safeEnv;
+}
+
+/**
  * Stdio MCP 客户端
  */
 export class StdioMcpClient extends EventEmitter {
@@ -120,7 +160,7 @@ export class StdioMcpClient extends EventEmitter {
     async connect(): Promise<void> {
         // 启动子进程
         const processEnv = {
-            ...process.env,
+            ...filterSafeEnv(process.env),
             ...this.env
         };
         
