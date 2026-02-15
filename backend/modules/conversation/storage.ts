@@ -373,17 +373,29 @@ export class FileSystemStorageAdapter implements IStorageAdapter {
             );
             const entries = await this.vscode.workspace.fs.readDirectory(dirUri);
             
-            const snapshots: string[] = [];
-            for (const [name, type] of entries) {
-                if (type === 1 && name.endsWith('.json')) {
+            const snapshotFiles = entries.filter(([name, type]: [string, number]) =>
+                type === 1 && name.endsWith('.json')
+            );
+
+            // Parallelize file reads with a concurrency limit
+            // Performance optimization: Reduces sequential I/O latency
+            const results: string[] = [];
+            const CONCURRENCY = 10;
+
+            for (let i = 0; i < snapshotFiles.length; i += CONCURRENCY) {
+                const chunk = snapshotFiles.slice(i, i + CONCURRENCY);
+                const chunkResults = await Promise.all(chunk.map(async ([name]: [string, number]) => {
                     const snapshotId = name.replace('.json', '');
                     const snapshot = await this.loadSnapshot(snapshotId);
                     if (snapshot && snapshot.conversationId === conversationId) {
-                        snapshots.push(snapshotId);
+                        return snapshotId;
                     }
-                }
+                    return null;
+                }));
+                results.push(...chunkResults.filter((id): id is string => id !== null));
             }
-            return snapshots;
+
+            return results;
         } catch {
             return [];
         }
