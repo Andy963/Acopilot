@@ -14,25 +14,57 @@ const props = withDefaults(defineProps<{
   disabled: false
 })
 
-const visible = ref(false)
+const isHovered = ref(false)
+const isFocused = ref(false)
+
+const visible = computed(() => {
+  return (isHovered.value || isFocused.value) && !props.disabled && !!props.content
+})
 
 const tooltipClass = computed(() => {
   return ['tooltip', props.placement]
 })
 
-function show() {
-  if (!props.disabled && props.content) {
-    visible.value = true
-  }
+function handleMouseEnter() {
+  isHovered.value = true
 }
 
-function hide() {
-  visible.value = false
+function handleMouseLeave() {
+  isHovered.value = false
+}
+
+function handleFocusIn() {
+  isFocused.value = true
+}
+
+function handleFocusOut(event: FocusEvent) {
+  const currentTarget = event.currentTarget as HTMLElement
+  const relatedTarget = event.relatedTarget as HTMLElement
+
+  if (currentTarget.contains(relatedTarget)) {
+    return
+  }
+
+  isFocused.value = false
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    isHovered.value = false
+    isFocused.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="tooltip-wrapper" @mouseenter="show" @mouseleave="hide">
+  <div
+    class="tooltip-wrapper"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+    @focusin="handleFocusIn"
+    @focusout="handleFocusOut"
+    @keydown="handleKeydown"
+  >
     <slot />
     <Transition name="tooltip-fade">
       <div
