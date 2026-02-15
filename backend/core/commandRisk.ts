@@ -122,7 +122,7 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
   // Determine level (simple MVP scoring)
   let level: CommandRiskLevel = 'low';
 
-  const isCurlPipeSh = /\b(curl|wget)\b[^|]*\|\s*\b(sh|bash|zsh|pwsh|powershell)\b/.test(lower);
+  const isCurlPipeSh = /\b(curl|wget)\b[^;|&]*\|\s*(?:[^;|&]*\|)*\s*\b(sh|bash|zsh|pwsh|powershell)\b/.test(lower);
   if (isCurlPipeSh) {
     level = 'critical';
     categories.push('network');
