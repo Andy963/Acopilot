@@ -27,6 +27,7 @@ import { resolveExecuteCommandWorkingDir } from './cwdValidation';
 import { collectExecuteCommandChangedFiles, getGitChangesFingerprint, type ExecuteCommandChangedFile, type ExecuteCommandChangesSummary } from './executeCommandGitChanges';
 import { checkAllShellsAvailability, checkShellAvailability, getAvailableShellsDescription, getDefaultShellName, getEnabledShellTypes, getEnabledShellTypesForEnum, getShellConfig, type ShellType } from './executeCommandShells';
 import { getAllWorkspaceRoots } from './executeCommandWorkspace';
+import { filterSensitiveEnv } from '../../core/envFilter';
 
 export { checkAllShellsAvailability, checkShellAvailability, getEnabledShellTypes };
 
@@ -319,7 +320,8 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         : [finalCommand];
 
                     // 注入环境变量以便更好地支持 UTF-8（主要针对 Windows 上的 Unix 工具）
-                    const env = { ...process.env };
+                    // 🛡️ Security: Filter sensitive environment variables to prevent leakage
+                    const env = { ...filterSensitiveEnv(process.env) };
                     if (isWindows) {
                         // 很多工具（如 git, node, python）在 Windows 上通过这些变量识别编码
                         if (!env.LANG) env.LANG = 'en_US.UTF-8';
