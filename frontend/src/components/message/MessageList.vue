@@ -636,8 +636,12 @@ function formatCheckpointTime(timestamp: number): string {
                 </div>
                 <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp)
                   }}</span>
-                <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                  <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                <Tooltip :content="t('components.message.checkpoint.restoreTooltip')">
+                  <button
+                    class="checkpoint-action"
+                    @click="restoreCheckpoint(cp)"
+                    :aria-label="t('components.message.checkpoint.restoreTooltip')"
+                  >
                     <i class="codicon codicon-discard"></i>
                   </button>
                 </Tooltip>
@@ -667,8 +671,12 @@ function formatCheckpointTime(timestamp: number): string {
                   </div>
                   <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{
                     formatCheckpointTime(cp.timestamp) }}</span>
-                  <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                    <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                  <Tooltip :content="t('components.message.checkpoint.restoreTooltip')">
+                    <button
+                      class="checkpoint-action"
+                      @click="restoreCheckpoint(cp)"
+                      :aria-label="t('components.message.checkpoint.restoreTooltip')"
+                    >
                       <i class="codicon codicon-discard"></i>
                     </button>
                   </Tooltip>

@@ -3,7 +3,7 @@
  * 提示框组件
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = withDefaults(defineProps<{
   content?: string
@@ -29,10 +29,31 @@ function show() {
 function hide() {
   visible.value = false
 }
+
+// Close tooltip on Escape key
+function handleKeydown(e: KeyboardEvent) {
+  if (visible.value && e.key === 'Escape') {
+    hide()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
-  <div class="tooltip-wrapper" @mouseenter="show" @mouseleave="hide">
+  <div
+    class="tooltip-wrapper"
+    @mouseenter="show"
+    @mouseleave="hide"
+    @focusin="show"
+    @focusout="hide"
+  >
     <slot />
     <Transition name="tooltip-fade">
       <div
