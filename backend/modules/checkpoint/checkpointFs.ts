@@ -1,6 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
+// Cache compiled regexes to avoid recompiling them for every file
+const patternCache = new Map<string, RegExp>();
+
 function parseGitignore(content: string): string[] {
     return content
         .split('\n')
@@ -9,6 +12,11 @@ function parseGitignore(content: string): string[] {
 }
 
 function matchPattern(str: string, pattern: string): boolean {
+    const cachedRegex = patternCache.get(pattern);
+    if (cachedRegex) {
+        return cachedRegex.test(str);
+    }
+
     let regexStr = pattern
         .replace(/\./g, '\\.')
         .replace(/\*\*/g, '<<<GLOBSTAR>>>')
@@ -28,6 +36,7 @@ function matchPattern(str: string, pattern: string): boolean {
 
     try {
         const regex = new RegExp(regexStr);
+        patternCache.set(pattern, regex);
         return regex.test(str);
     } catch {
         return str === pattern || str.endsWith('/' + pattern);
