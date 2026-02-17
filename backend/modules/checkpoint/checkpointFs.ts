@@ -8,7 +8,16 @@ function parseGitignore(content: string): string[] {
         .filter(line => line && !line.startsWith('#'));
 }
 
+// Cache compiled regexes to avoid recompiling for every file check.
+// This significantly improves performance when scanning large directories with many ignore patterns.
+const patternCache = new Map<string, RegExp>();
+
 function matchPattern(str: string, pattern: string): boolean {
+    const cached = patternCache.get(pattern);
+    if (cached) {
+        return cached.test(str);
+    }
+
     let regexStr = pattern
         .replace(/\./g, '\\.')
         .replace(/\*\*/g, '<<<GLOBSTAR>>>')
@@ -28,6 +37,7 @@ function matchPattern(str: string, pattern: string): boolean {
 
     try {
         const regex = new RegExp(regexStr);
+        patternCache.set(pattern, regex);
         return regex.test(str);
     } catch {
         return str === pattern || str.endsWith('/' + pattern);
