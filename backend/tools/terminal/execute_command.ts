@@ -20,6 +20,7 @@ import type { Tool, ToolResult, ToolContext } from '../types';
 const treeKill = require('tree-kill') as (pid: number, signal?: string, callback?: (error?: Error) => void) => void;
 import { getGlobalSettingsManager } from '../../core/settingsContext';
 import { getDefaultExecuteCommandConfig } from '../../modules/settings';
+import { shouldConfirmExecuteCommand } from '../../core/commandRisk';
 import { TaskManager, type TaskEvent } from '../taskManager';
 import { getAllWorkspaces } from '../utils';
 import { t } from '../../i18n';
@@ -244,6 +245,30 @@ ${getAvailableShellsDescription()}${workspaceDescription}
             // 获取设置管理器和配置
             const settingsManager = getGlobalSettingsManager();
             const config = settingsManager?.getExecuteCommandConfig() || getDefaultExecuteCommandConfig();
+
+            // Security: Risk Assessment
+            const riskPolicy = config.riskPolicy;
+            const { confirm, assessment } = shouldConfirmExecuteCommand(command, riskPolicy);
+
+            if (confirm) {
+                const reasons = assessment.reasons.length > 0 ? assessment.reasons.join(', ') : 'High risk command detected';
+                const message = `⚠️ Security Warning: The command "${command}" is flagged as ${assessment.level.toUpperCase()} risk.\nReasons: ${reasons}.\n\nDo you want to execute it?`;
+
+                const selection = await vscode.window.showWarningMessage(
+                    message,
+                    { modal: true },
+                    'Execute',
+                    'Cancel'
+                );
+
+                if (selection !== 'Execute') {
+                    return {
+                        success: false,
+                        error: `Command execution cancelled by user due to security risk (${assessment.level}: ${reasons}).`,
+                        cancelled: true
+                    };
+                }
+            }
             
             // 确定实际使用的 shell 类型
             let actualShellType = shell;
