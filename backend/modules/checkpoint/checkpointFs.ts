@@ -1,6 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
+const PATTERN_REGEX_CACHE = new Map<string, RegExp>();
+const PATTERN_REGEX_CACHE_MAX_SIZE = 2048;
+
 function parseGitignore(content: string): string[] {
     return content
         .split('\n')
@@ -9,6 +12,11 @@ function parseGitignore(content: string): string[] {
 }
 
 function matchPattern(str: string, pattern: string): boolean {
+    const cached = PATTERN_REGEX_CACHE.get(pattern);
+    if (cached) {
+        return cached.test(str);
+    }
+
     let regexStr = pattern
         .replace(/\./g, '\\.')
         .replace(/\*\*/g, '<<<GLOBSTAR>>>')
@@ -28,6 +36,10 @@ function matchPattern(str: string, pattern: string): boolean {
 
     try {
         const regex = new RegExp(regexStr);
+        if (PATTERN_REGEX_CACHE.size >= PATTERN_REGEX_CACHE_MAX_SIZE) {
+            PATTERN_REGEX_CACHE.clear();
+        }
+        PATTERN_REGEX_CACHE.set(pattern, regex);
         return regex.test(str);
     } catch {
         return str === pattern || str.endsWith('/' + pattern);
@@ -221,4 +233,3 @@ export async function cleanupEmptyDirsRecursive(dir: string, ignorePatterns: str
         // ignore
     }
 }
-
