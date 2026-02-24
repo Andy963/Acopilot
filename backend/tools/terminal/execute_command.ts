@@ -20,6 +20,8 @@ import type { Tool, ToolResult, ToolContext } from '../types';
 const treeKill = require('tree-kill') as (pid: number, signal?: string, callback?: (error?: Error) => void) => void;
 import { getGlobalSettingsManager } from '../../core/settingsContext';
 import { getDefaultExecuteCommandConfig } from '../../modules/settings';
+import { shouldConfirmExecuteCommand } from '../../core/commandRisk';
+import { filterSensitiveEnv } from '../../core/envFilter';
 import { TaskManager, type TaskEvent } from '../taskManager';
 import { getAllWorkspaces } from '../utils';
 import { t } from '../../i18n';
@@ -280,6 +282,27 @@ ${getAvailableShellsDescription()}${workspaceDescription}
 
             const workingDir = resolvedWorkingDir.workingDir;
 
+            // Security: risk assessment gating for dangerous commands.
+            const { confirm, assessment } = shouldConfirmExecuteCommand(command, config.riskPolicy);
+            if (confirm) {
+                const reasons = assessment.reasons.length > 0 ? assessment.reasons.join(', ') : 'High risk command detected';
+                const selection = await vscode.window.showWarningMessage(
+                    `Security warning: command is flagged as ${assessment.level.toUpperCase()} risk.\nReasons: ${reasons}\n\nCommand:\n${command}\n\nExecute anyway?`,
+                    { modal: true },
+                    'Execute',
+                    'Cancel'
+                );
+
+                if (selection !== 'Execute') {
+                    return {
+                        success: false,
+                        error: `Command execution cancelled by user due to security risk (${assessment.level}: ${reasons}).`,
+                        cancelled: true,
+                        risk: assessment
+                    };
+                }
+            }
+
             // 获取 shell 配置
             const shellConfig = getShellConfig(shell);
 
@@ -319,7 +342,7 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         : [finalCommand];
 
                     // 注入环境变量以便更好地支持 UTF-8（主要针对 Windows 上的 Unix 工具）
-                    const env = { ...process.env };
+                    const env = { ...filterSensitiveEnv(process.env) };
                     if (isWindows) {
                         // 很多工具（如 git, node, python）在 Windows 上通过这些变量识别编码
                         if (!env.LANG) env.LANG = 'en_US.UTF-8';

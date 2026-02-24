@@ -6,6 +6,7 @@
 
 import * as cp from 'child_process';
 import { EventEmitter } from 'events';
+import { filterSensitiveEnv } from '../../core/envFilter';
 
 /**
  * JSON-RPC 请求
@@ -120,7 +121,7 @@ export class StdioMcpClient extends EventEmitter {
     async connect(): Promise<void> {
         // 启动子进程
         const processEnv = {
-            ...process.env,
+            ...filterSensitiveEnv(process.env),
             ...this.env
         };
         
