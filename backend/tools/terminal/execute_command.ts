@@ -297,8 +297,7 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                     return {
                         success: false,
                         error: `Command execution cancelled by user due to security risk (${assessment.level}: ${reasons}).`,
-                        cancelled: true,
-                        risk: assessment
+                        cancelled: true
                     };
                 }
             }
