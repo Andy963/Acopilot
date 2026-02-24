@@ -18,6 +18,7 @@ import { useI18n } from '../../i18n'
 import type { Message, CheckpointRecord, Attachment, ToolUsage } from '../../types'
 
 const { t } = useI18n()
+const chatStore = useChatStore()
 
 const errorCopied = ref(false)
 
@@ -149,6 +150,27 @@ function getGroupableToolName(message: Message): string | null {
   return READ_ONLY_TOOL_NAMES.has(name) ? name : null
 }
 
+const idToActualIndex = computed(() => {
+  const map = new Map<string, number>()
+  chatStore.allMessages.forEach((m, idx) => {
+    map.set(m.id, idx)
+  })
+  return map
+})
+
+const checkpointsByMsgIndex = computed(() => {
+  const map = new Map<number, { before: CheckpointRecord[], after: CheckpointRecord[] }>()
+  chatStore.checkpoints.forEach(cp => {
+    if (!map.has(cp.messageIndex)) {
+      map.set(cp.messageIndex, { before: [], after: [] })
+    }
+    const group = map.get(cp.messageIndex)!
+    if (cp.phase === 'before') group.before.push(cp)
+    else group.after.push(cp)
+  })
+  return map
+})
+
 // 预计算可见消息的增强信息，避免在模板中进行昂贵的计算
 const renderItems = computed<RenderItem[]>(() => {
   const count = visibleCount.value
@@ -158,26 +180,9 @@ const renderItems = computed<RenderItem[]>(() => {
   // 仅对可见的消息进行切片
   const visibleSlice = props.messages.slice(startIndex)
 
-  // 预先建立 ID 到 allMessages 索引的映射，提高 getActualIndex 效率
-  const idToActualIndex = new Map<string, number>()
-  chatStore.allMessages.forEach((m, idx) => {
-    idToActualIndex.set(m.id, idx)
-  })
-
-  // 预先按消息索引对检查点进行分组
-  const checkpointsByMsgIndex = new Map<number, { before: CheckpointRecord[], after: CheckpointRecord[] }>()
-  chatStore.checkpoints.forEach(cp => {
-    if (!checkpointsByMsgIndex.has(cp.messageIndex)) {
-      checkpointsByMsgIndex.set(cp.messageIndex, { before: [], after: [] })
-    }
-    const group = checkpointsByMsgIndex.get(cp.messageIndex)!
-    if (cp.phase === 'before') group.before.push(cp)
-    else group.after.push(cp)
-  })
-
   const enhanced: EnhancedMessage[] = visibleSlice.map(message => {
-    const actualIndex = idToActualIndex.get(message.id) ?? -1
-    const cpGroup = actualIndex !== -1 ? checkpointsByMsgIndex.get(actualIndex) : null
+    const actualIndex = idToActualIndex.value.get(message.id) ?? -1
+    const cpGroup = actualIndex !== -1 ? checkpointsByMsgIndex.value.get(actualIndex) : null
 
     return {
       message,
@@ -267,9 +272,6 @@ function handleScroll(e: Event) {
     loadMore()
   }
 }
-
-// 从 store 读取等待状态
-const chatStore = useChatStore()
 
 // CustomScrollbar 引用
 const scrollbarRef = ref<InstanceType<typeof CustomScrollbar> | null>(null)
@@ -636,8 +638,12 @@ function formatCheckpointTime(timestamp: number): string {
                 </div>
                 <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp)
                   }}</span>
-                <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                  <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                <Tooltip :content="t('components.message.checkpoint.restoreTooltip')">
+                  <button
+                    class="checkpoint-action"
+                    @click="restoreCheckpoint(cp)"
+                    :aria-label="t('components.message.checkpoint.restoreTooltip')"
+                  >
                     <i class="codicon codicon-discard"></i>
                   </button>
                 </Tooltip>
@@ -667,8 +673,12 @@ function formatCheckpointTime(timestamp: number): string {
                   </div>
                   <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{
                     formatCheckpointTime(cp.timestamp) }}</span>
-                  <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                    <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                  <Tooltip :content="t('components.message.checkpoint.restoreTooltip')">
+                    <button
+                      class="checkpoint-action"
+                      @click="restoreCheckpoint(cp)"
+                      :aria-label="t('components.message.checkpoint.restoreTooltip')"
+                    >
                       <i class="codicon codicon-discard"></i>
                     </button>
                   </Tooltip>

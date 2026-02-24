@@ -90,6 +90,7 @@ function handleDownload() {
           icon="codicon-eye"
           size="small"
           variant="default"
+          :aria-label="t('components.attachment.preview')"
           @click="handlePreview"
         />
       </Tooltip>
@@ -100,6 +101,7 @@ function handleDownload() {
           icon="codicon-desktop-download"
           size="small"
           variant="default"
+          :aria-label="t('components.attachment.download')"
           @click="handleDownload"
         />
       </Tooltip>
@@ -212,7 +214,8 @@ function handleDownload() {
   transition: opacity 0.15s;
 }
 
-.attachment-item:hover .attachment-actions {
+.attachment-item:hover .attachment-actions,
+.attachment-item:focus-within .attachment-actions {
   opacity: 1;
 }
 </style>
