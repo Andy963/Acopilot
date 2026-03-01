@@ -1,23 +1,17 @@
 <script setup lang="ts">
-/**
- * MarkdownRenderer - Markdown 和 LaTeX 渲染组件
- *
- * 使用 markdown-it 作为渲染引擎，支持：
- * - 完整 GFM 语法
- * - 脚注
- * - 定义列表
- * - 任务列表
- * - 代码高亮
- * - LaTeX 数学公式
- */
-
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
 import type { Options } from 'markdown-it'
 import type Token from 'markdown-it/lib/token.mjs'
 import type Renderer from 'markdown-it/lib/renderer.mjs'
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import python from 'highlight.js/lib/languages/python'
+import go from 'highlight.js/lib/languages/go'
+import json from 'highlight.js/lib/languages/json'
+import bash from 'highlight.js/lib/languages/bash'
 import katex from 'katex'
 import { sendToExtension } from '@/utils/vscode'
 
@@ -26,11 +20,20 @@ import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import taskLists from 'markdown-it-task-lists'
 
+type WorkspaceFileReference = {
+  path: string
+  line: number
+  column: number
+  display: string
+}
+
 const props = withDefaults(defineProps<{
   content: string
   latexOnly?: boolean  // 仅渲染 LaTeX，不渲染 Markdown（用于用户消息）
+  streaming?: boolean  // Streaming mode: defer code highlighting until completion.
 }>(), {
-  latexOnly: false
+  latexOnly: false,
+  streaming: false
 })
 
 // 容器引用
@@ -42,10 +45,173 @@ const copyTimers = new Map<HTMLButtonElement, number>()
 // 图片加载状态
 const imageCache = new Map<string, string>()
 
+// Register a small set of languages to keep bundle size under control.
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('go', go)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('bash', bash)
+
+const AUTO_LANGUAGE_SUBSET = ['python', 'go', 'javascript', 'typescript', 'json', 'bash'] as const
+const LANGUAGE_ALIASES: Record<string, string> = {
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  tss: 'typescript',
+  py: 'python',
+  golang: 'go',
+  sh: 'bash',
+  shell: 'bash',
+  zsh: 'bash',
+  jsonc: 'json'
+}
+
+const MAX_EXPLICIT_HIGHLIGHT_CHARS = 100_000
+const MAX_AUTO_HIGHLIGHT_CHARS = 20_000
+
+function normalizeFenceLanguage(info: string): string | null {
+  const token = info.trim().split(/\s+/)[0] || ''
+  const normalized = (LANGUAGE_ALIASES[token.toLowerCase()] ?? token)
+    .toLowerCase()
+    .replace(/^language-/, '')
+    .replace(/^lang-/, '')
+
+  if (!normalized) return null
+  return hljs.getLanguage(normalized) ? normalized : null
+}
+
+function escapeAttr(text: string): string {
+  return escapeHtml(text).replace(/`/g, '&#096;')
+}
+
+function parseWorkspaceFileReference(text: string): WorkspaceFileReference | null {
+  const raw = String(text || '').trim()
+  if (!raw) return null
+  if (raw.includes('\\')) return null
+  if (raw.startsWith('/') || raw.startsWith('~')) return null
+  if (raw.startsWith('file://')) return null
+  if (/(^|\/)\.\.(\/|$)/.test(raw)) return null
+
+  const match = /^(?:\.\/)?((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+)(?::(\d+)(?::(\d+))?|#L(\d+)(?:C(\d+))?)$/.exec(raw)
+  if (!match) return null
+
+  const path = match[1] || ''
+  const line = Number(match[2] ?? match[4] ?? '')
+  const column = Number(match[3] ?? match[5] ?? '1')
+
+  if (!path) return null
+  if (!Number.isFinite(line) || line <= 0) return null
+  if (!Number.isFinite(column) || column <= 0) return null
+
+  // Reduce false positives for "domain.tld:port" style strings.
+  if (!path.includes('/')) {
+    const ext = path.split('.').pop()?.toLowerCase() || ''
+    const allowed = new Set(['ts', 'tsx', 'js', 'jsx', 'vue', 'css', 'scss', 'less', 'json', 'md', 'txt', 'yml', 'yaml', 'toml', 'rs', 'go', 'py', 'sh'])
+    if (!allowed.has(ext)) return null
+  }
+
+  return {
+    path,
+    line,
+    column,
+    display: raw
+  }
+}
+
+function applyWorkspaceFileLinkify(md: MarkdownIt): void {
+  const fileRefRegex = /\b((?:\.\/)?(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+(?::\d+(?::\d+)?|#L\d+(?:C\d+)?))\b/g
+
+  md.core.ruler.after('linkify', 'acopilot_workspace_file_links', (state: StateCore) => {
+    const TokenCtor = (state as any).Token
+    if (!TokenCtor) return
+
+    for (const blockToken of state.tokens as any[]) {
+      if (blockToken.type !== 'inline' || !Array.isArray(blockToken.children)) continue
+
+      const out: any[] = []
+      let inLink = 0
+
+      for (const child of blockToken.children as any[]) {
+        if (child.type === 'link_open') {
+          inLink += 1
+          out.push(child)
+          continue
+        }
+        if (child.type === 'link_close') {
+          inLink = Math.max(0, inLink - 1)
+          out.push(child)
+          continue
+        }
+
+        if (inLink > 0 || child.type !== 'text' || typeof child.content !== 'string') {
+          out.push(child)
+          continue
+        }
+
+        const text = child.content
+        let lastIndex = 0
+        let changed = false
+
+        fileRefRegex.lastIndex = 0
+        let m: RegExpExecArray | null
+        while ((m = fileRefRegex.exec(text)) !== null) {
+          const candidate = m[1] || ''
+          const parsed = parseWorkspaceFileReference(candidate)
+          if (!parsed) continue
+
+          const start = m.index
+          const end = start + candidate.length
+          if (start > lastIndex) {
+            const t = new TokenCtor('text', '', 0)
+            t.content = text.slice(lastIndex, start)
+            out.push(t)
+          }
+
+          const open = new TokenCtor('link_open', 'a', 1)
+          open.attrSet('href', '#')
+          open.attrSet('class', 'workspace-file-link')
+          open.attrSet('data-path', parsed.path)
+          open.attrSet('data-line', String(parsed.line))
+          open.attrSet('data-column', String(parsed.column))
+          open.attrSet('title', `${parsed.path}:${parsed.line}:${parsed.column}`)
+          out.push(open)
+
+          const label = new TokenCtor('text', '', 0)
+          label.content = parsed.display
+          out.push(label)
+
+          const close = new TokenCtor('link_close', 'a', -1)
+          out.push(close)
+
+          lastIndex = end
+          changed = true
+        }
+
+        if (!changed) {
+          out.push(child)
+          continue
+        }
+
+        if (lastIndex < text.length) {
+          const t = new TokenCtor('text', '', 0)
+          t.content = text.slice(lastIndex)
+          out.push(t)
+        }
+      }
+
+      blockToken.children = out
+    }
+  })
+}
+
 /**
  * 创建并配置 markdown-it 实例
  */
-function createMarkdownIt() {
+function createMarkdownIt(enableCodeHighlight: boolean) {
   const md = new MarkdownIt({
     html: true,           // 允许 HTML 标签
     xhtmlOut: false,
@@ -53,26 +219,26 @@ function createMarkdownIt() {
     linkify: true,        // 自动检测链接
     typographer: true,    // 启用智能引号等排版功能
     highlight: function (str: string, lang: string) {
-      // 代码高亮
       let highlighted: string
-      let langClass = ''
-      
-      if (lang && hljs.getLanguage(lang)) {
-        try {
-          highlighted = hljs.highlight(str, { language: lang }).value
-          langClass = `language-${lang}`
-        } catch (e) {
-          highlighted = hljs.highlightAuto(str).value
-        }
+      const normalizedLang = lang ? normalizeFenceLanguage(lang) : null
+      const langClass = normalizedLang ? `language-${normalizedLang}` : ''
+
+      if (!enableCodeHighlight) {
+        highlighted = escapeHtml(str)
+      } else if (normalizedLang && str.length <= MAX_EXPLICIT_HIGHLIGHT_CHARS) {
+        highlighted = hljs.highlight(str, { language: normalizedLang, ignoreIllegals: true }).value
+      } else if (!normalizedLang && str.length <= MAX_AUTO_HIGHLIGHT_CHARS) {
+        highlighted = hljs.highlightAuto(str, [...AUTO_LANGUAGE_SUBSET]).value
       } else {
-        highlighted = hljs.highlightAuto(str).value
+        highlighted = escapeHtml(str)
       }
-      
+
       // 对原始代码进行 base64 编码以便复制时解码
       const encodedCode = btoa(encodeURIComponent(str))
       
       // 返回以 <pre 开头的字符串，避免 markdown-it 额外包裹
-      return `<pre class="hljs code-block-wrapper"><button class="code-copy-btn" data-code="${encodedCode}" title="复制代码"><span class="copy-icon codicon codicon-copy"></span><span class="check-icon codicon codicon-check"></span></button><code class="${langClass}">${highlighted}</code></pre>`
+      const codeClass = ['hljs', langClass].filter(Boolean).join(' ')
+      return `<pre class="code-block-wrapper"><button class="code-copy-btn" data-code="${encodedCode}" title="复制代码"><span class="copy-icon codicon codicon-copy"></span><span class="check-icon codicon codicon-check"></span></button><code class="${codeClass}">${highlighted}</code></pre>`
     }
   })
   
@@ -84,7 +250,9 @@ function createMarkdownIt() {
     label: true,
     labelAfter: true
   })
-  
+
+  applyWorkspaceFileLinkify(md)
+
   // 自定义链接渲染 - 外部链接在新标签页打开
   const defaultLinkRender = md.renderer.rules.link_open || function(
     tokens: Token[],
@@ -114,7 +282,38 @@ function createMarkdownIt() {
     
     return defaultLinkRender(tokens, idx, options, env, self)
   }
-  
+
+  const defaultCodeInlineRender = md.renderer.rules.code_inline || function(
+    tokens: Token[],
+    idx: number,
+    options: Options,
+    env: StateCore,
+    self: Renderer
+  ) {
+    return self.renderToken(tokens, idx, options)
+  }
+
+  md.renderer.rules.code_inline = function(
+    tokens: Token[],
+    idx: number,
+    options: Options,
+    env: StateCore,
+    self: Renderer
+  ) {
+    const content = tokens[idx]?.content || ''
+    const parsed = parseWorkspaceFileReference(content)
+    if (!parsed) {
+      return defaultCodeInlineRender(tokens, idx, options, env, self)
+    }
+
+    const safePath = escapeAttr(parsed.path)
+    const safeLine = String(parsed.line)
+    const safeColumn = String(parsed.column)
+    const safeLabel = escapeHtml(parsed.display)
+
+    return `<a href="#" class="workspace-file-link workspace-file-link--code" data-path="${safePath}" data-line="${safeLine}" data-column="${safeColumn}" title="${safePath}:${safeLine}:${safeColumn}"><code>${safeLabel}</code></a>`
+  }
+
   // 自定义图片渲染 - 支持相对路径
   md.renderer.rules.image = function(tokens: Token[], idx: number) {
     const token = tokens[idx]
@@ -139,8 +338,8 @@ function createMarkdownIt() {
   return md
 }
 
-// 创建 markdown-it 实例
-const md = createMarkdownIt()
+const mdWithHighlight = createMarkdownIt(true)
+const mdWithoutHighlight = createMarkdownIt(false)
 
 /**
  * 处理 LaTeX 公式
@@ -269,7 +468,7 @@ function escapeHtml(text: string): string {
 /**
  * 渲染 Markdown 和 LaTeX
  */
-function renderContent(content: string, latexOnly: boolean): string {
+function renderContent(content: string, latexOnly: boolean, enableCodeHighlight: boolean): string {
   if (!content) return ''
   
   // 仅 LaTeX 模式（用户消息）
@@ -306,6 +505,7 @@ function renderContent(content: string, latexOnly: boolean): string {
   })
   
   // 6. 使用 markdown-it 渲染
+  const md = enableCodeHighlight ? mdWithHighlight : mdWithoutHighlight
   let html = md.render(processed)
   
   // 7. 保留多个连续空格（在段落内容中）
@@ -329,7 +529,8 @@ function renderContent(content: string, latexOnly: boolean): string {
 
 // 渲染结果
 const renderedContent = computed(() => {
-  return renderContent(props.content, props.latexOnly)
+  const enableCodeHighlight = props.streaming !== true
+  return renderContent(props.content, props.latexOnly, enableCodeHighlight)
 })
 
 /**
@@ -427,10 +628,35 @@ async function handleImageClick(event: Event) {
   }
 }
 
+async function handleWorkspaceFileLinkClick(event: Event) {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+
+  const link = target.closest('a.workspace-file-link') as HTMLAnchorElement | null
+  if (!link) return
+  if (!containerRef.value || !containerRef.value.contains(link)) return
+
+  const path = String(link.getAttribute('data-path') || '').trim()
+  const line = Number(link.getAttribute('data-line'))
+  const column = link.getAttribute('data-column') === null ? 1 : Number(link.getAttribute('data-column'))
+  if (!path || !Number.isFinite(line) || line <= 0) return
+  if (!Number.isFinite(column) || column <= 0) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', { path, line, column })
+  } catch (error) {
+    console.warn('Failed to open workspace file reference:', error)
+  }
+}
+
 onMounted(() => {
   if (containerRef.value) {
     containerRef.value.addEventListener('click', handleCopyClick)
     containerRef.value.addEventListener('click', handleImageClick)
+    containerRef.value.addEventListener('click', handleWorkspaceFileLinkClick)
   }
   nextTick(() => loadWorkspaceImages())
 })
@@ -443,6 +669,7 @@ onUnmounted(() => {
   if (containerRef.value) {
     containerRef.value.removeEventListener('click', handleCopyClick)
     containerRef.value.removeEventListener('click', handleImageClick)
+    containerRef.value.removeEventListener('click', handleWorkspaceFileLinkClick)
   }
   copyTimers.forEach((timer) => {
     window.clearTimeout(timer)
@@ -455,392 +682,4 @@ onUnmounted(() => {
   <div ref="containerRef" class="markdown-content" v-html="renderedContent"></div>
 </template>
 
-<style scoped>
-/* 基础样式 */
-.markdown-content {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--vscode-foreground);
-  word-break: break-word;
-}
-
-/* 段落 */
-.markdown-content :deep(p) {
-  margin: 0 0 0.8em 0;
-}
-
-.markdown-content :deep(p:last-child) {
-  margin-bottom: 0;
-}
-
-/* 移除空段落 */
-.markdown-content :deep(p:empty) {
-  display: none;
-}
-
-/* 代码块前后的段落减少间距 */
-.markdown-content :deep(p + .code-block-wrapper),
-.markdown-content :deep(.code-block-wrapper + p) {
-  margin-top: 0;
-}
-
-/* 标题 */
-.markdown-content :deep(h1),
-.markdown-content :deep(h2),
-.markdown-content :deep(h3),
-.markdown-content :deep(h4),
-.markdown-content :deep(h5),
-.markdown-content :deep(h6) {
-  margin: 1em 0 0.5em 0;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.markdown-content :deep(h1) { font-size: 1.5em; }
-.markdown-content :deep(h2) { font-size: 1.3em; }
-.markdown-content :deep(h3) { font-size: 1.15em; }
-.markdown-content :deep(h4) { font-size: 1em; }
-
-/* 列表 */
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-  margin: 0.5em 0;
-  padding-left: 1.5em;
-}
-
-.markdown-content :deep(li) {
-  margin: 0.25em 0;
-}
-
-/* 任务列表 */
-.markdown-content :deep(.task-list-item) {
-  list-style: none;
-  margin-left: -1.5em;
-}
-
-.markdown-content :deep(.task-list-item-checkbox) {
-  margin-right: 0.5em;
-  pointer-events: none;
-}
-
-/* 引用 */
-.markdown-content :deep(blockquote) {
-  margin: 0.5em 0;
-  padding: 0.5em 1em;
-  border-left: 3px solid var(--vscode-textBlockQuote-border);
-  background: var(--vscode-textBlockQuote-background);
-  color: var(--vscode-foreground);
-  opacity: 0.9;
-}
-
-/* 嵌套引用 */
-.markdown-content :deep(blockquote blockquote) {
-  border-left-color: var(--vscode-textLink-foreground);
-}
-
-/* 定义列表 */
-.markdown-content :deep(dl) {
-  margin: 0.8em 0;
-}
-
-.markdown-content :deep(dt) {
-  font-weight: 600;
-  margin-top: 0.5em;
-}
-
-.markdown-content :deep(dd) {
-  margin-left: 1.5em;
-  margin-bottom: 0.5em;
-}
-
-/* 代码块容器 - 现在是 pre.code-block-wrapper */
-.markdown-content :deep(pre.code-block-wrapper) {
-  position: relative;
-  margin: 0.5em 0;
-  padding: 12px;
-  background: var(--vscode-textCodeBlock-background);
-  border-radius: 4px;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  max-height: 400px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--vscode-scrollbarSlider-background, rgba(100, 100, 100, 0.4)) transparent;
-}
-
-/* 复制按钮 */
-.markdown-content :deep(.code-copy-btn) {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 10;
-  padding: 0;
-}
-
-.markdown-content :deep(.code-block-wrapper:hover .code-copy-btn) {
-  opacity: 0.6;
-}
-
-.markdown-content :deep(.code-copy-btn:hover) {
-  opacity: 1 !important;
-}
-
-.markdown-content :deep(.code-copy-btn .copy-icon) {
-  font-size: 14px;
-  color: var(--vscode-foreground);
-  display: block;
-}
-
-.markdown-content :deep(.code-copy-btn .check-icon) {
-  font-size: 14px;
-  color: var(--vscode-foreground);
-  display: none;
-}
-
-.markdown-content :deep(.code-copy-btn.copied) {
-  opacity: 1 !important;
-}
-
-.markdown-content :deep(.code-copy-btn.copied .copy-icon) {
-  display: none;
-}
-
-.markdown-content :deep(.code-copy-btn.copied .check-icon) {
-  display: block;
-}
-
-/* 代码块内的 code */
-.markdown-content :deep(pre.code-block-wrapper code) {
-  font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
-  font-size: 12px;
-  line-height: 1.5;
-  display: inline-block;
-  min-width: 100%;
-  white-space: pre;
-  word-break: normal;
-  overflow-wrap: normal;
-}
-
-/* 行内代码 */
-.markdown-content :deep(code:not(.hljs)) {
-  padding: 2px 6px;
-  background: var(--vscode-textCodeBlock-background);
-  border-radius: 3px;
-  font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
-  font-size: 0.9em;
-}
-
-/* 链接 */
-.markdown-content :deep(a) {
-  color: var(--vscode-textLink-foreground);
-  text-decoration: none;
-}
-
-.markdown-content :deep(a:hover) {
-  text-decoration: underline;
-}
-
-.markdown-content :deep(a[target="_blank"])::after {
-  content: " ↗";
-  font-size: 0.8em;
-  opacity: 0.7;
-}
-
-/* 分隔线 */
-.markdown-content :deep(hr) {
-  margin: 1em 0;
-  border: none;
-  border-top: 1px solid var(--vscode-panel-border);
-}
-
-/* 表格 */
-.markdown-content :deep(table) {
-  margin: 0.8em 0;
-  border-collapse: collapse;
-  width: 100%;
-  display: block;
-  overflow-x: auto;
-}
-
-.markdown-content :deep(th),
-.markdown-content :deep(td) {
-  padding: 8px 12px;
-  border: 1px solid var(--vscode-panel-border);
-  text-align: left;
-}
-
-.markdown-content :deep(th) {
-  background: var(--vscode-textBlockQuote-background);
-  font-weight: 600;
-}
-
-.markdown-content :deep(tbody tr:hover) {
-  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
-}
-
-/* 粗体和斜体 */
-.markdown-content :deep(strong) {
-  font-weight: 600;
-}
-
-.markdown-content :deep(em) {
-  font-style: italic;
-}
-
-/* 删除线 */
-.markdown-content :deep(del),
-.markdown-content :deep(s) {
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-
-/* 脚注 */
-.markdown-content :deep(.footnotes) {
-  margin-top: 2em;
-  padding-top: 1em;
-  border-top: 1px solid var(--vscode-panel-border);
-  font-size: 0.9em;
-}
-
-.markdown-content :deep(.footnotes-sep) {
-  display: none;
-}
-
-.markdown-content :deep(.footnote-ref) {
-  font-size: 0.8em;
-  vertical-align: super;
-}
-
-.markdown-content :deep(.footnote-backref) {
-  text-decoration: none;
-}
-
-/* 缩写 */
-.markdown-content :deep(abbr) {
-  text-decoration: underline dotted;
-  cursor: help;
-}
-
-/* 键盘按键 */
-.markdown-content :deep(kbd) {
-  display: inline-block;
-  padding: 2px 6px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 0.85em;
-  background: var(--vscode-textCodeBlock-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 3px;
-  box-shadow: 0 1px 0 var(--vscode-panel-border);
-}
-
-/* 上下标 */
-.markdown-content :deep(sup) {
-  font-size: 0.75em;
-  vertical-align: super;
-}
-
-.markdown-content :deep(sub) {
-  font-size: 0.75em;
-  vertical-align: sub;
-}
-
-/* 高亮 */
-.markdown-content :deep(mark) {
-  background: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 235, 59, 0.3));
-  padding: 0 2px;
-  border-radius: 2px;
-}
-
-/* 折叠详情 */
-.markdown-content :deep(details) {
-  margin: 0.8em 0;
-  padding: 0.5em;
-  background: var(--vscode-textBlockQuote-background);
-  border-radius: 4px;
-  border: 1px solid var(--vscode-panel-border);
-}
-
-.markdown-content :deep(summary) {
-  cursor: pointer;
-  font-weight: 600;
-  padding: 0.25em 0;
-}
-
-.markdown-content :deep(details[open] > summary) {
-  margin-bottom: 0.5em;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  padding-bottom: 0.5em;
-}
-
-/* LaTeX 公式 */
-.markdown-content :deep(.katex-block) {
-  margin: 1em 0;
-  padding: 12px;
-  background: var(--vscode-textBlockQuote-background);
-  border-radius: 4px;
-  overflow-x: auto;
-  text-align: center;
-}
-
-.markdown-content :deep(.katex) {
-  font-family: 'Times New Roman', Times, serif;
-  font-size: 1.1em;
-}
-
-.markdown-content :deep(.katex-error) {
-  color: var(--vscode-errorForeground);
-  font-family: var(--vscode-editor-font-family, monospace);
-  background: var(--vscode-inputValidation-errorBackground);
-  padding: 2px 4px;
-  border-radius: 2px;
-}
-
-/* 图片 */
-.markdown-content :deep(img) {
-  max-width: 400px;
-  max-height: 300px;
-  width: auto;
-  height: auto;
-  border-radius: 4px;
-  object-fit: contain;
-}
-
-.markdown-content :deep(img.workspace-image) {
-  min-width: 100px;
-  min-height: 60px;
-  background: var(--vscode-textBlockQuote-background);
-  border: 1px dashed var(--vscode-panel-border);
-}
-
-.markdown-content :deep(img.loaded-image) {
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-  border: 1px solid var(--vscode-panel-border);
-}
-
-.markdown-content :deep(img.loaded-image:hover) {
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.markdown-content :deep(img.image-error) {
-  min-width: 100px;
-  min-height: 40px;
-  background: var(--vscode-inputValidation-errorBackground);
-  border: 1px dashed var(--vscode-errorForeground);
-  opacity: 0.7;
-}
-</style>
+<style scoped src="./MarkdownRenderer.css"></style>

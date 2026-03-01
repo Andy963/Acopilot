@@ -11,19 +11,13 @@ import type { Content, ContentPart } from '../../conversation/types';
 import type { OpenAIResponsesConfig } from '../../config/types';
 import type { ToolDeclaration } from '../../../tools/types';
 import { applyCustomBody } from '../../config/configs/base';
+import { convertToResponsesInput } from './openaiResponsesInput';
 import type {
     GenerateRequest,
     GenerateResponse,
     StreamChunk,
     HttpRequestOptions
 } from '../types';
-import {
-    decodeBase64ToUtf8,
-    formatTextAttachment,
-    formatUnsupportedAttachment,
-    isImageMimeType,
-    isTextMimeType
-} from './inlineDataUtils';
 
 /**
  * OpenAI Responses 格式转换器
@@ -52,7 +46,7 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         }
 
         // 转换历史消息为 OpenAI Responses input 格式
-        const input = this.convertToResponsesInput(history);
+        const input = convertToResponsesInput(history);
 
         // 构建请求体
         const body: any = {
@@ -124,208 +118,6 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
             timeout: config.timeout,
             stream: useStream
         };
-    }
-
-    /**
-     * 将历史记录转换为 Responses API 的 input 格式
-     * 
-     * 支持：
-     * - role: user/assistant
-     * - content: input_text, input_image, input_file
-     * - function_call_output 类型项
-     */
-    private convertToResponsesInput(history: Content[]): any[] {
-        const input: any[] = [];
-        
-        for (const content of history) {
-            const role = content.role === 'model' ? 'assistant' : content.role;
-            
-            // 缓存当前正在构建的 message 类型项的内容
-            let messageParts: any[] = [];
-            
-            // 辅助函数：将积攒的文本/图片内容作为一个 message 项提交
-            const flushMessage = () => {
-                if (messageParts.length > 0) {
-                    input.push({
-                        type: 'message',
-                        role,
-                        content: messageParts
-                    });
-                    messageParts = [];
-                }
-            };
-            
-            for (const part of content.parts) {
-                // 1. 处理推理项 (OpenAI Reasoning Item - 包含签名和可能的摘要)
-                if (part.thoughtSignatures?.['openai-responses']) {
-                    flushMessage();
-                    const reasoningItem: any = {
-                        type: 'reasoning',
-                        encrypted_content: part.thoughtSignatures['openai-responses'],
-                        content: null,
-                        summary: [] // 必须提供 summary 字段，即使为空，否则 API 会报错
-                    };
-
-                    // 如果该 Part 包含摘要文本，则添加到 summary 字段
-                    if ('text' in part && part.text) {
-                        reasoningItem.summary = [
-                            {
-                                type: 'summary_text',
-                                text: part.text
-                            }
-                        ];
-                    }
-
-                    input.push(reasoningItem);
-                    continue;
-                }
-
-                // 2. 处理加密思考内容 (Anthropic/Redacted)
-                if (part.redactedThinking) {
-                    flushMessage();
-                    input.push({
-                        type: 'redacted_thinking',
-                        data: part.redactedThinking
-                    });
-                    continue;
-                }
-
-                // 3. 过滤掉不含签名的思考分段
-                // OpenAI Responses 必须有签名才能回传推理项
-                if (part.thought) {
-                    continue;
-                }
-
-                // 4. 处理函数调用 (Function Call Item)
-                if (part.functionCall) {
-                    flushMessage();
-                    input.push({
-                        type: 'function_call',
-                        name: part.functionCall.name,
-                        call_id: part.functionCall.id,
-                        arguments: typeof part.functionCall.args === 'string'
-                            ? part.functionCall.args
-                            : JSON.stringify(part.functionCall.args)
-                    });
-                    continue;
-                }
-
-                // 5. 处理函数响应 (Function Call Output Item)
-                if (part.functionResponse) {
-                    flushMessage();
-                    input.push({
-                        type: 'function_call_output',
-                        call_id: part.functionResponse.id,
-                        output: typeof part.functionResponse.response === 'string'
-                            ? part.functionResponse.response
-                            : JSON.stringify(part.functionResponse.response)
-                    });
-                    
-                    // 如果工具返回了多模态内容（如图片），这些需要作为紧随其后的新 message 项
-                    if (part.functionResponse.parts && part.functionResponse.parts.length > 0) {
-                        const toolContentParts = part.functionResponse.parts
-                            .map(p => {
-                                if (p.inlineData) {
-                                    const mimeType = p.inlineData.mimeType;
-
-                                    if (isImageMimeType(mimeType)) {
-                                        return {
-                                            type: 'input_image',
-                                            image_url: `data:${mimeType};base64,${p.inlineData.data}`
-                                        };
-                                    }
-
-                                    if (isTextMimeType(mimeType)) {
-                                        const decoded = decodeBase64ToUtf8(p.inlineData.data);
-                                        return {
-                                            type: 'input_text',
-                                            text: decoded !== null
-                                                ? formatTextAttachment({
-                                                    mimeType,
-                                                    text: decoded,
-                                                    displayName: p.inlineData.displayName
-                                                })
-                                                : formatUnsupportedAttachment({
-                                                    mimeType,
-                                                    displayName: p.inlineData.displayName
-                                                })
-                                        };
-                                    }
-
-                                    return {
-                                        type: 'input_text',
-                                        text: formatUnsupportedAttachment({
-                                            mimeType,
-                                            displayName: p.inlineData.displayName
-                                        })
-                                    };
-                                }
-                                return null;
-                            })
-                            .filter(p => p !== null);
-                        
-                        if (toolContentParts.length > 0) {
-                            input.push({
-                                type: 'message',
-                                role: 'user', // 工具返回的内容被视为用户输入
-                                content: toolContentParts
-                            });
-                        }
-                    }
-                    continue;
-                }
-
-                // 6. 处理普通消息内容 (积攒到 messageParts)
-                if ('text' in part && part.text) {
-                    messageParts.push({
-                        type: role === 'assistant' ? 'output_text' : 'input_text',
-                        text: part.text
-                    });
-                } else if (part.inlineData) {
-                    const mimeType = part.inlineData.mimeType;
-
-                    if (isImageMimeType(mimeType)) {
-                        messageParts.push({
-                            type: 'input_image',
-                            image_url: `data:${mimeType};base64,${part.inlineData.data}`
-                        });
-                    } else if (isTextMimeType(mimeType)) {
-                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
-                        messageParts.push({
-                            type: role === 'assistant' ? 'output_text' : 'input_text',
-                            text: decoded !== null
-                                ? formatTextAttachment({
-                                    mimeType,
-                                    text: decoded,
-                                    displayName: part.inlineData.displayName
-                                })
-                                : formatUnsupportedAttachment({
-                                    mimeType,
-                                    displayName: part.inlineData.displayName
-                                })
-                        });
-                    } else {
-                        messageParts.push({
-                            type: role === 'assistant' ? 'output_text' : 'input_text',
-                            text: formatUnsupportedAttachment({
-                                mimeType,
-                                displayName: part.inlineData.displayName
-                            })
-                        });
-                    }
-                } else if (part.fileData) {
-                    messageParts.push({
-                        type: 'input_file',
-                        file_url: part.fileData.fileUri
-                    });
-                }
-            }
-
-            // 提交剩余积攒的消息内容
-            flushMessage();
-        }
-        
-        return input;
     }
 
     /**

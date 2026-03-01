@@ -1,0 +1,271 @@
+.message-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+  min-width: 0;
+  padding: var(--spacing-md, 16px) var(--spacing-md, 16px);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  transition: background-color var(--transition-fast, 0.1s);
+  contain: layout;
+}
+
+.message-item.user-message {
+  padding-top: 10px;
+  padding-bottom: 4px;
+  background: transparent;
+}
+
+.message-item:last-child {
+  border-bottom: none;
+}
+
+/* Align all messages to the left */
+.user-message,
+.assistant-message {
+  align-self: stretch;
+  max-width: 100%;
+}
+
+.role-label {
+  --lc-role-label-color: var(--vscode-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lc-role-label-color);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+  padding-bottom: 1px;
+}
+
+.user-message .role-label {
+  --lc-role-label-color: var(--vscode-foreground);
+  color: var(--lc-role-label-color);
+}
+
+.assistant-message .role-label {
+  --lc-role-label-color: var(--vscode-descriptionForeground);
+  color: var(--lc-role-label-color);
+}
+
+/* Tool message label */
+.message-item[class*="tool"] .role-label {
+  --lc-role-label-color: var(--vscode-charts-blue);
+  color: var(--lc-role-label-color);
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .role-label.marquee {
+    --lc-role-label-rainbow-red: color-mix(
+      in srgb,
+      var(--vscode-charts-red, #f48771) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-orange: color-mix(
+      in srgb,
+      var(--vscode-charts-orange, #e69500) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-yellow: color-mix(
+      in srgb,
+      var(--vscode-charts-yellow, #f0c674) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-green: color-mix(
+      in srgb,
+      var(--vscode-charts-green, #89d185) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-cyan: color-mix(
+      in srgb,
+      var(--vscode-charts-green, #89d185) 50%,
+      var(--vscode-charts-blue, #3794ff) 50%
+    );
+    --lc-role-label-rainbow-blue: color-mix(
+      in srgb,
+      var(--vscode-charts-blue, #3794ff) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    --lc-role-label-rainbow-purple: color-mix(
+      in srgb,
+      var(--vscode-charts-purple, #a855f7) 84%,
+      var(--lc-role-label-color) 16%
+    );
+    background-image: linear-gradient(
+      90deg,
+      var(--lc-role-label-rainbow-red, var(--vscode-charts-red, #f48771)) 0%,
+      var(--lc-role-label-rainbow-orange, var(--vscode-charts-orange, #e69500)) 14%,
+      var(--lc-role-label-rainbow-yellow, var(--vscode-charts-yellow, #f0c674)) 28%,
+      var(--lc-role-label-rainbow-green, var(--vscode-charts-green, #89d185)) 42%,
+      var(--lc-role-label-rainbow-cyan, #2dc7c7) 56%,
+      var(--lc-role-label-rainbow-blue, var(--vscode-charts-blue, #3794ff)) 70%,
+      var(--lc-role-label-rainbow-purple, var(--vscode-charts-purple, #a855f7)) 84%,
+      var(--lc-role-label-rainbow-red, var(--vscode-charts-red, #f48771)) 100%
+    );
+    background-size: 200% 100%;
+    background-position: 0% 0;
+    background-repeat: repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: role-label-marquee 2.2s linear infinite;
+  }
+}
+
+@keyframes role-label-marquee {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Message footer */
+.message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  gap: 10px;
+  min-height: 24px;
+}
+
+.message-footer.user-footer {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.message-footer-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  min-width: 0;
+  line-height: 1;
+}
+
+.message-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  min-height: 24px;
+  line-height: 1;
+}
+
+.message-time {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* OpenAI Responses prompt cache hit indicator */
+.cache-hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.cache-hit .codicon {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.cache-hit-tokens {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+}
+
+.cache-hit-paren,
+.cache-hit-percent {
+  color: var(--vscode-testing-iconPassed);
+  opacity: 0.78;
+}
+
+.cache-hit-percent {
+  font-weight: 600;
+}
+
+/* Message content */
+.message-body {
+  padding-left: 0;
+}
+
+.message-content {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-label.marquee {
+    animation: none;
+    background-image: none;
+    color: var(--lc-role-label-color);
+  }
+}
+
+@media (forced-colors: active) {
+  .role-label.marquee {
+    animation: none;
+    background-image: none;
+    color: var(--lc-role-label-color);
+  }
+}
+
+/* Token usage */
+.token-usage {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.finish-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.finish-reason .codicon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.finish-reason.finish-reason-success .codicon {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #89d185));
+}
+
+.token-total {
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+}
+
+.token-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.token-arrow {
+  font-size: 10px;
+  opacity: 0.8;
+  line-height: 1;
+}
+

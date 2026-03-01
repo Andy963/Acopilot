@@ -11,6 +11,8 @@ export interface CheckpointConfig {
     afterTools: string[];
     messageCheckpoint?: MessageCheckpointConfig;
     maxCheckpoints: number;
+    cleanupExpiredConversationsOnStartup?: boolean;
+    expiredConversationRetentionDays?: number;
     customIgnorePatterns?: string[];
     [key: string]: unknown;
 }
@@ -42,6 +44,7 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     ],
     messageCheckpoint: DEFAULT_MESSAGE_CHECKPOINT_CONFIG,
     maxCheckpoints: -1,
+    cleanupExpiredConversationsOnStartup: false,
+    expiredConversationRetentionDays: 30,
     customIgnorePatterns: []
 };
-

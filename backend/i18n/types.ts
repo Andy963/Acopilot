@@ -3,6 +3,8 @@
  * 与前端共享相同的语言配置
  */
 
+import type { BackendWebviewMessages } from './types/webview';
+
 /**
  * 支持的语言
  */
@@ -180,6 +182,8 @@ export interface BackendLanguageMessages {
                 httpRequestFailed: string;
                 parseStreamChunkFailed: string;
                 streamRequestFailed: string;
+                streamNoDataReceived: string;
+                streamNoParsableChunks: string;
                 requestTimeout: string;
                 requestTimeoutNoResponse: string;
                 requestCancelled: string;
@@ -374,154 +378,8 @@ export interface BackendLanguageMessages {
         cannotReadDocument: string;
     };
     
-    /** Webview 相关 */
-    webview: {
-        errors: {
-            /** 通用错误 */
-            noWorkspaceOpen: string;
-            workspaceNotFound: string;
-            invalidFileUri: string;
-            pathNotFile: string;
-            fileNotExists: string;
-            fileNotInWorkspace: string;
-            fileNotInAnyWorkspace: string;
-            fileInOtherWorkspace: string;
-            conversationFileNotExists: string;
-            cannotRevealInExplorer: string;
-            
-            /** 消息相关 */
-            deleteMessageFailed: string;
-            
-            /** 模型相关 */
-            getModelsFailed: string;
-            addModelsFailed: string;
-            removeModelFailed: string;
-            setActiveModelFailed: string;
-            
-            /** 设置相关 */
-            updateUISettingsFailed: string;
-            getSettingsFailed: string;
-            updateSettingsFailed: string;
-            setActiveChannelFailed: string;
-            
-            /** 工具相关 */
-            getToolsFailed: string;
-            setToolEnabledFailed: string;
-            getToolConfigFailed: string;
-            updateToolConfigFailed: string;
-            getAutoExecConfigFailed: string;
-            getMcpToolsFailed: string;
-            setToolAutoExecFailed: string;
-            updateListFilesConfigFailed: string;
-            updateApplyDiffConfigFailed: string;
-            updateExecuteCommandConfigFailed: string;
-            checkShellFailed: string;
-            
-            /** 终端相关 */
-            killTerminalFailed: string;
-            getTerminalOutputFailed: string;
-            
-            /** 图像生成相关 */
-            cancelImageGenFailed: string;
-            
-            /** 任务相关 */
-            cancelTaskFailed: string;
-            getTasksFailed: string;
-            
-            /** 检查点相关 */
-            getCheckpointConfigFailed: string;
-            updateCheckpointConfigFailed: string;
-            getCheckpointsFailed: string;
-            restoreCheckpointFailed: string;
-            deleteCheckpointFailed: string;
-            deleteAllCheckpointsFailed: string;
-            getConversationsWithCheckpointsFailed: string;
-            
-            /** Diff 预览相关 */
-            openDiffPreviewFailed: string;
-            acceptDiffFailed: string;
-            diffContentNotFound: string;
-            loadDiffContentFailed: string;
-            invalidDiffData: string;
-            noFileContent: string;
-            unsupportedToolType: string;
-            
-            /** 文件相关 */
-            getRelativePathFailed: string;
-            previewAttachmentFailed: string;
-            readImageFailed: string;
-            openFileFailed: string;
-            saveImageFailed: string;
-            
-            /** MCP 相关 */
-            openMcpConfigFailed: string;
-            getMcpServersFailed: string;
-            validateMcpServerIdFailed: string;
-            createMcpServerFailed: string;
-            updateMcpServerFailed: string;
-            deleteMcpServerFailed: string;
-            connectMcpServerFailed: string;
-            disconnectMcpServerFailed: string;
-            setMcpServerEnabledFailed: string;
-            
-            /** 总结相关 */
-            getSummarizeConfigFailed: string;
-            updateSummarizeConfigFailed: string;
-            summarizeFailed: string;
-            
-            /** 图像生成配置相关 */
-            getGenerateImageConfigFailed: string;
-            updateGenerateImageConfigFailed: string;
-            
-            /** 上下文感知相关 */
-            getContextAwarenessConfigFailed: string;
-            updateContextAwarenessConfigFailed: string;
-            getOpenTabsFailed: string;
-            getActiveEditorFailed: string;
-            
-            /** 系统提示词相关 */
-            getSystemPromptConfigFailed: string;
-            updateSystemPromptConfigFailed: string;
-            
-            /** 固定文件相关 */
-            getPinnedFilesConfigFailed: string;
-            checkPinnedFilesExistenceFailed: string;
-            updatePinnedFilesConfigFailed: string;
-            addPinnedFileFailed: string;
-            removePinnedFileFailed: string;
-            setPinnedFileEnabledFailed: string;
-            
-            /** 依赖相关 */
-            listDependenciesFailed: string;
-            installDependencyFailed: string;
-            uninstallDependencyFailed: string;
-            getInstallPathFailed: string;
-            
-            /** 通知相关 */
-            showNotificationFailed: string;
-            
-            /** 工具拒绝相关 */
-            rejectToolCallsFailed: string;
-            
-            /** 存储配置相关 */
-            getStorageConfigFailed: string;
-            updateStorageConfigFailed: string;
-            validateStoragePathFailed: string;
-            migrateStorageFailed: string;
-        };
-        
-        messages: {
-            /** Diff 预览标题 */
-            historyDiffPreview: string;
-            newFileContentPreview: string;
-            fullFileDiffPreview: string;
-            searchReplaceDiffPreview: string;
-        };
-        dialogs: {
-            selectStorageFolder: string;
-            selectFolder: string;
-        };
-    };
+    /** Webview */
+    webview: BackendWebviewMessages;
 
     /** 通用错误 */
     errors: {

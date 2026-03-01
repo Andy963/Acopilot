@@ -1,20 +1,5 @@
 <script setup lang="ts">
-/**
- * ToolsSettings - 工具设置面板
- *
- * 功能：
- * 1. 显示所有可用工具列表
- * 2. 允许启用/禁用每个工具
- * 3. 持久化保存工具开关状态
- * 4. 支持展开工具配置面板
- * 5. 检查工具依赖并显示安装提示
- */
-
-import { ref, computed, onMounted } from 'vue'
 import { ConfirmDialog, CustomCheckbox, DependencyWarning } from '../common'
-import { sendToExtension } from '@/utils/vscode'
-import { useDependency, TOOL_DEPENDENCIES, hasToolDependencies, getToolDependencies } from '@/composables/useDependency'
-import { useI18n } from '@/composables'
 import SettingsGroup from './common/SettingsGroup.vue'
 import ListFilesConfig from './tools/files/list_files.vue'
 import ApplyDiffConfig from './tools/files/apply_diff.vue'
@@ -27,380 +12,50 @@ import CropImageConfig from './tools/media/crop_image.vue'
 import ResizeImageConfig from './tools/media/resize_image.vue'
 import RotateImageConfig from './tools/media/rotate_image.vue'
 import LocateConfig from './tools/lsp/locate.vue'
+import { useToolsSettings } from './useToolsSettings'
 
-// 工具信息接口
-interface ToolInfo {
-  name: string
-  description: string
-  enabled: boolean
-  category?: string
-  serverId?: string
-  serverName?: string
-}
-
-interface ToolAutoExecConfig {
-  [toolName: string]: boolean
-}
-
-// 国际化
-const { t } = useI18n()
-
-// 最大工具调用次数配置（初始为0，从后端加载真实值）
-const maxToolIterations = ref<number>(0)
-const isLoadingMaxIterations = ref(false)
-const isSavingMaxIterations = ref(false)
-
-// 获取所有需要的依赖（从所有工具中）
-const allDependencies = Object.values(TOOL_DEPENDENCIES).flat()
-const uniqueDependencies = [...new Set(allDependencies)]
-
-// 使用依赖检查 composable
 const {
+  t,
+  maxToolIterations,
+  isLoadingMaxIterations,
+  isSavingMaxIterations,
+  handleMaxIterationsChange,
   dependencyStatus,
-  checkDependencies: loadDependencies
-} = useDependency({
-  dependencies: uniqueDependencies,
-  autoCheck: false // 手动控制，等工具加载后再检查
-})
-
-// 判断工具是否有配置面板
-function hasConfigPanel(toolName: string): boolean {
-  const toolsWithConfig = [
-    'list_files',
-    'apply_diff',
-    'execute_command',
-    'find_files',
-    'search_in_files',
-    'locate',
-    'generate_image',
-    'remove_background',
-    'crop_image',
-    'resize_image',
-    'rotate_image'
-  ]
-  return toolsWithConfig.includes(toolName)
-}
-
-// 获取工具缺失的依赖
-function getMissingDependencies(toolName: string): string[] {
-  const required = getToolDependencies(toolName)
-  return required.filter(dep => dependencyStatus.value.get(dep) !== true)
-}
-
-// 判断工具依赖是否都已安装
-function areAllDependenciesInstalled(toolName: string): boolean {
-  const required = getToolDependencies(toolName)
-  return required.every(dep => dependencyStatus.value.get(dep) === true)
-}
-
-// 展开的工具配置面板
-const expandedTools = ref<Set<string>>(new Set())
-
-// 切换配置面板展开状态
-function toggleConfigPanel(toolName: string) {
-  if (expandedTools.value.has(toolName)) {
-    expandedTools.value.delete(toolName)
-  } else {
-    expandedTools.value.add(toolName)
-  }
-}
-
-// 检查配置面板是否展开
-function isConfigExpanded(toolName: string): boolean {
-  return expandedTools.value.has(toolName)
-}
-
-// 工具列表
-const tools = ref<ToolInfo[]>([])
-const autoExecConfig = ref<ToolAutoExecConfig>({})
-
-// 加载状态
-const isLoading = ref(false)
-
-// 是否正在保存
-const savingTools = ref<Set<string>>(new Set())
-const savingAutoExecTools = ref<Set<string>>(new Set())
-
-// 按分类分组的工具
-const toolsByCategory = computed(() => {
-  const grouped: Record<string, ToolInfo[]> = {}
-
-  for (const tool of tools.value) {
-    const category = tool.category || '其他'
-    if (!grouped[category]) {
-      grouped[category] = []
-    }
-    grouped[category].push(tool)
-  }
-
-  return grouped
-})
-
-const orderedCategories = computed(() => {
-  const rank: Record<string, number> = {
-    file: 0,
-    search: 1,
-    terminal: 2,
-    lsp: 3,
-    mcp: 4,
-    其他: 5,
-    media: 6
-  }
-
-  return Object.entries(toolsByCategory.value)
-    .sort(([a], [b]) => {
-      const ra = rank[a] ?? rank['其他']
-      const rb = rank[b] ?? rank['其他']
-      if (ra !== rb) return ra - rb
-      return a.localeCompare(b)
-    })
-    .map(([category, categoryTools]) => ({ category, tools: categoryTools }))
-})
-
-function isMcpTool(tool: ToolInfo): boolean {
-  return tool.category === 'mcp'
-}
-
-function isDangerousTool(toolName: string): boolean {
-  return ['delete_file', 'execute_command'].includes(toolName)
-}
-
-function isAutoExec(toolName: string): boolean {
-  // If not configured, default to auto exec (existing behavior).
-  if (autoExecConfig.value[toolName] === undefined) return true
-  return autoExecConfig.value[toolName]
-}
-
-// 分类显示名称获取函数
-function getCategoryName(category: string): string {
-  const mapping: Record<string, string> = {
-    'file': 'components.settings.toolsSettings.categories.file',
-    'search': 'components.settings.toolsSettings.categories.search',
-    'terminal': 'components.settings.toolsSettings.categories.terminal',
-    'lsp': 'components.settings.toolsSettings.categories.lsp',
-    'media': 'components.settings.toolsSettings.categories.media',
-    'mcp': 'components.settings.toolsSettings.categories.mcp',
-    '其他': 'components.settings.toolsSettings.categories.other'
-  }
-  return t(mapping[category] || mapping['其他'])
-}
-
-// 分类图标映射
-const categoryIcons: Record<string, string> = {
-  'file': 'codicon-file',
-  'search': 'codicon-search',
-  'terminal': 'codicon-terminal',
-  'lsp': 'codicon-symbol-class',
-  'media': 'codicon-file-media',
-  'mcp': 'codicon-plug',
-  '其他': 'codicon-extensions'
-}
-
-// 加载工具列表
-async function loadTools() {
-  isLoading.value = true
-
-  try {
-    const response = await sendToExtension<{ tools: ToolInfo[] }>('tools.getTools', {})
-    let allTools: ToolInfo[] = response?.tools || []
-
-    // Optional MCP tools
-    try {
-      const mcpResponse = await sendToExtension<{ tools: ToolInfo[] }>('tools.getMcpTools', {})
-      if (mcpResponse?.tools) {
-        allTools = [...allTools, ...mcpResponse.tools]
-      }
-    } catch (mcpError) {
-      console.warn('Failed to load MCP tools:', mcpError)
-    }
-
-    tools.value = allTools
-
-    const configResponse = await sendToExtension<{ config: ToolAutoExecConfig }>('tools.getAutoExecConfig', {})
-    autoExecConfig.value = configResponse?.config || {}
-  } catch (error) {
-    console.error('Failed to load tools:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// 切换工具开关
-async function toggleTool(toolName: string, enabled: boolean) {
-  savingTools.value.add(toolName)
-
-  try {
-    await sendToExtension('tools.setToolEnabled', {
-      toolName,
-      enabled
-    })
-
-    // 更新本地状态
-    const tool = tools.value.find(t => t.name === toolName)
-    if (tool) {
-      tool.enabled = enabled
-    }
-  } catch (error) {
-    console.error(`Failed to toggle tool ${toolName}:`, error)
-    // 恢复原状态
-    const tool = tools.value.find(t => t.name === toolName)
-    if (tool) {
-      tool.enabled = !enabled
-    }
-  } finally {
-    savingTools.value.delete(toolName)
-  }
-}
-
-const confirmDangerDialogVisible = ref(false)
-const confirmDangerDialogToolName = ref('')
-const confirmDangerDialogNextValue = ref(false)
-
-function requestToggleAutoExec(toolName: string, autoExec: boolean) {
-  if (autoExec && isDangerousTool(toolName)) {
-    confirmDangerDialogToolName.value = toolName
-    confirmDangerDialogNextValue.value = autoExec
-    confirmDangerDialogVisible.value = true
-    return
-  }
-  toggleAutoExec(toolName, autoExec)
-}
-
-async function toggleAutoExec(toolName: string, autoExec: boolean) {
-  savingAutoExecTools.value.add(toolName)
-
-  try {
-    await sendToExtension('tools.setToolAutoExec', { toolName, autoExec })
-    autoExecConfig.value[toolName] = autoExec
-  } catch (error) {
-    console.error(`Failed to toggle auto exec for ${toolName}:`, error)
-  } finally {
-    savingAutoExecTools.value.delete(toolName)
-  }
-}
-
-// 全部启用
-async function enableAll() {
-  const disabledTools = tools.value.filter(t => !isMcpTool(t) && !t.enabled)
-  for (const tool of disabledTools) {
-    await toggleTool(tool.name, true)
-  }
-}
-
-// 全部禁用
-async function disableAll() {
-  const enabledTools = tools.value.filter(t => !isMcpTool(t) && t.enabled)
-  for (const tool of enabledTools) {
-    await toggleTool(tool.name, false)
-  }
-}
-
-const confirmEnableDangerousAutoExecDialogVisible = ref(false)
-
-async function enableAllAutoExec() {
-  if (tools.value.some(tool => isDangerousTool(tool.name))) {
-    confirmEnableDangerousAutoExecDialogVisible.value = true
-    return
-  }
-
-  for (const tool of tools.value) {
-    if (!isAutoExec(tool.name)) {
-      await toggleAutoExec(tool.name, true)
-    }
-  }
-}
-
-async function confirmEnableAllAutoExec(includeDangerous: boolean) {
-  confirmEnableDangerousAutoExecDialogVisible.value = false
-
-  for (const tool of tools.value) {
-    if (isDangerousTool(tool.name) && !includeDangerous) continue
-    if (!isAutoExec(tool.name)) {
-      await toggleAutoExec(tool.name, true)
-    }
-  }
-}
-
-async function disableAllAutoExec() {
-  for (const tool of tools.value) {
-    if (isAutoExec(tool.name)) {
-      await toggleAutoExec(tool.name, false)
-    }
-  }
-}
-
-// 获取工具显示名称
-function getToolDisplayName(name: string): string {
-  // 将 snake_case 转换为可读格式
-  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-// 获取分类显示名称
-function getCategoryDisplayName(category: string): string {
-  return getCategoryName(category)
-}
-
-// 获取分类图标
-function getCategoryIcon(category: string): string {
-  return categoryIcons[category] || 'codicon-extensions'
-}
-
-function getCategoryEnabledCount(categoryTools: ToolInfo[]): number {
-  return categoryTools.filter(t => !isMcpTool(t) && t.enabled).length
-}
-
-function getCategoryEnabledTotal(categoryTools: ToolInfo[]): number {
-  return categoryTools.filter(t => !isMcpTool(t)).length
-}
-
-function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
-  return categoryTools.filter(tool => isAutoExec(tool.name)).length
-}
-
-// 加载最大工具调用次数配置
-async function loadMaxToolIterations() {
-  isLoadingMaxIterations.value = true
-  try {
-    const response = await sendToExtension<{ maxIterations: number }>('tools.getMaxToolIterations', {})
-    if (response?.maxIterations !== undefined) {
-      maxToolIterations.value = response.maxIterations
-    }
-  } catch (error) {
-    console.error('Failed to load maxToolIterations:', error)
-  } finally {
-    isLoadingMaxIterations.value = false
-  }
-}
-
-// 保存最大工具调用次数配置
-async function saveMaxToolIterations(value: number) {
-  isSavingMaxIterations.value = true
-  try {
-    await sendToExtension('tools.updateMaxToolIterations', { maxIterations: value })
-    maxToolIterations.value = value
-  } catch (error) {
-    console.error('Failed to save maxToolIterations:', error)
-  } finally {
-    isSavingMaxIterations.value = false
-  }
-}
-
-// 处理最大工具调用次数变化
-function handleMaxIterationsChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  const value = parseInt(target.value, 10)
-  // -1 表示无限制，正整数表示具体次数
-  if (!isNaN(value) && (value === -1 || value >= 1)) {
-    saveMaxToolIterations(value)
-  }
-}
-
-// 组件挂载
-onMounted(() => {
-  loadTools()
-  loadDependencies()
-  loadMaxToolIterations()
-})
+  hasConfigPanel,
+  getMissingDependencies,
+  areAllDependenciesInstalled,
+  hasToolDependencies,
+  expandedTools,
+  toggleConfigPanel,
+  isConfigExpanded,
+  tools,
+  isLoading,
+  savingTools,
+  savingAutoExecTools,
+  orderedCategories,
+  isMcpTool,
+  isDangerousTool,
+  isAutoExec,
+  loadTools,
+  toggleTool,
+  toggleAutoExec,
+  requestToggleAutoExec,
+  enableAll,
+  disableAll,
+  confirmDangerDialogVisible,
+  confirmDangerDialogToolName,
+  confirmDangerDialogNextValue,
+  confirmEnableDangerousAutoExecDialogVisible,
+  enableAllAutoExec,
+  confirmEnableAllAutoExec,
+  disableAllAutoExec,
+  getToolDisplayName,
+  getCategoryDisplayName,
+  getCategoryIcon,
+  getCategoryEnabledCount,
+  getCategoryEnabledTotal,
+  getCategoryAutoExecCount,
+} = useToolsSettings()
 </script>
 
 <template>

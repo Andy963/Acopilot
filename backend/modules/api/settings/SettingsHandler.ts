@@ -30,6 +30,7 @@ import type {
     UpdateListFilesConfigRequest,
     UpdateApplyDiffConfigRequest
 } from './types';
+import { getToolConfigImpl, updateToolConfigImpl } from './toolConfigHandlers';
 
 /**
  * 设置处理器
@@ -46,6 +47,17 @@ export class SettingsHandler {
         private toolRegistry?: ToolRegistry
     ) {
     }
+
+    private createErrorResponse(error: unknown, fallbackKey: string): { success: false; error: { code: string; message: string } } {
+        const err = error as any;
+        return {
+            success: false,
+            error: {
+                code: err.code || 'UNKNOWN_ERROR',
+                message: redactSensitiveText(err.message || t(fallbackKey))
+            }
+        };
+    }
     
     /**
      * 获取设置
@@ -59,14 +71,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getSettingsFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.getSettingsFailed');
         }
     }
     
@@ -83,14 +88,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateSettingsFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateSettingsFailed');
         }
     }
     
@@ -107,14 +105,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.setActiveChannelFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.setActiveChannelFailed');
         }
     }
     
@@ -131,14 +122,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.setToolStatusFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.setToolStatusFailed');
         }
     }
     
@@ -155,14 +139,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.batchSetToolStatusFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.batchSetToolStatusFailed');
         }
     }
     
@@ -179,14 +156,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.setDefaultToolModeFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.setDefaultToolModeFailed');
         }
     }
     
@@ -203,14 +173,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateUISettingsFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateUISettingsFailed');
         }
     }
     
@@ -227,14 +190,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateProxySettingsFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateProxySettingsFailed');
         }
     }
     
@@ -251,14 +207,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.resetSettingsFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.resetSettingsFailed');
         }
     }
     
@@ -293,14 +242,7 @@ export class SettingsHandler {
                 tools
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getToolsListFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.getToolsListFailed');
         }
     }
     
@@ -309,97 +251,9 @@ export class SettingsHandler {
      */
     async getToolConfig(request: GetToolConfigRequest): Promise<GetToolConfigResponse> {
         try {
-            const { toolName } = request;
-            
-            if (toolName === 'list_files') {
-                const config = this.settingsManager.getListFilesConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-            
-            if (toolName === 'apply_diff') {
-                const config = this.settingsManager.getApplyDiffConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-            
-            if (toolName === 'delete_file') {
-                const config = this.settingsManager.getDeleteFileConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-
-            if (toolName === 'locate') {
-                const config = this.settingsManager.getLocateConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-
-            if (toolName === 'generate_image') {
-                const config = this.settingsManager.getGenerateImageConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-
-            if (toolName === 'remove_background') {
-                const config = this.settingsManager.getRemoveBackgroundConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-
-            if (toolName === 'crop_image') {
-                const config = this.settingsManager.getCropImageConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-
-            if (toolName === 'resize_image') {
-                const config = this.settingsManager.getResizeImageConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-
-            if (toolName === 'rotate_image') {
-                const config = this.settingsManager.getRotateImageConfig();
-                return {
-                    success: true,
-                    config
-                };
-            }
-            
-            // 获取通用工具配置
-            const toolsConfig = this.settingsManager.getToolsConfig();
-            const config = toolsConfig[toolName] || {};
-            
-            return {
-                success: true,
-                config
-            };
+            return await getToolConfigImpl(this.settingsManager, request);
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getToolConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.getToolConfigFailed');
         }
     }
     
@@ -408,65 +262,9 @@ export class SettingsHandler {
      */
     async updateToolConfig(request: UpdateToolConfigRequest): Promise<UpdateToolConfigResponse> {
         try {
-            const { toolName, config } = request;
-            
-            // 优先使用特定更新方法
-            if (toolName === 'list_files') {
-                await this.settingsManager.updateListFilesConfig(config);
-            } else if (toolName === 'find_files') {
-                await this.settingsManager.updateFindFilesConfig(config);
-            } else if (toolName === 'search_in_files') {
-                await this.settingsManager.updateSearchInFilesConfig(config);
-            } else if (toolName === 'apply_diff') {
-                await this.settingsManager.updateApplyDiffConfig(config);
-            } else if (toolName === 'delete_file') {
-                await this.settingsManager.updateDeleteFileConfig(config);
-            } else if (toolName === 'execute_command') {
-                await this.settingsManager.updateExecuteCommandConfig(config);
-            } else if (toolName === 'locate') {
-                await this.settingsManager.updateLocateConfig(config);
-            } else if (toolName === 'checkpoint') {
-                await this.settingsManager.updateCheckpointConfig(config);
-            } else if (toolName === 'summarize') {
-                await this.settingsManager.updateSummarizeConfig(config);
-            } else if (toolName === 'generate_image') {
-                await this.settingsManager.updateGenerateImageConfig(config);
-            } else if (toolName === 'remove_background') {
-                await this.settingsManager.updateRemoveBackgroundConfig(config);
-            } else if (toolName === 'crop_image') {
-                await this.settingsManager.updateCropImageConfig(config);
-            } else if (toolName === 'resize_image') {
-                await this.settingsManager.updateResizeImageConfig(config);
-            } else if (toolName === 'rotate_image') {
-                await this.settingsManager.updateRotateImageConfig(config);
-            } else if (toolName === 'context_awareness') {
-                await this.settingsManager.updateContextAwarenessConfig(config);
-            } else if (toolName === 'pinned_files') {
-                await this.settingsManager.updatePinnedFilesConfig(config);
-            } else if (toolName === 'system_prompt') {
-                await this.settingsManager.updateSystemPromptConfig(config);
-            } else if (toolName === 'token_count') {
-                await this.settingsManager.updateTokenCountConfig(config);
-            } else {
-                // 通用更新
-                await this.settingsManager.updateToolConfig(toolName, config);
-            }
-            
-            const settings = this.settingsManager.getSettings();
-            
-            return {
-                success: true,
-                settings
-            };
+            return await updateToolConfigImpl(this.settingsManager, request);
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateToolConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateToolConfigFailed');
         }
     }
     
@@ -483,14 +281,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateListFilesConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateListFilesConfigFailed');
         }
     }
     
@@ -507,14 +298,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateApplyDiffConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateApplyDiffConfigFailed');
         }
     }
     
@@ -529,14 +313,7 @@ export class SettingsHandler {
                 config
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getCheckpointConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.getCheckpointConfigFailed');
         }
     }
     
@@ -553,14 +330,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateCheckpointConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateCheckpointConfigFailed');
         }
     }
     
@@ -575,14 +345,7 @@ export class SettingsHandler {
                 config
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getSummarizeConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.getSummarizeConfigFailed');
         }
     }
     
@@ -599,14 +362,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateSummarizeConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateSummarizeConfigFailed');
         }
     }
     
@@ -621,14 +377,7 @@ export class SettingsHandler {
                 config
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.getGenerateImageConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.getGenerateImageConfigFailed');
         }
     }
     
@@ -645,14 +394,7 @@ export class SettingsHandler {
                 settings
             };
         } catch (error) {
-            const err = error as any;
-            return {
-                success: false,
-                error: {
-                    code: err.code || 'UNKNOWN_ERROR',
-                    message: redactSensitiveText(err.message || t('modules.api.settings.errors.updateGenerateImageConfigFailed'))
-                }
-            };
+            return this.createErrorResponse(error, 'modules.api.settings.errors.updateGenerateImageConfigFailed');
         }
     }
     

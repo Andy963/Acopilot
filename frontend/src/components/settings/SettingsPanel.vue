@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
-import { useSettingsStore, type SettingsTab } from '@/stores/settingsStore'
 import ChannelSettings from './ChannelSettings.vue'
 import ToolsSettings from './ToolsSettings.vue'
 import McpSettings from './McpSettings.vue'
@@ -10,320 +8,37 @@ import GenerateImageSettings from './GenerateImageSettings.vue'
 import DependencySettings from './DependencySettings.vue'
 import ContextSettings from './ContextSettings.vue'
 import PromptSettings from './PromptSettings.vue'
-import { CustomScrollbar, CustomCheckbox, CustomSelect, Modal, type SelectOption } from '../common'
-import { sendToExtension } from '@/utils/vscode'
-import { useI18n, SUPPORTED_LANGUAGES } from '@/i18n'
+import { CustomCheckbox, CustomScrollbar, CustomSelect, Modal } from '../common'
+import { useSettingsPanel } from './useSettingsPanel'
 
-const settingsStore = useSettingsStore()
-const { t, setLanguage } = useI18n()
-
-// 应用信息
-const appVersion = __APP_VERSION__
-const repositoryUrl = __APP_REPOSITORY__
-// 开发者链接：如果 repositoryUrl 包含 github.com，尝试提取用户部分作为开发者链接，否则使用默认值
-const developerUrl = (() => {
-  try {
-    if (repositoryUrl && repositoryUrl.includes('github.com')) {
-      const url = new URL(repositoryUrl)
-      const pathParts = url.pathname.split('/').filter(p => p)
-      if (pathParts.length >= 1) {
-        return `${url.origin}/${pathParts[0]}`
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-  return 'https://github.com/Lianues' // Fallback
-})()
-
-interface TabItem {
-  id: SettingsTab
-  label: string
-  icon: string
-}
-
-// 语言选项（使用 computed 以便语言切换时自动更新）
-const languageOptions = computed<SelectOption[]>(() => SUPPORTED_LANGUAGES.map(lang => ({
-  value: lang.value,
-  label: lang.label,
-  description: lang.value === 'auto' ? t('components.settings.settingsPanel.language.autoDescription') : lang.nativeLabel
-})))
-
-// 页签列表（使用 computed 以便语言切换时自动更新）
-const tabs = computed<TabItem[]>(() => [
-  { id: 'channel', label: t('components.settings.tabs.channel'), icon: 'codicon-server' },
-  { id: 'tools', label: t('components.settings.tabs.tools'), icon: 'codicon-tools' },
-  { id: 'mcp', label: t('components.settings.tabs.mcp'), icon: 'codicon-plug' },
-  { id: 'checkpoint', label: t('components.settings.tabs.checkpoint'), icon: 'codicon-history' },
-  { id: 'summarize', label: t('components.settings.tabs.summarize'), icon: 'codicon-fold' },
-  { id: 'imageGen', label: t('components.settings.tabs.imageGen'), icon: 'codicon-symbol-color' },
-  { id: 'dependencies', label: t('components.settings.tabs.dependencies'), icon: 'codicon-package' },
-  { id: 'context', label: t('components.settings.tabs.context'), icon: 'codicon-symbol-namespace' },
-  { id: 'prompt', label: t('components.settings.tabs.prompt'), icon: 'codicon-note' },
-  { id: 'general', label: t('components.settings.tabs.general'), icon: 'codicon-settings-gear' },
-])
-
-// 代理设置
-const proxySettings = reactive({
-  enabled: false,
-  url: ''
-})
-
-// 语言设置
-const languageSetting = ref<string>('auto')
-
-// 是否正在保存
-const isSaving = ref(false)
-// 保存状态消息
-const saveMessage = ref('')
-
-// 存储路径设置
-const storageSettings = reactive({
-  currentPath: '',
-  defaultPath: '',
-  customPath: '',
-  isCustom: false
-})
-const isValidatingPath = ref(false)
-const pathValidationResult = ref<{ valid: boolean; message?: string } | null>(null)
-const isMigrating = ref(false)
-const showMigrateDialog = ref(false)
-const storageMessage = ref('')
-const storageMessageType = ref<'success' | 'error'>('success')
-const needsReload = ref(false) // 迁移完成后需要重新加载
-
-// 加载设置
-async function loadSettings() {
-  try {
-    const response = await sendToExtension<any>('getSettings', {})
-    if (response?.settings?.proxy) {
-      proxySettings.enabled = response.settings.proxy.enabled || false
-      proxySettings.url = response.settings.proxy.url || ''
-    }
-    // 加载语言设置
-    if (response?.settings?.ui?.language) {
-      languageSetting.value = response.settings.ui.language
-      setLanguage(response.settings.ui.language)
-    }
-    
-    // 加载存储路径配置
-    await loadStorageConfig()
-  } catch (error) {
-    console.error('Failed to load settings:', error)
-  }
-}
-
-// 加载存储路径配置
-async function loadStorageConfig() {
-  try {
-    const response = await sendToExtension<any>('storagePath.getConfig', {})
-    if (response) {
-      storageSettings.currentPath = response.effectivePath || ''
-      storageSettings.defaultPath = response.defaultPath || ''
-      storageSettings.customPath = response.config?.customPath || ''
-      storageSettings.isCustom = !!response.config?.customPath
-    }
-  } catch (error) {
-    console.error('Failed to load storage config:', error)
-  }
-}
-
-// 验证路径
-async function validateStoragePath(path: string) {
-  if (!path.trim()) {
-    pathValidationResult.value = null
-    return
-  }
-  
-  isValidatingPath.value = true
-  pathValidationResult.value = null
-  
-  try {
-    const response = await sendToExtension<any>('storagePath.validate', { path: path.trim() })
-    pathValidationResult.value = {
-      valid: response?.valid ?? false,
-      message: response?.error
-    }
-  } catch (error: any) {
-    pathValidationResult.value = {
-      valid: false,
-      message: error?.message || 'Validation failed'
-    }
-  } finally {
-    isValidatingPath.value = false
-  }
-}
-
-// 防抖验证
-let validateDebounceTimer: ReturnType<typeof setTimeout> | null = null
-function debouncedValidatePath(path: string) {
-  if (validateDebounceTimer) {
-    clearTimeout(validateDebounceTimer)
-  }
-  validateDebounceTimer = setTimeout(() => {
-    validateStoragePath(path)
-  }, 500)
-}
-
-// 监听自定义路径变化
-watch(() => storageSettings.customPath, (newPath) => {
-  debouncedValidatePath(newPath)
-})
-
-// 应用存储路径（不迁移数据，只是更改配置）
-async function applyStoragePath() {
-  const newPath = storageSettings.customPath.trim()
-  
-  if (newPath && !pathValidationResult.value?.valid) {
-    return
-  }
-  
-  // 使用迁移接口来应用新路径（迁移到新路径）
-  if (newPath) {
-    confirmMigrate()
-  } else {
-    // 重置为默认路径
-    await resetStoragePath()
-  }
-}
-
-// 重置为默认路径
-async function resetStoragePath() {
-  isMigrating.value = true
-  needsReload.value = false
-  
-  try {
-    const response = await sendToExtension<any>('storagePath.reset', {})
-    
-    if (response?.success) {
-      storageSettings.customPath = ''
-      pathValidationResult.value = null
-      storageMessage.value = t('components.settings.storageSettings.notifications.migrationSuccess')
-      storageMessageType.value = 'success'
-      needsReload.value = true  // 重置也需要重新加载窗口才能生效
-      await loadStorageConfig()
-    } else {
-      storageMessage.value = response?.error || 'Failed to reset storage path'
-      storageMessageType.value = 'error'
-    }
-  } catch (error: any) {
-    storageMessage.value = error?.message || 'Failed to reset storage path'
-    storageMessageType.value = 'error'
-  } finally {
-    isMigrating.value = false
-  }
-  
-  // 只有非成功消息才自动消失
-  if (!needsReload.value) {
-    setTimeout(() => {
-      storageMessage.value = ''
-    }, 5000)
-  }
-}
-
-// 打开迁移确认对话框
-function confirmMigrate() {
-  showMigrateDialog.value = true
-}
-
-// 执行数据迁移
-async function executeMigration() {
-  showMigrateDialog.value = false
-  isMigrating.value = true
-  needsReload.value = false
-  
-  try {
-    const response = await sendToExtension<any>('storagePath.migrate', {
-      path: storageSettings.customPath.trim()
-    })
-    
-    if (response?.success) {
-      storageMessage.value = t('components.settings.storageSettings.notifications.migrationSuccess')
-      storageMessageType.value = 'success'
-      needsReload.value = true  // 迁移成功，需要重新加载
-      await loadStorageConfig()
-    } else {
-      const errorMsg = response?.error || 'Migration failed'
-      storageMessage.value = t('components.settings.storageSettings.notifications.migrationFailed').replace('{error}', errorMsg)
-      storageMessageType.value = 'error'
-    }
-  } catch (error: any) {
-    storageMessage.value = t('components.settings.storageSettings.notifications.migrationFailed').replace('{error}', error?.message || 'Unknown error')
-    storageMessageType.value = 'error'
-  } finally {
-    isMigrating.value = false
-  }
-  
-  // 只有非成功消息才自动消失
-  if (!needsReload.value) {
-    setTimeout(() => {
-      storageMessage.value = ''
-    }, 5000)
-  }
-}
-
-// 重新加载窗口
-async function reloadWindow() {
-  try {
-    await sendToExtension('reloadWindow', {})
-  } catch (error) {
-    console.error('Failed to reload window:', error)
-  }
-}
-
-// 保存代理设置
-async function saveProxySettings() {
-  isSaving.value = true
-  saveMessage.value = ''
-  
-  try {
-    await sendToExtension('updateProxySettings', {
-      proxySettings: {
-        enabled: proxySettings.enabled,
-        url: proxySettings.url.trim() || undefined
-      }
-    })
-    saveMessage.value = t('components.settings.settingsPanel.proxy.saveSuccess')
-    setTimeout(() => {
-      saveMessage.value = ''
-    }, 2000)
-  } catch (error) {
-    console.error('Failed to save proxy settings:', error)
-    saveMessage.value = t('components.settings.settingsPanel.proxy.saveFailed')
-  } finally {
-    isSaving.value = false
-  }
-}
-
-// 验证代理 URL 格式
-function isValidProxyUrl(url: string): boolean {
-  if (!url.trim()) return true // 空值允许
-  try {
-    const parsed = new URL(url)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-// 更新语言设置
-async function updateLanguage(lang: string) {
-  languageSetting.value = lang
-  setLanguage(lang as any)
-  
-  try {
-    await sendToExtension('updateUISettings', {
-      ui: { language: lang }
-    })
-  } catch (error) {
-    console.error('Failed to save language setting:', error)
-  }
-}
-
-// 初始化
-onMounted(() => {
-  loadSettings()
-})
+const {
+  settingsStore,
+  t,
+  appVersion,
+  repositoryUrl,
+  developerUrl,
+  tabs,
+  proxySettings,
+  languageSetting,
+  languageOptions,
+  updateLanguage,
+  isSaving,
+  saveMessage,
+  saveProxySettings,
+  isValidProxyUrl,
+  storageSettings,
+  pathValidationResult,
+  isValidatingPath,
+  isMigrating,
+  showMigrateDialog,
+  executeMigration,
+  storageMessage,
+  storageMessageType,
+  needsReload,
+  applyStoragePath,
+  resetStoragePath,
+  reloadWindow,
+} = useSettingsPanel()
 </script>
 
 <template>
@@ -649,4 +364,5 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped src="./SettingsPanel.css"></style>
+<style scoped src="./SettingsPanel.part1.css"></style>
+<style scoped src="./SettingsPanel.part2.css"></style>

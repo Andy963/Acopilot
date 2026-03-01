@@ -20,7 +20,9 @@ import {
     getLastUserContextOverrides,
     getLastUserSelectionReferences,
     getLastUserTaskContext,
+    getLastUserOpenFileContext,
     getOrInitConversationStartTime,
+    injectOpenFileContextIntoHistory,
     injectSelectionReferencesIntoHistory,
     injectTaskContextIntoHistory,
     isOpenAIResponsesContinuationError,
@@ -206,6 +208,7 @@ export async function runNonStreamLoop(
             : '';
         const selectionReferences = getLastUserSelectionReferences(fullHistory);
         const taskContext = getLastUserTaskContext(fullHistory);
+        const openFileContext = getLastUserOpenFileContext(fullHistory);
         let dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
             .filter(Boolean)
             .join('\n\n');
@@ -321,7 +324,10 @@ export async function runNonStreamLoop(
                 response = await deps.channelManager.generate({
                     configId,
                     history: injectSelectionReferencesIntoHistory(
-                        injectTaskContextIntoHistory(requestHistory, taskContext),
+                        injectOpenFileContextIntoHistory(
+                            injectTaskContextIntoHistory(requestHistory, taskContext),
+                            openFileContext
+                        ),
                         selectionReferences
                     ),
                     dynamicSystemPrompt,

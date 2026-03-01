@@ -1,26 +1,16 @@
 <script setup lang="ts">
-/**
- * MessageItem - 单条消息组件
- * 扁平化设计，所有消息统一靠左布局
- * 按 parts 原始顺序显示内容
- */
-
-import { ref, computed, watch, onUnmounted } from 'vue'
-import MessageActions from './MessageActions.vue'
-import ToolMessage from './ToolMessage.vue'
-import MessageAttachments from './MessageAttachments.vue'
+import { EditDialog, IconButton, MarkdownRenderer, RetryDialog } from '../common'
+import type { Attachment, Message } from '../../types'
 import ContextUsedMessage from './ContextUsedMessage.vue'
-import { MarkdownRenderer, RetryDialog, EditDialog, IconButton } from '../common'
-import type { Message, ToolUsage, CheckpointRecord, Attachment } from '../../types'
-import { formatModelName, formatTime } from '../../utils/format'
-import { useChatStore } from '../../stores/chatStore'
-import { useI18n } from '../../i18n'
-
-const { t } = useI18n()
+import MessageActions from './MessageActions.vue'
+import MessageAttachments from './MessageAttachments.vue'
+import TaskCardMessage from './TaskCardMessage.vue'
+import ToolMessage from './ToolMessage.vue'
+import { useMessageItem } from './useMessageItem'
 
 const props = defineProps<{
   message: Message
-  messageIndex: number  // 后端消息索引
+  messageIndex: number
 }>()
 
 const emit = defineEmits<{
@@ -32,592 +22,50 @@ const emit = defineEmits<{
   copy: [content: string]
 }>()
 
-const chatStore = useChatStore()
-
-const isHovered = ref(false)
-const showRetryDialog = ref(false)
-const showEditDialog = ref(false)
-
-// 消息角色判断
-const isUser = computed(() => props.message.role === 'user')
-const isTool = computed(() => props.message.role === 'tool')
-
-// 是否为总结消息
-const isSummary = computed(() => props.message.isSummary === true)
-
-// 用户/AI 消息：底部操作按钮始终显示；工具消息：hover 时显示（避免工具输出区过于拥挤）。
-const showFooterActions = computed(() => !isTool.value || isHovered.value)
-
-// 是否为流式消息
-const isStreaming = computed(() => props.message.streaming === true)
-
-// 总结消息展开状态
-const isSummaryExpanded = ref(false)
-
-/**
- * 渲染块类型
- */
-interface RenderBlock {
-  type: 'text' | 'tool' | 'thought' | 'thoughtTool'
-  text?: string
-  tools?: ToolUsage[]
-}
-
-// 思考内容展开状态
-const isThoughtExpanded = ref(false)
-
-// 实时思考时间（用于动态更新显示）
-const elapsedThinkingTime = ref(0)
-let thinkingTimer: ReturnType<typeof setInterval> | null = null
-
-/**
- * 格式化时间显示（毫秒转秒）
- * @param ms 毫秒数
- * @returns 格式化后的时间字符串（秒为单位）
- */
-function formatDuration(ms: number): string {
-  const seconds = ms / 1000
-  return `${seconds.toFixed(1)}s`
-}
-
-// 启动思考计时器
-function startThinkingTimer() {
-  if (thinkingTimer) return
-  
-  const startTime = props.message.metadata?.thinkingStartTime
-  if (!startTime) return
-  
-  // 立即更新一次
-  elapsedThinkingTime.value = Date.now() - startTime
-  
-  // 每 100ms 更新一次
-  thinkingTimer = setInterval(() => {
-    elapsedThinkingTime.value = Date.now() - startTime
-  }, 100)
-}
-
-// 停止思考计时器
-function stopThinkingTimer() {
-  if (thinkingTimer) {
-    clearInterval(thinkingTimer)
-    thinkingTimer = null
-  }
-}
-
-// 组件卸载时清理定时器
-onUnmounted(() => {
-  stopThinkingTimer()
-})
-
-// JSON 工具调用边界标记
-const TOOL_CALL_START = '<<<TOOL_CALL>>>'
-const TOOL_CALL_END = '<<<END_TOOL_CALL>>>'
-
-// XML 工具调用标记
-const XML_TOOL_START = '<tool_use>'
-const XML_TOOL_END = '</tool_use>'
-
-/**
- * 过滤掉文本中的工具调用标记
- * 支持 JSON 格式（<<<TOOL_CALL>>>...<<<END_TOOL_CALL>>>）
- * 和 XML 格式（<tool_use>...</tool_use>）
- * 流式响应时，这些标记可能先显示，等完成后才转换为 functionCall
- */
-function filterToolCallMarkers(text: string): string {
-  let result = text
-  
-  // 1. 处理 JSON 格式
-  if (result.includes(TOOL_CALL_START)) {
-    // 移除完整的工具调用块
-    const jsonRegex = new RegExp(
-      TOOL_CALL_START.replace(/[<>]/g, '\\$&') +
-      '[\\s\\S]*?' +
-      TOOL_CALL_END.replace(/[<>]/g, '\\$&'),
-      'g'
-    )
-    result = result.replace(jsonRegex, '')
-    
-    // 移除不完整的开始标记（流式时可能只有开头）
-    const jsonStartIdx = result.indexOf(TOOL_CALL_START)
-    if (jsonStartIdx !== -1) {
-      result = result.substring(0, jsonStartIdx)
-    }
-  }
-  
-  // 2. 处理 XML 格式
-  if (result.includes(XML_TOOL_START)) {
-    // 移除完整的工具调用块
-    const xmlRegex = new RegExp(
-      XML_TOOL_START.replace(/[<>]/g, '\\$&') +
-      '[\\s\\S]*?' +
-      XML_TOOL_END.replace(/[<>]/g, '\\$&'),
-      'g'
-    )
-    result = result.replace(xmlRegex, '')
-    
-    // 移除不完整的开始标记（流式时可能只有开头）
-    const xmlStartIdx = result.indexOf(XML_TOOL_START)
-    if (xmlStartIdx !== -1) {
-      result = result.substring(0, xmlStartIdx)
-    }
-  }
-  
-  return result.trim()
-}
-
-/**
- * 将 parts 转换为渲染块，保持原始顺序
- *
- * 连续的 text 块会合并，连续的 functionCall 块会合并成一个 tools 块
- */
-const renderBlocks = computed<RenderBlock[]>(() => {
-  const parts = props.message.parts
-  if (!parts || parts.length === 0) {
-    return []
-  }
-  
-  const blocks: RenderBlock[] = []
-  let currentTextBlock: string[] = []
-  let currentToolBlock: ToolUsage[] = []
-  let currentThoughtBlock: string[] = []
-  
-  // 辅助函数：刷新文本块
-  const flushText = () => {
-    if (currentTextBlock.length > 0) {
-      const text = filterToolCallMarkers(currentTextBlock.join(''))
-      if (text.trim()) {
-        blocks.push({ type: 'text', text })
-      }
-      currentTextBlock = []
-    }
-  }
-  
-  // 辅助函数：刷新工具块
-  const flushTools = () => {
-    if (currentToolBlock.length > 0) {
-      blocks.push({ type: 'tool', tools: [...currentToolBlock] })
-      currentToolBlock = []
-    }
-  }
-  
-  // 辅助函数：刷新思考块
-  const flushThought = () => {
-    if (currentThoughtBlock.length > 0) {
-      const text = currentThoughtBlock.join('')
-      if (text.trim()) {
-        blocks.push({ type: 'thought', text })
-      }
-      currentThoughtBlock = []
-    }
-  }
-  
-  for (const part of parts) {
-    // 处理思考内容
-    if (part.thought && part.text) {
-      // 思考内容：先刷新其他块
-      flushText()
-      flushTools()
-      currentThoughtBlock.push(part.text)
-      continue
-    }
-    
-    // 处理文本
-    if (part.text) {
-      // 文本块：先刷新思考块和工具块
-      flushThought()
-      flushTools()
-      currentTextBlock.push(part.text)
-    }
-    
-    // 处理工具调用（即使同一个 part 有 thoughtSignature）
-    if (part.functionCall) {
-      // 工具调用：先刷新文本块和思考块
-      flushText()
-      flushThought()
-      
-      // 从 message.tools 中查找对应的工具状态
-      const toolId = part.functionCall.id || ''
-      const existingTool = props.message.tools?.find(t => t.id === toolId)
-      
-      currentToolBlock.push({
-        id: toolId,
-        name: part.functionCall.name,
-        args: part.functionCall.args,
-        status: existingTool?.status,
-        result: existingTool?.result
-      })
-    }
-    // 忽略其他类型（如 inlineData、fileData 等，后续可扩展）
-  }
-  
-  // 刷新剩余块
-  flushThought()
-  flushText()
-  flushTools()
-  
-  return blocks
-})
-
-/**
- * 将“思考块 + 工具块”合并成一个展示块
- * 让思考过程与后续工具调用呈现为一个整体卡片
- */
-const displayBlocks = computed<RenderBlock[]>(() => {
-  const blocks = renderBlocks.value
-  if (!blocks.length) return []
-
-  const merged: RenderBlock[] = []
-
-  for (let index = 0; index < blocks.length; index++) {
-    const block = blocks[index]
-    const next = blocks[index + 1]
-
-    if (block.type === 'thought' && next?.type === 'tool') {
-      merged.push({
-        type: 'thoughtTool',
-        text: block.text,
-        tools: next.tools
-      })
-      index++
-      continue
-    }
-
-    merged.push(block)
-  }
-
-  return merged
-})
-
-// 判断是否正在思考中（有思考块但没有普通文本块也没有工具调用块，且消息正在流式输出，且没有最终的思考时间）
-// 注意：必须在 renderBlocks 定义之后才能使用
-const isThinking = computed(() => {
-  if (!isStreaming.value) return false
-  
-  // 如果已经有后端计算的思考时间，说明思考已完成
-  if (props.message.metadata?.thinkingDuration) return false
-  
-  const hasThoughtBlock = renderBlocks.value.some(b => b.type === 'thought')
-  const hasTextBlock = renderBlocks.value.some(b => b.type === 'text' && b.text && b.text.trim())
-  const hasToolBlock = renderBlocks.value.some(b => b.type === 'tool')
-  
-  // 有思考块，且没有文本块和工具调用块时，才认为正在思考
-  // 当有工具调用时，思考已完成，正在等待工具响应
-  return hasThoughtBlock && !hasTextBlock && !hasToolBlock
-})
-
-// 获取思考时间显示文本
-// 优先使用后端提供的最终时间，否则使用实时计算的时间
-const thinkingTimeDisplay = computed(() => {
-  // 如果有最终的思考时间，使用它
-  const duration = props.message.metadata?.thinkingDuration
-  if (duration && duration > 0) {
-    return formatDuration(duration)
-  }
-  
-  // 如果正在思考中，显示实时时间
-  if (isThinking.value && elapsedThinkingTime.value > 0) {
-    return formatDuration(elapsedThinkingTime.value)
-  }
-  
-  return null
-})
-
-// 监听思考状态变化
-watch(isThinking, (thinking) => {
-  if (thinking) {
-    startThinkingTimer()
-  } else {
-    stopThinkingTimer()
-  }
-}, { immediate: true })
-
-// 监听 thinkingStartTime 变化（确保首次有值时启动）
-watch(
-  () => props.message.metadata?.thinkingStartTime,
-  (startTime) => {
-    if (startTime && isThinking.value && !thinkingTimer) {
-      startThinkingTimer()
-    }
-  },
-  { immediate: true }
-)
-
-// 获取当前消息及之前所有消息的 before 阶段检查点
-// 这样重试时可以回档到之前任意一个工具执行前的状态
-const availableCheckpoints = computed<CheckpointRecord[]>(() => {
-  return chatStore.checkpoints
-    .filter(cp => cp.messageIndex <= props.messageIndex && cp.phase === 'before')
-})
-
-// 获取用于编辑用户消息的最新检查点
-// 优先显示该用户消息的"消息前存档"（如果存在）
-// 如果不存在，则显示之前最近的一个存档点
-const checkpointsBeforeMessage = computed<CheckpointRecord[]>(() => {
-  // 首先查找该消息的"用户消息前"存档点
-  const userMessageBefore = chatStore.checkpoints.find(cp =>
-    cp.messageIndex === props.messageIndex &&
-    cp.toolName === 'user_message' &&
-    cp.phase === 'before'
-  )
-  
-  if (userMessageBefore) {
-    // 如果有该消息的"消息前存档"，只返回这一个
-    return [userMessageBefore]
-  }
-  
-  // 否则，找之前最近的一个存档点（按 messageIndex 降序排列取第一个）
-  const previousCheckpoints = chatStore.checkpoints
-    .filter(cp => cp.messageIndex < props.messageIndex)
-    .sort((a, b) => b.messageIndex - a.messageIndex)
-  
-  if (previousCheckpoints.length > 0) {
-    return [previousCheckpoints[0]]
-  }
-  
-  return []
-})
-
-// 模型版本
-const modelVersion = computed(() => props.message.metadata?.modelVersion)
-// 结束原因（用于判断是否被截断）
-const finishReason = computed(() => props.message.metadata?.finishReason)
-const showFinishReason = computed(() => {
-  if (!finishReason.value) return false
-  return finishReason.value.toLowerCase() !== 'stop'
-})
-
-const finishReasonKey = computed(() => (finishReason.value || '').toLowerCase())
-
-const finishReasonIcon = computed(() => {
-  switch (finishReasonKey.value) {
-    case 'completed':
-    case 'end_turn':
-      return 'codicon-pass'
-    case 'length':
-    case 'max_tokens':
-    case 'incomplete':
-    case 'stream_closed':
-      return 'codicon-warning'
-    case 'content_filter':
-    case 'safety':
-      return 'codicon-shield'
-    case 'tool_calls':
-    case 'tool_use':
-    case 'function_call':
-      return 'codicon-tools'
-    case 'cancelled':
-    case 'canceled':
-      return 'codicon-circle-slash'
-    case 'failed':
-    case 'error':
-      return 'codicon-error'
-    case 'expired':
-    case 'timeout':
-      return 'codicon-clock'
-    case 'queued':
-    case 'in_progress':
-    case 'running':
-      return 'codicon-loading'
-    default:
-      return 'codicon-info'
-  }
-})
-
-const finishReasonClass = computed(() => {
-  switch (finishReasonKey.value) {
-    case 'completed':
-    case 'end_turn':
-      return 'finish-reason-success'
-    default:
-      return ''
-  }
-})
-
-const finishReasonSpin = computed(() => {
-  switch (finishReasonKey.value) {
-    case 'queued':
-    case 'in_progress':
-    case 'running':
-      return true
-    default:
-      return false
-  }
-})
-
-const finishReasonTitle = computed(() => {
-  if (!finishReason.value) return t('components.message.stats.finishReason')
-  return `${t('components.message.stats.finishReason')}: ${finishReason.value}`
-})
-
-// 角色显示名称
-const roleDisplayName = computed(() => {
-  if (isUser.value) return t('components.message.roles.user')
-  if (isTool.value) return t('components.message.roles.tool')
-  // 助手消息显示模型版本
-  return (modelVersion.value ? formatModelName(modelVersion.value) : '') || t('components.message.roles.assistant')
-})
-
-// Token 使用情况
-const usageMetadata = computed(() => props.message.metadata?.usageMetadata)
-const hasUsage = computed(() =>
-  !isUser.value && !isTool.value && usageMetadata.value &&
-  (usageMetadata.value.totalTokenCount || usageMetadata.value.promptTokenCount || usageMetadata.value.candidatesTokenCount)
-)
-
-const contextSnapshot = computed(() => props.message.metadata?.contextSnapshot)
-const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
-
-// Context Used：仅在“本轮用户消息”的首条助手回复展示，避免工具循环重复占位。
-const showContextUsedCard = computed(() => {
-  if (isUser.value || isTool.value || isSummary.value) return false
-  if (!props.message.metadata?.contextSnapshot) return false
-
-  // 当前消息自己带有工具调用时不展示
-  const hasFunctionCall = (m: Message) => m.parts?.some(p => p.functionCall)
-  if (hasFunctionCall(props.message)) return false
-
-  const all = chatStore.allMessages
-  const currentIndex = props.messageIndex
-  if (!Array.isArray(all) || currentIndex <= 0 || currentIndex >= all.length) return true
-
-  // 找到最近一条“真实用户消息”（非 functionResponse/summary）
-  let lastUserIndex = -1
-  for (let i = currentIndex - 1; i >= 0; i--) {
-    const m = all[i]
-    if (!m || m.role !== 'user') continue
-    if (m.isFunctionResponse === true) continue
-    if (m.isSummary === true) continue
-    lastUserIndex = i
-    break
-  }
-
-  // 没有用户消息：只在第一条助手消息展示
-  if (lastUserIndex < 0) {
-    for (let i = 0; i < currentIndex; i++) {
-      const m = all[i]
-      if (!m || m.role !== 'assistant') continue
-      if (m.isFunctionResponse === true) continue
-      if (m.isSummary === true) continue
-      if (hasFunctionCall(m)) continue
-      return false
-    }
-    return true
-  }
-
-  // 若在 lastUserIndex 之后已经出现过任何一条无工具调用的助手消息，则不是首条
-  for (let i = lastUserIndex + 1; i < currentIndex; i++) {
-    const m = all[i]
-    if (!m || m.role !== 'assistant') continue
-    if (m.isFunctionResponse === true) continue
-    if (m.isSummary === true) continue
-    if (hasFunctionCall(m)) continue
-    return false
-  }
-
-  return true
-})
-
-function formatTokenCount(count: number | undefined): string {
-  if (count === undefined) return ''
-  if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
-  if (count >= 1_000) return `${Math.round(count / 1_000)}k`
-  return String(count)
-}
-
-const cacheHitInfo = computed(() => {
-  const usage = usageMetadata.value
-  const cachedTokens = usage?.cachedPromptTokenCount ?? 0
-  const inputTokens = usage?.promptTokenCount ?? 0
-
-  if (cachedTokens <= 0) return null
-  if (inputTokens <= 0) return null
-
-  const percent = Math.max(0, Math.min(100, Math.round((cachedTokens / inputTokens) * 100)))
-  return {
-    cachedTokens,
-    percent,
-    cachedTokensText: formatTokenCount(cachedTokens)
-  }
-})
-
-const cacheHitTitle = computed(() => {
-  if (!cacheHitInfo.value) return ''
-  return t('components.message.stats.cacheHit', {
-    tokens: cacheHitInfo.value.cachedTokensText,
-    percent: cacheHitInfo.value.percent
-  })
-})
-
-// 消息类名
-const messageClass = computed(() => ({
-  'message-item': true,
-  'user-message': isUser.value,
-  'assistant-message': !isUser.value,
-  'streaming': isStreaming.value,
-  'summary-message': isSummary.value
-}))
-
-// 格式化时间（只有有效时间戳时才显示）
-const formattedTime = computed(() => {
-  if (!props.message.timestamp || props.message.timestamp === 0) {
-    return null
-  }
-  return formatTime(props.message.timestamp, 'HH:mm')
-})
-
-const contentForRender = computed(() => {
-  const content = String(props.message.content || '').trim()
-  if (content) return content
-
-  // Backward compatibility: legacy "task card" messages used an empty content with metadata.taskCard.prompt.
-  const taskCardPrompt = String((props.message as any)?.metadata?.taskCard?.prompt || '').trim()
-  return taskCardPrompt
-})
-
-// 开始编辑（显示编辑对话框）
-function startEdit() {
-  showEditDialog.value = true
-}
-
-// 处理编辑保存
-function handleEdit(newContent: string, attachments: Attachment[]) {
-  emit('edit', props.message.id, newContent, attachments)
-}
-
-// 处理回档并编辑
-function handleRestoreAndEdit(newContent: string, attachments: Attachment[], checkpointId: string) {
-  emit('restoreAndEdit', props.message.id, newContent, attachments, checkpointId)
-}
-
-// 处理操作
-function handleCopy() {
-  emit('copy', contentForRender.value)
-}
-
-function handleDelete() {
-  emit('delete', props.message.id)
-}
-
-function handleRetryClick() {
-  // 始终显示重试对话框
-  showRetryDialog.value = true
-}
-
-function handleRetry() {
-  emit('retry', props.message.id)
-}
-
-function handleRestoreAndRetry(checkpointId: string) {
-  emit('restoreAndRetry', props.message.id, checkpointId)
-}
-
-function handleOpenContextUsed() {
-  const snapshot = props.message.metadata?.contextSnapshot
-  if (snapshot) {
-    chatStore.openContextInspectorWithData(snapshot)
-  }
-}
-
+const {
+  t,
+  isHovered,
+  showRetryDialog,
+  showEditDialog,
+  isUser,
+  isTool,
+  isSummary,
+  showFooterActions,
+  taskCard,
+  isStreaming,
+  isSummaryExpanded,
+  displayBlocks,
+  isThoughtExpanded,
+  isThinking,
+  thinkingTimeDisplay,
+  availableCheckpoints,
+  checkpointsBeforeMessage,
+  roleDisplayName,
+  hasUsage,
+  usageMetadata,
+  formatTokenCount,
+  cacheHitInfo,
+  cacheHitTitle,
+  showFinishReason,
+  finishReasonClass,
+  finishReasonTitle,
+  finishReasonIcon,
+  finishReasonSpin,
+  contextSnapshot,
+  hasContextSnapshot,
+  showContextUsedCard,
+  messageClass,
+  formattedTime,
+  startEdit,
+  handleEdit,
+  handleRestoreAndEdit,
+  handleCopy,
+  handleDelete,
+  handleRetryClick,
+  handleRetry,
+  handleRestoreAndRetry,
+  handleOpenContextUsed
+} = useMessageItem(props, emit)
 </script>
 
 <template>
@@ -638,15 +86,19 @@ function handleOpenContextUsed() {
     <EditDialog
       v-model="showEditDialog"
       :checkpoints="checkpointsBeforeMessage"
-      :original-content="contentForRender"
+      :original-content="message.content"
       :original-attachments="message.attachments || []"
       @edit="handleEdit"
       @restore-and-edit="handleRestoreAndEdit"
     />
 
     <div class="message-body">
+      <!-- Task 卡片消息 -->
+      <div v-if="taskCard" class="task-card-block">
+        <TaskCardMessage :task="taskCard" />
+      </div>
       <!-- 总结消息特殊显示 -->
-      <div v-if="isSummary" class="summary-block">
+      <div v-else-if="isSummary" class="summary-block">
         <div
           class="summary-header"
           @click="isSummaryExpanded = !isSummaryExpanded"
@@ -708,6 +160,7 @@ function handleOpenContextUsed() {
                 <MarkdownRenderer
                   :content="block.text || ''"
                   :latex-only="false"
+                  :streaming="isStreaming"
                   class="thought-text"
                 />
               </div>
@@ -739,6 +192,7 @@ function handleOpenContextUsed() {
                 <MarkdownRenderer
                   :content="block.text || ''"
                   :latex-only="false"
+                  :streaming="isStreaming"
                   class="thought-text"
                 />
               </div>
@@ -750,6 +204,7 @@ function handleOpenContextUsed() {
               v-else-if="block.type === 'text'"
               :content="block.text || ''"
               :latex-only="isUser"
+              :streaming="isStreaming"
               class="content-text"
             />
             
@@ -764,9 +219,10 @@ function handleOpenContextUsed() {
         <!-- 无 parts 但有 content 时：直接渲染 content -->
         <!-- 用户消息仅渲染 LaTeX -->
         <MarkdownRenderer
-          v-else-if="contentForRender"
-          :content="contentForRender"
+          v-else-if="message.content"
+          :content="message.content"
           :latex-only="isUser"
+          :streaming="isStreaming"
           class="content-text"
         />
 
@@ -842,4 +298,5 @@ function handleOpenContextUsed() {
   </div>
 </template>
 
-<style scoped src="./MessageItem.css"></style>
+<style scoped src="./MessageItem.part1.css"></style>
+<style scoped src="./MessageItem.part2.css"></style>

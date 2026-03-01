@@ -1,0 +1,374 @@
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+}
+
+.dialog {
+  width: 90%;
+  max-width: 560px;
+  max-height: 80vh;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 头部 */
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.dialog-header h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.select-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: var(--lc-settings-radius-md, 6px);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.select-all-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.select-all-btn .codicon {
+  font-size: 12px;
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.close-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+/* 内容 */
+.dialog-body {
+  flex: 1;
+  padding: 8px;
+  min-height: 300px;
+}
+
+.loading-state,
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.loading-state .codicon,
+.empty-state .codicon,
+.error-state .codicon {
+  font-size: 32px;
+}
+
+.error-state {
+  color: var(--vscode-errorForeground);
+}
+
+.retry-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.retry-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* 旋转动画 */
+.codicon-modifier-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 筛选输入框 */
+.filter-input-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  background: var(--vscode-input-background);
+}
+
+.filter-input-container .codicon-search {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  border: none;
+  font-size: 12px;
+  outline: none;
+}
+
+.filter-input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.filter-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.filter-clear-btn:hover {
+  color: var(--vscode-foreground);
+}
+
+.filter-clear-btn .codicon {
+  font-size: 12px;
+}
+
+/* 无结果提示 */
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.no-results .codicon {
+  font-size: 20px;
+  opacity: 0.5;
+}
+
+/* 模型列表 */
+.model-list-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--vscode-list-hoverBackground);
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.model-item:hover:not(.disabled) {
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.model-item.selected {
+  background: color-mix(in srgb, var(--vscode-charts-blue) 15%, var(--vscode-list-hoverBackground));
+}
+
+.model-item.added {
+  background: color-mix(in srgb, var(--vscode-charts-green) 10%, var(--vscode-list-hoverBackground));
+}
+
+.model-item.added:hover {
+  background: color-mix(in srgb, var(--vscode-charts-green) 15%, var(--vscode-list-hoverBackground));
+}
+
+.model-checkbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  background: var(--vscode-input-background);
+  transition: all 0.15s;
+}
+
+.model-item.selected .model-checkbox {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.model-checkbox .codicon {
+  font-size: 14px;
+}
+
+.model-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.model-id {
+  font-size: 12px;
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-foreground);
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.model-name {
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  opacity: 0.8;
+  line-height: 14px;
+}
+
+.model-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 14px;
+}
+
+.added-badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--vscode-charts-green, #89d185);
+  background: color-mix(in srgb, var(--vscode-charts-green) 20%, transparent);
+  border: none;
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.added-badge:hover {
+  color: var(--vscode-errorForeground);
+  background: color-mix(in srgb, var(--vscode-errorForeground) 20%, transparent);
+}
+
+/* 底部 */
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.selection-count {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--lc-settings-radius-sm, 4px);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.btn.secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}

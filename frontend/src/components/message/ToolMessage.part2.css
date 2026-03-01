@@ -1,0 +1,336 @@
+@supports (color: color-mix(in srgb, #000, #fff)) {
+  .exec-command-text.risk-low {
+    color: color-mix(in srgb, var(--vscode-foreground) 82%, rgb(46, 160, 67) 18%);
+  }
+
+  .exec-command-text.risk-medium {
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, rgb(240, 198, 116) 30%);
+  }
+
+  .exec-command-text.risk-high {
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, rgb(230, 149, 0) 30%);
+  }
+
+  .exec-command-text.risk-critical {
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, rgb(248, 81, 73) 30%);
+  }
+
+  .risk-badge.risk-low {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-testing-iconPassed, #2ea043));
+  }
+
+  .risk-badge.risk-medium {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-charts-yellow, #f0c674));
+  }
+
+  .risk-badge.risk-high {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-charts-orange, #e69500));
+  }
+
+  .risk-badge.risk-critical {
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, var(--vscode-testing-iconFailed, #f85149));
+  }
+}
+
+.exec-risk-badge {
+  flex-shrink: 0;
+  margin-right: 0;
+}
+
+
+.exec-command-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-font-family);
+}
+
+.exec-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  margin-right: 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: text-top;
+}
+
+/* (moved) risk-badge colors are defined above with a lighter palette */
+
+/* Confirm button - minimal borderless design */
+.confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.confirm-btn:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.confirm-btn:active {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.confirm-btn-icon {
+  font-size: 12px;
+}
+
+.confirm-btn-text {
+  white-space: nowrap;
+}
+
+/* Reject button - borderless design */
+.reject-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.reject-btn:hover {
+  background: rgba(128, 128, 128, 0.1);
+  color: var(--vscode-foreground);
+}
+
+.reject-btn:active {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.reject-btn-icon {
+  font-size: 12px;
+}
+
+.reject-btn-text {
+  white-space: nowrap;
+}
+
+/* Decision badge */
+.decision-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.decision-badge:hover {
+  opacity: 0.8;
+}
+
+.decision-confirmed {
+  background: rgba(40, 167, 69, 0.15);
+  color: var(--vscode-testing-iconPassed);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.decision-rejected {
+  background: rgba(220, 53, 69, 0.15);
+  color: var(--vscode-testing-iconFailed);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.decision-text {
+  white-space: nowrap;
+}
+
+/* Diff preview button - minimal neutral design */
+.diff-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid #555555;
+  border-radius: 6px;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.undo-diff-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid #555555;
+  border-radius: 6px;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.undo-diff-btn:hover {
+  background: rgba(128, 128, 128, 0.1);
+  border-color: #777777;
+}
+
+.undo-diff-btn:active {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.undo-diff-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.undo-btn-icon {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.undo-btn-text {
+  white-space: nowrap;
+}
+
+.diff-preview-btn:hover {
+  background: rgba(128, 128, 128, 0.1);
+  border-color: #777777;
+}
+
+.diff-preview-btn:active {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.diff-btn-icon {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.diff-btn-text {
+  white-space: nowrap;
+}
+
+.diff-btn-arrow {
+  font-size: 10px;
+  opacity: 0.5;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.diff-preview-btn:hover .diff-btn-arrow {
+  transform: translateX(2px);
+  opacity: 0.8;
+}
+
+.tool-content {
+  padding: var(--spacing-sm, 8px);
+  border-top: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+/* Tool header already shows the tool label; hide redundant titles inside tool panels. */
+.tool-content :deep(.panel-header .title) {
+  display: none;
+}
+
+.tool-message.embedded .tool-content {
+  padding: 0;
+  border-top: 1px solid var(--vscode-panel-border);
+  background: transparent;
+}
+
+.tool-message.embedded .tool-content :deep(.execute-command-panel) {
+  border: none;
+  border-radius: 0;
+}
+
+/* Default content styles */
+.tool-content-default {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+}
+
+.content-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 4px);
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.section-data {
+  padding: var(--spacing-xs, 4px);
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--radius-sm, 2px);
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-foreground);
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.error-section {
+  padding: var(--spacing-sm, 8px);
+  background: var(--vscode-inputValidation-errorBackground);
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: var(--radius-sm, 2px);
+}
+
+.error-message {
+  font-size: 12px;
+  color: var(--vscode-inputValidation-errorForeground);
+  font-family: var(--vscode-editor-font-family);
+}
+
+.tool-content-text {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

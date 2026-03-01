@@ -2,6 +2,64 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59] - 2026-03-01
+
+### Fixed
+  - Settings: fix provider config fields not being persisted due to a missing handler binding.
+  - Anthropic: improve Messages API request normalization (`/v1/messages`) and streaming error diagnostics.
+
+## [1.0.59-pre.11] - 2026-02-11
+
+### Fixed
+  - Settings：修复“扩展依赖管理”的安装路径在窄屏下溢出，改为自动换行显示。
+
+## [1.0.59-pre.10] - 2026-02-10
+
+### Improved
+  - Refactor：拆分多个超大前端组件（Message/ToolMessage/ExecuteCommand/WriteFile/ApplyDiff/InputBox 等）为 composables + utils，并抽离部分样式到独立 CSS；以保持行为一致为主，便于后续维护与演进。
+
+## [1.0.59-pre.9] - 2026-02-08
+
+### Improved
+  - Chat/Plan：chat/plan 模式的工具迭代上限不再固定为 3/10，而是遵循全局设置 `maxToolIterations`（默认 50，支持 -1 无限制）。
+
+## [1.0.59-pre.8] - 2026-02-05
+
+### Added
+  - Storage：启动时可选自动清理超过 30 天未更新的对话；同时删除该对话的 `checkpoints` / `diffs` / `snapshots` / 对话 JSON，以防止存储空间持续增长。
+
+## [1.0.59-pre.7] - 2026-02-05
+
+### Improved
+  - UI：代码块高亮配色更贴近 VS Code 编辑器（Dark Modern）的语义化风格（comment/keyword/type/function/variable/string/number 等）。
+  - UI：补全 highlight.js token class 的映射（operator/punctuation/literal/regexp/tag 等），减少“全都一个颜色”的观感。
+
+## [1.0.59-pre.6] - 2026-02-04
+
+### Improved
+  - UI：代码块高亮改为 `highlight.js` core + language subset（`python/go/javascript/typescript/json/bash`），并在流式结束后再进行高亮，显著降低 webview bundle 体积并改善流式渲染性能。
+
+## [1.0.59-pre.5] - 2026-02-04
+
+### Fixed
+  - Settings：修复 Tools/AutoExec 设置页分组无法展开（运行时异常导致内容区无法渲染）。
+  - UI：修复 Pinned Skills 下拉选择器样式与可用性（对齐 VS Code dropdown 主题变量）。
+
+## [1.0.59-pre.4] - 2026-02-04
+
+### Added
+  - Chat：chat 模式支持自动携带“当前打开文件上下文（Open File Context）”并注入到模型请求；支持选区范围、dirty buffer、预算限制与敏感路径过滤。
+
+### Improved
+  - Refactor：全仓库 TypeScript 源码按“单文件 <= 500 行”拆分，降低维护成本并提升可读性（以保持行为一致为主）。
+  - UI：输入框自动高度调整逻辑优化，减少抖动并提升稳定性。
+
+## [1.0.59-pre.2] - 2026-02-02
+
+### Improved
+  - UI：输入框底部选择器布局优化：Mode 移到 Model 前；Model 选中态仅展示模型名。
+  - UI：模型下拉弹窗宽度与对齐策略调整，避免多余空白与文本被裁切。
+
 ## [1.0.59-pre.1] - 2026-02-01
 
 ### Added

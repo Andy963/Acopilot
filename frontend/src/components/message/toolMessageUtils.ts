@@ -18,6 +18,41 @@ export interface RiskPrefixParseResult {
 
 export type ParseRiskPrefix = (description: string) => RiskPrefixParseResult | null
 
+export function riskLevelFromLabel(label: string): RiskBadgeLevel | null {
+  const normalized = (label || '').trim().toLowerCase()
+  if (!normalized) return null
+
+  const map: Record<string, RiskBadgeLevel> = {
+    '低': 'low',
+    low: 'low',
+    '中': 'medium',
+    medium: 'medium',
+    '高': 'high',
+    high: 'high',
+    '致命': 'critical',
+    critical: 'critical',
+    fatal: 'critical'
+  }
+
+  return map[normalized] ?? null
+}
+
+export const parseRiskPrefix: ParseRiskPrefix = (description: string): RiskPrefixParseResult | null => {
+  const input = description ?? ''
+  const trimmed = input.trimStart()
+  const match = trimmed.match(/^\[(风险|Risk)\s*:\s*([^\]]+)\]\s*(.*)$/s)
+  if (!match) return null
+
+  const label = match[2].trim()
+  const level = riskLevelFromLabel(label)
+  if (!level) return null
+
+  return {
+    badge: { level, label },
+    text: match[3] ?? ''
+  }
+}
+
 export interface ReadFileHeaderStats {
   total: number
   success?: number

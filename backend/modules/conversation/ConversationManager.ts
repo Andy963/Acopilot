@@ -27,6 +27,14 @@ import {
 import type { IStorageAdapter } from './storage';
 import type { GetHistoryOptions } from './historyOptions';
 import { buildHistoryForApi } from './historyForApi';
+import { computeConversationStats, findMessagesInHistory, rejectToolCallsInHistory } from './conversationAnalysis';
+import {
+    getConversationCustomMetadata,
+    getConversationMetadata,
+    setConversationCustomMetadata,
+    setConversationTitle,
+    setConversationWorkspaceUri
+} from './conversationMetadata';
 
 export type { GetHistoryOptions, MultimodalCapability } from './historyOptions';
 
@@ -323,52 +331,7 @@ export class ConversationManager {
         filter: MessageFilter
     ): Promise<MessagePosition[]> {
         const history = await this.loadHistory(conversationId);
-        const results: MessagePosition[] = [];
-
-        for (let i = 0; i < history.length; i++) {
-            const message = history[i];
-            let matches = true;
-
-            if (filter.role && message.role !== filter.role) {
-                matches = false;
-            }
-
-            if (filter.hasFunctionCall !== undefined) {
-                const hasFunctionCall = message.parts.some(p => p.functionCall !== undefined);
-                if (hasFunctionCall !== filter.hasFunctionCall) {
-                    matches = false;
-                }
-            }
-
-            if (filter.hasText !== undefined) {
-                const hasText = message.parts.some(
-                    p => p.text !== undefined && p.text.trim() !== ''
-                );
-                if (hasText !== filter.hasText) {
-                    matches = false;
-                }
-            }
-
-            if (filter.isThought !== undefined) {
-                const isThought = message.parts.some(p => p.thought === true);
-                if (isThought !== filter.isThought) {
-                    matches = false;
-                }
-            }
-
-            if (filter.indexRange) {
-                const { start, end } = filter.indexRange;
-                if (i < start || i >= end) {
-                    matches = false;
-                }
-            }
-
-            if (matches) {
-                results.push({ index: i, role: message.role });
-            }
-        }
-
-        return results;
+        return findMessagesInHistory(history, filter);
     }
 
     /**
@@ -443,140 +406,11 @@ export class ConversationManager {
      */
     async getStats(conversationId: string): Promise<ConversationStats> {
         const history = await this.loadHistory(conversationId);
-        
-        let userMessages = 0;
-        let modelMessages = 0;
-        let functionCalls = 0;
-        let hasThoughtSignatures = false;
-        let hasThoughts = false;
-        let hasFileData = false;
-        let hasInlineData = false;
-        let inlineDataSize = 0;
-        const multimedia = {
-            images: 0,
-            audio: 0,
-            video: 0,
-            documents: 0
-        };
-        
-        // Token 统计
-        let totalThoughtsTokens = 0;
-        let totalCandidatesTokens = 0;
-        let messagesWithThoughtsTokens = 0;
-        let messagesWithCandidatesTokens = 0;
-
-        for (const message of history) {
-            if (message.role === 'user') {
-                userMessages++;
-            } else {
-                modelMessages++;
-            }
-            
-            // 统计 token（优先使用 usageMetadata，向后兼容旧格式）
-            const thoughtsTokens = message.usageMetadata?.thoughtsTokenCount ?? message.thoughtsTokenCount;
-            const candidatesTokens = message.usageMetadata?.candidatesTokenCount ?? message.candidatesTokenCount;
-            
-            if (thoughtsTokens !== undefined) {
-                totalThoughtsTokens += thoughtsTokens;
-                messagesWithThoughtsTokens++;
-            }
-            if (candidatesTokens !== undefined) {
-                totalCandidatesTokens += candidatesTokens;
-                messagesWithCandidatesTokens++;
-            }
-
-            for (const part of message.parts) {
-                // 函数调用
-                if (part.functionCall) {
-                    functionCalls++;
-                }
-                
-                // 检查思考签名
-                if (part.thoughtSignatures) {
-                    hasThoughtSignatures = true;
-                }
-                
-                // 检查思考内容
-                if (part.thought === true) {
-                    hasThoughts = true;
-                }
-                
-                // 检查文件数据
-                if (part.fileData) {
-                    hasFileData = true;
-                }
-                
-                // 检查内嵌数据
-                if (part.inlineData) {
-                    hasInlineData = true;
-                    
-                    // 计算 Base64 数据大小（约为原始数据的 4/3）
-                    const base64Length = part.inlineData.data.length;
-                    inlineDataSize += Math.ceil((base64Length * 3) / 4);
-                    
-                    // 统计多模态类型
-                    const mimeType = part.inlineData.mimeType;
-                    if (mimeType.startsWith('image/')) {
-                        multimedia.images++;
-                    } else if (mimeType.startsWith('audio/')) {
-                        multimedia.audio++;
-                    } else if (mimeType.startsWith('video/')) {
-                        multimedia.video++;
-                    } else if (mimeType === 'application/pdf' || mimeType === 'text/plain') {
-                        multimedia.documents++;
-                    }
-                }
-            }
-        }
-
-        return {
-            totalMessages: history.length,
-            userMessages,
-            modelMessages,
-            functionCalls,
-            hasThoughtSignatures,
-            hasThoughts,
-            hasFileData,
-            hasInlineData,
-            inlineDataSize,
-            multimedia,
-            tokens: {
-                totalThoughtsTokens,
-                totalCandidatesTokens,
-                totalTokens: totalThoughtsTokens + totalCandidatesTokens,
-                messagesWithThoughtsTokens,
-                messagesWithCandidatesTokens
-            }
-        };
+        return computeConversationStats(history);
     }
 
     /**
-     * 获取适合 API 调用的对话历史
-     *
-     * 此方法返回格式化的历史记录，移除内部字段（如 token 计数）
-     *
-     * 思考内容过滤策略：
-     * - 默认情况下，只保留最后一个非函数响应 user 消息及之后的思考内容和签名
-     * - 如果启用 sendHistoryThoughts，则保留所有历史思考内容
-     * - 如果启用 sendHistoryThoughtSignatures，则保留所有历史思考签名（按渠道类型过滤）
-     *
-     * @param conversationId 对话 ID
-     * @param options 选项对象（向后兼容：如果传入 boolean，视为 includeThoughts）
-     * @returns 格式化的对话历史，移除了 token 计数字段
-     *
-     * @example
-     * // 不含思考（用于常规 API 调用）
-     * const history = await manager.getHistoryForAPI('chat-001');
-     *
-     * // 含思考（用于带思考的 API 调用，如 Gemini 3）
-     * const historyWithThoughts = await manager.getHistoryForAPI('chat-001', { includeThoughts: true });
-     *
-     * // 发送所有历史思考签名（Gemini 格式）
-     * const historyWithSignatures = await manager.getHistoryForAPI('chat-001', {
-     *     includeThoughts: true,
-     *     sendHistoryThoughtSignatures: true,
-     *     channelType: 'gemini'
-     * });
+     * 获取适合 API 调用的历史记录（剔除内部字段，可按策略保留思考内容/签名）。
      */
     async getHistoryForAPI(
         conversationId: string,
@@ -596,49 +430,21 @@ export class ConversationManager {
      * 设置对话标题
      */
     async setTitle(conversationId: string, title: string): Promise<void> {
-        let meta = await this.storage.loadMetadata(conversationId);
-        if (!meta) {
-            meta = {
-                id: conversationId,
-                title,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                custom: {}
-            };
-        } else {
-            meta.title = title;
-            meta.updatedAt = Date.now();
-        }
-        await this.storage.saveMetadata(meta);
+        await setConversationTitle(this.storage, conversationId, title);
     }
 
     /**
      * 设置工作区 URI
      */
     async setWorkspaceUri(conversationId: string, workspaceUri: string): Promise<void> {
-        let meta = await this.storage.loadMetadata(conversationId);
-        if (!meta) {
-            meta = {
-                id: conversationId,
-                title: t('modules.conversation.defaultTitle', { conversationId }),
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                workspaceUri,
-                custom: {}
-            };
-        } else {
-            meta.workspaceUri = workspaceUri;
-            meta.updatedAt = Date.now();
-        }
-        await this.storage.saveMetadata(meta);
+        await setConversationWorkspaceUri(this.storage, conversationId, workspaceUri);
     }
 
     /**
      * 获取对话元数据
      */
     async getMetadata(conversationId: string): Promise<ConversationMetadata | null> {
-        const meta = await this.storage.loadMetadata(conversationId);
-        return meta ? JSON.parse(JSON.stringify(meta)) : null;
+        return await getConversationMetadata(this.storage, conversationId);
     }
 
     /**
@@ -649,32 +455,14 @@ export class ConversationManager {
         key: string,
         value: unknown
     ): Promise<void> {
-        let meta = await this.storage.loadMetadata(conversationId);
-        if (!meta) {
-            meta = {
-                id: conversationId,
-                title: t('modules.conversation.defaultTitle', { conversationId }),
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                custom: {}
-            };
-        }
-        
-        if (!meta.custom) {
-            meta.custom = {};
-        }
-        meta.custom[key] = value;
-        meta.updatedAt = Date.now();
-        
-        await this.storage.saveMetadata(meta);
+        await setConversationCustomMetadata(this.storage, conversationId, key, value);
     }
 
     /**
      * 获取自定义元数据
      */
     async getCustomMetadata(conversationId: string, key: string): Promise<unknown> {
-        const meta = await this.getMetadata(conversationId);
-        return meta?.custom?.[key];
+        return await getConversationCustomMetadata(this.storage, conversationId, key);
     }
 
     // ==================== 工具调用管理 ====================
@@ -695,40 +483,13 @@ export class ConversationManager {
         toolCallIds?: string[]
     ): Promise<void> {
         const history = await this.loadHistory(conversationId);
-        
-        if (messageIndex < 0 || messageIndex >= history.length) {
-            throw new Error(t('modules.conversation.errors.messageIndexOutOfBounds', { index: messageIndex }));
-        }
-        
-        const message = history[messageIndex];
-        let modified = false;
-        
-        // 收集所有已有响应的工具 ID
-        const respondedToolIds = new Set<string>();
-        for (let i = messageIndex + 1; i < history.length; i++) {
-            const msg = history[i];
-            for (const part of msg.parts) {
-                if (part.functionResponse?.id) {
-                    respondedToolIds.add(part.functionResponse.id);
-                }
-            }
-        }
-        
-        // 标记工具为拒绝状态
-        for (const part of message.parts) {
-            if (part.functionCall && part.functionCall.id) {
-                // 检查是否需要标记此工具
-                const shouldReject = toolCallIds
-                    ? toolCallIds.includes(part.functionCall.id)
-                    : !respondedToolIds.has(part.functionCall.id);
-                
-                if (shouldReject && !part.functionCall.rejected) {
-                    part.functionCall.rejected = true;
-                    modified = true;
-                }
-            }
-        }
-        
+        const modified = rejectToolCallsInHistory({
+            history,
+            conversationId,
+            messageIndex,
+            toolCallIds
+        });
+
         if (modified) {
             await this.storage.saveHistory(conversationId, history);
         }

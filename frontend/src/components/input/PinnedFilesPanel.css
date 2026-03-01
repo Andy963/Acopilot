@@ -1,0 +1,282 @@
+.pinned-files-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 8px;
+  right: 8px;
+  margin-bottom: 8px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pinned-files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-files-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pinned-files-title .codicon {
+  font-size: 14px;
+  transform: rotate(-90deg);
+}
+
+.pinned-files-description {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-tab {
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--vscode-panel-border);
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pinned-tab:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.pinned-tab.active {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.pinned-files-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pinned-files-loading,
+.pinned-files-empty {
+  padding: 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.pinned-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+}
+
+.pinned-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.pinned-file-item.disabled {
+  opacity: 0.6;
+}
+
+.pinned-file-item.not-exists {
+  border-color: var(--vscode-errorForeground);
+}
+
+.pinned-file-checkbox {
+  margin: 0;
+}
+
+.pinned-file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-not-exists-hint {
+  font-size: 11px;
+  color: var(--vscode-errorForeground);
+}
+
+.pinned-skill-content,
+.pinned-custom-content {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pinned-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pinned-skill-label,
+.pinned-custom-label {
+  font-size: 12px;
+}
+
+.pinned-skill-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.pinned-skill-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-skill-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pinned-skill-refresh {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pinned-skill-preview {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.pinned-skill-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.pinned-skill-preview-desc {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.pinned-skill-preview-text {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  background: transparent;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 11px;
+}
+
+.pinned-skill-footer-hint,
+.pinned-custom-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.pinned-custom-textarea {
+  width: 100%;
+  resize: vertical;
+  background: transparent;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+}
+
+.pinned-custom-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pinned-custom-save,
+.pinned-custom-clear {
+  border: none;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+}
+
+.pinned-files-footer {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.drag-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.drag-hint .codicon {
+  font-size: 12px;
+}
+
+.pinned-files-panel.drag-over {
+  border-color: var(--vscode-textLink-foreground);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vscode-textLink-foreground) 30%, transparent);
+}
+
+.drag-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--vscode-editorWidget-background) 80%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--vscode-textLink-foreground);
+}
+
+.drag-overlay .codicon {
+  font-size: 22px;
+}
+
+.drag-overlay span {
+  font-size: 11px;
+}

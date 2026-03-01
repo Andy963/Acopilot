@@ -37,8 +37,6 @@ export type LocateModeResolution =
     }
   | { ok: false; error: { code: 'LOCATE_DISABLED'; message: string } };
 
-const LOCATE_SLASH_PREFIX = /^\s*\/locate\b/i;
-
 const LOCATE_EDIT_INTENT_KEYWORDS = [
   'fix',
   'modify',
@@ -136,7 +134,6 @@ export async function resolveLocateModeParams(input: {
   conversationManager: ConversationManager;
   settingsManager: SettingsManager | undefined;
   conversationId: string;
-  mode: string | undefined;
   message: string | undefined;
   contextOverrides: ContextInjectionOverrides | undefined;
   taskContext: string | undefined;
@@ -146,17 +143,10 @@ export async function resolveLocateModeParams(input: {
   const locateConfig = getLocateConfig(input.settingsManager);
   const locateToolEnabled = input.settingsManager ? input.settingsManager.isToolEnabled('locate') !== false : true;
 
-  const explicitLocateMode = input.mode === 'locate' || LOCATE_SLASH_PREFIX.test(rawMessage);
-  const inferredLocateMode = !explicitLocateMode && locateToolEnabled && shouldAutoEnterLocateMode(rawMessage, locateConfig);
-  const isLocateMode = explicitLocateMode || inferredLocateMode;
+  const inferredLocateMode = locateToolEnabled && shouldAutoEnterLocateMode(rawMessage, locateConfig);
+  const isLocateMode = inferredLocateMode;
 
-  if (explicitLocateMode && !locateToolEnabled) {
-    return { ok: false, error: { code: 'LOCATE_DISABLED', message: 'Locate is disabled in settings.' } };
-  }
-
-  const effectiveMessage = LOCATE_SLASH_PREFIX.test(rawMessage)
-    ? rawMessage.replace(/^\s*\/locate\b\s*/i, '')
-    : rawMessage;
+  const effectiveMessage = rawMessage;
 
   let effectiveContextOverrides = input.contextOverrides;
   let effectiveTaskContext = input.taskContext;

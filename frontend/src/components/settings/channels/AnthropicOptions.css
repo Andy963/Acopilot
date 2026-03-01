@@ -1,0 +1,259 @@
+.anthropic-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.option-item label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.option-item input[type="number"] {
+  padding: 5px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  font-size: 12px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.option-item input[type="number"]::-webkit-outer-spin-button,
+.option-item input[type="number"]::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.option-item input[type="number"]:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.option-item input.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 带开关的配置项 */
+.option-item.option-with-toggle {
+  position: relative;
+}
+
+.option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.option-header label:first-child {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.option-hint {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+}
+
+.option-item.checkbox-option {
+  flex-direction: row;
+  align-items: center;
+}
+
+.option-item.checkbox-option .custom-checkbox {
+  padding-left: 22px;
+}
+
+.option-item.checkbox-option .checkmark {
+  width: 14px;
+  height: 14px;
+}
+
+.option-item.checkbox-option .checkbox-text {
+  font-size: 11px;
+}
+
+/* 选项分组 */
+.option-section {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.option-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.option-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.option-section-title .codicon {
+  font-size: 14px;
+  color: var(--vscode-charts-blue, #3794ff);
+}
+
+.option-section-title .codicon-lightbulb {
+  color: var(--vscode-charts-yellow, #ddb92f);
+}
+
+.history-thought-section {
+  margin-top: 12px;
+}
+
+.option-section-content.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 开关样式 */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 10px;
+  width: 10px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--vscode-foreground);
+  opacity: 0.6;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+  background-color: var(--vscode-button-foreground);
+  opacity: 1;
+}
+
+.toggle-switch:hover .toggle-slider {
+  border-color: var(--vscode-focusBorder);
+}
+
+.option-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 自定义勾选框 */
+.custom-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: normal;
+  position: relative;
+  padding-left: 26px;
+  user-select: none;
+}
+
+.custom-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox .checkmark {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 16px;
+  width: 16px;
+  background: var(--vscode-checkbox-background, var(--vscode-input-background, rgba(127, 127, 127, 0.08)));
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-panel-border));
+  border-radius: 3px;
+  box-sizing: border-box;
+  transition: all 0.15s;
+}
+
+.custom-checkbox:hover .checkmark {
+  border-color: var(--vscode-focusBorder);
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+.custom-checkbox .checkmark::after {
+  content: '';
+  position: absolute;
+  display: none;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--vscode-checkbox-foreground, var(--vscode-button-foreground));
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.custom-checkbox input:checked ~ .checkmark::after {
+  display: block;
+}
+
+.checkbox-text {
+  margin-left: 4px;
+}

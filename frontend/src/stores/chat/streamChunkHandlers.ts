@@ -8,53 +8,14 @@ import type { Message, StreamChunk } from '../../types'
 import type { ChatStoreState, CheckpointRecord } from './types'
 import { generateId } from '../../utils/format'
 import { contentToMessage } from './parsers'
+import { hasFileChanges } from './streamChunkHandlers/hasFileChanges'
+import { appendFunctionResponseMessage } from './streamChunkHandlers/appendFunctionResponseMessage'
 import {
   addTextToMessage,
   processStreamingText,
   flushToolCallBuffer,
   handleFunctionCallPart
 } from './streamHelpers'
-
-/**
- * 判断工具结果是否代表“文件系统发生了实际改动”
- *
- * 用于在一轮对话结束后提示用户运行 build/test/lint 等校验命令。
- */
-function hasFileChanges(toolResults: Array<{ name: string; result: any }> | undefined): boolean {
-  if (!toolResults || toolResults.length === 0) return false
-
-  for (const tr of toolResults) {
-    const toolName = tr.name
-    const r = tr.result || {}
-
-    if (toolName === 'write_file' && r.success && r.data?.results) {
-      const results = Array.isArray(r.data.results) ? r.data.results : []
-      const changed = results.some((x: any) =>
-        x?.success === true &&
-        (x?.status === 'accepted' || x?.status === undefined) &&
-        (x?.action === 'created' || x?.action === 'modified')
-      )
-      if (changed) return true
-    }
-
-    if (toolName === 'apply_diff' && r.success && r.data) {
-      // apply_diff：只有在用户接受（saved）后才算改动已落盘
-      if (r.data.status === 'accepted' && (r.data.appliedCount ?? 0) > 0) {
-        return true
-      }
-    }
-
-    if (toolName === 'delete_file' && r.success && Array.isArray(r.data?.deletedPaths) && r.data.deletedPaths.length > 0) {
-      return true
-    }
-
-    if (toolName === 'create_directory' && r.success && Array.isArray(r.data?.createdPaths) && r.data.createdPaths.length > 0) {
-      return true
-    }
-  }
-
-  return false
-}
 
 /**
  * 处理 chunk 类型
@@ -304,24 +265,8 @@ export function handleToolIteration(
     ]
   }
   
-  // 添加 functionResponse 消息（标记为隐藏）
-  if (chunk.toolResults && chunk.toolResults.length > 0) {
-    const responseMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content: '',
-      timestamp: Date.now(),
-      isFunctionResponse: true,
-      parts: chunk.toolResults.map(r => ({
-        functionResponse: {
-          name: r.name,
-          response: r.result,
-          id: r.id
-        }
-      }))
-    }
-    state.allMessages.value.push(responseMessage)
-  }
+  // Add functionResponse messages (hidden in UI).
+  appendFunctionResponseMessage(state, chunk.toolResults as any)
   
   // 处理新创建的检查点
   if (chunk.checkpoints && chunk.checkpoints.length > 0) {

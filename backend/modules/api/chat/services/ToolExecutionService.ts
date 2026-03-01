@@ -5,7 +5,6 @@
  */
 
 import { t } from '../../../../i18n';
-import { debugLog } from '../../../../core/logger';
 import { redactSensitiveText } from '../../../../core/redaction';
 import type { ToolRegistry } from '../../../../tools/ToolRegistry';
 import type { CheckpointRecord } from '../../../checkpoint';
@@ -16,6 +15,8 @@ import type { BaseChannelConfig } from '../../../config/configs/base';
 import { getMultimodalCapability, type ChannelType as UtilChannelType, type ToolMode as UtilToolMode } from '../../../../tools/utils';
 import type { FunctionCallInfo, ToolExecutionResult } from '../utils';
 import type { CheckpointService } from './CheckpointService';
+import { processMultimodalData as processToolMultimodalData } from './toolExecution/multimodalProcessing';
+import { applyToolSpecificConfig } from './toolExecution/toolSpecificConfig';
 import {
     assessExecuteCommandRisk,
     shouldConfirmExecuteCommand,
@@ -243,7 +244,7 @@ export class ToolExecutionService {
 
             // 根据工具模式和渠道类型处理多模态数据
             if (multimodalData && multimodalData.length > 0) {
-                this.processMultimodalData(
+                processToolMultimodalData({
                     multimodalData,
                     response,
                     call,
@@ -252,7 +253,7 @@ export class ToolExecutionService {
                     isPromptMode,
                     responseParts,
                     multimodalAttachments
-                );
+                });
                 continue; // 已在 processMultimodalData 中处理了 responseParts
             }
 
@@ -361,146 +362,11 @@ export class ToolExecutionService {
         };
 
         // 为特定工具添加配置
-        this.addToolSpecificConfig(call.name, toolContext);
+        applyToolSpecificConfig(this.settingsManager, call.name, toolContext);
 
         // 执行工具
         const result = await tool.handler(call.args, toolContext);
         return result as unknown as Record<string, unknown>;
-    }
-
-    /**
-     * 为特定工具添加配置
-     */
-    private addToolSpecificConfig(toolName: string, toolContext: Record<string, unknown>): void {
-        if (!this.settingsManager) {
-            return;
-        }
-
-        // generate_image 工具配置
-        if (toolName === 'generate_image') {
-            const imageConfig = this.settingsManager.getGenerateImageConfig();
-            toolContext.config = {
-                ...imageConfig,
-                proxyUrl: this.settingsManager.getEffectiveProxyUrl()
-            };
-        }
-
-        // remove_background 工具复用 generate_image 的 API 配置，但使用自己的返回图片配置
-        if (toolName === 'remove_background') {
-            const imageConfig = this.settingsManager.getGenerateImageConfig();
-            const removeConfig = this.settingsManager.getRemoveBackgroundConfig();
-            toolContext.config = {
-                ...imageConfig,
-                ...removeConfig,
-                proxyUrl: this.settingsManager.getEffectiveProxyUrl()
-            };
-        }
-
-        // crop_image 工具配置
-        if (toolName === 'crop_image') {
-            const cropConfig = this.settingsManager.getCropImageConfig();
-            toolContext.config = {
-                ...cropConfig
-            };
-        }
-
-        // resize_image 工具配置
-        if (toolName === 'resize_image') {
-            const resizeConfig = this.settingsManager.getResizeImageConfig();
-            toolContext.config = {
-                ...resizeConfig
-            };
-        }
-
-        // rotate_image 工具配置
-        if (toolName === 'rotate_image') {
-            const rotateConfig = this.settingsManager.getRotateImageConfig();
-            toolContext.config = {
-                ...rotateConfig
-            };
-        }
-    }
-
-    /**
-     * 处理多模态数据
-     */
-    private processMultimodalData(
-        multimodalData: Array<{ mimeType: string; data: string; name?: string }>,
-        response: Record<string, unknown>,
-        call: FunctionCallInfo,
-        config: BaseChannelConfig | undefined,
-        toolMode: string,
-        isPromptMode: boolean,
-        responseParts: ContentPart[],
-        multimodalAttachments: ContentPart[]
-    ): void {
-        // 获取渠道能力
-        const channelType = (config?.type || 'custom') as UtilChannelType;
-        const currentToolMode = (toolMode || 'function_call') as UtilToolMode;
-        const multimodalEnabled = config?.multimodalToolsEnabled ?? false;
-        const capability = getMultimodalCapability(channelType, currentToolMode, multimodalEnabled);
-
-        if (isPromptMode) {
-            // XML/JSON 模式：将多模态数据作为用户消息附件
-            for (const item of multimodalData) {
-                multimodalAttachments.push({
-                    inlineData: {
-                        mimeType: item.mimeType,
-                        data: item.data,
-                        displayName: item.name
-                    }
-                });
-            }
-            // 从响应中移除 multimodal 数据（因为已经单独处理）
-            delete (response as any).multimodal;
-
-            // 构建函数响应 part
-            responseParts.push({
-                functionResponse: {
-                    name: call.name,
-                    response,
-                    id: call.id
-                }
-            });
-        } else {
-            // function_call 模式
-            if (capability.supportsImages || capability.supportsDocuments) {
-                // Gemini/Anthropic 支持在 functionResponse 中包含多模态数据
-                const multimodalParts: ContentPart[] = multimodalData.map(item => ({
-                    inlineData: {
-                        mimeType: item.mimeType,
-                        data: item.data,
-                        displayName: item.name
-                    }
-                }));
-
-                // 从响应中移除 multimodal 数据（将放入 parts 中）
-                delete (response as any).multimodal;
-
-                // 构建带 parts 的函数响应
-                responseParts.push({
-                    functionResponse: {
-                        name: call.name,
-                        response,
-                        id: call.id,
-                        parts: multimodalParts
-                    }
-                });
-            } else {
-                // 渠道不支持 function_call 模式的多模态（如 OpenAI）
-                debugLog(`[Multimodal] Channel ${channelType} does not support function_call multimodal, image data will be discarded`);
-                delete (response as any).multimodal;
-
-                // 构建函数响应 part
-                responseParts.push({
-                    functionResponse: {
-                        name: call.name,
-                        response,
-                        id: call.id
-                    }
-                });
-            }
-        }
     }
 
     /**

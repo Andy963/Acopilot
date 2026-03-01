@@ -22,18 +22,16 @@ import type { TokenEstimationService } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
 import { getPinnedPromptBlock } from './pinnedPrompt';
 import { getSelectionReferencesBlock } from './selectionReferences';
-
-/**
- * 回合 Token 信息（内部使用）
- */
-interface RoundTokenInfo {
-    /** 回合起始索引 */
-    startIndex: number;
-    /** 回合结束索引 */
-    endIndex: number;
-    /** 系统提示词 + effectiveStartIndex 到这个回合结束的累计 token 数 */
-    cumulativeTokens: number;
-}
+import {
+    calculateThreshold as calculateContextThreshold,
+    findLastSummaryIndex as findLastSummaryIndexInHistory,
+    getLastUserOpenFileContext,
+    getLastUserSelectionReferences,
+    getLastUserTaskContext,
+    identifyConversationRounds,
+    performContextTrim,
+    type RoundTokenInfo
+} from './contextTrim/utils';
 
 export class ContextTrimService {
     constructor(
@@ -42,32 +40,6 @@ export class ContextTrimService {
         private tokenEstimationService: TokenEstimationService,
         private messageBuilderService: MessageBuilderService
     ) {}
-
-    private static getLastUserSelectionReferences(history: Content[]): SelectionReference[] | undefined {
-        for (let i = history.length - 1; i >= 0; i--) {
-            const msg = history[i];
-            if (!msg || msg.role !== 'user') continue;
-            if ((msg as any).isFunctionResponse === true) continue;
-            if ((msg as any).isSummary === true) continue;
-            const refs = (msg as any).selectionReferences;
-            return Array.isArray(refs) ? (refs as SelectionReference[]) : undefined;
-        }
-        return undefined;
-    }
-
-    private static getLastUserTaskContext(history: Content[]): string | undefined {
-        for (let i = history.length - 1; i >= 0; i--) {
-            const msg = history[i];
-            if (!msg || msg.role !== 'user') continue;
-            if ((msg as any).isFunctionResponse === true) continue;
-            if ((msg as any).isSummary === true) continue;
-            const ctx = (msg as any).taskContext;
-            if (typeof ctx !== 'string') return undefined;
-            const trimmed = ctx.trim();
-            return trimmed ? trimmed : undefined;
-        }
-        return undefined;
-    }
 
     /**
      * 识别对话回合
@@ -81,44 +53,7 @@ export class ContextTrimService {
      * @returns 回合列表
      */
     identifyRounds(history: Content[]): ConversationRound[] {
-        const rounds: ConversationRound[] = [];
-        let currentRoundStart = -1;
-        let currentRoundTokenCount: number | undefined;
-        
-        for (let i = 0; i < history.length; i++) {
-            const message = history[i];
-            
-            if (message.role === 'user' && !message.isFunctionResponse) {
-                // 找到一个非函数响应的用户消息，这是一个新回合的开始
-                if (currentRoundStart !== -1) {
-                    // 保存上一个回合
-                    rounds.push({
-                        startIndex: currentRoundStart,
-                        endIndex: i,
-                        tokenCount: currentRoundTokenCount
-                    });
-                }
-                // 开始新回合
-                currentRoundStart = i;
-                currentRoundTokenCount = undefined;
-            } else if (message.role === 'model') {
-                // 记录助手消息的 token 数
-                if (message.usageMetadata?.totalTokenCount !== undefined) {
-                    currentRoundTokenCount = message.usageMetadata.totalTokenCount;
-                }
-            }
-        }
-        
-        // 保存最后一个回合
-        if (currentRoundStart !== -1) {
-            rounds.push({
-                startIndex: currentRoundStart,
-                endIndex: history.length,
-                tokenCount: currentRoundTokenCount
-            });
-        }
-        
-        return rounds;
+        return identifyConversationRounds(history);
     }
 
     /**
@@ -133,20 +68,7 @@ export class ContextTrimService {
      * @returns 计算后的阈值
      */
     calculateThreshold(threshold: number | string, maxContextTokens: number): number {
-        if (typeof threshold === 'number') {
-            return threshold;
-        }
-        
-        // 百分比格式，如 "80%"
-        if (threshold.endsWith('%')) {
-            const percent = parseFloat(threshold.replace('%', ''));
-            if (!isNaN(percent) && percent > 0 && percent <= 100) {
-                return Math.floor(maxContextTokens * percent / 100);
-            }
-        }
-        
-        // 默认返回 80% 的最大上下文
-        return Math.floor(maxContextTokens * 0.8);
+        return calculateContextThreshold(threshold, maxContextTokens);
     }
 
     /**
@@ -156,12 +78,7 @@ export class ContextTrimService {
      * @returns 最后一个总结消息的索引，如果没有则返回 -1
      */
     findLastSummaryIndex(history: Content[]): number {
-        for (let i = history.length - 1; i >= 0; i--) {
-            if (history[i].isSummary) {
-                return i;
-            }
-        }
-        return -1;
+        return findLastSummaryIndexInHistory(history);
     }
 
     /**
@@ -281,13 +198,19 @@ export class ContextTrimService {
         // Selection References 不再注入到 system prompt，而是作为本轮 user message 的前缀发送（request-only）。
         // 这里将其 token 计入“当前 user message”，避免裁剪/阈值判断偏差。
         const selectionReferencesBlock = getSelectionReferencesBlock(
-            selectionReferences ?? ContextTrimService.getLastUserSelectionReferences(fullHistory)
+            selectionReferences ?? getLastUserSelectionReferences(fullHistory)
         );
         const selectionReferencesTokens = selectionReferencesBlock ? Math.ceil(selectionReferencesBlock.length / 4) : 0;
 
-        const taskContextText = ContextTrimService.getLastUserTaskContext(fullHistory);
+        const taskContextText = getLastUserTaskContext(fullHistory);
         const taskContextBlock = taskContextText ? `====\n\nTASK CONTEXT\n\n${taskContextText}` : '';
         const taskContextTokens = taskContextBlock ? Math.ceil(taskContextBlock.length / 4) : 0;
+
+        const openFileContextText = getLastUserOpenFileContext(fullHistory);
+        const openFileContextBlock = openFileContextText
+            ? (openFileContextText.startsWith('====') ? openFileContextText : `====\n\nOPEN FILE CONTEXT\n\n${openFileContextText}`)
+            : '';
+        const openFileContextTokens = openFileContextBlock ? Math.ceil(openFileContextBlock.length / 4) : 0;
         
         // 计算从 effectiveStartIndex 开始的消息 token 数
         // 这是解决上下文振荡问题的关键：使用累加的单条消息 token 数，而不是 API 返回的累计值
@@ -354,7 +277,8 @@ export class ContextTrimService {
             sendCurrentThoughtSignatures,
             systemPromptTokens,
             selectionReferencesTokens,
-            taskContextTokens
+            taskContextTokens,
+            openFileContextTokens
         );
         
         estimatedTotalTokens = tokenAccumulationResult.estimatedTotalTokens;
@@ -391,7 +315,8 @@ export class ContextTrimService {
         }
         
         // 超过阈值，需要裁剪
-        const trimInfo = await this.performContextTrim(
+        const trimInfo = await performContextTrim(
+            this.conversationManager,
             conversationId,
             config,
             historyOptions,
@@ -427,7 +352,8 @@ export class ContextTrimService {
         sendCurrentThoughtSignatures: boolean,
         systemPromptTokens: number,
         selectionReferencesTokens: number,
-        taskContextTokens: number
+        taskContextTokens: number,
+        openFileContextTokens: number
     ): { estimatedTotalTokens: number; hasEstimatedTokens: boolean; roundTokenInfos: RoundTokenInfo[] } {
         let estimatedTotalTokens = systemPromptTokens;
         let hasEstimatedTokens = systemPromptTokens > 0;
@@ -466,7 +392,13 @@ export class ContextTrimService {
                     !message.isFunctionResponse
                         ? taskContextTokens
                         : 0;
-                estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens;
+                const extraOpenFileTokens =
+                    openFileContextTokens > 0 &&
+                    i === lastNonFunctionResponseUserIndex &&
+                    !message.isFunctionResponse
+                        ? openFileContextTokens
+                        : 0;
+                estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens + extraOpenFileTokens;
                 hasEstimatedTokens = true;
             } else if (message.role === 'model' && message.usageMetadata) {
                 // model 消息：根据用户配置、消息内容和回合位置决定是否计算思考 token
@@ -513,87 +445,6 @@ export class ContextTrimService {
         }
         
         return { estimatedTotalTokens, hasEstimatedTokens, roundTokenInfos };
-    }
-
-    /**
-     * 执行上下文裁剪
-     */
-    private async performContextTrim(
-        conversationId: string,
-        config: BaseChannelConfig,
-        historyOptions: GetHistoryOptions,
-        effectiveStartIndex: number,
-        estimatedTotalTokens: number,
-        systemPromptTokens: number,
-        roundsAfterStart: RoundTokenInfo[],
-        threshold: number,
-        maxContextTokens: number
-    ): Promise<ContextTrimInfo> {
-        // 至少需要保留当前回合（最后一个回合）
-        if (roundsAfterStart.length <= 1) {
-            const history = await this.conversationManager.getHistoryForAPI(conversationId, {
-                ...historyOptions,
-                startIndex: effectiveStartIndex
-            });
-            return { history, trimStartIndex: effectiveStartIndex };
-        }
-        
-        // 计算额外裁剪的 token 数
-        const extraCutConfig = config.contextTrimExtraCut ?? 0;
-        const extraCut = this.calculateThreshold(extraCutConfig, maxContextTokens);
-        
-        // 实际保留目标 = 阈值 - 额外裁剪（裁剪更多）
-        const targetTokens = Math.max(0, threshold - extraCut);
-        
-        // 使用自计算的累计 token 数来计算需要跳过多少回合
-        let roundsToSkip = 0;
-        
-        // 从 k=1 开始尝试，k 表示要跳过的回合数（从第 k 个回合开始保留）
-        for (let k = 1; k < roundsAfterStart.length; k++) {
-            const skippedTokens = roundsAfterStart[k - 1].cumulativeTokens - systemPromptTokens;
-            const remainingTokens = estimatedTotalTokens - skippedTokens;
-            
-            if (remainingTokens <= targetTokens) {
-                roundsToSkip = k;
-                break;
-            }
-        }
-        
-        // 如果遍历完还没找到合适的裁剪点，且总 token 超过阈值，只保留最后一个回合
-        if (roundsToSkip === 0 && estimatedTotalTokens > targetTokens) {
-            roundsToSkip = roundsAfterStart.length - 1;
-        }
-        
-        if (roundsToSkip === 0) {
-            // 不需要额外裁剪，返回从起始索引开始的历史
-            const history = await this.conversationManager.getHistoryForAPI(conversationId, {
-                ...historyOptions,
-                startIndex: effectiveStartIndex
-            });
-            return { history, trimStartIndex: effectiveStartIndex };
-        }
-        
-        // 计算在原始历史中的起始索引
-        const trimStartIndex = roundsAfterStart[roundsToSkip].startIndex;
-        
-        // 使用 startIndex 选项获取裁剪后的历史
-        let trimmedHistory = await this.conversationManager.getHistoryForAPI(conversationId, {
-            ...historyOptions,
-            startIndex: trimStartIndex
-        });
-        let finalTrimStartIndex = trimStartIndex;
-        
-        // 确保历史以 user 消息开始（Gemini API 要求）
-        if (trimmedHistory.length > 0 && trimmedHistory[0].role !== 'user') {
-            const firstUserIndex = trimmedHistory.findIndex(m => m.role === 'user');
-            if (firstUserIndex > 0) {
-                trimmedHistory = trimmedHistory.slice(firstUserIndex);
-                // 调整起始索引
-                finalTrimStartIndex = trimStartIndex + firstUserIndex;
-            }
-        }
-        
-        return { history: trimmedHistory, trimStartIndex: finalTrimStartIndex };
     }
 
     /**

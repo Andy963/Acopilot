@@ -29,6 +29,8 @@ interface CheckpointConfig {
   afterTools: string[]
   messageCheckpoint?: MessageCheckpointConfig
   maxCheckpoints: number
+  cleanupExpiredConversationsOnStartup?: boolean
+  expiredConversationRetentionDays?: number
   customIgnorePatterns?: string[]
 }
 
@@ -77,7 +79,9 @@ const config = reactive<CheckpointConfig>({
     modelOuterLayerOnly: true,
     mergeUnchangedCheckpoints: true
   },
-  maxCheckpoints: -1  // -1 表示无上限
+  maxCheckpoints: -1,  // -1 表示无上限
+  cleanupExpiredConversationsOnStartup: false,
+  expiredConversationRetentionDays: 30
 })
 
 // 所有可用的工具列表
@@ -153,6 +157,8 @@ async function updateConfigField(field: keyof CheckpointConfig, value: any) {
       afterTools: [...config.afterTools],
       messageCheckpoint: messageCheckpointToSave,
       maxCheckpoints: config.maxCheckpoints,
+      cleanupExpiredConversationsOnStartup: config.cleanupExpiredConversationsOnStartup ?? false,
+      expiredConversationRetentionDays: config.expiredConversationRetentionDays ?? 30,
       customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : []
     }
     
@@ -736,6 +742,7 @@ onMounted(() => {
           />
           <span class="hint">{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.hint') }}</span>
         </div>
+
       </div>
       
       <div class="divider"></div>
@@ -749,6 +756,15 @@ onMounted(() => {
         <p class="setting-description">
           {{ t('components.settings.checkpoint.sections.cleanup.description') }}
         </p>
+
+        <div class="form-row">
+          <CustomCheckbox
+            :modelValue="config.cleanupExpiredConversationsOnStartup ?? false"
+            :label="t('components.settings.checkpoint.sections.other.autoCleanup.label')"
+            :hint="t('components.settings.checkpoint.sections.other.autoCleanup.hint')"
+            @update:modelValue="(val: boolean) => updateConfigField('cleanupExpiredConversationsOnStartup', val)"
+          />
+        </div>
         
         <!-- 搜索框 -->
         <div class="search-box">
@@ -902,4 +918,5 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped src="./CheckpointSettings.css"></style>
+<style scoped src="./CheckpointSettings.part1.css"></style>
+<style scoped src="./CheckpointSettings.part2.css"></style>

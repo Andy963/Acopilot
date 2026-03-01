@@ -1,0 +1,218 @@
+.generate-image-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 功能说明 */
+.feature-description {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--vscode-textBlockQuote-background);
+  border-left: 3px solid var(--vscode-textLink-foreground);
+  border-radius: 0 4px 4px 0;
+}
+
+.feature-description .codicon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--vscode-textLink-foreground);
+}
+
+.feature-description p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  line-height: 1.5;
+}
+
+/* 分区 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.section-title .codicon {
+  font-size: 14px;
+}
+
+/* 表单组 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"] {
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-group input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* 带操作按钮的输入框 */
+.input-with-action {
+  display: flex;
+  gap: 4px;
+}
+
+.input-with-action input {
+  flex: 1;
+}
+
+.input-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  padding: 0;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.input-action-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* 使用说明 */
+.usage-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.note-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.note-text {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  line-height: 20px;
+}
+
+/* 警告提示 */
+.warning-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--vscode-inputValidation-warningBackground);
+  border: 1px solid var(--vscode-inputValidation-warningBorder);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  margin-top: 8px;
+}
+
+.warning-hint .codicon {
+  font-size: 14px;
+  color: var(--vscode-list-warningForeground);
+}
+
+/* 数字输入框 */
+.form-group input[type="number"] {
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100px;
+  /* 隐藏右侧上下箭头 */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* 隐藏右侧上下箭头 - Chrome, Safari, Edge, Opera */
+.form-group input[type="number"]::-webkit-outer-spin-button,
+.form-group input[type="number"]::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.form-group input[type="number"]:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* 限制摘要 */
+.limits-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--vscode-textBlockQuote-background);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  margin-top: 4px;
+}
+
+.limits-summary .codicon {
+  font-size: 14px;
+  color: var(--vscode-textLink-foreground);
+}
+
+/* 禁用状态 */
+.form-group.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

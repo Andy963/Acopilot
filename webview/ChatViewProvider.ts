@@ -37,6 +37,7 @@ import {
 } from '../backend/core/settingsContext';
 import { DiffStorageManager } from '../backend/modules/conversation';
 import { MessageRouter } from './MessageRouter';
+import { initializeChatBackend } from './chatBackendInitializer';
 import type { HandlerContext, DiffPreviewContentProvider as IDiffPreviewContentProvider } from './types';
 import { isRecord, parseWebviewRequest } from './protocol';
 
@@ -129,147 +130,36 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
      * 初始化后端模块
      */
     private async initializeBackend() {
-        // 1. 初始化设置管理器（需要最先初始化以获取存储路径配置）
-        const settingsStorageDir = path.join(this.context.globalStorageUri.fsPath, 'settings');
-        const settingsStorage = new FileSettingsStorage(settingsStorageDir);
-        this.settingsManager = new SettingsManager(settingsStorage);
-        await this.settingsManager.initialize();
-
-        // 2. 初始化存储路径管理器
-        this.storagePathManager = new StoragePathManager(this.settingsManager, this.context);
-        await this.storagePathManager.ensureDirectories();
-
-        // 3. 获取有效的数据存储路径（可能是自定义路径）
-        const effectiveDataUri = this.storagePathManager.getEffectiveDataUri();
-
-        // 4. 初始化存储适配器（使用文件系统存储，避免 globalState 过大）
-        const storageAdapter = new FileSystemStorageAdapter(vscode, effectiveDataUri);
-
-        // 5. 初始化 Diff 存储管理器（用于 apply_diff 的大文件内容抽离）
-        this.diffStorageManager = DiffStorageManager.initialize(this.storagePathManager.getEffectiveDataPath());
-        setGlobalDiffStorageManager(this.diffStorageManager);
-
-        // 6. 初始化对话管理器
-        this.conversationManager = new ConversationManager(storageAdapter);
-
-        // 7. 初始化配置管理器（使用Memento存储）
-        const configStorage = new MementoStorageAdapter(
-            this.context.globalState,
-            'acopilot.configs'
-        );
-        this.configManager = new ConfigManager(configStorage, this.context.secrets);
-
-        // 8. 创建默认配置（如果不存在）
-        await this.ensureDefaultConfig();
-
-        // 9. 同步语言设置到后端 i18n
-        this.syncLanguageToBackend();
-
-        // 10. 设置全局上下文引用（供工具和其他模块访问）
-        setGlobalSettingsManager(this.settingsManager);
-        setGlobalConfigManager(this.configManager);
-        setGlobalToolRegistry(toolRegistry);
-
-        // 11. 注册所有工具到工具注册器（必须在 ChannelManager 之前）
-        registerAllTools(toolRegistry);
-
-        // 12. 初始化渠道管理器（传入工具注册器和设置管理器）
-        this.channelManager = new ChannelManager(this.configManager, toolRegistry, this.settingsManager);
-
-        // 13. 设置重试状态回调
-        this.channelManager.setRetryStatusCallback((status) => {
-            this.handleRetryStatus(status);
+        const backend = await initializeChatBackend({
+            context: this.context,
+            onRetryStatus: (status) => this.handleRetryStatus(status),
+            onTerminalOutputEvent: (event) => this.handleTerminalOutputEvent(event),
+            onImageGenOutputEvent: (event) => this.handleImageGenOutputEvent(event),
+            onTaskEvent: (event) => this.handleTaskEvent(event),
+            onDependencyProgressEvent: (event) => this.handleDependencyProgressEvent(event),
+            getView: () => this._view,
+            sendResponse: this.sendResponse.bind(this),
+            sendError: this.sendError.bind(this)
         });
 
-        // 14. 设置全局渠道管理器引用
-        setGlobalChannelManager(this.channelManager);
+        this.configManager = backend.configManager;
+        this.channelManager = backend.channelManager;
+        this.conversationManager = backend.conversationManager;
+        this.chatHandler = backend.chatHandler;
+        this.modelsHandler = backend.modelsHandler;
+        this.settingsManager = backend.settingsManager;
+        this.settingsHandler = backend.settingsHandler;
+        this.checkpointManager = backend.checkpointManager;
+        this.mcpManager = backend.mcpManager;
+        this.dependencyManager = backend.dependencyManager;
+        this.storagePathManager = backend.storagePathManager;
+        this.diffStorageManager = backend.diffStorageManager;
+        this.messageRouter = backend.messageRouter;
 
-        // 15. 初始化检查点管理器（使用自定义路径）
-        this.checkpointManager = new CheckpointManager(
-            this.settingsManager,
-            this.conversationManager,
-            this.context,
-            this.storagePathManager.getEffectiveDataPath()
-        );
-        await this.checkpointManager.initialize();
-
-        // 16. 初始化聊天处理器（传入工具注册器和检查点管理器）
-        this.chatHandler = new ChatHandler(
-            this.configManager,
-            this.channelManager,
-            this.conversationManager,
-            toolRegistry
-        );
-        this.chatHandler.setCheckpointManager(this.checkpointManager);
-        this.chatHandler.setSettingsManager(this.settingsManager);
-        this.chatHandler.setDiffStorageManager(this.diffStorageManager);
-
-        // 17. 初始化模型管理处理器
-        this.modelsHandler = new ModelsHandler(this.configManager);
-
-        // 18. 初始化设置处理器（传入工具注册器）
-        this.settingsHandler = new SettingsHandler(this.settingsManager, toolRegistry);
-
-        // 19. 订阅终端输出事件
-        this.terminalOutputUnsubscribe = onTerminalOutput((event) => {
-            this.handleTerminalOutputEvent(event);
-        });
-
-        // 20. 订阅图像生成输出事件
-        this.imageGenOutputUnsubscribe = onImageGenOutput((event) => {
-            this.handleImageGenOutputEvent(event);
-        });
-
-        // 21. 订阅统一任务事件（用于未来扩展）
-        this.taskEventUnsubscribe = TaskManager.onTaskEvent((event) => {
-            this.handleTaskEvent(event);
-        });
-
-        // 22. 初始化 MCP 管理器（使用自定义路径下的 mcp 目录）
-        const mcpConfigDir = vscode.Uri.file(this.storagePathManager.getMcpPath());
-        try {
-            await vscode.workspace.fs.stat(mcpConfigDir);
-        } catch {
-            await vscode.workspace.fs.createDirectory(mcpConfigDir);
-        }
-        const mcpConfigFile = vscode.Uri.joinPath(mcpConfigDir, 'servers.json');
-        const mcpStorage = new VSCodeFileSystemMcpStorageAdapter(mcpConfigFile, vscode.workspace.fs);
-        this.mcpManager = new McpManager(mcpStorage, this.context.secrets);
-        await this.mcpManager.initialize();
-
-        // 23. 将 MCP 管理器连接到 ChannelManager（用于工具声明）
-        this.channelManager.setMcpManager(this.mcpManager);
-
-        // 24. 将 MCP 管理器连接到 ChatHandler（用于工具调用）
-        this.chatHandler.setMcpManager(this.mcpManager);
-
-        // 25. 初始化依赖管理器（使用自定义路径）
-        this.dependencyManager = DependencyManager.getInstance(
-            this.context,
-            this.storagePathManager.getDependenciesPath()
-        );
-        await this.dependencyManager.initialize();
-
-        // 26. 设置依赖检查器到工具注册器（用于过滤未安装依赖的工具）
-        toolRegistry.setDependencyChecker({
-            isInstalled: (name: string) => this.dependencyManager.isInstalledSync(name)
-        });
-
-        // 27. 订阅依赖安装进度事件
-        this.dependencyProgressUnsubscribe = this.dependencyManager.onProgress((event) => {
-            this.handleDependencyProgressEvent(event);
-        });
-
-        // 28. 初始化消息路由器
-        this.messageRouter = new MessageRouter(
-            this.chatHandler,
-            () => this._view,
-            this.sendResponse.bind(this),
-            this.sendError.bind(this)
-        );
-
-        debugLog('Acopilot backend initialized with global context');
-        debugLog('Effective data path:', this.storagePathManager.getEffectiveDataPath());
+        this.terminalOutputUnsubscribe = backend.terminalOutputUnsubscribe;
+        this.imageGenOutputUnsubscribe = backend.imageGenOutputUnsubscribe;
+        this.taskEventUnsubscribe = backend.taskEventUnsubscribe;
+        this.dependencyProgressUnsubscribe = backend.dependencyProgressUnsubscribe;
     }
 
     /**
@@ -336,51 +226,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             type: 'retryStatus',
             data: status
         });
-    }
-
-    /**
-     * 确保至少存在一个默认配置，并保证 activeChannelId 指向有效配置。
-     *
-     * 重要：不要因为缺少某个固定 ID（如 gemini-pro）就“自动补回”，
-     * 否则用户删除默认供应商后会在下次启动时被重新创建。
-     */
-    private async ensureDefaultConfig() {
-        try {
-            // 1) 仅当完全没有任何配置时才创建默认配置
-            const existingConfigs = await this.configManager.listConfigs();
-            if (existingConfigs.length === 0) {
-                const config = {
-                    id: 'gemini-pro',
-                    type: 'gemini' as const,
-                    name: 'Gemini(Default)',
-                    apiKey: process.env.GEMINI_API_KEY || '',
-                    url: 'https://generativelanguage.googleapis.com/v1beta',
-                    model: 'gemini-3-pro-preview',
-                    timeout: 120000,
-                    enabled: true,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now()
-                };
-
-                const storage = (this.configManager as any).storageAdapter;
-                await storage.save(config);
-
-                // 触发 ConfigManager 重新加载
-                (this.configManager as any).loaded = false;
-            }
-
-            // 2) 修正 activeChannelId：如果为空或指向不存在的配置，则选择第一个可用配置
-            const configs = await this.configManager.listConfigs();
-            if (configs.length > 0) {
-                const activeId = this.settingsManager.getActiveChannelId();
-                const activeExists = !!activeId && configs.some(c => c.id === activeId);
-                if (!activeExists) {
-                    await this.settingsManager.setActiveChannelId(configs[0].id);
-                }
-            }
-        } catch (error) {
-            console.error('Failed to ensure default config:', error);
-        }
     }
 
     public resolveWebviewView(

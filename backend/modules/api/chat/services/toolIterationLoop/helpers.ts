@@ -287,11 +287,59 @@ export function getLastUserTaskContext(history: Content[]): string | undefined {
     return undefined;
 }
 
+export function getLastUserOpenFileContext(history: Content[]): string | undefined {
+    for (let i = history.length - 1; i >= 0; i--) {
+        const msg = history[i];
+        if (!msg || msg.role !== 'user') continue;
+        if ((msg as any).isFunctionResponse === true) continue;
+        if ((msg as any).isSummary === true) continue;
+        const ctx = (msg as any).openFileContext;
+        if (typeof ctx !== 'string') return undefined;
+        const trimmed = ctx.trim();
+        return trimmed ? trimmed : undefined;
+    }
+    return undefined;
+}
+
 export function injectTaskContextIntoHistory(history: Content[], taskContext: string | undefined): Content[] {
     const raw = typeof taskContext === 'string' ? taskContext.trim() : '';
     if (!raw) return history;
 
     const injectedText = `====\n\nTASK\n\n${raw}`;
+    for (let i = history.length - 1; i >= 0; i--) {
+        const msg = history[i];
+        if (!msg || msg.role !== 'user') continue;
+        if ((msg as any).isFunctionResponse === true) continue;
+        if ((msg as any).isSummary === true) continue;
+        if (!Array.isArray(msg.parts)) continue;
+
+        const parts = msg.parts.map((p) => ({ ...p }));
+        const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
+
+        if (firstTextIndex >= 0) {
+            const originalText = (parts[firstTextIndex] as any).text ?? '';
+            const nextText = originalText.trim()
+                ? `${injectedText}\n\n${originalText}`
+                : injectedText;
+            parts[firstTextIndex] = { ...(parts[firstTextIndex] as any), text: nextText };
+        } else {
+            parts.unshift({ text: injectedText });
+        }
+
+        const updated: Content = { ...msg, parts };
+        const nextHistory = history.slice();
+        nextHistory[i] = updated;
+        return nextHistory;
+    }
+
+    return history;
+}
+
+export function injectOpenFileContextIntoHistory(history: Content[], openFileContext: string | undefined): Content[] {
+    const raw = typeof openFileContext === 'string' ? openFileContext.trim() : '';
+    if (!raw) return history;
+
+    const injectedText = raw.startsWith('====') ? raw : `====\n\nOPEN FILE CONTEXT\n\n${raw}`;
     for (let i = history.length - 1; i >= 0; i--) {
         const msg = history[i];
         if (!msg || msg.role !== 'user') continue;

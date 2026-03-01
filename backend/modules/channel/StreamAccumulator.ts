@@ -7,18 +7,10 @@
 
 import type { Content, ContentPart, UsageMetadata, ThoughtSignatures } from '../conversation/types';
 import type { StreamChunk, StreamUsageMetadata } from './types';
-import type { ToolMode } from '../config/configs/base';
-import { parseXMLToolCalls } from '../../tools/xmlFormatter';
-import { getGlobalSettingsManager, getGlobalConfigManager } from '../../core/settingsContext';
-import { debugLog } from '../../core/logger';
-
-// JSON 工具调用边界标记
-const TOOL_CALL_START = '<<<TOOL_CALL>>>';
-const TOOL_CALL_END = '<<<END_TOOL_CALL>>>';
-
-// XML 工具调用标记
-const XML_TOOL_START = '<tool_use>';
-const XML_TOOL_END = '</tool_use>';
+import { buildStreamAccumulatorContent } from './streamAccumulator/buildContent';
+import { extractToolCallsFromParts } from './streamAccumulator/extractToolCalls';
+import { handleFunctionCallPart } from './streamAccumulator/handleFunctionCallPart';
+import { getStreamAccumulatorToolMode } from './streamAccumulator/getToolMode';
 
 /**
  * 流式累加器
@@ -74,33 +66,6 @@ export class StreamAccumulator {
     
     /** 请求开始时间戳（毫秒） - 由外部设置 */
     private requestStartTime?: number;
-    
-    /**
-     * 获取工具模式
-     * 优先使用当前激活渠道的 toolMode，否则使用全局默认
-     */
-    private getToolMode(): ToolMode {
-        const settingsManager = getGlobalSettingsManager();
-        const configManager = getGlobalConfigManager();
-        
-        if (settingsManager && configManager) {
-            const activeChannelId = settingsManager.getActiveChannelId();
-            if (activeChannelId) {
-                // 同步获取配置（配置已在缓存中）
-                // 注意：getConfig 是异步的，但这里我们需要同步获取
-                // 使用内部缓存直接访问
-                const configCache = (configManager as any).configCache as Map<string, any>;
-                const config = configCache?.get(activeChannelId);
-                if (config?.toolMode) {
-                    return config.toolMode;
-                }
-            }
-            // 使用全局默认工具模式
-            return settingsManager.getDefaultToolMode();
-        }
-        
-        return 'function_call';
-    }
     
     /**
      * 添加流式响应块
@@ -199,124 +164,14 @@ export class StreamAccumulator {
             Object.assign(this.thoughtSignatures, part.thoughtSignatures);
         }
         
-        const isFunctionCall = !!(part as any).functionCall;
-        
         // 处理非文本 part
         if (!('text' in part)) {
             if (part.functionCall) {
-                const fc = part.functionCall as any;
-                
-                debugLog('[Accumulator] Received FC part:', JSON.stringify({
-                    index: fc.index,
-                    id: fc.id,
-                    name: fc.name,
-                    partialArgs: fc.partialArgs,
-                    existingPartsCount: this.parts.length,
-                    existingFCIndices: this.parts.filter(p => p.functionCall).map(p => (p.functionCall as any).index)
-                }));
-                
-                // 倒序搜索现有的 parts，寻找可以合并的工具调用块
-                // 解决并行调用或中间穿插其他消息导致的 lastPart 匹配失败问题
-                for (let i = this.parts.length - 1; i >= 0; i--) {
-                    const existingPart = this.parts[i];
-                    if (!existingPart.functionCall) continue;
-                    
-                    const lastFc = existingPart.functionCall as any;
-                    
-                    // 优化合并判断逻辑
-                    let canMerge = false;
-                    
-                    // OpenAI 模式：优先使用 index 匹配（数字类型，包括 0）
-                    if (typeof fc.index === 'number' && typeof lastFc.index === 'number') {
-                        canMerge = fc.index === lastFc.index;
-                        debugLog(`[Accumulator] Index match check: fc.index=${fc.index}, lastFc.index=${lastFc.index}, canMerge=${canMerge}`);
-                    }
-                    // Anthropic 模式：使用 id 标识
-                    else if (fc.id && lastFc.id) {
-                        canMerge = fc.id === lastFc.id;
-                        debugLog(`[Accumulator] ID match check: fc.id=${fc.id}, lastFc.id=${lastFc.id}, canMerge=${canMerge}`);
-                    }
-                    // 纯增量模式：没有 id 也没有 index，但有 partialArgs，且是最后一个 FC
-                    else if (!fc.id && typeof fc.index !== 'number' && fc.partialArgs !== undefined && i === this.parts.length - 1) {
-                        canMerge = true;
-                        debugLog(`[Accumulator] Pure increment mode, canMerge=true`);
-                    } else {
-                        debugLog(`[Accumulator] No match: fc.index=${fc.index}(${typeof fc.index}), lastFc.index=${lastFc.index}(${typeof lastFc.index}), fc.id=${fc.id}, lastFc.id=${lastFc.id}`);
-                    }
-                    
-                    if (canMerge) {
-                        debugLog(`[Accumulator] Merging into existing FC at index ${i}`);
-                        // 合并名称（如果有）
-                        if (fc.name && !lastFc.name) {
-                            lastFc.name = fc.name;
-                        }
-                        // 合并 ID（如果有）
-                        if (fc.id && !lastFc.id) {
-                            lastFc.id = fc.id;
-                        }
-                        // 合并 index（如果有）
-                        if (typeof fc.index === 'number' && typeof lastFc.index !== 'number') {
-                            lastFc.index = fc.index;
-                        }
-                        // 合并思考签名等其他属性
-                        if (part.thoughtSignatures) {
-                            existingPart.thoughtSignatures = { 
-                                ...(existingPart.thoughtSignatures || {}), 
-                                ...part.thoughtSignatures 
-                            };
-                        }
-                        if ((part as any).thoughtSignature) {
-                            existingPart.thoughtSignatures = {
-                                ...(existingPart.thoughtSignatures || {}),
-                                [this.providerType]: (part as any).thoughtSignature
-                            };
-                        }
-                        // 合并 partialArgs
-                        if (fc.partialArgs !== undefined) {
-                            lastFc.partialArgs = (lastFc.partialArgs || '') + fc.partialArgs;
-                            debugLog(`[Accumulator] After merge, partialArgs length: ${lastFc.partialArgs.length}`);
-                            
-                            // 尝试解析完整的 JSON 参数
-                            if (lastFc.partialArgs.trim()) {
-                                try {
-                                    const parsed = JSON.parse(lastFc.partialArgs);
-                                    lastFc.args = parsed;
-                                    debugLog(`[Accumulator] Successfully parsed args:`, JSON.stringify(parsed));
-                                } catch (e) {
-                                    // 解析失败（JSON 不完整），继续等待更多增量
-                                }
-                            }
-                        }
-                        return; // 成功合并，直接返回
-                    }
-                }
-                
-                // 找不到可合并的块，作为新块添加
-                debugLog(`[Accumulator] No mergeable FC found, adding new FC part`);
-                // 添加前尝试解析初始参数
-                if (fc.partialArgs) {
-                    try {
-                        fc.args = JSON.parse(fc.partialArgs);
-                    } catch (e) {}
-                }
-                
-                // 构建新 Part，但排除 API 原始格式的 thoughtSignature（单数）
-                const { thoughtSignature: rawSignature, ...restPart } = part as any;
-                const newPart: ContentPart = { ...restPart };
-                // 确保 functionCall 是深拷贝的，且处理了 args
-                newPart.functionCall = { ...fc };
-                if (fc.args) newPart.functionCall.args = { ...fc.args };
-                
-                // 如果有 API 原始格式的 thoughtSignature，转换为 thoughtSignatures 格式
-                if (rawSignature) {
-                    newPart.thoughtSignatures = {
-                        ...(newPart.thoughtSignatures || {}),
-                        [this.providerType]: rawSignature
-                    };
-                }
-                
-                this.parts.push(newPart);
-                debugLog(`[Accumulator] After adding, parts count: ${this.parts.length}`);
+                handleFunctionCallPart({
+                    parts: this.parts,
+                    providerType: this.providerType,
+                    part
+                });
                 return;
             }
             
@@ -359,8 +214,10 @@ export class StreamAccumulator {
             
             if (lastIsThought === isThought) {
                 lastPart.text += part.text;
-                // 检测并转换完整的 JSON 工具调用
-                this.extractAndConvertToolCalls();
+                this.parts = extractToolCallsFromParts({
+                    toolMode: getStreamAccumulatorToolMode(),
+                    parts: this.parts
+                });
                 return;
             }
         }
@@ -376,140 +233,10 @@ export class StreamAccumulator {
             };
         }
         this.parts.push(textPart);
-        // 检测并转换完整的 JSON 工具调用
-        this.extractAndConvertToolCalls();
-    }
-    
-    /**
-     * 检测并转换文本中的工具调用标记为 functionCall
-     * 根据 toolMode 选择解析的格式：
-     * - 'xml': 解析 <tool_use>...</tool_use>
-     * - 'json': 解析 <<<TOOL_CALL>>>...<<<END_TOOL_CALL>>>
-     * - 'function_call': 不解析文本标记（由 API 返回 functionCall）
-     * 实时处理，让前端能立即显示工具调用组件
-     */
-    private extractAndConvertToolCalls(): void {
-        // 获取当前工具模式
-        const toolMode = this.getToolMode();
-        
-        // function_call 模式不需要解析文本标记
-        if (toolMode === 'function_call') {
-            return;
-        }
-        
-        const newParts: ContentPart[] = [];
-        
-        for (const part of this.parts) {
-            if (!('text' in part)) {
-                newParts.push(part);
-                continue;
-            }
-            
-            // 根据 toolMode 选择检查的标记
-            const hasJsonMarker = toolMode === 'json' && part.text.includes(TOOL_CALL_START);
-            const hasXmlMarker = toolMode === 'xml' && part.text.includes(XML_TOOL_START);
-            
-            if (!hasJsonMarker && !hasXmlMarker) {
-                newParts.push(part);
-                continue;
-            }
-            
-            let text = part.text;
-            const isThought = part.thought === true;
-            
-            // 循环提取所有完整的工具调用
-            // 根据 toolMode 只解析对应格式，避免误解析代码示例中的标记
-            while (true) {
-                if (toolMode === 'json') {
-                    // JSON 模式：只检查 JSON 格式标记
-                    const jsonStartIdx = text.indexOf(TOOL_CALL_START);
-                    const jsonEndIdx = text.indexOf(TOOL_CALL_END);
-                    
-                    if (jsonStartIdx === -1 || jsonEndIdx === -1 || jsonEndIdx <= jsonStartIdx) {
-                        break;
-                    }
-                    
-                    // 处理 JSON 格式
-                    const textBefore = text.substring(0, jsonStartIdx).trim();
-                    if (textBefore) {
-                        newParts.push(isThought ? { text: textBefore, thought: true } : { text: textBefore });
-                    }
-                    
-                    const jsonStart = jsonStartIdx + TOOL_CALL_START.length;
-                    const jsonStr = text.substring(jsonStart, jsonEndIdx).trim();
-                    
-                    try {
-                        const toolCall = JSON.parse(jsonStr);
-                        if (toolCall.tool && toolCall.parameters) {
-                            newParts.push({
-                                functionCall: {
-                                    name: toolCall.tool,
-                                    args: toolCall.parameters,
-                                    id: `fc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-                                }
-                            });
-                        } else {
-                            // 格式不正确，保留原文本
-                            newParts.push({ text: text.substring(jsonStartIdx, jsonEndIdx + TOOL_CALL_END.length) });
-                        }
-                    } catch {
-                        // JSON 解析失败，保留原文本
-                        newParts.push({ text: text.substring(jsonStartIdx, jsonEndIdx + TOOL_CALL_END.length) });
-                    }
-                    
-                    text = text.substring(jsonEndIdx + TOOL_CALL_END.length);
-                } else if (toolMode === 'xml') {
-                    // XML 模式：只检查 XML 格式标记
-                    const xmlStartIdx = text.indexOf(XML_TOOL_START);
-                    const xmlEndIdx = text.indexOf(XML_TOOL_END);
-                    
-                    if (xmlStartIdx === -1 || xmlEndIdx === -1 || xmlEndIdx <= xmlStartIdx) {
-                        break;
-                    }
-                    
-                    // 处理 XML 格式
-                    const textBefore = text.substring(0, xmlStartIdx).trim();
-                    if (textBefore) {
-                        newParts.push(isThought ? { text: textBefore, thought: true } : { text: textBefore });
-                    }
-                    
-                    const xmlContent = text.substring(xmlStartIdx, xmlEndIdx + XML_TOOL_END.length);
-                    
-                    try {
-                        const xmlCalls = parseXMLToolCalls(xmlContent);
-                        if (xmlCalls.length > 0) {
-                            for (const xmlCall of xmlCalls) {
-                                newParts.push({
-                                    functionCall: {
-                                        name: xmlCall.name,
-                                        args: xmlCall.args,
-                                        id: `fc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-                                    }
-                                });
-                            }
-                        } else {
-                            // 解析失败，保留原文本
-                            newParts.push({ text: xmlContent });
-                        }
-                    } catch {
-                        // XML 解析失败，保留原文本
-                        newParts.push({ text: xmlContent });
-                    }
-                    
-                    text = text.substring(xmlEndIdx + XML_TOOL_END.length);
-                } else {
-                    // 未知模式，退出循环
-                    break;
-                }
-            }
-            
-            // 添加剩余文本
-            if (text) {
-                newParts.push(isThought ? { text, thought: true } : { text });
-            }
-        }
-        
-        this.parts = newParts;
+        this.parts = extractToolCallsFromParts({
+            toolMode: getStreamAccumulatorToolMode(),
+            parts: this.parts
+        });
     }
     
     /**
@@ -518,109 +245,20 @@ export class StreamAccumulator {
      * @returns 完整的 Content 对象
      */
     getContent(): Content {
-        // 直接使用存储的 parts，只过滤掉空文本
-        // 同时清理掉仅用于流式过程的中间字段（如 index, partialArgs）
-        let parts = this.parts
-            .map(p => {
-                const part = { ...p };
-                if (part.functionCall) {
-                    const fc = { ...part.functionCall } as any;
-                    delete fc.index;
-                    delete fc.partialArgs;
-                    part.functionCall = fc;
-                }
-                return part;
-            })
-            .filter(p => {
-                // 保留非文本 part（functionCall 等）
-                if (!('text' in p) || p.functionCall) return true;
-                // 过滤空文本（但保留有意义的内容）
-                if ('text' in p && p.text === '' && !p.thought) return false;
-                return true;
-            });
-        
-        // 添加思考签名到 parts 中
-        // 如果有收集到的思考签名，需要作为单独的 part 添加
-        // 这样可以在后续发送给 API 时正确传递签名
-        if (Object.keys(this.thoughtSignatures).length > 0) {
-            // 检查 parts 中是否已经有包含 thoughtSignatures 的 part
-            const hasSignaturePart = parts.some(p => p.thoughtSignatures);
-            if (!hasSignaturePart) {
-                // 添加一个包含所有格式签名的 part
-                parts.push({ thoughtSignatures: { ...this.thoughtSignatures } });
-            }
-        }
-        
-        // 尝试解析所有未完成的 partialArgs
-        for (const p of parts) {
-            if (p.functionCall?.partialArgs && (!p.functionCall.args || Object.keys(p.functionCall.args).length === 0)) {
-                try {
-                    p.functionCall.args = JSON.parse(p.functionCall.partialArgs);
-                } catch (e) {
-                    // 仍然无法解析，忽略
-                }
-            }
-        }
-        
-        const content: Content = {
-            role: 'model',
-            parts
-        };
-        
-        // 添加模型版本
-        if (this.modelVersion) {
-            content.modelVersion = this.modelVersion;
-        }
-        
-        // 添加结束原因（如果有）
-        if (this.finishReason) {
-            content.finishReason = this.finishReason;
-        }
-        
-        // 添加完整的 usageMetadata
-        if (this.usageMetadata) {
-            content.usageMetadata = { ...this.usageMetadata };
-        }
-        
-        // 添加思考开始时间（用于前端实时显示）
-        if (this.thinkingStartTime !== undefined) {
-            content.thinkingStartTime = this.thinkingStartTime;
-        }
-        
-        // 添加思考持续时间
-        // 如果有思考内容但没有普通文本，在获取 Content 时计算最终持续时间
-        if (this.thinkingStartTime !== undefined) {
-            if (this.thinkingDuration !== undefined) {
-                content.thinkingDuration = this.thinkingDuration;
-            } else if (!this.hasReceivedNormalText) {
-                // 消息只有思考内容没有普通文本，使用当前时间计算
-                content.thinkingDuration = Date.now() - this.thinkingStartTime;
-            }
-        }
-        
-        // 添加流式统计信息
-        content.chunkCount = this.chunkCount;
-        if (this.firstChunkTime !== undefined) {
-            content.firstChunkTime = this.firstChunkTime;
-        }
-        
-        // 计算响应持续时间（从请求开始到最后一个块）
-        if (this.requestStartTime !== undefined && this.lastChunkTime !== undefined) {
-            content.responseDuration = this.lastChunkTime - this.requestStartTime;
-        } else if (this.requestStartTime !== undefined) {
-            // 如果还没收到任何块，使用当前时间
-            content.responseDuration = Date.now() - this.requestStartTime;
-        }
-        
-        // 计算流式持续时间（从第一个块到最后一个块）
-        if (this.firstChunkTime !== undefined && this.lastChunkTime !== undefined) {
-            content.streamDuration = this.lastChunkTime - this.firstChunkTime;
-        } else if (this.firstChunkTime !== undefined) {
-            // 如果只收到第一个块，使用当前时间
-            content.streamDuration = Date.now() - this.firstChunkTime;
-        }
-        
-        return content;
+        return buildStreamAccumulatorContent({
+            parts: this.parts,
+            thoughtSignatures: this.thoughtSignatures,
+            modelVersion: this.modelVersion,
+            finishReason: this.finishReason,
+            usageMetadata: this.usageMetadata,
+            thinkingStartTime: this.thinkingStartTime,
+            thinkingDuration: this.thinkingDuration,
+            hasReceivedNormalText: this.hasReceivedNormalText,
+            chunkCount: this.chunkCount,
+            firstChunkTime: this.firstChunkTime,
+            lastChunkTime: this.lastChunkTime,
+            requestStartTime: this.requestStartTime
+        });
     }
     
     /**

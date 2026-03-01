@@ -12,11 +12,13 @@ import type { ChannelConfig, TokenCountMethod, TokenCountApiConfig } from '../co
 import { cleanContentForAPI } from '../conversation/helpers';
 import type { TokenCountResult as TokenCountResultType } from './tokenCount/types';
 import { countOpenAIResponsesTokens, countOpenAITokens } from './tokenCount/openai';
+import { countAnthropicTokensWithConfig } from './tokenCount/channelConfigAnthropic';
+import { countGeminiTokensWithConfig } from './tokenCount/channelConfigGemini';
+import { countOpenAICompatibleTokensWithConfig } from './tokenCount/channelConfigOpenAICompatible';
+import { countOpenAIResponsesTokensWithConfig } from './tokenCount/channelConfigOpenAIResponses';
 import {
     decodeBase64ToUtf8,
     formatTextAttachment,
-    formatUnsupportedAttachment,
-    isImageMimeType,
     isTextMimeType
 } from './formatters/inlineDataUtils';
 
@@ -139,13 +141,33 @@ export class TokenCountService {
         try {
             switch (actualMethod) {
                 case 'gemini':
-                    return await this.countGeminiTokensWithConfig(channelConfig, apiConfig, contents);
+                    return await countGeminiTokensWithConfig({
+                        proxyUrl: this.proxyUrl,
+                        channelConfig,
+                        apiConfig,
+                        contents
+                    });
                 case 'openai_custom':
-                    return await this.countOpenAITokensWithConfig(channelConfig, apiConfig, contents);
+                    return await countOpenAICompatibleTokensWithConfig({
+                        proxyUrl: this.proxyUrl,
+                        channelConfig,
+                        apiConfig,
+                        contents
+                    });
                 case 'openai_responses':
-                    return await this.countOpenAIResponsesTokensWithConfig(channelConfig, apiConfig, contents);
+                    return await countOpenAIResponsesTokensWithConfig({
+                        proxyUrl: this.proxyUrl,
+                        channelConfig,
+                        apiConfig,
+                        contents
+                    });
                 case 'anthropic':
-                    return await this.countAnthropicTokensWithConfig(channelConfig, apiConfig, contents);
+                    return await countAnthropicTokensWithConfig({
+                        proxyUrl: this.proxyUrl,
+                        channelConfig,
+                        apiConfig,
+                        contents
+                    });
                 case 'local':
                     return this.countLocalTokens(contents);
                 default:
@@ -181,451 +203,6 @@ export class TokenCountService {
         return {
             success: true,
             totalTokens: Math.ceil(totalChars / 4)
-        };
-    }
-    
-    /**
-     * 使用渠道配置调用 Gemini Token 计数
-     */
-    private async countGeminiTokensWithConfig(
-        channelConfig: ChannelConfig,
-        apiConfig: TokenCountApiConfig | undefined,
-        contents: Content[]
-    ): Promise<TokenCountResult> {
-        // 使用独立配置或渠道配置
-        const url = apiConfig?.url || channelConfig.url;
-        const apiKey = apiConfig?.apiKey || channelConfig.apiKey;
-        const model = apiConfig?.model || channelConfig.model;
-        
-        if (!url || !apiKey || !model) {
-            return {
-                success: false,
-                error: 'Gemini token count: URL, API key or model not configured'
-            };
-        }
-        
-        // 构建 countTokens URL
-        // 将 generateContent 或其他端点替换为 countTokens
-        let countUrl: string;
-        if (url.includes('{model}') && url.includes('{key}')) {
-            // 使用模板格式
-            countUrl = url
-                .replace('{model}', model)
-                .replace('{key}', apiKey);
-        } else if (url.includes(':generateContent')) {
-            // 替换 generateContent 为 countTokens
-            countUrl = url.replace(':generateContent', ':countTokens');
-            if (!countUrl.includes('key=')) {
-                countUrl += (countUrl.includes('?') ? '&' : '?') + `key=${apiKey}`;
-            }
-        } else if (url.includes(':streamGenerateContent')) {
-            // 替换 streamGenerateContent 为 countTokens
-            countUrl = url.replace(':streamGenerateContent', ':countTokens');
-            if (!countUrl.includes('key=')) {
-                countUrl += (countUrl.includes('?') ? '&' : '?') + `key=${apiKey}`;
-            }
-        } else {
-            // 假设是基础 URL，添加 countTokens 端点
-            const baseUrl = url.replace(/\/$/, '');
-            countUrl = `${baseUrl}/models/${model}:countTokens?key=${apiKey}`;
-        }
-        
-        // 构建请求体
-        const geminiContents = contents.map(content => {
-            const cleaned = cleanContentForAPI(content);
-            return {
-                role: cleaned.role,
-                parts: cleaned.parts.map(part => {
-                    if ('text' in part && part.text !== undefined) {
-                        return { text: part.text };
-                    }
-                    return part;
-                })
-            };
-        });
-        
-        const requestBody = {
-            contents: geminiContents
-        };
-        
-        const proxyFetch = createProxyFetch(this.proxyUrl);
-        const response = await proxyFetch(countUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!response.ok) {
-            let errorBody: string;
-            try {
-                errorBody = await response.text();
-            } catch {
-                errorBody = `HTTP ${response.status}`;
-            }
-            return {
-                success: false,
-                error: `Gemini API error: ${errorBody}`
-            };
-        }
-        
-        const result = await response.json() as { totalTokens: number };
-        
-        return {
-            success: true,
-            totalTokens: result.totalTokens
-        };
-    }
-    
-    /**
-     * 使用渠道配置调用 OpenAI 兼容 Token 计数
-     */
-    private async countOpenAITokensWithConfig(
-        channelConfig: ChannelConfig,
-        apiConfig: TokenCountApiConfig | undefined,
-        contents: Content[]
-    ): Promise<TokenCountResult> {
-        // 使用独立配置或渠道配置
-        const url = apiConfig?.url;
-        const apiKey = apiConfig?.apiKey || channelConfig.apiKey;
-        const model = apiConfig?.model || channelConfig.model;
-        
-        if (!url) {
-            return {
-                success: false,
-                error: 'OpenAI custom token count: URL not configured'
-            };
-        }
-        
-        if (!apiKey) {
-            return {
-                success: false,
-                error: 'OpenAI custom token count: API key not configured'
-            };
-        }
-        
-        // 转换内容格式
-        const messages = contents.map(content => {
-            const cleaned = cleanContentForAPI(content);
-            return {
-                role: cleaned.role === 'model' ? 'assistant' : cleaned.role,
-                content: cleaned.parts.map(part => {
-                    if ('text' in part && part.text) {
-                        return { type: 'text' as const, text: part.text };
-                    }
-                    if ('inlineData' in part && part.inlineData) {
-                        const mimeType = part.inlineData.mimeType;
-
-                        if (isImageMimeType(mimeType)) {
-                            return {
-                                type: 'image_url' as const,
-                                image_url: {
-                                    url: `data:${mimeType};base64,${part.inlineData.data}`
-                                }
-                            };
-                        }
-
-                        if (isTextMimeType(mimeType)) {
-                            const decoded = decodeBase64ToUtf8(part.inlineData.data);
-                            return {
-                                type: 'text' as const,
-                                text: decoded !== null
-                                    ? formatTextAttachment({
-                                        mimeType,
-                                        text: decoded,
-                                        displayName: part.inlineData.displayName
-                                    })
-                                    : formatUnsupportedAttachment({
-                                        mimeType,
-                                        displayName: part.inlineData.displayName
-                                    })
-                            };
-                        }
-
-                        return {
-                            type: 'text' as const,
-                            text: formatUnsupportedAttachment({
-                                mimeType,
-                                displayName: part.inlineData.displayName
-                            })
-                        };
-                    }
-                    return { type: 'text' as const, text: '' };
-                })
-            };
-        });
-        
-        const requestBody: any = { messages };
-        if (model) {
-            requestBody.model = model;
-        }
-        
-        const proxyFetch = createProxyFetch(this.proxyUrl);
-        const response = await proxyFetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!response.ok) {
-            let errorBody: string;
-            try {
-                errorBody = await response.text();
-            } catch {
-                errorBody = `HTTP ${response.status}`;
-            }
-            return {
-                success: false,
-                error: `OpenAI compatible API error: ${errorBody}`
-            };
-        }
-        
-        const result = await response.json() as { total_tokens?: number; totalTokens?: number };
-        const totalTokens = result.total_tokens ?? result.totalTokens;
-        
-        if (totalTokens === undefined) {
-            return {
-                success: false,
-                error: 'Response missing total_tokens field'
-            };
-        }
-        
-        return {
-            success: true,
-            totalTokens
-        };
-    }
-    
-    /**
-     * 使用渠道配置调用 OpenAI Responses Token 计数
-     */
-    private async countOpenAIResponsesTokensWithConfig(
-        channelConfig: ChannelConfig,
-        apiConfig: TokenCountApiConfig | undefined,
-        contents: Content[]
-    ): Promise<TokenCountResult> {
-        // 使用独立配置或渠道配置
-        const url = apiConfig?.url || (channelConfig.type === 'openai-responses' ? channelConfig.url : undefined);
-        const apiKey = apiConfig?.apiKey || channelConfig.apiKey;
-        const model = apiConfig?.model || channelConfig.model;
-        
-        if (!url) {
-            return {
-                success: false,
-                error: 'OpenAI responses token count: URL not configured'
-            };
-        }
-        
-        if (!apiKey) {
-            return {
-                success: false,
-                error: 'OpenAI responses token count: API key not configured'
-            };
-        }
-
-        // 构建请求端点
-        let countUrl = url;
-        if (countUrl.endsWith('/responses')) {
-            countUrl = countUrl + '/input_tokens';
-        } else if (!countUrl.includes('/responses/input_tokens')) {
-            const baseUrl = countUrl.replace(/\/$/, '');
-            countUrl = `${baseUrl}/v1/responses/input_tokens`;
-        }
-        
-        // 转换内容格式
-        // 对于 Responses API，我们将所有内容转换为 input 数组
-        // 系统消息提取为 instructions
-        let instructions = '';
-        const inputParts: any[] = [];
-
-        for (const content of contents) {
-            const cleaned = cleanContentForAPI(content);
-            if (cleaned.role === 'system') {
-                for (const part of cleaned.parts) {
-                    if ('text' in part && part.text) {
-                        instructions += (instructions ? '\n' : '') + part.text;
-                    }
-                }
-                continue;
-            }
-
-            // user/model 消息都放入 input
-            for (const part of cleaned.parts) {
-                if ('text' in part && part.text) {
-                    inputParts.push({ type: 'text', text: part.text });
-                } else if ('inlineData' in part && part.inlineData) {
-                    const mimeType = part.inlineData.mimeType;
-
-                    if (isImageMimeType(mimeType)) {
-                        inputParts.push({
-                            type: 'image_url',
-                            image_url: {
-                                url: `data:${mimeType};base64,${part.inlineData.data}`
-                            }
-                        });
-                    } else if (isTextMimeType(mimeType)) {
-                        const decoded = decodeBase64ToUtf8(part.inlineData.data);
-                        inputParts.push({
-                            type: 'text',
-                            text: decoded !== null
-                                ? formatTextAttachment({
-                                    mimeType,
-                                    text: decoded,
-                                    displayName: part.inlineData.displayName
-                                })
-                                : formatUnsupportedAttachment({
-                                    mimeType,
-                                    displayName: part.inlineData.displayName
-                                })
-                        });
-                    } else {
-                        inputParts.push({
-                            type: 'text',
-                            text: formatUnsupportedAttachment({
-                                mimeType,
-                                displayName: part.inlineData.displayName
-                            })
-                        });
-                    }
-                }
-            }
-        }
-        
-        const requestBody: any = { 
-            input: inputParts 
-        };
-        if (instructions) {
-            requestBody.instructions = instructions;
-        }
-        if (model) {
-            requestBody.model = model;
-        }
-        
-        const proxyFetch = createProxyFetch(this.proxyUrl);
-        const response = await proxyFetch(countUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!response.ok) {
-            let errorBody: string;
-            try {
-                errorBody = await response.text();
-            } catch {
-                errorBody = `HTTP ${response.status}`;
-            }
-            return {
-                success: false,
-                error: `OpenAI Responses API error: ${errorBody}`
-            };
-        }
-        
-        const result = await response.json() as { input_tokens?: number };
-        
-        if (result.input_tokens === undefined) {
-            return {
-                success: false,
-                error: 'Response missing input_tokens field'
-            };
-        }
-        
-        return {
-            success: true,
-            totalTokens: result.input_tokens
-        };
-    }
-    
-    /**
-     * 使用渠道配置调用 Anthropic Token 计数
-     */
-    private async countAnthropicTokensWithConfig(
-        channelConfig: ChannelConfig,
-        apiConfig: TokenCountApiConfig | undefined,
-        contents: Content[]
-    ): Promise<TokenCountResult> {
-        // 使用独立配置或渠道配置
-        const baseUrl = apiConfig?.url || channelConfig.url;
-        const apiKey = apiConfig?.apiKey || channelConfig.apiKey;
-        const model = apiConfig?.model || channelConfig.model;
-        
-        if (!apiKey || !model) {
-            return {
-                success: false,
-                error: 'Anthropic token count: API key or model not configured'
-            };
-        }
-        
-        // 构建 count_tokens URL
-        let countUrl: string;
-        if (baseUrl) {
-            if (baseUrl.includes('/messages/count_tokens')) {
-                countUrl = baseUrl;
-            } else if (baseUrl.includes('/messages')) {
-                countUrl = baseUrl.replace('/messages', '/messages/count_tokens');
-            } else {
-                const cleanUrl = baseUrl.replace(/\/$/, '');
-                countUrl = `${cleanUrl}/v1/messages/count_tokens`;
-            }
-        } else {
-            countUrl = 'https://api.anthropic.com/v1/messages/count_tokens';
-        }
-        
-        // 转换内容格式
-        const messages = contents.map(content => {
-            const cleaned = cleanContentForAPI(content);
-            return {
-                role: cleaned.role === 'model' ? 'assistant' : cleaned.role,
-                content: cleaned.parts.map(part => {
-                    if ('text' in part && part.text !== undefined) {
-                        return { type: 'text' as const, text: part.text };
-                    }
-                    return { type: 'text' as const, text: '' };
-                })
-            };
-        });
-        
-        const requestBody = {
-            model,
-            messages
-        };
-        
-        const proxyFetch = createProxyFetch(this.proxyUrl);
-        const response = await proxyFetch(countUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!response.ok) {
-            let errorBody: string;
-            try {
-                errorBody = await response.text();
-            } catch {
-                errorBody = `HTTP ${response.status}`;
-            }
-            return {
-                success: false,
-                error: `Anthropic API error: ${errorBody}`
-            };
-        }
-        
-        const result = await response.json() as { input_tokens: number };
-        
-        return {
-            success: true,
-            totalTokens: result.input_tokens
         };
     }
     

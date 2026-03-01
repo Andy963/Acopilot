@@ -7,13 +7,13 @@
  */
 
 import * as vscode from 'vscode'
-import * as os from 'os'
-import * as fs from 'fs'
-import * as path from 'path'
-import type { PromptConfig, PromptContext } from './types'
-import { getWorkspaceFileTree, getWorkspaceRoot, getWorkspacesDescription, getAllWorkspaces } from './fileTree'
+import type { PromptConfig } from './types'
+import { getWorkspaceFileTree, getWorkspacesDescription, getAllWorkspaces } from './fileTree'
 import { getGlobalSettingsManager } from '../../core/settingsContext'
 import type { ContextInjectionOverrides } from '../conversation/types'
+import { shouldIgnorePath } from './ignorePatterns'
+import { generatePinnedFilesSection as buildPinnedFilesSection } from './pinnedFilesSection'
+import { getPromptContext } from './promptContext'
 
 /**
  * 系统提示词管理器
@@ -191,7 +191,7 @@ export class PromptManager {
      * 生成环境信息段落
      */
     private generateEnvironmentSection(): string {
-        const context = this.getContext()
+        const context = getPromptContext()
         const lines: string[] = []
         
         // 工作区信息（支持多工作区）
@@ -286,7 +286,7 @@ export class PromptManager {
                         const relativePath = vscode.workspace.asRelativePath(uri, false)
                         
                         // 检查是否应该被忽略
-                        if (!this.shouldIgnorePath(relativePath, ignorePatterns)) {
+                        if (!shouldIgnorePath(relativePath, ignorePatterns)) {
                             tabs.push(relativePath)
                         }
                     }
@@ -335,7 +335,7 @@ export class PromptManager {
         
         const relativePath = vscode.workspace.asRelativePath(uri, false)
         
-        if (this.shouldIgnorePath(relativePath, ignorePatterns)) {
+        if (shouldIgnorePath(relativePath, ignorePatterns)) {
             return ''
         }
         
@@ -458,123 +458,7 @@ export class PromptManager {
      * 按工作区过滤固定文件，支持多工作区场景
      */
     private generatePinnedFilesSection(): string {
-        const settingsManager = getGlobalSettingsManager()
-        if (!settingsManager) {
-            return ''
-        }
-        
-        const workspaceFolders = vscode.workspace.workspaceFolders
-        if (!workspaceFolders || workspaceFolders.length === 0) {
-            return ''
-        }
-        
-        const results: string[] = []
-        
-        // 遍历所有工作区，获取每个工作区的固定文件
-        for (const workspaceFolder of workspaceFolders) {
-            const workspaceUri = workspaceFolder.uri.toString()
-            const pinnedFiles = settingsManager.getEnabledPinnedFilesForWorkspace(workspaceUri)
-            
-            for (const pinnedFile of pinnedFiles) {
-                try {
-                    let filePath = pinnedFile.path
-                    let fullPath: string
-                    
-                    // 判断是相对路径还是绝对路径
-                    if (path.isAbsolute(filePath)) {
-                        fullPath = filePath
-                    } else {
-                        // 相对路径，基于当前工作区根目录
-                        fullPath = path.join(workspaceFolder.uri.fsPath, filePath)
-                    }
-                    
-                    // 检查文件是否存在
-                    if (!fs.existsSync(fullPath)) {
-                        // 文件不存在时不添加到结果，也不报错
-                        // 这样文件被删除后不会影响 AI 响应
-                        continue
-                    }
-                    
-                    // 读取文件内容
-                    const content = fs.readFileSync(fullPath, 'utf-8')
-                    
-                    // 多工作区时显示工作区名称前缀
-                    const displayPath = workspaceFolders.length > 1
-                        ? `${workspaceFolder.name}/${pinnedFile.path}`
-                        : pinnedFile.path
-                    
-                    // 添加到结果
-                    results.push(`--- ${displayPath} ---\n${content}`)
-                } catch (error: any) {
-                    // 读取错误时静默跳过
-                    console.warn(`Failed to read pinned file ${pinnedFile.path}:`, error.message)
-                }
-            }
-        }
-        
-        if (results.length === 0) {
-            return ''
-        }
-        
-        return `The following are pinned files that should be read and considered for every response:\n\n${results.join('\n\n')}`
-    }
-    
-    /**
-     * 检查路径是否应该被忽略
-     */
-    private shouldIgnorePath(relativePath: string, ignorePatterns: string[]): boolean {
-        for (const pattern of ignorePatterns) {
-            if (this.matchGlobPattern(relativePath, pattern)) {
-                return true
-            }
-        }
-        return false
-    }
-    
-    /**
-     * 简单的 glob 模式匹配
-     */
-    private matchGlobPattern(path: string, pattern: string): boolean {
-        const regexPattern = pattern
-            .replace(/\\/g, '/')
-            .replace(/\./g, '\\.')
-            .replace(/\*\*/g, '<<<GLOBSTAR>>>')
-            .replace(/\*/g, '[^/]*')
-            .replace(/<<<GLOBSTAR>>>/g, '.*')
-            .replace(/\//g, '[/\\\\]')
-        
-        const regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i')
-        return regex.test(path.replace(/\\/g, '/'))
-    }
-    
-    /**
-     * 获取上下文信息
-     */
-    private getContext(): PromptContext {
-        return {
-            workspaceRoot: getWorkspaceRoot(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            os: this.getOSInfo()
-        }
-    }
-    
-    /**
-     * 获取操作系统信息
-     */
-    private getOSInfo(): string {
-        const platform = os.platform()
-        const release = os.release()
-        
-        switch (platform) {
-            case 'win32':
-                return `Windows ${release}`
-            case 'darwin':
-                return `macOS ${release}`
-            case 'linux':
-                return `Linux ${release}`
-            default:
-                return `${platform} ${release}`
-        }
+        return buildPinnedFilesSection()
     }
     
     /**

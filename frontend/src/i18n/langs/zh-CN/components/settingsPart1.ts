@@ -305,6 +305,10 @@ export const zhCNComponentsSettingsPart1 = {
                     label: '最大存档点数量',
                     placeholder: '-1',
                     hint: '超过此数量时自动清理旧的存档点，填写 -1 表示无上限'
+                },
+                autoCleanup: {
+                    label: '启动时自动清理过期对话',
+                    hint: '启用后，将在扩展启动时删除超过 30 天未更新的对话，并清理其存档点、附件、diff、快照等数据，以释放空间'
                 }
             },
             cleanup: {

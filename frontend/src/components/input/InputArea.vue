@@ -10,7 +10,7 @@ import FilePickerPanel from './FilePickerPanel.vue'
 import ComposerTopBar from './ComposerTopBar.vue'
 import InputAreaFooter from './InputAreaFooter.vue'
 import PinnedFilesPanel from './PinnedFilesPanel.vue'
-import ContextOverridesPanel from './ContextOverridesPanel.vue'
+import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { useChatStore } from '../../stores'
 import type { Attachment } from '../../types'
@@ -84,7 +84,6 @@ function handleSend() {
   resetPromptHistoryNavigation()
   emit('send', content, attachments)
   chatStore.clearInputValue()
-  showContextOverridesPanel.value = false
 }
 
 function handleCancel() {
@@ -103,16 +102,14 @@ function handlePasteFiles(files: File[]) {
   emit('pasteFiles', files)
 }
 
+// Create Task Modal
+const showCreateTaskModal = ref(false)
+
 // Create Plan Modal
 const showCreatePlanModal = ref(false)
 
 // 是否显示固定文件面板
 const showPinnedFilesPanel = ref(false)
-// 是否显示“本条消息上下文”开关面板
-const showContextOverridesPanel = ref(false)
-
-const messageContextOverridesCount = computed(() => Object.keys(chatStore.messageContextOverrides || {}).length)
-const hasMessageContextOverrides = computed(() => messageContextOverridesCount.value > 0)
 
 const enabledPinnedFilesCount = ref(0)
 const hasPinnedPrompt = computed(() => Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none'))
@@ -124,26 +121,15 @@ function handlePinnedPanelStats(count: number) {
 
 function openPinnedFilesPanel() {
   showPinnedFilesPanel.value = true
-  showContextOverridesPanel.value = false
-}
-
-function toggleContextOverridesPanel() {
-  showContextOverridesPanel.value = !showContextOverridesPanel.value
-  if (showContextOverridesPanel.value) {
-    showPinnedFilesPanel.value = false
-  }
 }
 
 </script>
 
 <template>
   <div class="input-area">
+    <CreateTaskModal v-model="showCreateTaskModal" />
     <CreatePlanModal v-model="showCreatePlanModal" />
 
-    <ContextOverridesPanel
-      :visible="showContextOverridesPanel"
-      @close="showContextOverridesPanel = false"
-    />
     <PinnedFilesPanel
       :visible="showPinnedFilesPanel"
       @close="showPinnedFilesPanel = false"
@@ -163,6 +149,7 @@ function toggleContextOverridesPanel() {
         @remove-attachment="handleRemoveAttachment"
         @remove-selection-reference="chatStore.removeSelectionReference"
         @open-pinned-panel="openPinnedFilesPanel"
+        @open-task-modal="showCreateTaskModal = true"
         @open-plan-modal="showCreatePlanModal = true"
       />
 
@@ -208,9 +195,8 @@ function toggleContextOverridesPanel() {
         :thinking-effort-value="thinkingEffortValue"
         :thinking-effort-options="thinkingEffortOptions"
         :show-thinking-effort-visible="isThinkingEffortVisible"
-        :show-context-overrides-panel="showContextOverridesPanel"
-        :has-message-context-overrides="hasMessageContextOverrides"
-        :message-context-overrides-count="messageContextOverridesCount"
+        :chat-mode-value="chatStore.chatMode"
+        :chat-mode-options="[{ value: 'chat', label: 'Chat' }, { value: 'plan', label: 'Plan' }, { value: 'agent', label: 'Agent' }]"
         :token-usage-percent="chatStore.tokenUsagePercent"
         :used-tokens="chatStore.usedTokens"
         :max-context-tokens="chatStore.maxContextTokens"
@@ -219,7 +205,7 @@ function toggleContextOverridesPanel() {
         :attachments="attachments"
         @update-unified-model="handleUnifiedModelChange"
         @update-thinking-effort="handleThinkingEffortChange"
-        @toggle-context-overrides="toggleContextOverridesPanel"
+        @update-chat-mode="(value) => chatStore.setChatMode(value as any)"
         @open-context-inspector="(atts) => chatStore.openContextInspectorPreview(atts)"
         @send="handleSend"
         @cancel="handleCancel"
