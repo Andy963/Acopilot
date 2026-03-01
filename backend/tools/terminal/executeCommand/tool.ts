@@ -1,9 +1,11 @@
 import * as cp from 'child_process';
 import * as os from 'os';
 import { StringDecoder } from 'string_decoder';
+import * as vscode from 'vscode';
 
 import type { Tool, ToolContext, ToolResult } from '../../types';
 
+import { shouldConfirmExecuteCommand } from '../../../core/commandRisk';
 import { getGlobalSettingsManager } from '../../../core/settingsContext';
 import { getDefaultExecuteCommandConfig } from '../../../modules/settings';
 import { TaskManager } from '../../taskManager';
@@ -116,6 +118,25 @@ ${getAvailableShellsDescription()}${workspaceDescription}
 
             const settingsManager = getGlobalSettingsManager();
             const config = settingsManager?.getExecuteCommandConfig() || getDefaultExecuteCommandConfig();
+
+            const { confirm, assessment } = shouldConfirmExecuteCommand(command, config.riskPolicy);
+            if (confirm) {
+                const reasonText = assessment.reasons.length > 0 ? ` (${assessment.reasons.join(', ')})` : '';
+                const choice = await vscode.window.showWarningMessage(
+                    `High-risk command detected [${assessment.level}]${reasonText}: ${command}`,
+                    { modal: true },
+                    'Execute',
+                    'Cancel'
+                );
+
+                if (choice !== 'Execute') {
+                    return {
+                        success: false,
+                        cancelled: true,
+                        error: 'Command execution cancelled by user',
+                    };
+                }
+            }
 
             let actualShellType = shell;
             if (shell === 'default') {
