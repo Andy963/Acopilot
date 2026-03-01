@@ -292,6 +292,18 @@
   text-decoration: underline;
 }
 
+.markdown-content :deep(a.workspace-file-link--code) {
+  text-decoration: none;
+}
+
+.markdown-content :deep(a.workspace-file-link--code code) {
+  color: var(--vscode-textLink-foreground);
+}
+
+.markdown-content :deep(a.workspace-file-link--code:hover code) {
+  text-decoration: underline;
+}
+
 .markdown-content :deep(a[target="_blank"])::after {
   content: " ↗";
   font-size: 0.8em;

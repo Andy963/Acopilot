@@ -20,6 +20,13 @@ import footnote from 'markdown-it-footnote'
 import deflist from 'markdown-it-deflist'
 import taskLists from 'markdown-it-task-lists'
 
+type WorkspaceFileReference = {
+  path: string
+  line: number
+  column: number
+  display: string
+}
+
 const props = withDefaults(defineProps<{
   content: string
   latexOnly?: boolean  // 仅渲染 LaTeX，不渲染 Markdown（用于用户消息）
@@ -77,6 +84,130 @@ function normalizeFenceLanguage(info: string): string | null {
   return hljs.getLanguage(normalized) ? normalized : null
 }
 
+function escapeAttr(text: string): string {
+  return escapeHtml(text).replace(/`/g, '&#096;')
+}
+
+function parseWorkspaceFileReference(text: string): WorkspaceFileReference | null {
+  const raw = String(text || '').trim()
+  if (!raw) return null
+  if (raw.includes('\\')) return null
+  if (raw.startsWith('/') || raw.startsWith('~')) return null
+  if (raw.startsWith('file://')) return null
+  if (/(^|\/)\.\.(\/|$)/.test(raw)) return null
+
+  const match = /^(?:\.\/)?((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+)(?::(\d+)(?::(\d+))?|#L(\d+)(?:C(\d+))?)$/.exec(raw)
+  if (!match) return null
+
+  const path = match[1] || ''
+  const line = Number(match[2] ?? match[4] ?? '')
+  const column = Number(match[3] ?? match[5] ?? '1')
+
+  if (!path) return null
+  if (!Number.isFinite(line) || line <= 0) return null
+  if (!Number.isFinite(column) || column <= 0) return null
+
+  // Reduce false positives for "domain.tld:port" style strings.
+  if (!path.includes('/')) {
+    const ext = path.split('.').pop()?.toLowerCase() || ''
+    const allowed = new Set(['ts', 'tsx', 'js', 'jsx', 'vue', 'css', 'scss', 'less', 'json', 'md', 'txt', 'yml', 'yaml', 'toml', 'rs', 'go', 'py', 'sh'])
+    if (!allowed.has(ext)) return null
+  }
+
+  return {
+    path,
+    line,
+    column,
+    display: raw
+  }
+}
+
+function applyWorkspaceFileLinkify(md: MarkdownIt): void {
+  const fileRefRegex = /\b((?:\.\/)?(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+(?::\d+(?::\d+)?|#L\d+(?:C\d+)?))\b/g
+
+  md.core.ruler.after('linkify', 'acopilot_workspace_file_links', (state: StateCore) => {
+    const TokenCtor = (state as any).Token
+    if (!TokenCtor) return
+
+    for (const blockToken of state.tokens as any[]) {
+      if (blockToken.type !== 'inline' || !Array.isArray(blockToken.children)) continue
+
+      const out: any[] = []
+      let inLink = 0
+
+      for (const child of blockToken.children as any[]) {
+        if (child.type === 'link_open') {
+          inLink += 1
+          out.push(child)
+          continue
+        }
+        if (child.type === 'link_close') {
+          inLink = Math.max(0, inLink - 1)
+          out.push(child)
+          continue
+        }
+
+        if (inLink > 0 || child.type !== 'text' || typeof child.content !== 'string') {
+          out.push(child)
+          continue
+        }
+
+        const text = child.content
+        let lastIndex = 0
+        let changed = false
+
+        fileRefRegex.lastIndex = 0
+        let m: RegExpExecArray | null
+        while ((m = fileRefRegex.exec(text)) !== null) {
+          const candidate = m[1] || ''
+          const parsed = parseWorkspaceFileReference(candidate)
+          if (!parsed) continue
+
+          const start = m.index
+          const end = start + candidate.length
+          if (start > lastIndex) {
+            const t = new TokenCtor('text', '', 0)
+            t.content = text.slice(lastIndex, start)
+            out.push(t)
+          }
+
+          const open = new TokenCtor('link_open', 'a', 1)
+          open.attrSet('href', '#')
+          open.attrSet('class', 'workspace-file-link')
+          open.attrSet('data-path', parsed.path)
+          open.attrSet('data-line', String(parsed.line))
+          open.attrSet('data-column', String(parsed.column))
+          open.attrSet('title', `${parsed.path}:${parsed.line}:${parsed.column}`)
+          out.push(open)
+
+          const label = new TokenCtor('text', '', 0)
+          label.content = parsed.display
+          out.push(label)
+
+          const close = new TokenCtor('link_close', 'a', -1)
+          out.push(close)
+
+          lastIndex = end
+          changed = true
+        }
+
+        if (!changed) {
+          out.push(child)
+          continue
+        }
+
+        if (lastIndex < text.length) {
+          const t = new TokenCtor('text', '', 0)
+          t.content = text.slice(lastIndex)
+          out.push(t)
+        }
+      }
+
+      blockToken.children = out
+    }
+  })
+}
+
 /**
  * 创建并配置 markdown-it 实例
  */
@@ -119,7 +250,9 @@ function createMarkdownIt(enableCodeHighlight: boolean) {
     label: true,
     labelAfter: true
   })
-  
+
+  applyWorkspaceFileLinkify(md)
+
   // 自定义链接渲染 - 外部链接在新标签页打开
   const defaultLinkRender = md.renderer.rules.link_open || function(
     tokens: Token[],
@@ -149,7 +282,38 @@ function createMarkdownIt(enableCodeHighlight: boolean) {
     
     return defaultLinkRender(tokens, idx, options, env, self)
   }
-  
+
+  const defaultCodeInlineRender = md.renderer.rules.code_inline || function(
+    tokens: Token[],
+    idx: number,
+    options: Options,
+    env: StateCore,
+    self: Renderer
+  ) {
+    return self.renderToken(tokens, idx, options)
+  }
+
+  md.renderer.rules.code_inline = function(
+    tokens: Token[],
+    idx: number,
+    options: Options,
+    env: StateCore,
+    self: Renderer
+  ) {
+    const content = tokens[idx]?.content || ''
+    const parsed = parseWorkspaceFileReference(content)
+    if (!parsed) {
+      return defaultCodeInlineRender(tokens, idx, options, env, self)
+    }
+
+    const safePath = escapeAttr(parsed.path)
+    const safeLine = String(parsed.line)
+    const safeColumn = String(parsed.column)
+    const safeLabel = escapeHtml(parsed.display)
+
+    return `<a href="#" class="workspace-file-link workspace-file-link--code" data-path="${safePath}" data-line="${safeLine}" data-column="${safeColumn}" title="${safePath}:${safeLine}:${safeColumn}"><code>${safeLabel}</code></a>`
+  }
+
   // 自定义图片渲染 - 支持相对路径
   md.renderer.rules.image = function(tokens: Token[], idx: number) {
     const token = tokens[idx]
@@ -464,10 +628,35 @@ async function handleImageClick(event: Event) {
   }
 }
 
+async function handleWorkspaceFileLinkClick(event: Event) {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+
+  const link = target.closest('a.workspace-file-link') as HTMLAnchorElement | null
+  if (!link) return
+  if (!containerRef.value || !containerRef.value.contains(link)) return
+
+  const path = String(link.getAttribute('data-path') || '').trim()
+  const line = Number(link.getAttribute('data-line'))
+  const column = link.getAttribute('data-column') === null ? 1 : Number(link.getAttribute('data-column'))
+  if (!path || !Number.isFinite(line) || line <= 0) return
+  if (!Number.isFinite(column) || column <= 0) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  try {
+    await sendToExtension('openWorkspaceFileAtLocation', { path, line, column })
+  } catch (error) {
+    console.warn('Failed to open workspace file reference:', error)
+  }
+}
+
 onMounted(() => {
   if (containerRef.value) {
     containerRef.value.addEventListener('click', handleCopyClick)
     containerRef.value.addEventListener('click', handleImageClick)
+    containerRef.value.addEventListener('click', handleWorkspaceFileLinkClick)
   }
   nextTick(() => loadWorkspaceImages())
 })
@@ -480,6 +669,7 @@ onUnmounted(() => {
   if (containerRef.value) {
     containerRef.value.removeEventListener('click', handleCopyClick)
     containerRef.value.removeEventListener('click', handleImageClick)
+    containerRef.value.removeEventListener('click', handleWorkspaceFileLinkClick)
   }
   copyTimers.forEach((timer) => {
     window.clearTimeout(timer)
