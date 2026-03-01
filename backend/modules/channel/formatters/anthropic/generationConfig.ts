@@ -4,6 +4,17 @@ export function buildAnthropicGenerationConfig(config: AnthropicConfig): any {
   const genConfig: any = {};
   const optionsEnabled = (config as any).optionsEnabled || {};
 
+  // Anthropic Messages API requires max_tokens.
+  // Keep behavior for optional fields behind optionsEnabled, but always send max_tokens
+  // with a safe fallback to avoid invalid requests.
+  {
+    const configured = (config as any)?.options?.max_tokens;
+    const fallback = 8192;
+    const rawValue = typeof configured === 'number' ? configured : fallback;
+    const maxTokens = Number.isFinite(rawValue) && rawValue > 0 ? Math.floor(rawValue) : fallback;
+    genConfig.max_tokens = maxTokens;
+  }
+
   if (optionsEnabled.max_tokens && config.options?.max_tokens !== undefined) {
     genConfig.max_tokens = config.options.max_tokens;
   }
@@ -43,4 +54,3 @@ export function buildAnthropicGenerationConfig(config: AnthropicConfig): any {
 
   return genConfig;
 }
-

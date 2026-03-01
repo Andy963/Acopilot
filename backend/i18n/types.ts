@@ -182,6 +182,8 @@ export interface BackendLanguageMessages {
                 httpRequestFailed: string;
                 parseStreamChunkFailed: string;
                 streamRequestFailed: string;
+                streamNoDataReceived: string;
+                streamNoParsableChunks: string;
                 requestTimeout: string;
                 requestTimeoutNoResponse: string;
                 requestCancelled: string;

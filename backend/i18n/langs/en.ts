@@ -164,6 +164,8 @@ const en: BackendLanguageMessages = {
                 httpRequestFailed: 'HTTP request failed: {error}',
                 parseStreamChunkFailed: 'Failed to parse stream chunk: {error}',
                 streamRequestFailed: 'Stream request failed: {error}',
+                streamNoDataReceived: 'Stream opened but no data received',
+                streamNoParsableChunks: 'Stream response format is not parseable (no SSE/JSON chunks decoded)',
                 requestTimeout: 'Request timeout ({timeout}ms)',
                 requestTimeoutNoResponse: 'Request timeout (no response in {timeout}ms)',
                 requestCancelled: 'Request cancelled',

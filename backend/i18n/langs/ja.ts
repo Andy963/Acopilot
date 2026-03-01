@@ -164,6 +164,8 @@ const ja: BackendLanguageMessages = {
                 httpRequestFailed: 'HTTP リクエストに失敗しました: {error}',
                 parseStreamChunkFailed: 'ストリームチャンクの解析に失敗しました: {error}',
                 streamRequestFailed: 'ストリームリクエストに失敗しました: {error}',
+                streamNoDataReceived: 'ストリームは開始されましたが、データを受信しませんでした',
+                streamNoParsableChunks: 'ストリーム応答の形式を解析できません（SSE/JSON チャンクが 1 つもデコードされませんでした）',
                 requestTimeout: 'リクエストがタイムアウトしました ({timeout}ms)',
                 requestTimeoutNoResponse: 'リクエストがタイムアウトしました ({timeout}ms 内に応答なし)',
                 requestCancelled: 'リクエストがキャンセルされました',

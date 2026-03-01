@@ -60,6 +60,17 @@ export class ChannelManagerHttp extends ChannelManagerBase {
     const { url, method, headers, body, timeout = 120000 } = options;
     const proxyUrl = this.getProxyUrl();
 
+    const MAX_STREAM_PREVIEW_CHARS = 64 * 1024;
+    let streamPreview = '';
+    const appendPreview = (chunk: string) => {
+      if (!chunk) return;
+      if (streamPreview.length >= MAX_STREAM_PREVIEW_CHARS) return;
+      const remaining = MAX_STREAM_PREVIEW_CHARS - streamPreview.length;
+      streamPreview += chunk.length > remaining ? chunk.slice(0, remaining) : chunk;
+    };
+
+    let parsedChunkCount = 0;
+
     const controller = new AbortController();
 
     let timeoutId: NodeJS.Timeout;
@@ -101,6 +112,11 @@ export class ChannelManagerHttp extends ChannelManagerBase {
             break;
           }
 
+          if (chunk) {
+            resetTimeout();
+            appendPreview(chunk);
+          }
+
           buffer += chunk;
 
           if (!buffer.trim()) {
@@ -111,11 +127,8 @@ export class ChannelManagerHttp extends ChannelManagerBase {
           const result = parseStreamBuffer(buffer);
           buffer = result.remaining;
 
-          if (result.chunks.length > 0 || buffer.length > 0) {
-            resetTimeout();
-          }
-
           for (const parsed of result.chunks) {
+            parsedChunkCount++;
             yield parsed;
           }
         }
@@ -123,8 +136,25 @@ export class ChannelManagerHttp extends ChannelManagerBase {
         if (buffer.trim()) {
           const result = parseStreamBuffer(buffer, true);
           for (const chunk of result.chunks) {
+            parsedChunkCount++;
             yield chunk;
           }
+        }
+
+        if (parsedChunkCount === 0) {
+          const preview = streamPreview.trim();
+          if (preview) {
+            throw new ChannelError(
+              ErrorType.PARSE_ERROR,
+              t('modules.channel.errors.streamNoParsableChunks'),
+              { url, preview: preview.slice(0, 4096) }
+            );
+          }
+          throw new ChannelError(
+            ErrorType.NETWORK_ERROR,
+            t('modules.channel.errors.streamNoDataReceived'),
+            { url }
+          );
         }
 
         if (isTimedOut) {
@@ -157,6 +187,7 @@ export class ChannelManagerHttp extends ChannelManagerBase {
           throw new ChannelError(ErrorType.NETWORK_ERROR, t('modules.channel.errors.noResponseBody'));
         }
 
+        const contentType = response.headers.get('content-type') || undefined;
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -166,7 +197,11 @@ export class ChannelManagerHttp extends ChannelManagerBase {
             const { done, value } = await reader.read();
             if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
+            resetTimeout();
+
+            const decoded = decoder.decode(value, { stream: true });
+            appendPreview(decoded);
+            buffer += decoded;
 
             if (!buffer.trim()) {
               buffer = '';
@@ -176,22 +211,38 @@ export class ChannelManagerHttp extends ChannelManagerBase {
             const result = parseStreamBuffer(buffer);
             buffer = result.remaining;
 
-            if (result.chunks.length > 0 || buffer.length > 0) {
-              resetTimeout();
-            }
-
             for (const chunk of result.chunks) {
+              parsedChunkCount++;
               yield chunk;
             }
           }
 
-          buffer += decoder.decode();
+          const rest = decoder.decode();
+          appendPreview(rest);
+          buffer += rest;
 
           if (buffer.trim()) {
             const result = parseStreamBuffer(buffer, true);
             for (const chunk of result.chunks) {
+              parsedChunkCount++;
               yield chunk;
             }
+          }
+
+          if (parsedChunkCount === 0) {
+            const preview = streamPreview.trim();
+            if (preview) {
+              throw new ChannelError(
+                ErrorType.PARSE_ERROR,
+                t('modules.channel.errors.streamNoParsableChunks'),
+                { url, status: response.status, contentType, preview: preview.slice(0, 4096) }
+              );
+            }
+            throw new ChannelError(
+              ErrorType.NETWORK_ERROR,
+              t('modules.channel.errors.streamNoDataReceived'),
+              { url, status: response.status, contentType }
+            );
           }
 
           if (isTimedOut) {
@@ -233,4 +284,3 @@ export class ChannelManagerHttp extends ChannelManagerBase {
     return;
   }
 }
-

@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.59] - 2026-03-01
+
+### Fixed
+  - Settings: fix provider config fields not being persisted due to a missing handler binding.
+  - Anthropic: improve Messages API request normalization (`/v1/messages`) and streaming error diagnostics.
+
 ## [1.0.59-pre.11] - 2026-02-11
 
 ### Fixed

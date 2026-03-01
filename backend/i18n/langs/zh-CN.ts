@@ -164,6 +164,8 @@ const zhCN: BackendLanguageMessages = {
                 httpRequestFailed: 'HTTP 请求失败: {error}',
                 parseStreamChunkFailed: '解析流式响应块失败: {error}',
                 streamRequestFailed: '流式请求失败: {error}',
+                streamNoDataReceived: '流式连接已建立但未收到任何数据',
+                streamNoParsableChunks: '流式响应格式无法解析（未解析到任何 SSE/JSON 数据块）',
                 requestTimeout: '请求超时 ({timeout}ms)',
                 requestTimeoutNoResponse: '请求超时 ({timeout}ms 内无响应)',
                 requestCancelled: '请求已取消',

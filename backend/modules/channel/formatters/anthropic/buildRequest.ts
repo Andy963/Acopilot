@@ -66,13 +66,20 @@ export function buildAnthropicRequest(
   const useStream = request.streamOverride ?? (config.options as any)?.stream ?? (config as any).preferStream ?? false;
   body.stream = useStream;
 
-  const baseUrl = config.url.endsWith('/') ? config.url.slice(0, -1) : config.url;
-  const url = `${baseUrl}/messages`;
+  let baseUrl = config.url.replace(/\/+$/, '');
+  if (baseUrl.endsWith('/messages/count_tokens')) {
+    baseUrl = baseUrl.replace(/\/messages\/count_tokens$/, '/messages');
+  }
+  const url = baseUrl.endsWith('/messages') ? baseUrl : `${baseUrl}/messages`;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'anthropic-version': '2023-06-01',
   };
+
+  if (useStream) {
+    headers['Accept'] = 'text/event-stream';
+  }
 
   if (config.apiKey) {
     if ((config as any).useAuthorizationHeader) {
@@ -106,4 +113,3 @@ export function buildAnthropicRequest(
     stream: useStream,
   };
 }
-
