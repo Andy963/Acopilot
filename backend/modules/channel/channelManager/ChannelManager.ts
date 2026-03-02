@@ -4,7 +4,6 @@ import { formatterRegistry } from '../formatters';
 import type { GenerateRequest, GenerateResponse, HttpRequestOptions, StreamChunk } from '../types';
 import { ChannelError, ErrorType } from '../types';
 import { getFilteredTools } from '../channelToolFiltering';
-import { buildRequestDebugInfo } from '../requestDebug';
 import { ChannelManagerHttp } from './http';
 
 export type { RetryStatusCallback } from './base';
@@ -113,8 +112,6 @@ export class ChannelManager extends ChannelManagerHttp {
 	            status: httpResponse.status,
 	            headers: httpResponse.headers,
 	            url: httpRequest.url,
-	            request: buildRequestDebugInfo(httpRequest),
-	            config: { id: config.id, type: config.type, name: config.name },
 	            body: httpResponse.body,
 	          });
 	        }
@@ -268,22 +265,11 @@ export class ChannelManager extends ChannelManagerHttp {
 
 	        const errorMessage = error instanceof Error ? error.message : '未知错误';
 	        const errorDetails = error instanceof ChannelError ? error.details : undefined;
-	        if (error instanceof ChannelError && error.type === ErrorType.API_ERROR) {
-	          const detailsObj = (error as any).details;
-	          if (detailsObj && typeof detailsObj === 'object') {
-	            if (!detailsObj.request) {
-	              detailsObj.request = buildRequestDebugInfo(httpRequest);
-	            }
-	            if (!detailsObj.config) {
-	              detailsObj.config = { id: config.id, type: config.type, name: config.name };
-	            }
-	          }
-	        }
 
-        if (!retryEnabled || !this.isRetryableError(error) || attempt >= maxRetries) {
-          if (attempt > 1 && this.retryStatusCallback) {
-            this.retryStatusCallback({
-              type: 'retryFailed',
+	        if (!retryEnabled || !this.isRetryableError(error) || attempt >= maxRetries) {
+	          if (attempt > 1 && this.retryStatusCallback) {
+	            this.retryStatusCallback({
+	              type: 'retryFailed',
               attempt,
               maxAttempts: maxRetries,
               error: errorMessage,

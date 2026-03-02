@@ -20,6 +20,11 @@ All notable changes to the "Acopilot" extension will be documented in this file.
 ### Improved
   - Debug: include redacted request header info in API error details to help diagnose missing/empty Authorization headers.
 
+## [1.0.59-pre.14] - 2026-03-02
+
+### Changed
+  - Debug: remove the temporary API request debug info injection added in `1.0.59-pre.13`.
+
 ## [1.0.59-pre.11] - 2026-02-11
 
 ### Fixed
