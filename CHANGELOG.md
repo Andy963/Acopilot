@@ -9,6 +9,12 @@ All notable changes to the "Acopilot" extension will be documented in this file.
   - Anthropic: improve Messages API request normalization (`/v1/messages`) and streaming error diagnostics.
   - Tool: restore risk confirmation prompt for high-risk `execute_command` calls.
 
+## [1.0.59-pre.12] - 2026-03-02
+
+### Fixed
+  - OpenAI: prevent empty `Authorization` custom header values from overriding `apiKey` for both Chat Completions and Responses.
+  - OpenAI: normalize `apiKey` by stripping a leading `Bearer ` prefix if present.
+
 ## [1.0.59-pre.11] - 2026-02-11
 
 ### Fixed
