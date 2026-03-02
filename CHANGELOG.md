@@ -15,6 +15,11 @@ All notable changes to the "Acopilot" extension will be documented in this file.
   - OpenAI: prevent empty `Authorization` custom header values from overriding `apiKey` for both Chat Completions and Responses.
   - OpenAI: normalize `apiKey` by stripping a leading `Bearer ` prefix if present.
 
+## [1.0.59-pre.13] - 2026-03-02
+
+### Improved
+  - Debug: include redacted request header info in API error details to help diagnose missing/empty Authorization headers.
+
 ## [1.0.59-pre.11] - 2026-02-11
 
 ### Fixed

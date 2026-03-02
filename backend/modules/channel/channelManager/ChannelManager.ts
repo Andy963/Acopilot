@@ -4,6 +4,7 @@ import { formatterRegistry } from '../formatters';
 import type { GenerateRequest, GenerateResponse, HttpRequestOptions, StreamChunk } from '../types';
 import { ChannelError, ErrorType } from '../types';
 import { getFilteredTools } from '../channelToolFiltering';
+import { buildRequestDebugInfo } from '../requestDebug';
 import { ChannelManagerHttp } from './http';
 
 export type { RetryStatusCallback } from './base';
@@ -107,14 +108,16 @@ export class ChannelManager extends ChannelManagerHttp {
       try {
         const httpResponse = await this.executeRequest(httpRequest, nonStreamRequest.abortSignal);
 
-        if (httpResponse.status !== 200) {
-          throw new ChannelError(ErrorType.API_ERROR, t('modules.channel.errors.apiError', { status: httpResponse.status }), {
-            status: httpResponse.status,
-            headers: httpResponse.headers,
-            url: httpRequest.url,
-            body: httpResponse.body,
-          });
-        }
+	        if (httpResponse.status !== 200) {
+	          throw new ChannelError(ErrorType.API_ERROR, t('modules.channel.errors.apiError', { status: httpResponse.status }), {
+	            status: httpResponse.status,
+	            headers: httpResponse.headers,
+	            url: httpRequest.url,
+	            request: buildRequestDebugInfo(httpRequest),
+	            config: { id: config.id, type: config.type, name: config.name },
+	            body: httpResponse.body,
+	          });
+	        }
 
         if (attempt > 1 && this.retryStatusCallback) {
           this.retryStatusCallback({
@@ -138,8 +141,8 @@ export class ChannelManager extends ChannelManagerHttp {
       } catch (error) {
         lastError = error;
 
-        const errorMessage = error instanceof Error ? error.message : '未知错误';
-        const errorDetails = error instanceof ChannelError ? error.details : undefined;
+	        const errorMessage = error instanceof Error ? error.message : '未知错误';
+	        const errorDetails = error instanceof ChannelError ? error.details : undefined;
 
         if (this.isStreamRequiredError(error, errorDetails)) {
           break;
@@ -182,9 +185,9 @@ export class ChannelManager extends ChannelManagerHttp {
       }
     }
 
-    if (lastError instanceof ChannelError) {
-      throw lastError;
-    }
+	    if (lastError instanceof ChannelError) {
+	      throw lastError;
+	    }
     throw new ChannelError(
       ErrorType.NETWORK_ERROR,
       t('modules.channel.errors.httpRequestFailed', { error: lastError instanceof Error ? lastError.message : t('errors.unknown') }),
@@ -192,7 +195,7 @@ export class ChannelManager extends ChannelManagerHttp {
     );
   }
 
-  async *generateStream(request: GenerateRequest): AsyncGenerator<StreamChunk> {
+	  async *generateStream(request: GenerateRequest): AsyncGenerator<StreamChunk> {
     const streamRequest: GenerateRequest = { ...request, streamOverride: true };
 
     let config = await this.configManager.getConfig(streamRequest.configId);
@@ -225,16 +228,16 @@ export class ChannelManager extends ChannelManagerHttp {
         streamRequest.toolAllowList
       );
 
-    const httpRequest = formatter.buildRequest(streamRequest, config, tools);
+	    const httpRequest = formatter.buildRequest(streamRequest, config, tools);
 
     const retryEnabled = streamRequest.skipRetry ? false : ((config as any).retryEnabled ?? true);
     const maxRetries = (config as any).retryCount ?? 3;
     const retryInterval = (config as any).retryInterval ?? 3000;
 
-    let lastError: any;
-    for (let attempt = 1; attempt <= (retryEnabled ? maxRetries : 1); attempt++) {
-      try {
-        const stream = this.executeStreamRequest(httpRequest, streamRequest.abortSignal);
+	    let lastError: any;
+	    for (let attempt = 1; attempt <= (retryEnabled ? maxRetries : 1); attempt++) {
+	      try {
+	        const stream = this.executeStreamRequest(httpRequest, streamRequest.abortSignal);
 
         if (attempt > 1 && this.retryStatusCallback) {
           this.retryStatusCallback({
@@ -260,11 +263,22 @@ export class ChannelManager extends ChannelManagerHttp {
         }
 
         return;
-      } catch (error) {
-        lastError = error;
+	      } catch (error) {
+	        lastError = error;
 
-        const errorMessage = error instanceof Error ? error.message : '未知错误';
-        const errorDetails = error instanceof ChannelError ? error.details : undefined;
+	        const errorMessage = error instanceof Error ? error.message : '未知错误';
+	        const errorDetails = error instanceof ChannelError ? error.details : undefined;
+	        if (error instanceof ChannelError && error.type === ErrorType.API_ERROR) {
+	          const detailsObj = (error as any).details;
+	          if (detailsObj && typeof detailsObj === 'object') {
+	            if (!detailsObj.request) {
+	              detailsObj.request = buildRequestDebugInfo(httpRequest);
+	            }
+	            if (!detailsObj.config) {
+	              detailsObj.config = { id: config.id, type: config.type, name: config.name };
+	            }
+	          }
+	        }
 
         if (!retryEnabled || !this.isRetryableError(error) || attempt >= maxRetries) {
           if (attempt > 1 && this.retryStatusCallback) {
