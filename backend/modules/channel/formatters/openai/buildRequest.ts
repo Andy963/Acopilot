@@ -8,6 +8,22 @@ import { convertOpenAIThoughtSignatures, convertOpenAITools } from '../openaiToo
 import { buildOpenAIGenerationConfig } from './generationConfig';
 import { convertToOpenAIMessages } from './history';
 
+function normalizeApiKey(apiKey: unknown): string {
+  if (typeof apiKey !== 'string') return '';
+  const trimmed = apiKey.trim();
+  if (!trimmed) return '';
+  const bearerMatch = trimmed.match(/^bearer\s+(.+)$/i);
+  return (bearerMatch ? bearerMatch[1] : trimmed).trim();
+}
+
+function findHeaderKey(headers: Record<string, string>, targetName: string): string | undefined {
+  const targetLower = targetName.toLowerCase();
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === targetLower) return key;
+  }
+  return undefined;
+}
+
 export function buildOpenAIRequest(
   request: GenerateRequest,
   config: OpenAIConfig,
@@ -78,15 +94,26 @@ export function buildOpenAIRequest(
     'Content-Type': 'application/json',
   };
 
-  if (config.apiKey) {
-    headers['Authorization'] = `Bearer ${config.apiKey}`;
-  }
-
   if (config.customHeadersEnabled && config.customHeaders) {
     for (const header of config.customHeaders) {
       if (header.enabled && header.key && header.key.trim()) {
         headers[header.key.trim()] = header.value || '';
       }
+    }
+  }
+
+  const normalizedApiKey = normalizeApiKey(config.apiKey);
+  if (normalizedApiKey) {
+    const existingAuthKey = findHeaderKey(headers, 'Authorization');
+    const existingAuthValue = existingAuthKey ? String(headers[existingAuthKey] || '').trim() : '';
+
+    // Avoid accidentally overriding the Authorization header with an empty custom header value.
+    // Keep a non-empty custom Authorization header as-is.
+    if (!existingAuthKey || existingAuthValue.length === 0) {
+      if (existingAuthKey && existingAuthKey !== 'Authorization') {
+        delete headers[existingAuthKey];
+      }
+      headers['Authorization'] = `Bearer ${normalizedApiKey}`;
     }
   }
 
@@ -116,4 +143,3 @@ export function buildOpenAIRequest(
     stream: useStream,
   };
 }
-
