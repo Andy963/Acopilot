@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.2] - 2026-03-12
+
+### Fixed
+  - Chat: stop rendering code-block copy buttons while assistant messages are still streaming, preventing hover flicker caused by repeated `v-html` subtree replacement.
+
 ## [1.0.60-pre.1] - 2026-03-12
 
 ### Fixed

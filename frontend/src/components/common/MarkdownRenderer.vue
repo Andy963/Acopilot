@@ -14,6 +14,7 @@ import json from 'highlight.js/lib/languages/json'
 import bash from 'highlight.js/lib/languages/bash'
 import katex from 'katex'
 import { sendToExtension } from '@/utils/vscode'
+import { getMarkdownCodeBlockRenderBehavior, renderMarkdownCodeBlock } from './markdownCodeBlock'
 
 // 插件导入
 import footnote from 'markdown-it-footnote'
@@ -211,7 +212,7 @@ function applyWorkspaceFileLinkify(md: MarkdownIt): void {
 /**
  * 创建并配置 markdown-it 实例
  */
-function createMarkdownIt(enableCodeHighlight: boolean) {
+function createMarkdownIt(enableCodeHighlight: boolean, showCopyButton: boolean) {
   const md = new MarkdownIt({
     html: true,           // 允许 HTML 标签
     xhtmlOut: false,
@@ -237,8 +238,12 @@ function createMarkdownIt(enableCodeHighlight: boolean) {
       const encodedCode = btoa(encodeURIComponent(str))
       
       // 返回以 <pre 开头的字符串，避免 markdown-it 额外包裹
-      const codeClass = ['hljs', langClass].filter(Boolean).join(' ')
-      return `<pre class="code-block-wrapper"><button class="code-copy-btn" data-code="${encodedCode}" title="复制代码"><span class="copy-icon codicon codicon-copy"></span><span class="check-icon codicon codicon-check"></span></button><code class="${codeClass}">${highlighted}</code></pre>`
+      return renderMarkdownCodeBlock({
+        encodedCode,
+        highlighted,
+        langClass,
+        showCopyButton,
+      })
     }
   })
   
@@ -287,7 +292,7 @@ function createMarkdownIt(enableCodeHighlight: boolean) {
     tokens: Token[],
     idx: number,
     options: Options,
-    env: StateCore,
+    _env: StateCore,
     self: Renderer
   ) {
     return self.renderToken(tokens, idx, options)
@@ -338,8 +343,8 @@ function createMarkdownIt(enableCodeHighlight: boolean) {
   return md
 }
 
-const mdWithHighlight = createMarkdownIt(true)
-const mdWithoutHighlight = createMarkdownIt(false)
+const mdWithHighlight = createMarkdownIt(true, true)
+const mdWithoutHighlight = createMarkdownIt(false, false)
 
 /**
  * 处理 LaTeX 公式
@@ -529,7 +534,8 @@ function renderContent(content: string, latexOnly: boolean, enableCodeHighlight:
 
 // 渲染结果
 const renderedContent = computed(() => {
-  const enableCodeHighlight = props.streaming !== true
+  const behavior = getMarkdownCodeBlockRenderBehavior(props.streaming === true)
+  const enableCodeHighlight = behavior.enableCodeHighlight
   return renderContent(props.content, props.latexOnly, enableCodeHighlight)
 })
 
