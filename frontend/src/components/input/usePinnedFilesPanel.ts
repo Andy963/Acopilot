@@ -111,8 +111,8 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
 
   function syncPinnedPromptDraftFromStore() {
     const pinned = chatStore.pinnedPrompt
-    if (pinned?.mode === 'custom' && typeof pinned.prompt === 'string') {
-      customPromptDraft.value = pinned.prompt
+    if (pinned?.mode === 'custom' && typeof pinned.customPrompt === 'string') {
+      customPromptDraft.value = pinned.customPrompt
     } else {
       customPromptDraft.value = ''
     }
@@ -201,28 +201,18 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
         const selected = selectedSkill.value
         if (!selected) return
 
-        await sendToExtension('setPinnedPrompt', {
+        await chatStore.setPinnedPrompt({
           mode: 'skill',
           skillId: selected.id,
-        })
-
-        chatStore.setPinnedPrompt({
-          mode: 'skill',
-          skillId: selected.id,
-          prompt: selected.prompt,
         })
       } else if (pinPanelTab.value === 'custom') {
-        const prompt = customPromptDraft.value.trim()
-        if (!prompt) return
+        const customPrompt = customPromptDraft.value.trim()
+        if (!customPrompt) return
 
-        await sendToExtension('setPinnedPrompt', {
+        customPromptDraft.value = customPrompt
+        await chatStore.setPinnedPrompt({
           mode: 'custom',
-          prompt,
-        })
-
-        chatStore.setPinnedPrompt({
-          mode: 'custom',
-          prompt,
+          customPrompt,
         })
       }
 
@@ -241,8 +231,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
   async function handleClearPinnedPrompt() {
     isSavingPinnedPrompt.value = true
     try {
-      await sendToExtension('clearPinnedPrompt', {})
-      chatStore.setPinnedPrompt({ mode: 'none' })
+      await chatStore.setPinnedPrompt({ mode: 'none' })
       customPromptDraft.value = ''
       await showNotification(t('components.input.notifications.pinnedPromptCleared'), 'info')
     } catch (error: any) {
@@ -395,4 +384,3 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     handleDrop,
   }
 }
-

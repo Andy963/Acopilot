@@ -30,11 +30,11 @@ const {
   loadSkills,
   openPanel,
   emitClose,
-  handleAddPinnedFile,
   handleRemovePinnedFile,
   handleTogglePinnedFile,
   handleSavePinnedPrompt,
   handleClearPinnedPrompt,
+  handleSelectSkill,
   handleDragEnter,
   handleDragOver,
   handleDragLeave,
@@ -142,7 +142,7 @@ defineExpose({
           v-model="selectedSkillId"
           class="pinned-skill-select"
           :disabled="isLoadingSkills"
-          @change="applySkillSelection"
+          @change="handleSelectSkill(selectedSkillId)"
         >
           <option value="">{{ t('common.none') }}</option>
           <option v-for="skill in skills" :key="skill.id" :value="skill.id">
@@ -196,11 +196,11 @@ defineExpose({
         :placeholder="t('components.input.pinnedFilesPanel.custom.placeholder')"
       ></textarea>
       <div class="pinned-custom-actions">
-        <button class="pinned-custom-save" @click="saveCustomPrompt" :disabled="isSavingPinnedPrompt">
+        <button class="pinned-custom-save" @click="handleSavePinnedPrompt" :disabled="isSavingPinnedPrompt">
           <i v-if="isSavingPinnedPrompt" class="codicon codicon-loading codicon-modifier-spin"></i>
           <span v-else>{{ t('components.input.pinnedFilesPanel.custom.save') }}</span>
         </button>
-        <button class="pinned-custom-clear" @click="clearCustomPrompt" :disabled="isSavingPinnedPrompt">
+        <button class="pinned-custom-clear" @click="handleClearPinnedPrompt" :disabled="isSavingPinnedPrompt">
           {{ t('components.input.pinnedFilesPanel.custom.clear') }}
         </button>
       </div>

@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.1] - 2026-03-12
+
+### Fixed
+  - Chat: restore pinned custom prompt persistence by wiring the Pinned Files panel to the correct handlers and persisting `pinnedPrompt.customPrompt` through conversation metadata.
+
 ## [1.0.59] - 2026-03-01
 
 ### Fixed
