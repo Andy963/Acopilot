@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import type { Tool, ToolContext, ToolResult } from '../../types';
 
 import { shouldConfirmExecuteCommand } from '../../../core/commandRisk';
+import { filterSensitiveEnv } from '../../../core/envFilter';
 import { getGlobalSettingsManager } from '../../../core/settingsContext';
 import { getDefaultExecuteCommandConfig } from '../../../modules/settings';
 import { TaskManager } from '../../taskManager';
@@ -200,7 +201,7 @@ ${getAvailableShellsDescription()}${workspaceDescription}
                         ? [...shellConfig.shellArgs, finalCommand]
                         : [finalCommand];
 
-                    const env = { ...process.env };
+                    const env = filterSensitiveEnv(process.env);
                     if (isWindows) {
                         if (!env.LANG) env.LANG = 'en_US.UTF-8';
                         if (!env.PYTHONIOENCODING) env.PYTHONIOENCODING = 'utf-8';
