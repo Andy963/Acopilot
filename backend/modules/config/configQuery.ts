@@ -12,7 +12,10 @@ export function applyFilter(configs: ChannelConfig[], filter: ConfigFilter): Cha
   }
 
   if (filter.tags && filter.tags.length > 0) {
-    result = result.filter(c => c.tags && filter.tags!.some(tag => c.tags!.includes(tag)));
+    // ⚡ Bolt: Convert filter criteria to a Set once before iteration to achieve O(1) lookup
+    // This improves the time complexity of the intersection check from O(N * M) to O(N)
+    const filterTags = new Set(filter.tags);
+    result = result.filter(c => c.tags && c.tags.some(tag => filterTags.has(tag)));
   }
 
   if (filter.nameSearch) {
