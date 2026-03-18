@@ -1,0 +1,3 @@
+## 2026-03-18 - [Optimize I/O concurrency in read_file and listSnapshots]
+**Learning:** Replaced naive `Promise.all` chunking (which blocks the entire chunk until the slowest item finishes) with a sliding-window worker pool (`runWithConcurrency`) for file I/O operations. However, using `runWithConcurrency` with a direct `.push()` inside the callback breaks the original ordering of results because tasks finish at unpredictable times.
+**Action:** When migrating from `Promise.all(chunk.map(...))` to a worker pool, always pre-allocate the results array by index (e.g., `new Array(length)`) and assign results to `results[index]` to preserve the necessary deterministic order of operations.

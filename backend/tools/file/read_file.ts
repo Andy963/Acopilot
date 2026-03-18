@@ -11,6 +11,7 @@ import type { Tool, ToolResult, MultimodalData, MultimodalCapability } from '../
 import { t } from '../../i18n';
 import type { ImageDimensions } from '../imageDimensions';
 import { parseImageDimensions } from './parseImageDimensions';
+import { runWithConcurrency } from '../../modules/checkpoint/concurrency';
 import {
     resolveUri,
     resolveUriWithInfo,
@@ -350,7 +351,7 @@ export function createReadFileTool(
                 return { success: false, error: 'files is required and must be a non-empty array' };
             }
 
-            const allMultimodal: MultimodalData[] = [];
+            const allMultimodal: (MultimodalData[] | undefined)[] = new Array(fileList.length);
             const MAX_CONCURRENT = 10;
 
             // 处理单个文件请求的函数
@@ -395,22 +396,23 @@ export function createReadFileTool(
             let successCount = 0;
             let failCount = 0;
 
-            for (let i = 0; i < fileList.length; i += MAX_CONCURRENT) {
-                const batch = fileList.slice(i, i + MAX_CONCURRENT);
-                const batchResults = await Promise.all(
-                    batch.map((fileReq, batchIndex) => processFileRequest(fileReq, i + batchIndex))
-                );
+            await runWithConcurrency(fileList, MAX_CONCURRENT, async (fileReq, index) => {
+                const { result, multimodal } = await processFileRequest(fileReq, index);
                 
-                for (const { index, result, multimodal } of batchResults) {
-                    results[index] = result;
-                    if (result.success) {
-                        successCount++;
-                        if (multimodal) {
-                            allMultimodal.push(...multimodal);
-                        }
-                    } else {
-                        failCount++;
-                    }
+                results[index] = result;
+                allMultimodal[index] = multimodal;
+
+                if (result.success) {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            });
+
+            const flatMultimodal: MultimodalData[] = [];
+            for (const item of allMultimodal) {
+                if (item) {
+                    flatMultimodal.push(...item);
                 }
             }
 
@@ -424,7 +426,7 @@ export function createReadFileTool(
                     totalCount: fileList.length,
                     multiRoot: isMultiRoot
                 },
-                multimodal: allMultimodal.length > 0 ? allMultimodal : undefined,
+                multimodal: flatMultimodal.length > 0 ? flatMultimodal : undefined,
                 error: allSuccess ? undefined : `${failCount} files failed to read`
             };
         }

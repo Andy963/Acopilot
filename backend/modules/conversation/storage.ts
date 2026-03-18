@@ -13,6 +13,7 @@
  */
 
 import { ConversationHistory, ConversationMetadata, HistorySnapshot } from './types';
+import { runWithConcurrency } from '../checkpoint/concurrency';
 
 /**
  * 存储适配器接口
@@ -378,23 +379,17 @@ export class FileSystemStorageAdapter implements IStorageAdapter {
             );
 
             const concurrency = 10;
-            const results: string[] = [];
+            const results: (string | null)[] = new Array(snapshotFiles.length).fill(null);
 
-            for (let i = 0; i < snapshotFiles.length; i += concurrency) {
-                const chunk = snapshotFiles.slice(i, i + concurrency);
-                const chunkResults = await Promise.all(chunk.map(async ([name]: [string, number]) => {
-                    const snapshotId = name.replace('.json', '');
-                    const snapshot = await this.loadSnapshot(snapshotId);
-                    if (snapshot && snapshot.conversationId === conversationId) {
-                        return snapshotId;
-                    }
-                    return null;
-                }));
+            await runWithConcurrency(snapshotFiles, concurrency, async ([name], index) => {
+                const snapshotId = name.replace('.json', '');
+                const snapshot = await this.loadSnapshot(snapshotId);
+                if (snapshot && snapshot.conversationId === conversationId) {
+                    results[index] = snapshotId;
+                }
+            });
 
-                results.push(...chunkResults.filter((id): id is string => id !== null));
-            }
-
-            return results;
+            return results.filter((id): id is string => id !== null);
         } catch {
             return [];
         }
