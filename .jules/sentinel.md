@@ -1,0 +1,4 @@
+## 2025-02-17 - [Add Privilege Escalation and Arbitrary Command Execution Risk Detection]
+**Vulnerability:** The command execution risk assessment lacked checks for certain dangerous privilege-escalating and arbitrary command execution operations such as `chmod`, `chown`, `eval`, `ssh`, and `scp`. Without these checks, an AI acting on behalf of a user could execute shell evaluation or grant extensive permissions to scripts implicitly.
+**Learning:** Checking for network pipes (`curl | bash`) and destructive operations (`rm -rf`) is not enough for an arbitrary command execution engine. Privilege escalation tools and dynamic string evaluation operations (like `eval`) are common vectors for bypassing simpler static analysis.
+**Prevention:** Extend command risk categories to capture commands modifying execution capabilities (`chmod`, `chown`) and executing string literals (`eval`).

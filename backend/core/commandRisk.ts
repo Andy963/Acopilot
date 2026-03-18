@@ -83,8 +83,20 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
     reasons.push('includes sudo');
   }
 
+  const hasChmodChown = /(^|\s)(chmod|chown)\b/.test(lower);
+  if (hasChmodChown) {
+    categories.push('privilege');
+    reasons.push('modifies file permissions or ownership');
+  }
+
+  const hasEval = /(^|\s)eval\b/.test(lower);
+  if (hasEval) {
+    categories.push('privilege');
+    reasons.push('executes arbitrary string as command');
+  }
+
   const hasNetwork =
-    /(^|\s)(curl|wget)\b/.test(lower) ||
+    /(^|\s)(curl|wget|ssh|scp)\b/.test(lower) ||
     /\b(npm|pnpm|yarn|pip|pip3)\s+(install|add)\b/.test(lower) ||
     /\bgit\s+clone\b/.test(lower);
   if (hasNetwork) {
@@ -154,9 +166,11 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
       level = 'high';
     } else if ((isRm || isRmdir || isWindowsDelete) && (hasForceDeleteFlag || hasRecursiveFlag)) {
       level = 'high';
+    } else if (hasEval) {
+      level = 'high';
     } else if (isGitRestore || hasRedirection) {
       level = 'medium';
-    } else if (hasSudo || hasNetwork) {
+    } else if (hasSudo || hasNetwork || hasChmodChown) {
       level = 'medium';
     }
   }
