@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as cp from 'child_process';
 
 vi.mock('vscode', () => ({
   window: {
@@ -100,5 +101,30 @@ describe('execute_command risk gating', () => {
 
     expect(vscode.window.showWarningMessage).toHaveBeenCalled();
     expect(result.success).toBe(true);
+  });
+
+  it('filters sensitive env vars before spawning child processes', async () => {
+    process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.GITHUB_TOKEN = 'ghp-test';
+    process.env.PATH = process.env.PATH || '/usr/bin';
+
+    try {
+      const tool = createExecuteCommandTool();
+      const result = await tool.handler({ command: 'echo hello' });
+
+      expect(result.success).toBe(true);
+
+      const spawnCalls = vi.mocked(cp.spawn).mock.calls;
+      expect(spawnCalls.length).toBeGreaterThan(0);
+
+      const options = spawnCalls.at(-1)?.[2] as { env?: NodeJS.ProcessEnv } | undefined;
+      expect(options?.env).toBeDefined();
+      expect(options?.env?.OPENAI_API_KEY).toBeUndefined();
+      expect(options?.env?.GITHUB_TOKEN).toBeUndefined();
+      expect(options?.env?.PATH).toBeDefined();
+    } finally {
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.GITHUB_TOKEN;
+    }
   });
 });
