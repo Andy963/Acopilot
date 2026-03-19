@@ -38,5 +38,25 @@ describe('assessExecuteCommandRisk bypass checks', () => {
     expect(risk.level).toBe('high');
     expect(risk.categories).toContain('gitHistory');
   });
+
+  it('flags dangerous commands following shell operators and subshells', () => {
+    const commands = [
+      'ls;rm -rf /',
+      'ls && rm -rf /',
+      'ls || rm -rf /',
+      'ls | rm -rf /',
+      'ls\nrm -rf /',
+      '`rm -rf /`',
+      '$(rm -rf /)',
+      '{rm -rf /}',
+      '(rm -rf /)'
+    ];
+
+    for (const cmd of commands) {
+      const risk = assessExecuteCommandRisk(cmd);
+      expect(risk.level).toBe('critical');
+      expect(risk.categories).toContain('destructive');
+    }
+  });
 });
 

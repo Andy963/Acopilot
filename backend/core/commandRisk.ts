@@ -77,26 +77,27 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
   const categories: CommandRiskCategory[] = [];
   const reasons: string[] = [];
 
-  const hasSudo = /(^|\s)(sudo)\b/.test(lower);
+  const cmdStart = `(^|[\\s;&|\\\`({])`;
+  const hasSudo = new RegExp(`${cmdStart}(sudo)\\b`).test(lower);
   if (hasSudo) {
     categories.push('privilege');
     reasons.push('includes sudo');
   }
 
-  const hasPermissionMutation = /(^|\s)(chmod|chown)\b/.test(lower);
+  const hasPermissionMutation = new RegExp(`${cmdStart}(chmod|chown)\\b`).test(lower);
   if (hasPermissionMutation) {
     categories.push('privilege');
     reasons.push('modifies file permissions or ownership');
   }
 
-  const hasEval = /(^|\s)eval\b/.test(lower);
+  const hasEval = new RegExp(`${cmdStart}eval\\b`).test(lower);
   if (hasEval) {
     categories.push('privilege');
     reasons.push('executes arbitrary string as command');
   }
 
   const hasNetwork =
-    /(^|\s)(curl|wget|ssh|scp)\b/.test(lower) ||
+    new RegExp(`${cmdStart}(curl|wget|ssh|scp)\\b`).test(lower) ||
     /\b(npm|pnpm|yarn|pip|pip3)\s+(install|add)\b/.test(lower) ||
     /\bgit\s+clone\b/.test(lower);
   if (hasNetwork) {
@@ -110,9 +111,9 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
     reasons.push('uses output redirection (>)');
   }
 
-  const isRm = /(^|\s)rm\b/.test(lower);
-  const isWindowsDelete = /(^|\s)(del|erase)\b/.test(lower);
-  const isRmdir = /(^|\s)rmdir\b/.test(lower);
+  const isRm = new RegExp(`${cmdStart}rm\\b`).test(lower);
+  const isWindowsDelete = new RegExp(`${cmdStart}(del|erase)\\b`).test(lower);
+  const isRmdir = new RegExp(`${cmdStart}rmdir\\b`).test(lower);
   const isGitRestore = /\bgit\s+restore\b/.test(lower);
   const isGitResetHard = /\bgit\s+reset\b/.test(lower) && /\s--hard(\s|$)/.test(lower);
   const isGitClean = /\bgit\s+clean\b/.test(lower) && /\s-[^\n]*f/.test(lower);
@@ -143,19 +144,20 @@ function computeRiskFromCommand(command: string): Omit<CommandRiskAssessment, 'm
   }
 
   const hasForceDeleteFlag =
-    (isRm && /(^|\s)-[^\n]*f/.test(lower)) ||
+    (isRm && new RegExp(`${cmdStart}-[^\n]*f`).test(lower)) ||
     (isRmdir && /\s\/s(\s|$)/.test(lower)) ||
     (isWindowsDelete && /\s\/f(\s|$)/.test(lower));
   const hasRecursiveFlag =
-    (isRm && /(^|\s)-[^\n]*r/.test(lower)) ||
+    (isRm && new RegExp(`${cmdStart}-[^\n]*r`).test(lower)) ||
     (isRmdir && /\s\/s(\s|$)/.test(lower));
 
+  const pathEnd = `(\\s|['"\`})]|$|&|\\||;)`;
   const targetsRootLike =
-    /\brm\b[^\n]*\s\/(\s|$)/.test(lower) ||
-    /\brm\b[^\n]*\s~(\s|$)/.test(lower) ||
-    /\brm\b[^\n]*\s\.\.(\s|$)/.test(lower) ||
-    /\brmdir\b[^\n]*\s(c:\\|\\)(\s|$)/.test(lower) ||
-    /\bdel\b[^\n]*\s(c:\\|\\)(\s|$)/.test(lower);
+    new RegExp(`\\brm\\b[^\\n]*\\s\\/${pathEnd}`).test(lower) ||
+    new RegExp(`\\brm\\b[^\\n]*\\s~${pathEnd}`).test(lower) ||
+    new RegExp(`\\brm\\b[^\\n]*\\s\\.\\.${pathEnd}`).test(lower) ||
+    new RegExp(`\\brmdir\\b[^\\n]*\\s(c:\\\\|\\\\)${pathEnd}`).test(lower) ||
+    new RegExp(`\\bdel\\b[^\\n]*\\s(c:\\\\|\\\\)${pathEnd}`).test(lower);
 
   // Do not downgrade a critical assessment to a lower level later.
   if (level !== 'critical') {
