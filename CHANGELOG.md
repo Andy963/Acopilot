@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.3] - 2026-03-19
+
+### Fixed
+  - Tool: stop leaking the full parent environment into `execute_command` child processes.
+  - Tool: harden `execute_command` risk detection for privilege escalation and arbitrary command execution patterns.
+  - UI: add accessible labels to message action buttons for screen-reader and tooltip parity.
+
 ## [1.0.60-pre.2] - 2026-03-12
 
 ### Fixed
