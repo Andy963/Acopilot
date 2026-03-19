@@ -1,0 +1,3 @@
+## 2024-03-24 - [Regex Compilation in File Iteration]
+**Learning:** The application evaluates glob and ignore patterns on every file during directory traversal (e.g. `shouldIgnorePath` using `matchGlobPattern`). Repeatedly calling `new RegExp` for the same string patterns inside recursive file traversal creates significant GC pressure and CPU overhead, especially in large workspaces.
+**Action:** Always use a module-level `Map` cache (e.g., `GLOB_REGEX_CACHE = new Map<string, RegExp>()`) for compiled `RegExp` objects when evaluating static patterns against large file trees, with a reasonable max size (e.g. 2048) to prevent memory leaks.
