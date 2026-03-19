@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.4] - 2026-03-19
+
+### Changed
+  - Refresh the pre-release cut from the latest `dev` baseline so the published VSIX aligns with the current release branch head.
+
 ## [1.0.60-pre.3] - 2026-03-19
 
 ### Fixed
