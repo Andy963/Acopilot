@@ -6,6 +6,7 @@
 
 import { ref } from 'vue'
 import { IconButton } from '../common'
+import { useI18n } from '../../composables'
 import type { Message } from '../../types'
 
 defineProps<{
@@ -20,6 +21,8 @@ const emit = defineEmits<{
   delete: []
   retry: []
 }>()
+
+const { t } = useI18n()
 
 // 复制状态
 const isCopied = ref(false)
@@ -53,6 +56,8 @@ function handleCopy() {
       v-if="canEdit"
       icon="codicon-edit"
       size="small"
+      :tooltip="t('common.edit')"
+      :aria-label="t('common.edit')"
       @click="emit('edit')"
     />
 
@@ -60,6 +65,8 @@ function handleCopy() {
     <IconButton
       :icon="isCopied ? 'codicon-check' : 'codicon-copy'"
       size="small"
+      :tooltip="isCopied ? t('common.copied') : t('common.copy')"
+      :aria-label="isCopied ? t('common.copied') : t('common.copy')"
       @click="handleCopy"
     />
 
@@ -68,6 +75,8 @@ function handleCopy() {
       v-if="canRetry"
       icon="codicon-refresh"
       size="small"
+      :tooltip="t('common.retry')"
+      :aria-label="t('common.retry')"
       @click="emit('retry')"
     />
 
@@ -76,6 +85,8 @@ function handleCopy() {
       icon="codicon-trash"
       size="small"
       variant="danger"
+      :tooltip="t('common.delete')"
+      :aria-label="t('common.delete')"
       @click="emit('delete')"
     />
   </div>
