@@ -22,6 +22,35 @@ describe('assessExecuteCommandRisk', () => {
     expect(risk.reasons).toContain('includes sudo');
   });
 
+  it('flags chmod and chown as privilege and medium risk', () => {
+    const chmodRisk = assessExecuteCommandRisk('chmod 777 file.txt');
+    expect(chmodRisk.level).toBe('medium');
+    expect(chmodRisk.categories).toContain('privilege');
+    expect(chmodRisk.reasons).toContain('modifies file permissions or ownership');
+
+    const chownRisk = assessExecuteCommandRisk('chown user file.txt');
+    expect(chownRisk.level).toBe('medium');
+    expect(chownRisk.categories).toContain('privilege');
+    expect(chownRisk.reasons).toContain('modifies file permissions or ownership');
+  });
+
+  it('flags eval as privilege and high risk', () => {
+    const risk = assessExecuteCommandRisk('eval "echo hi"');
+    expect(risk.level).toBe('high');
+    expect(risk.categories).toContain('privilege');
+    expect(risk.reasons).toContain('executes arbitrary string as command');
+  });
+
+  it('flags ssh and scp as network and medium risk', () => {
+    const sshRisk = assessExecuteCommandRisk('ssh user@host');
+    expect(sshRisk.level).toBe('medium');
+    expect(sshRisk.categories).toContain('network');
+
+    const scpRisk = assessExecuteCommandRisk('scp file user@host:');
+    expect(scpRisk.level).toBe('medium');
+    expect(scpRisk.categories).toContain('network');
+  });
+
   it('flags output redirection as destructive and medium risk', () => {
     const risk = assessExecuteCommandRisk('echo hi > out.txt');
     expect(risk.level).toBe('medium');
