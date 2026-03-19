@@ -87,8 +87,8 @@ const {
                 </div>
                 <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{ formatCheckpointTime(cp.timestamp)
                   }}</span>
-                <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                  <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                <Tooltip :content="t('components.message.checkpoint.restoreTooltip')">
+                  <button class="checkpoint-action" @click="restoreCheckpoint(cp)" :aria-label="t('components.message.checkpoint.restoreTooltip')">
                     <i class="codicon codicon-discard"></i>
                   </button>
                 </Tooltip>
@@ -118,8 +118,8 @@ const {
                   </div>
                   <span v-if="cp.toolName !== 'user_message'" class="checkpoint-time">{{
                     formatCheckpointTime(cp.timestamp) }}</span>
-                  <Tooltip :text="t('components.message.checkpoint.restoreTooltip')">
-                    <button class="checkpoint-action" @click="restoreCheckpoint(cp)">
+                  <Tooltip :content="t('components.message.checkpoint.restoreTooltip')">
+                    <button class="checkpoint-action" @click="restoreCheckpoint(cp)" :aria-label="t('components.message.checkpoint.restoreTooltip')">
                       <i class="codicon codicon-discard"></i>
                     </button>
                   </Tooltip>
@@ -166,15 +166,16 @@ const {
             <div class="error-icon">⚠</div>
             <div class="error-title">{{ t('components.message.error.title') }}</div>
             <div class="error-actions">
-              <button class="error-retry" @click="handleErrorRetry" :title="t('components.message.error.retry')">
+              <button class="error-retry" @click="handleErrorRetry" :title="t('components.message.error.retry')" :aria-label="t('components.message.error.retry')">
                 <span class="codicon codicon-refresh"></span>
               </button>
               <button class="error-copy" @click="copyErrorDetails"
-                :title="errorCopied ? t('common.copied') : t('components.message.error.copy')">
+                :title="errorCopied ? t('common.copied') : t('components.message.error.copy')"
+                :aria-label="errorCopied ? t('common.copied') : t('components.message.error.copy')">
                 <span :class="['codicon', errorCopied ? 'codicon-check' : 'codicon-copy']"></span>
               </button>
               <button class="error-dismiss" @click="chatStore.error = null"
-                :title="t('components.message.error.dismiss')">
+                :title="t('components.message.error.dismiss')" :aria-label="t('components.message.error.dismiss')">
                 ✕
               </button>
             </div>

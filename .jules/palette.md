@@ -1,0 +1,3 @@
+## 2024-03-24 - Icon-only button a11y & Tooltip prop consistency
+**Learning:** Found multiple icon-only buttons in the error state of `MessageList.vue` without `aria-label` attributes. Additionally, discovered that the `Tooltip` component uses a `content` prop instead of `text`, which was being misused in `MessageList.vue`.
+**Action:** Added explicit `aria-label`s to all icon-only buttons (`retry`, `copy`, `dismiss`, `restore checkpoint`) based on their tooltip text or existing `title` attributes. Corrected the `Tooltip` component prop from `:text` to `:content` to ensure accessibility and proper tooltip rendering.
