@@ -6,6 +6,16 @@ import { createProxyFetch, proxyStreamFetch } from '../proxyFetch';
 import { parseStreamBuffer } from '../streamParsing';
 import { ChannelManagerBase } from './base';
 
+async function parseJsonOrTextResponseBody(response: Response): Promise<any> {
+  const raw = await response.text();
+  if (!raw) return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export class ChannelManagerHttp extends ChannelManagerBase {
   protected getProxyUrl(): string | undefined {
     return (this.settingsManager as SettingsManager | undefined)?.getEffectiveProxyUrl();
@@ -169,12 +179,7 @@ export class ChannelManagerHttp extends ChannelManagerBase {
         });
 
         if (!response.ok) {
-          let errorBody: any;
-          try {
-            errorBody = await response.json();
-          } catch {
-            errorBody = await response.text();
-          }
+          const errorBody = await parseJsonOrTextResponseBody(response);
           throw new ChannelError(ErrorType.API_ERROR, t('modules.channel.errors.apiError', { status: response.status }), {
             status: response.status,
             headers: Object.fromEntries(response.headers.entries()),
