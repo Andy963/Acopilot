@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.5] - 2026-03-24
+
+### Fixed
+  - Channel: avoid double-consuming the response body for streaming error responses, preserving non-JSON payloads in error details.
+
 ## [1.0.60-pre.4] - 2026-03-19
 
 ### Changed
