@@ -8,6 +8,16 @@ import { ChannelError, ErrorType } from '../types';
 import { DEFAULT_TIMEOUT_MS, USER_AGENT } from './constants';
 import type { FetchOptions } from './types';
 
+async function parseJsonOrTextResponseBody(response: Response): Promise<any> {
+    const raw = await response.text();
+    if (!raw) return raw;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return raw;
+    }
+}
+
 /**
  * Create a proxy-aware streaming fetch.
  *
@@ -28,12 +38,7 @@ export async function* proxyStreamFetch(
         });
 
         if (!response.ok) {
-            let errorBody: any;
-            try {
-                errorBody = await response.json();
-            } catch {
-                errorBody = await response.text();
-            }
+            const errorBody = await parseJsonOrTextResponseBody(response);
             throw new ChannelError(
                 ErrorType.API_ERROR,
                 t('modules.channel.errors.apiError', { status: response.status }),

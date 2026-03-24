@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('vue', () => ({
+  ref: (value: any) => ({ value }),
+  computed: (getter: any) => ({
+    get value() {
+      return getter()
+    },
+  }),
+  watch: () => {},
+}))
+
 const { mockChatStore, mockSendToExtension, mockShowNotification } = vi.hoisted(() => ({
   mockChatStore: {
     pinnedPrompt: { mode: 'none' as const },
