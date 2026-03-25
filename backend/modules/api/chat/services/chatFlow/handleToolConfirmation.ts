@@ -64,6 +64,12 @@ export async function* handleToolConfirmation(
     break;
   }
 
+  const toolAllowList = Array.isArray(lastUserContextOverrides?.toolAllowList)
+    ? lastUserContextOverrides!.toolAllowList!
+        .filter((n) => typeof n === 'string' && n.trim())
+        .map((n) => n.trim())
+    : undefined;
+
   const functionCalls = ctx.toolCallParserService.extractFunctionCalls(lastMessage);
   if (functionCalls.length === 0) {
     yield {
@@ -116,6 +122,7 @@ export async function* handleToolConfirmation(
       messageIndex,
       config,
       request.abortSignal,
+      toolAllowList,
     );
   }
 
@@ -192,4 +199,3 @@ export async function* handleToolConfirmation(
     yield output as ChatStreamOutput;
   }
 }
-

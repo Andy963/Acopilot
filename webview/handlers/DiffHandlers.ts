@@ -97,8 +97,8 @@ async function handleOpenDiffPreview(
   
   if (toolName === 'apply_diff') {
     await handleApplyDiffPreview(args, result, ctx);
-  } else if (toolName === 'search_in_files') {
-    await handleSearchInFilesPreview(result, ctx);
+  } else if (toolName === 'search_in_files' || toolName === 'replace_in_files') {
+    await handleSearchInFilesPreview(args, result, ctx);
   } else if (toolName === 'write_file') {
     await handleWriteFilePreview(args, result, ctx);
   } else if (toolName === 'execute_command') {
@@ -161,11 +161,13 @@ async function handleApplyDiffPreview(
  * 处理 search_in_files 替换预览
  */
 async function handleSearchInFilesPreview(
+  args: Record<string, unknown>,
   result: Record<string, unknown> | undefined,
   ctx: HandlerContext
 ): Promise<void> {
   const resultData = result?.data as Record<string, unknown> | undefined;
-  const isReplaceMode = resultData?.isReplaceMode as boolean | undefined;
+  const isReplaceMode =
+    typeof (args as any)?.replace === 'string' || (resultData?.isReplaceMode as boolean | undefined) === true;
   
   if (!isReplaceMode) {
     throw new Error(t('webview.errors.searchNotReplaceMode'));

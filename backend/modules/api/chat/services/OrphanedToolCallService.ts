@@ -57,6 +57,22 @@ export class OrphanedToolCallService {
       return null;
     }
 
+    let toolAllowList: string[] | undefined;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i] as any;
+      if (!msg || msg.role !== 'user') continue;
+      if (msg.isFunctionResponse === true) continue;
+      if (msg.isSummary === true) continue;
+
+      const overrides = msg.contextOverrides as any;
+      toolAllowList = Array.isArray(overrides?.toolAllowList)
+        ? overrides.toolAllowList
+            .filter((n: unknown) => typeof n === 'string' && n.trim())
+            .map((n: string) => n.trim())
+        : undefined;
+      break;
+    }
+
     // 检查是否有文本内容（如果有文本，说明函数调用已经完成）
     const hasTextContent = lastMessage.parts.some(p => p.text && !p.thought);
     if (hasTextContent) {
@@ -71,7 +87,10 @@ export class OrphanedToolCallService {
     const { responseParts, toolResults } = await this.toolExecutionService.executeFunctionCallsWithResults(
       functionCalls,
       conversationId,
-      orphanedMessageIndex
+      orphanedMessageIndex,
+      undefined,
+      undefined,
+      toolAllowList
     );
 
     // 将函数响应添加到历史（作为 user 消息，标记为函数响应）

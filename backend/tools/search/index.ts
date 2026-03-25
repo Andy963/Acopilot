@@ -8,6 +8,7 @@ import type { Tool } from '../types';
 
 // 导出各个工具的创建函数
 export { registerSearchInFiles } from './search_in_files';
+export { registerReplaceInFiles } from './replace_in_files';
 export { registerFindFiles } from './find_files';
 
 /**
@@ -16,10 +17,12 @@ export { registerFindFiles } from './find_files';
  */
 export function getAllSearchTools(): Tool[] {
     const { registerSearchInFiles } = require('./search_in_files');
+    const { registerReplaceInFiles } = require('./replace_in_files');
     const { registerFindFiles } = require('./find_files');
     
     return [
         registerSearchInFiles(),
+        registerReplaceInFiles(),
         registerFindFiles()
     ];
 }
@@ -30,10 +33,12 @@ export function getAllSearchTools(): Tool[] {
  */
 export function getSearchToolRegistrations() {
     const { registerSearchInFiles } = require('./search_in_files');
+    const { registerReplaceInFiles } = require('./replace_in_files');
     const { registerFindFiles } = require('./find_files');
     
     return [
         registerSearchInFiles,
+        registerReplaceInFiles,
         registerFindFiles
     ];
 }

@@ -8,7 +8,7 @@ import SearchInFilesComponent from '../../../components/tools/search/search_in_f
 // 注册 search_in_files 工具
 registerTool('search_in_files', {
   name: 'search_in_files',
-  label: '搜索/替换',
+  label: 'Search in Files',
   icon: 'codicon-search',
   
   // 描述生成器 - 显示搜索关键词和替换信息
@@ -21,16 +21,16 @@ registerTool('search_in_files', {
     
     let desc = query
     if (replace !== undefined) {
-      desc += ` → ${replace || '(空)'}`
+      desc += ` -> ${replace || '(empty)'}`
       if (dryRun) {
-        desc += ' [预览]'
+        desc += ' [dry-run]'
       }
     }
     if (path !== '.') {
-      desc += `\n路径: ${path}`
+      desc += `\nPath: ${path}`
     }
     if (pattern !== '**/*') {
-      desc += `\n模式: ${pattern}`
+      desc += `\nPattern: ${pattern}`
     }
     return desc
   },
@@ -38,8 +38,8 @@ registerTool('search_in_files', {
   // 使用自定义组件显示内容
   contentComponent: SearchInFilesComponent,
   
-  // 启用 diff 预览功能（仅在替换模式下）
-  hasDiffPreview: true,
+  // This tool is search-only, so it never produces diffs.
+  hasDiffPreview: false,
   
   // 获取所有替换的文件路径
   getDiffFilePath: (args: Record<string, unknown>, result?: Record<string, unknown>) => {

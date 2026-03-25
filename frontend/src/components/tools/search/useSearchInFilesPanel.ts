@@ -189,7 +189,7 @@ export function useSearchInFilesPanel(props: SearchInFilesPanelProps) {
   const replacement = computed(() => props.args.replace as string | undefined)
   const dryRun = computed(() => (props.args.dryRun as boolean) || false)
 
-  const isReplaceMode = computed(() => Boolean(props.args.replace))
+  const isReplaceMode = computed(() => typeof (props.args as any).replace === 'string')
 
   const searchResults = computed((): SearchMatch[] => {
     const result = props.result as Record<string, any> | undefined
