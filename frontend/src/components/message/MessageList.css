@@ -3,12 +3,46 @@
   height: 100%;
   overflow: hidden;
   background: var(--vscode-editor-background);
+  position: relative;
 }
 
 .messages-container {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+}
+
+.message-anchor {
+  flex-shrink: 0;
+}
+
+.jump-to-latest {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--vscode-toolbar-activeBackground, rgba(127, 127, 127, 0.2));
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.3));
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  opacity: 0.95;
+  transition: background 0.15s, opacity 0.15s;
+  z-index: 2;
+}
+
+.jump-to-latest:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.3));
+  opacity: 1;
+}
+
+.jump-to-latest .codicon {
+  font-size: 13px;
 }
 
 .post-edit-validation {
@@ -309,4 +343,3 @@
 .checkpoint-action .codicon {
   font-size: 14px;
 }
-

@@ -44,6 +44,7 @@ export const jaComponentsMessage = {
         description: 'ツールの実行が完了しました。新しいメッセージを送信するか、「続行」をクリックして AI の応答を続けることができます',
         button: '続行'
     },
+    jumpToLatest: '最新へ移動',
     error: {
         title: 'リクエストに失敗しました',
         retry: '再試行',

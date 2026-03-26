@@ -12,7 +12,7 @@ function formatDuration(ms: number): string {
 
 export function useMessageItem(
   props: { message: Message; messageIndex: number },
-  emit: (e: string, ...args: any[]) => void
+  emit: (...args: any[]) => void
 ) {
   const { t } = useI18n()
   const chatStore = useChatStore()
@@ -395,4 +395,3 @@ export function useMessageItem(
     handleOpenContextUsed
   }
 }
-

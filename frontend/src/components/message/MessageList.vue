@@ -30,6 +30,8 @@ const {
   hasMore,
   renderItems,
   scrollbarRef,
+  showJumpToLatest,
+  handleJumpToLatest,
   showDeleteConfirm,
   deleteCheckpoints,
   deleteCount,
@@ -57,7 +59,7 @@ const {
 
 <template>
   <div class="message-list">
-    <CustomScrollbar ref="scrollbarRef" sticky-bottom>
+    <CustomScrollbar ref="scrollbarRef">
       <div class="messages-container">
         <!-- 自动加载更多指示器 -->
         <div v-if="hasMore" class="load-more-container">
@@ -96,12 +98,14 @@ const {
             </template>
 
             <!-- 总结消息使用专用组件 -->
-            <SummaryMessage v-if="item.message.isSummary" :message="item.message" :message-index="item.actualIndex" />
+            <div class="message-anchor" :data-message-id="item.message.id">
+              <SummaryMessage v-if="item.message.isSummary" :message="item.message" :message-index="item.actualIndex" />
 
-            <!-- 普通消息使用 MessageItem -->
-            <MessageItem v-else :message="item.message" :message-index="item.actualIndex" @edit="handleEdit"
-              @delete="handleDelete" @retry="handleRetry" @copy="handleCopy" @restore-checkpoint="handleRestoreCheckpoint"
-              @restore-and-retry="handleRestoreAndRetry" @restore-and-edit="handleRestoreAndEdit" />
+              <!-- 普通消息使用 MessageItem -->
+              <MessageItem v-else :message="item.message" :message-index="item.actualIndex" @edit="handleEdit"
+                @delete="handleDelete" @retry="handleRetry" @copy="handleCopy" @restore-checkpoint="handleRestoreCheckpoint"
+                @restore-and-retry="handleRestoreAndRetry" @restore-and-edit="handleRestoreAndEdit" />
+            </div>
 
             <!-- 消息后的检查点（仅当该工具的内容有变化时显示） -->
             <template v-if="item.afterCheckpoints.length > 0">
@@ -187,6 +191,17 @@ const {
         </div>
       </div>
     </CustomScrollbar>
+
+    <button
+      v-if="showJumpToLatest"
+      class="jump-to-latest"
+      type="button"
+      data-testid="jump-to-latest"
+      @click="handleJumpToLatest"
+    >
+      <span class="codicon codicon-arrow-down"></span>
+      <span class="btn-text">{{ t('components.message.jumpToLatest') }}</span>
+    </button>
 
     <!-- 删除确认对话框 -->
     <DeleteDialog v-model="showDeleteConfirm" :checkpoints="deleteCheckpoints" :delete-count="deleteCount"

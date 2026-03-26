@@ -286,6 +286,7 @@ export const useChatStore = defineStore('chat', () => {
     currentConfig: state.currentConfig,
     isLoading: state.isLoading,
     isStreaming: state.isStreaming,
+    streamingMessageId: state.streamingMessageId,
     isLoadingConversations: state.isLoadingConversations,
     isWaitingForResponse: state.isWaitingForResponse,
     retryStatus: state.retryStatus,

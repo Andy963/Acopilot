@@ -44,6 +44,7 @@ export const enComponentsMessage = {
         description: 'Tool execution completed. You can send a new message or click "Continue" to let AI continue responding',
         button: 'Continue'
     },
+    jumpToLatest: 'Jump to latest',
     error: {
         title: 'Request Failed',
         retry: 'Retry',

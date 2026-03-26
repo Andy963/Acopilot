@@ -44,6 +44,7 @@ export const zhCNComponentsMessage = {
         description: '工具执行完成。您可以发送新消息，或点击"继续"让 AI 继续响应',
         button: '继续'
     },
+    jumpToLatest: '跳到最新',
     error: {
         title: '请求失败',
         retry: '重试',
