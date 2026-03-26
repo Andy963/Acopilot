@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.6] - 2026-03-26
+
+### Improved
+  - Tool: split search and replace tools so `search_in_files` stays read-only while `replace_in_files` handles confirmed on-disk replacements, including allowlist propagation for confirmation/orphan execution.
+
+### Fixed
+  - Chat: keep streaming auto-follow pinned to the latest message without fighting user scroll, and show a "Jump to latest" action when follow mode is paused.
+
 ## [1.0.60-pre.5] - 2026-03-24
 
 ### Fixed
