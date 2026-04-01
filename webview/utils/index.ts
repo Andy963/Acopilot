@@ -3,3 +3,4 @@
  */
 
 export * from './WorkspaceUtils';
+export * from './webviewAssets';

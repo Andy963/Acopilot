@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.9] - 2026-04-01
+
+### Fixed
+  - Chat: stop bundling KaTeX font assets into the VSIX while keeping the KaTeX layout rules needed for formula rendering.
+  - Webview: resolve built frontend scripts and styles from `frontend/dist/index.html` so hashed asset names keep loading correctly.
+  - Build: restore normal frontend asset naming instead of forcing every emitted asset to `index.css`.
+
 ## [1.0.60-pre.8] - 2026-04-01
 
 ### Fixed

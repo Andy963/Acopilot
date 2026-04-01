@@ -40,6 +40,7 @@ import { MessageRouter } from './MessageRouter';
 import { initializeChatBackend } from './chatBackendInitializer';
 import type { HandlerContext, DiffPreviewContentProvider as IDiffPreviewContentProvider } from './types';
 import { isRecord, parseWebviewRequest } from './protocol';
+import { readFrontendBuildAssets, resolveFrontendAssetFsPath } from './utils';
 
 /**
  * Diff 预览内容提供者
@@ -455,15 +456,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
      */
     private getHtmlForWebview(webview: vscode.Webview): string {
         const nonce = getNonce();
-        const scriptUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist', 'index.js'))
-        );
-        const styleUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist', 'index.css'))
-        );
+        const distDir = path.join(this.context.extensionPath, 'frontend', 'dist');
+        const indexHtmlPath = path.join(distDir, 'index.html');
+        const fallbackScriptPath = path.join(distDir, 'index.js');
+        const fallbackStylePath = path.join(distDir, 'index.css');
+        let scriptUris = [webview.asWebviewUri(vscode.Uri.file(fallbackScriptPath))];
+        let styleUris = [webview.asWebviewUri(vscode.Uri.file(fallbackStylePath))];
+
+        try {
+            const assets = readFrontendBuildAssets(indexHtmlPath);
+            if (assets.scriptPaths.length > 0) {
+                scriptUris = assets.scriptPaths.map(assetPath =>
+                    webview.asWebviewUri(vscode.Uri.file(resolveFrontendAssetFsPath(distDir, assetPath)))
+                );
+            }
+            if (assets.stylePaths.length > 0) {
+                styleUris = assets.stylePaths.map(assetPath =>
+                    webview.asWebviewUri(vscode.Uri.file(resolveFrontendAssetFsPath(distDir, assetPath)))
+                );
+            }
+        } catch (error) {
+            console.warn('Failed to resolve frontend build assets from dist/index.html, using fallback asset names.', error);
+        }
+
         const codiconsUri = webview.asWebviewUri(
             vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons', 'codicon.css'))
         );
+        const styleLinks = styleUris
+            .map(styleUri => `<link href="${styleUri}" rel="stylesheet">`)
+            .join('\n    ');
+        const scriptTags = scriptUris
+            .map(scriptUri => `<script nonce="${nonce}" src="${scriptUri}"></script>`)
+            .join('\n    ');
 
         return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -472,12 +496,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data: blob:; media-src ${webview.cspSource} data: blob:;">
     <link href="${codiconsUri}" rel="stylesheet">
-    <link href="${styleUri}" rel="stylesheet">
+    ${styleLinks}
     <title>Acopilot Chat</title>
 </head>
 <body>
     <div id="app"></div>
-    <script nonce="${nonce}" src="${scriptUri}"></script>
+    ${scriptTags}
 </body>
 </html>`;
     }
