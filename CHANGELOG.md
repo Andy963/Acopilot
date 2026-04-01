@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.7] - 2026-03-31
+
+### Fixed
+  - Chat: render KaTeX formulas in chat when messages use TeX delimiters `\(...\)` and `\[...\]`, while preserving the existing `$...$` and `$$...$$` behavior.
+
 ## [1.0.60-pre.6] - 2026-03-26
 
 ### Improved

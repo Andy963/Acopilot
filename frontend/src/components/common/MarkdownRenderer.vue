@@ -12,9 +12,9 @@ import python from 'highlight.js/lib/languages/python'
 import go from 'highlight.js/lib/languages/go'
 import json from 'highlight.js/lib/languages/json'
 import bash from 'highlight.js/lib/languages/bash'
-import katex from 'katex'
 import { sendToExtension } from '@/utils/vscode'
 import { getMarkdownCodeBlockRenderBehavior, renderMarkdownCodeBlock } from './markdownCodeBlock'
+import { processLatex, renderLatexOnly } from './latex'
 
 // 插件导入
 import footnote from 'markdown-it-footnote'
@@ -345,118 +345,6 @@ function createMarkdownIt(enableCodeHighlight: boolean, showCopyButton: boolean)
 
 const mdWithHighlight = createMarkdownIt(true, true)
 const mdWithoutHighlight = createMarkdownIt(false, false)
-
-/**
- * 处理 LaTeX 公式
- */
-function processLatex(text: string): string {
-  // 先处理块级公式 $$...$$
-  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, formula) => {
-    try {
-      return `<div class="katex-block">${katex.renderToString(formula.trim(), {
-        displayMode: true,
-        throwOnError: false,
-        output: 'html'
-      })}</div>`
-    } catch (e) {
-      console.warn('KaTeX block render error:', e)
-      return `<div class="katex-error">$$${escapeHtml(formula)}$$</div>`
-    }
-  })
-  
-  // 再处理行内公式 $...$（排除已处理的块级公式）
-  text = text.replace(/(?<!\$)\$(?!\$)((?:[^$\\]|\\.)+?)\$(?!\$)/g, (_match, formula) => {
-    try {
-      return katex.renderToString(formula.trim(), {
-        displayMode: false,
-        throwOnError: false,
-        output: 'html'
-      })
-    } catch (e) {
-      console.warn('KaTeX inline render error:', e)
-      return `<span class="katex-error">$${escapeHtml(formula)}$</span>`
-    }
-  })
-  
-  return text
-}
-
-/**
- * 仅渲染 LaTeX（保留原始文本格式）
- * 用于用户消息：保持原始文本，只渲染 LaTeX 公式，保留换行和空格
- */
-function renderLatexOnly(content: string): string {
-  if (!content) return ''
-  
-  // 存储 LaTeX 公式及其位置
-  const formulas: { placeholder: string; rendered: string }[] = []
-  let processed = content
-  
-  // 提取并渲染块级公式 $$...$$
-  processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
-    const placeholder = `___LATEX_BLOCK_${formulas.length}___`
-    try {
-      formulas.push({
-        placeholder,
-        rendered: `<div class="katex-block">${katex.renderToString(formula.trim(), {
-          displayMode: true,
-          throwOnError: false,
-          output: 'html'
-        })}</div>`
-      })
-    } catch (e) {
-      console.warn('KaTeX block render error:', e)
-      formulas.push({
-        placeholder,
-        rendered: `<div class="katex-error">${escapeHtml(match)}</div>`
-      })
-    }
-    return placeholder
-  })
-  
-  // 提取并渲染行内公式 $...$
-  processed = processed.replace(/(?<!\$)\$(?!\$)((?:[^$\\]|\\.)+?)\$(?!\$)/g, (match, formula) => {
-    const placeholder = `___LATEX_INLINE_${formulas.length}___`
-    try {
-      formulas.push({
-        placeholder,
-        rendered: katex.renderToString(formula.trim(), {
-          displayMode: false,
-          throwOnError: false,
-          output: 'html'
-        })
-      })
-    } catch (e) {
-      console.warn('KaTeX inline render error:', e)
-      formulas.push({
-        placeholder,
-        rendered: `<span class="katex-error">${escapeHtml(match)}</span>`
-      })
-    }
-    return placeholder
-  })
-  
-  // 转义 HTML 特殊字符（保持原始文本）
-  processed = escapeHtml(processed)
-  
-  // 还原 LaTeX 公式
-  for (const { placeholder, rendered } of formulas) {
-    processed = processed.replace(placeholder, rendered)
-  }
-  
-  // 保留换行
-  processed = processed.replace(/\n/g, '<br>')
-  
-  // 保留多个连续空格
-  processed = processed.replace(/ {2,}/g, (match) => '&nbsp;'.repeat(match.length))
-  
-  // 保留行首空格
-  processed = processed.replace(/(^|<br>)( +)/g, (_match, prefix, spaces) => {
-    return prefix + '&nbsp;'.repeat(spaces.length)
-  })
-  
-  return processed
-}
 
 /**
  * 转义 HTML 特殊字符
