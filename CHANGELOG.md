@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60-pre.8] - 2026-04-01
+
+### Fixed
+  - Chat: preserve straight quotes in Markdown so pseudo-math snippets like `"x ∈ ℝ"` no longer get rewritten into smart quotes with mismatched glyphs.
+  - Chat: load the official KaTeX stylesheet so TeX formulas use KaTeX's intended layout instead of a partial fallback.
+  - Chat: apply a math-oriented font stack to plain Unicode math symbols outside TeX delimiters for more consistent pseudo-math rendering.
+
 ## [1.0.60-pre.7] - 2026-03-31
 
 ### Fixed

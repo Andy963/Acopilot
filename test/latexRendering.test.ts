@@ -14,6 +14,16 @@ describe('latex rendering helpers', () => {
     expect(html).not.toContain('$x^2$')
   })
 
+  it('applies math typography to plain unicode math symbols outside TeX delimiters', () => {
+    const html = processLatex('x ∈ ℝ and f: A → B with y ≠ z')
+
+    expect((html.match(/class="unicode-math-symbol"/g) ?? []).length).toBe(4)
+    expect(html).toContain('<span class="unicode-math-symbol">∈</span>')
+    expect(html).toContain('<span class="unicode-math-symbol">ℝ</span>')
+    expect(html).toContain('<span class="unicode-math-symbol">→</span>')
+    expect(html).toContain('<span class="unicode-math-symbol">≠</span>')
+  })
+
   it('renders block math for both double-dollar and bracket delimiters', () => {
     const html = processLatex('$$x+1$$\n\\[y+1\\]')
 
@@ -31,5 +41,12 @@ describe('latex rendering helpers', () => {
     expect(html).toContain('<br>')
     expect(html).toContain('&nbsp;&nbsp;suffix')
     expect(html).not.toContain('\\(x + y\\)')
+  })
+
+  it('applies unicode math typography in latex-only mode', () => {
+    const html = renderLatexOnly('Domain: x ∈ ℤ')
+
+    expect(html).toContain('<span class="unicode-math-symbol">∈</span>')
+    expect(html).toContain('<span class="unicode-math-symbol">ℤ</span>')
   })
 })

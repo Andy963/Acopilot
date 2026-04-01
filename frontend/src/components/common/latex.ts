@@ -7,6 +7,8 @@ type RenderedFormula = {
   rendered: string
 }
 
+const UNICODE_MATH_SYMBOLS = /[∈∉∊∋∌∅∀∃∄∂∇∑∏∫∮√∞∝∣∥∩∪≈≠≡≤≥≪≫±∓×÷∙⋅∘→←↔⇒⇔↦⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊕⊗⊙⊤⊥∴∵ℕℤℚℝℂ]/g
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -32,6 +34,13 @@ function renderFallback(match: string, mode: LatexRenderMode): string {
     return `<div class="katex-error">${escapeHtml(match)}</div>`
   }
   return `<span class="katex-error">${escapeHtml(match)}</span>`
+}
+
+function enhanceUnicodeMathTypography(text: string): string {
+  return text.replace(
+    UNICODE_MATH_SYMBOLS,
+    (symbol) => `<span class="unicode-math-symbol">${symbol}</span>`,
+  )
 }
 
 function replaceLatexPattern(
@@ -87,7 +96,18 @@ function replaceInlineLatex(text: string, store?: RenderedFormula[]): string {
 }
 
 export function processLatex(text: string): string {
-  return replaceInlineLatex(replaceBlockLatex(text))
+  const formulas: RenderedFormula[] = []
+  let processed = text
+
+  processed = replaceBlockLatex(processed, formulas)
+  processed = replaceInlineLatex(processed, formulas)
+  processed = enhanceUnicodeMathTypography(processed)
+
+  for (const { placeholder, rendered } of formulas) {
+    processed = processed.replace(placeholder, rendered)
+  }
+
+  return processed
 }
 
 export function renderLatexOnly(content: string): string {
@@ -99,6 +119,7 @@ export function renderLatexOnly(content: string): string {
   processed = replaceBlockLatex(processed, formulas)
   processed = replaceInlineLatex(processed, formulas)
   processed = escapeHtml(processed)
+  processed = enhanceUnicodeMathTypography(processed)
 
   for (const { placeholder, rendered } of formulas) {
     processed = processed.replace(placeholder, rendered)

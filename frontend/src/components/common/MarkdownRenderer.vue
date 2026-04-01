@@ -15,6 +15,7 @@ import bash from 'highlight.js/lib/languages/bash'
 import { sendToExtension } from '@/utils/vscode'
 import { getMarkdownCodeBlockRenderBehavior, renderMarkdownCodeBlock } from './markdownCodeBlock'
 import { processLatex, renderLatexOnly } from './latex'
+import { MARKDOWN_BASE_OPTIONS } from './markdownTypography'
 
 // 插件导入
 import footnote from 'markdown-it-footnote'
@@ -214,11 +215,7 @@ function applyWorkspaceFileLinkify(md: MarkdownIt): void {
  */
 function createMarkdownIt(enableCodeHighlight: boolean, showCopyButton: boolean) {
   const md = new MarkdownIt({
-    html: true,           // 允许 HTML 标签
-    xhtmlOut: false,
-    breaks: true,         // 换行转 <br>
-    linkify: true,        // 自动检测链接
-    typographer: true,    // 启用智能引号等排版功能
+    ...MARKDOWN_BASE_OPTIONS,
     highlight: function (str: string, lang: string) {
       let highlighted: string
       const normalizedLang = lang ? normalizeFenceLanguage(lang) : null

@@ -447,8 +447,14 @@
 }
 
 .markdown-content :deep(.katex) {
-  font-family: 'Times New Roman', Times, serif;
-  font-size: 1.1em;
+  color: inherit;
+}
+
+.markdown-content :deep(.unicode-math-symbol) {
+  font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Noto Sans Math', 'Times New Roman', serif;
+  font-size: 1.05em;
+  line-height: 1;
+  vertical-align: -0.04em;
 }
 
 .markdown-content :deep(.katex-error) {
