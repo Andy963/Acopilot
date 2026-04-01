@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.60] - 2026-04-01
+
+### Fixed
+  - Chat: render TeX delimiters `\(...\)` and `\[...\]` in chat while preserving the existing `$...$` and `$$...$$` behavior.
+  - Chat: preserve straight quotes for pseudo-math snippets like `"x ∈ ℝ"` and apply a math-oriented font stack to Unicode math symbols for more consistent inline rendering.
+  - Chat: keep KaTeX layout styling without bundling KaTeX font assets into the VSIX, restoring the package size to the normal release range.
+  - Webview: resolve built frontend script and style paths from `frontend/dist/index.html` so hashed asset names load correctly in the VS Code webview.
+
 ## [1.0.60-pre.9] - 2026-04-01
 
 ### Fixed
