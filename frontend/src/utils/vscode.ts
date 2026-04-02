@@ -98,21 +98,43 @@ export function onMessageFromExtension(
 
 // 状态持久化
 export function saveState(key: string, value: any) {
-  const vscode = getVSCodeAPI()
+  const vscode = getStateAPI()
+  if (!vscode) return
   const state = vscode.getState() || {}
   state[key] = value
   vscode.setState(state)
 }
 
 export function loadState<T = any>(key: string, defaultValue?: T): T | undefined {
-  const vscode = getVSCodeAPI()
+  const vscode = getStateAPI()
+  if (!vscode) return defaultValue
   const state = vscode.getState() || {}
   return state[key] !== undefined ? state[key] : defaultValue
 }
 
 export function clearState() {
-  const vscode = getVSCodeAPI()
+  const vscode = getStateAPI()
+  if (!vscode) return
   vscode.setState({})
+}
+
+let fallbackState: Record<string, any> = {}
+
+function getStateAPI(): { getState(): Record<string, any>; setState(state: Record<string, any>): void } | null {
+  if (typeof acquireVsCodeApi === 'function') {
+    const vscode = getVSCodeAPI()
+    return {
+      getState: () => (vscode.getState() as Record<string, any>) || {},
+      setState: (state: Record<string, any>) => vscode.setState(state),
+    }
+  }
+
+  return {
+    getState: () => fallbackState,
+    setState: (state: Record<string, any>) => {
+      fallbackState = { ...state }
+    },
+  }
 }
 
 /**

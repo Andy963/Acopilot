@@ -9,6 +9,7 @@
  */
 
 import type { Content, ContentPart } from '../../../conversation/types';
+import type { ToolMode } from '../../../config/configs/base';
 import type { StreamChunk, GenerateResponse } from '../../../channel/types';
 import { StreamAccumulator } from '../../../channel/StreamAccumulator';
 import { ChannelError, ErrorType } from '../../../channel/types';
@@ -21,6 +22,8 @@ export interface StreamProcessorConfig {
     requestStartTime: number;
     /** 渠道类型 */
     providerType: 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom';
+    /** 请求对应的工具模式 */
+    toolMode: ToolMode;
     /** 取消信号 */
     abortSignal?: AbortSignal;
     /** 对话 ID */
@@ -68,7 +71,7 @@ export class StreamResponseProcessor {
 
     constructor(config: StreamProcessorConfig) {
         this.config = config;
-        this.accumulator = new StreamAccumulator();
+        this.accumulator = new StreamAccumulator({ toolMode: config.toolMode });
         this.accumulator.setRequestStartTime(config.requestStartTime);
         this.accumulator.setProviderType(config.providerType);
     }

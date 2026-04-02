@@ -1,3 +1,5 @@
+import type { Message } from './message'
+
 // ============ Context Inspector ============
 
 export interface ContextInspectorModule {

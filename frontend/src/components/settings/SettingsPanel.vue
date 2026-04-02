@@ -37,6 +37,7 @@ const {
   needsReload,
   applyStoragePath,
   resetStoragePath,
+  confirmMigrate,
   reloadWindow,
 } = useSettingsPanel()
 </script>

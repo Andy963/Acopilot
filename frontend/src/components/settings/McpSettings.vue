@@ -15,7 +15,6 @@ const {
   saveError,
   showDeleteConfirm,
   deleteTargetServer,
-  connectingServers,
   hasServers,
   statusColor,
   statusText,

@@ -9,7 +9,7 @@ import { createMessageHandlerRegistry } from './handlers';
 import { StreamRequestHandler, StreamAbortManager } from './stream';
 import type { ChatHandler } from '../backend/modules/api/chat';
 import type * as vscode from 'vscode';
-import { isRecord, parseStreamPayload, type StreamMessageType } from './protocol';
+import { isRecord, parseGuardedHandlerPayload, parseStreamPayload, type StreamMessageType } from './protocol';
 
 /**
  * 流式消息类型
@@ -65,6 +65,16 @@ export class MessageRouter {
     // 检查注册表中是否有处理器
     const handler = this.registry.get(type);
     if (handler) {
+      const parsedGuardedPayload = parseGuardedHandlerPayload(type, data);
+      if (parsedGuardedPayload) {
+        if (parsedGuardedPayload.ok === false) {
+          this.sendError(requestId, 'INVALID_PAYLOAD', parsedGuardedPayload.error);
+          return true;
+        }
+        await handler(parsedGuardedPayload.value, requestId, ctx);
+        return true;
+      }
+
       if (!isRecord(data)) {
         this.sendError(requestId, 'INVALID_PAYLOAD', `${type} requires an object payload`);
         return true;

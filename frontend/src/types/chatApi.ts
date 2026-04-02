@@ -1,3 +1,6 @@
+import type { Content, ContentPart, UsageMetadata } from './message'
+import type { CheckpointRecord, ContextInjectionOverrides, ErrorInfo } from './ui'
+
 // ============ 工具相关类型 ============
 
 /**

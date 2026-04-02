@@ -2,6 +2,8 @@
 .vscode/**
 .vscode-test/**
 .github/**
+.factory/**
+.tmp/**
 .claude/**
 .codex/**
 .gitignore

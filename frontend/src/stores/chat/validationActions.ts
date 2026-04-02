@@ -9,14 +9,9 @@ import type { Message } from '../../types'
 import type { ChatStoreState } from './types'
 import { sendToExtension } from '../../utils/vscode'
 import { generateId } from '../../utils/format'
+import type { RunnableValidationPreset } from './validationPresets'
 
-export interface ValidationCommandPreset {
-  label?: string
-  command: string
-  cwd?: string
-  shell?: string
-  timeout?: number
-}
+export type ValidationCommandPreset = RunnableValidationPreset
 
 /**
  * 运行校验命令（通过 execute_command 工具）
@@ -37,6 +32,8 @@ export async function runPostEditValidationCommand(
   if (preset.cwd) toolArgs.cwd = preset.cwd
   if (preset.shell) toolArgs.shell = preset.shell
   if (typeof preset.timeout === 'number') toolArgs.timeout = preset.timeout
+  if (preset.id) toolArgs.validationPresetId = preset.id
+  if (preset.label) toolArgs.validationPresetLabel = preset.label
 
   // 1) 先在前端插入一个工具调用消息，立即显示并接收实时输出
   state.allMessages.value.push({
@@ -71,6 +68,8 @@ export async function runPostEditValidationCommand(
       {
         conversationId: state.currentConversationId.value,
         toolCallId,
+        presetId: preset.id,
+        presetLabel: preset.label,
         ...toolArgs
       }
     )

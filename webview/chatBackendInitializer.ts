@@ -8,7 +8,7 @@ import {
   DiffStorageManager,
   FileSystemStorageAdapter
 } from '../backend/modules/conversation';
-import { ConfigManager, MementoStorageAdapter } from '../backend/modules/config';
+import { ConfigManager, MementoStorageAdapter, ensureDefaultConfig } from '../backend/modules/config';
 import { ChannelManager } from '../backend/modules/channel';
 import { ChatHandler } from '../backend/modules/api/chat';
 import { ModelsHandler } from '../backend/modules/api/models';
@@ -212,42 +212,6 @@ export async function initializeChatBackend(params: {
     taskEventUnsubscribe,
     dependencyProgressUnsubscribe
   };
-}
-
-async function ensureDefaultConfig(configManager: ConfigManager, settingsManager: SettingsManager): Promise<void> {
-  try {
-    const existingConfigs = await configManager.listConfigs();
-    if (existingConfigs.length === 0) {
-      const config = {
-        id: 'gemini-pro',
-        type: 'gemini' as const,
-        name: 'Gemini(Default)',
-        apiKey: process.env.GEMINI_API_KEY || '',
-        url: 'https://generativelanguage.googleapis.com/v1beta',
-        model: 'gemini-3-pro-preview',
-        timeout: 120000,
-        enabled: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-
-      const storage = (configManager as any).storageAdapter;
-      await storage.save(config);
-
-      (configManager as any).loaded = false;
-    }
-
-    const configs = await configManager.listConfigs();
-    if (configs.length > 0) {
-      const activeId = settingsManager.getActiveChannelId();
-      const activeExists = !!activeId && configs.some(c => c.id === activeId);
-      if (!activeExists) {
-        await settingsManager.setActiveChannelId(configs[0].id);
-      }
-    }
-  } catch (error) {
-    console.error('Failed to ensure default config:', error);
-  }
 }
 
 function syncLanguageToBackend(settingsManager: SettingsManager): void {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseStreamPayload, parseWebviewRequest } from '../webview/protocol';
+import { parseGuardedHandlerPayload, parseStreamPayload, parseWebviewRequest } from '../webview/protocol';
 
 describe('webview protocol parsing', () => {
   it('rejects invalid webview request envelope', () => {
@@ -96,5 +96,69 @@ describe('webview protocol parsing', () => {
       ]
     });
     expect(ok.ok).toBe(true);
+  });
+
+  it('validates validation.runCommand payload', () => {
+    expect(
+      parseGuardedHandlerPayload('validation.runCommand', {
+        conversationId: 'c1',
+        toolCallId: 'tool-1',
+        command: 1
+      })?.ok
+    ).toBe(false);
+
+    const ok = parseGuardedHandlerPayload('validation.runCommand', {
+      conversationId: 'c1',
+      toolCallId: 'tool-1',
+      command: 'npm test',
+      cwd: '/workspace',
+      timeout: 30
+    });
+    expect(ok?.ok).toBe(true);
+  });
+
+  it('validates storagePath.migrate payload', () => {
+    expect(parseGuardedHandlerPayload('storagePath.migrate', { path: '' })?.ok).toBe(false);
+
+    const ok = parseGuardedHandlerPayload('storagePath.migrate', { path: '/tmp/acopilot-data' });
+    expect(ok?.ok).toBe(true);
+  });
+
+  it('validates tool config mutation payloads', () => {
+    expect(
+      parseGuardedHandlerPayload('tools.updateToolConfig', {
+        toolName: 'locate',
+        config: 'invalid'
+      })?.ok
+    ).toBe(false);
+    expect(
+      parseGuardedHandlerPayload('tools.setToolEnabled', {
+        toolName: 'locate',
+        enabled: 'yes'
+      })?.ok
+    ).toBe(false);
+    expect(
+      parseGuardedHandlerPayload('tools.updateExecuteCommandConfig', {
+        config: 'invalid'
+      })?.ok
+    ).toBe(false);
+
+    expect(
+      parseGuardedHandlerPayload('tools.updateToolConfig', {
+        toolName: 'locate',
+        config: { autoTriggerEnabled: true }
+      })?.ok
+    ).toBe(true);
+    expect(
+      parseGuardedHandlerPayload('tools.setToolEnabled', {
+        toolName: 'locate',
+        enabled: true
+      })?.ok
+    ).toBe(true);
+    expect(
+      parseGuardedHandlerPayload('tools.updateExecuteCommandConfig', {
+        config: { shells: [] }
+      })?.ok
+    ).toBe(true);
   });
 });

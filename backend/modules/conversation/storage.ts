@@ -162,14 +162,6 @@ export class VSCodeStorageAdapter implements IStorageAdapter {
     async saveHistory(conversationId: string, history: ConversationHistory): Promise<void> {
         const key = `acopilot.history.${conversationId}`;
         await this.context.globalState.update(key, history);
-        
-        // 更新元数据的 updatedAt
-        const metaKey = `acopilot.meta.${conversationId}`;
-        const meta = this.context.globalState.get(metaKey) as ConversationMetadata | undefined;
-        if (meta) {
-            meta.updatedAt = Date.now();
-            await this.context.globalState.update(metaKey, meta);
-        }
     }
 
     async loadHistory(conversationId: string): Promise<ConversationHistory | null> {
@@ -273,17 +265,6 @@ export class FileSystemStorageAdapter implements IStorageAdapter {
         const uri = this.getHistoryPath(conversationId);
         const content = JSON.stringify(history, null, 2);
         await this.vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
-        
-        // 更新元数据的 updatedAt
-        try {
-            const meta = await this.loadMetadata(conversationId);
-            if (meta) {
-                meta.updatedAt = Date.now();
-                await this.saveMetadata(meta);
-            }
-        } catch {
-            // 忽略元数据更新失败
-        }
     }
 
     async loadHistory(conversationId: string): Promise<ConversationHistory | null> {

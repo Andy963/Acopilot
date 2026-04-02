@@ -6,11 +6,11 @@
  */
 
 import type { Content, ContentPart, UsageMetadata, ThoughtSignatures } from '../conversation/types';
+import type { ToolMode } from '../config/configs/base';
 import type { StreamChunk, StreamUsageMetadata } from './types';
 import { buildStreamAccumulatorContent } from './streamAccumulator/buildContent';
 import { extractToolCallsFromParts } from './streamAccumulator/extractToolCalls';
 import { handleFunctionCallPart } from './streamAccumulator/handleFunctionCallPart';
-import { getStreamAccumulatorToolMode } from './streamAccumulator/getToolMode';
 
 /**
  * 流式累加器
@@ -25,6 +25,9 @@ import { getStreamAccumulatorToolMode } from './streamAccumulator/getToolMode';
  * - 支持多格式思考签名存储
  */
 export class StreamAccumulator {
+    /** 当前请求的工具模式 */
+    private toolMode: ToolMode;
+
     /** 累加的 parts */
     private parts: ContentPart[] = [];
     
@@ -66,6 +69,10 @@ export class StreamAccumulator {
     
     /** 请求开始时间戳（毫秒） - 由外部设置 */
     private requestStartTime?: number;
+
+    constructor(options?: { toolMode?: ToolMode }) {
+        this.toolMode = options?.toolMode || 'function_call';
+    }
     
     /**
      * 添加流式响应块
@@ -215,7 +222,7 @@ export class StreamAccumulator {
             if (lastIsThought === isThought) {
                 lastPart.text += part.text;
                 this.parts = extractToolCallsFromParts({
-                    toolMode: getStreamAccumulatorToolMode(),
+                    toolMode: this.toolMode,
                     parts: this.parts
                 });
                 return;
@@ -234,7 +241,7 @@ export class StreamAccumulator {
         }
         this.parts.push(textPart);
         this.parts = extractToolCallsFromParts({
-            toolMode: getStreamAccumulatorToolMode(),
+            toolMode: this.toolMode,
             parts: this.parts
         });
     }
@@ -338,6 +345,13 @@ export class StreamAccumulator {
      */
     setModelVersion(modelVersion: string): void {
         this.modelVersion = modelVersion;
+    }
+
+    /**
+     * 设置当前请求的工具模式
+     */
+    setToolMode(toolMode: ToolMode): void {
+        this.toolMode = toolMode;
     }
     
     /**

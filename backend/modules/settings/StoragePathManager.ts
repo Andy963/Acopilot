@@ -16,6 +16,7 @@ import type { StorageStats } from './types';
  */
 export class StoragePathManager {
     private defaultDataPath: string;
+    private static readonly managedDataSubDirs = ['conversations', 'snapshots', 'checkpoints', 'mcp', 'dependencies', 'diffs'] as const;
     
     constructor(
         private settingsManager: SettingsManager,
@@ -121,6 +122,14 @@ export class StoragePathManager {
      */
     async validatePath(targetPath: string): Promise<{ valid: boolean; error?: string }> {
         try {
+            const boundaryError = this.getManagedBoundaryError(targetPath);
+            if (boundaryError) {
+                return {
+                    valid: false,
+                    error: boundaryError
+                };
+            }
+
             // 检查路径是否存在
             try {
                 await fs.access(targetPath);
@@ -141,6 +150,24 @@ export class StoragePathManager {
                 error: error.message || 'Path is not writable'
             };
         }
+    }
+
+    private isSameOrWithinPath(candidatePath: string, rootPath: string): boolean {
+        const relative = path.relative(path.resolve(rootPath), path.resolve(candidatePath));
+        return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+    }
+
+    private getManagedBoundaryError(targetPath: string): string | undefined {
+        const currentDataPath = this.getEffectiveDataPath();
+
+        for (const subDir of StoragePathManager.managedDataSubDirs) {
+            const managedPath = path.join(currentDataPath, subDir);
+            if (this.isSameOrWithinPath(targetPath, managedPath)) {
+                return `Target path must not be inside managed storage subdirectory: ${managedPath}`;
+            }
+        }
+
+        return undefined;
     }
     
     /**
@@ -285,7 +312,7 @@ export class StoragePathManager {
             let copiedFiles = 0;
             
             // 要迁移的子目录
-            const subDirs = ['conversations', 'snapshots', 'checkpoints', 'mcp', 'dependencies', 'diffs'];
+            const subDirs = [...StoragePathManager.managedDataSubDirs];
             
             for (let i = 0; i < subDirs.length; i++) {
                 const subDir = subDirs[i];
@@ -363,7 +390,7 @@ export class StoragePathManager {
             const stats = await this.getStorageStats(oldPath);
             
             // 要清理的子目录（不包括 settings，settings 只在默认路径存在）
-            const subDirs = ['conversations', 'snapshots', 'checkpoints', 'mcp', 'dependencies', 'diffs'];
+            const subDirs = [...StoragePathManager.managedDataSubDirs];
             
             for (const subDir of subDirs) {
                 await this.removeDirectory(path.join(oldPath, subDir));
@@ -407,7 +434,7 @@ export class StoragePathManager {
         
         try {
             // 将数据从自定义路径迁移回默认路径
-            const subDirs = ['conversations', 'snapshots', 'checkpoints', 'mcp', 'dependencies', 'diffs'];
+            const subDirs = [...StoragePathManager.managedDataSubDirs];
             const stats = await this.getStorageStats(customPath);
             let copiedFiles = 0;
             

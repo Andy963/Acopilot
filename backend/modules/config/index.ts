@@ -41,6 +41,7 @@ export {
 
 // 核心管理器
 export { ConfigManager } from './ConfigManager';
+export { ensureDefaultConfig } from './bootstrapDefaultConfig';
 
 // 模块注册
 export { registerConfigModule } from './register';

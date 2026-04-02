@@ -1,18 +1,21 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🧹 清理旧的 vsix 文件..."
-rm -f *.vsix
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "📦 安装后端依赖（npm，用于 vsce 依赖检测）..."
-rm -rf node_modules
-npm install --no-package-lock
+cd "$ROOT_DIR"
 
-echo "📦 安装前端依赖..."
-(cd frontend && pnpm install --frozen-lockfile=false)
+echo "Installing dependencies from repo root..."
+npm run install:all:ci
 
-echo "📦 打包插件..."
-npx @vscode/vsce package --dependencies
+echo "Running validators..."
+npm run validate
 
-echo "✅ 完成!"
-ls -la *.vsix
+echo "Building extension..."
+npm run build
+
+echo "Packaging VSIX..."
+npm run package
+
+echo "Done."
+ls -la ./*.vsix

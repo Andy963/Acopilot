@@ -34,9 +34,29 @@
             "problemMatcher": "$tsc"
         },
         {
+            "label": "Typecheck",
+            "type": "npm",
+            "script": "typecheck",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$tsc"
+        },
+        {
             "label": "Build Frontend",
             "type": "npm",
             "script": "build:frontend",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Package VSIX",
+            "type": "npm",
+            "script": "package",
             "group": "build",
             "presentation": {
                 "reveal": "silent"

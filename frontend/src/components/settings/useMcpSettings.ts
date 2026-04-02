@@ -311,7 +311,6 @@ export function useMcpSettings() {
 
       if (isCreating.value) {
         const input: CreateMcpServerInput = {
-          customId: formData.customId.trim(),
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
           transport,
@@ -321,7 +320,10 @@ export function useMcpSettings() {
           cleanSchema: formData.cleanSchema,
         }
 
-        const response = await sendToExtension<{ success: boolean; error?: any }>('createMcpServer', input)
+        const response = await sendToExtension<{ success: boolean; error?: any }>('createMcpServer', {
+          input,
+          customId: formData.customId.trim(),
+        })
         if (!response?.success) {
           throw new Error(response?.error?.message || t('components.settings.mcpSettings.validation.createFailed'))
         }

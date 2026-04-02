@@ -223,7 +223,9 @@ export class SummarizeService {
             let finalContent: Content;
 
             if (this.isAsyncGenerator(response)) {
-                const accumulator = new StreamAccumulator();
+                const accumulator = new StreamAccumulator({
+                    toolMode: config.toolMode || 'function_call'
+                });
                 accumulator.setProviderType(config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom');
 
                 for await (const chunk of response) {

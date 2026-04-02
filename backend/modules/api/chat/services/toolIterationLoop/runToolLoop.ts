@@ -164,7 +164,7 @@ export async function* runToolLoop(
         let previousResponseId: string | undefined = openaiState.previousResponseId;
         history = openaiState.history;
 
-        const { dynamicSystemPrompt, contextSnapshot } = await buildPromptAndSnapshot({
+        const { dynamicSystemPrompt, toolMode, contextSnapshot } = await buildPromptAndSnapshot({
             deps,
             loopConfig,
             iteration,
@@ -218,6 +218,7 @@ export async function* runToolLoop(
                     const processor = new StreamResponseProcessor({
                         requestStartTime,
                         providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+                        toolMode,
                         abortSignal,
                         conversationId
                     });
@@ -277,6 +278,7 @@ export async function* runToolLoop(
                     const processor = new StreamResponseProcessor({
                         requestStartTime,
                         providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+                        toolMode,
                         abortSignal,
                         conversationId
                     });

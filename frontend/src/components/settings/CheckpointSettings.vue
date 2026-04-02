@@ -1,362 +1,49 @@
 <script setup lang="ts">
-/**
- * CheckpointSettings - 存档点设置面板
- *
- * 功能：
- * 1. 启用/禁用存档点功能
- * 2. 配置哪些工具需要在执行前后创建备份
- * 3. 设置最大存档点数量
- */
-
-import { ref, reactive, onMounted, computed } from 'vue'
-import { CustomCheckbox, CustomScrollbar } from '../common'
-import { sendToExtension } from '@/utils/vscode'
+import { computed, onMounted, ref } from 'vue'
+import { CustomCheckbox } from '../common'
 import { useChatStore } from '@/stores'
 import { t } from '@/i18n'
+import { sendToExtension } from '@/utils/vscode'
+import CheckpointCleanupSection from './checkpoint/CheckpointCleanupSection.vue'
+import CheckpointMessageSettingsSection from './checkpoint/CheckpointMessageSettingsSection.vue'
+import CheckpointToolSettingsSection from './checkpoint/CheckpointToolSettingsSection.vue'
+import { useCheckpointSettingsConfig } from './checkpoint/useCheckpointSettingsConfig'
+import type {
+  ConversationWithCheckpoints,
+} from './checkpoint/types'
 
-// 消息类型存档点配置
-interface MessageCheckpointConfig {
-  beforeMessages: string[]
-  afterMessages: string[]
-  modelOuterLayerOnly?: boolean
-  mergeUnchangedCheckpoints?: boolean
-}
-
-// 存档点配置接口
-interface CheckpointConfig {
-  enabled: boolean
-  beforeTools: string[]
-  afterTools: string[]
-  messageCheckpoint?: MessageCheckpointConfig
-  maxCheckpoints: number
-  cleanupExpiredConversationsOnStartup?: boolean
-  expiredConversationRetentionDays?: number
-  customIgnorePatterns?: string[]
-}
-
-// 工具信息接口
-interface ToolInfo {
-  name: string
-  description: string
-  category?: string
-}
-
-// 对话检查点信息
-interface ConversationWithCheckpoints {
-  conversationId: string
-  title: string
-  checkpointCount: number
-  totalSize: number
-  createdAt?: number
-  updatedAt?: number
-}
-
-// 使用 chatStore
 const chatStore = useChatStore()
 
-// 消息类型列表
-const messageTypes = computed(() => [
-  {
-    name: 'user',
-    displayName: t('components.settings.checkpoint.sections.messages.types.user.name'),
-    description: t('components.settings.checkpoint.sections.messages.types.user.description')
-  },
-  {
-    name: 'model',
-    displayName: t('components.settings.checkpoint.sections.messages.types.model.name'),
-    description: t('components.settings.checkpoint.sections.messages.types.model.description')
-  }
-])
+const {
+  messageTypes,
+  config,
+  allTools,
+  isLoading,
+  loadConfig,
+  updateConfigField,
+  toggleMessageBefore,
+  toggleMessageAfter,
+  toggleModelOuterLayerOnly,
+  toggleMergeUnchangedCheckpoints,
+  toggleAllMessageBefore,
+  toggleAllMessageAfter,
+  toggleToolBefore,
+  toggleToolAfter,
+  toggleAllBefore,
+  toggleAllAfter
+} = useCheckpointSettingsConfig()
 
-// 配置
-const config = reactive<CheckpointConfig>({
-  enabled: true,
-  beforeTools: [],
-  afterTools: [],
-  messageCheckpoint: {
-    beforeMessages: [],
-    afterMessages: [],
-    modelOuterLayerOnly: true,
-    mergeUnchangedCheckpoints: true
-  },
-  maxCheckpoints: -1,  // -1 表示无上限
-  cleanupExpiredConversationsOnStartup: false,
-  expiredConversationRetentionDays: 30
-})
-
-// 所有可用的工具列表
-const allTools = ref<ToolInfo[]>([])
-
-// 加载状态
-const isLoading = ref(false)
-
-// 存档点清理相关状态
 const conversationsWithCheckpoints = ref<ConversationWithCheckpoints[]>([])
 const searchQuery = ref('')
 const isCleanupLoading = ref(false)
-
-// Use Set for O(1) lookups; always reassign a new Set to trigger Vue reactivity.
 const deletingConversationIds = ref<Set<string>>(new Set())
 const selectedConversationIds = ref<Set<string>>(new Set())
-
 const deleteConfirmTargets = ref<ConversationWithCheckpoints[]>([])
 const showDeleteConfirm = ref(false)
 const isBatchDeleting = ref(false)
 
 const isDeletingAny = computed(() => deletingConversationIds.value.size > 0 || isBatchDeleting.value)
 
-// 直接使用所有工具（用户可以自由选择哪些需要备份）
-const displayTools = computed(() => allTools.value)
-
-// 加载配置
-async function loadConfig() {
-  isLoading.value = true
-  
-  try {
-    // 加载存档点配置
-    const response = await sendToExtension<{ config: CheckpointConfig }>('checkpoint.getConfig', {})
-    if (response?.config) {
-      Object.assign(config, response.config)
-    }
-    
-    // 加载工具列表
-    const toolsResponse = await sendToExtension<{ tools: ToolInfo[] }>('tools.getTools', {})
-    if (toolsResponse?.tools) {
-      allTools.value = toolsResponse.tools
-    }
-  } catch (error) {
-    console.error('Failed to load checkpoint config:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// 更新配置字段并保存
-async function updateConfigField(field: keyof CheckpointConfig, value: any) {
-  // 更新本地配置
-  (config as any)[field] = value
-  
-  try {
-    // 转换为纯 JSON 对象，避免 DataCloneError
-    // 需要深拷贝 messageCheckpoint 中的数组
-    const messageCheckpointToSave = config.messageCheckpoint ? {
-      beforeMessages: [...(config.messageCheckpoint.beforeMessages || [])],
-      afterMessages: [...(config.messageCheckpoint.afterMessages || [])],
-      modelOuterLayerOnly: config.messageCheckpoint.modelOuterLayerOnly,
-      mergeUnchangedCheckpoints: config.messageCheckpoint.mergeUnchangedCheckpoints
-    } : {
-      beforeMessages: [],
-      afterMessages: [],
-      modelOuterLayerOnly: true,
-      mergeUnchangedCheckpoints: true
-    }
-    
-    const configToSave = {
-      enabled: config.enabled,
-      beforeTools: [...config.beforeTools],
-      afterTools: [...config.afterTools],
-      messageCheckpoint: messageCheckpointToSave,
-      maxCheckpoints: config.maxCheckpoints,
-      cleanupExpiredConversationsOnStartup: config.cleanupExpiredConversationsOnStartup ?? false,
-      expiredConversationRetentionDays: config.expiredConversationRetentionDays ?? 30,
-      customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : []
-    }
-    
-    await sendToExtension('checkpoint.updateConfig', {
-      config: configToSave
-    })
-  } catch (error) {
-    console.error('Failed to save checkpoint config:', error)
-  }
-}
-
-// 检查消息类型是否在 before 列表中
-function isMessageInBefore(messageType: string): boolean {
-  return config.messageCheckpoint?.beforeMessages?.includes(messageType) ?? false
-}
-
-// 检查消息类型是否在 after 列表中
-function isMessageInAfter(messageType: string): boolean {
-  return config.messageCheckpoint?.afterMessages?.includes(messageType) ?? false
-}
-
-// 切换消息类型的 before 状态
-async function toggleMessageBefore(messageType: string, enabled: boolean) {
-  if (!config.messageCheckpoint) {
-    config.messageCheckpoint = { beforeMessages: [], afterMessages: [] }
-  }
-  const newBeforeMessages = [...(config.messageCheckpoint.beforeMessages || [])]
-  if (enabled) {
-    if (!newBeforeMessages.includes(messageType)) {
-      newBeforeMessages.push(messageType)
-    }
-  } else {
-    const index = newBeforeMessages.indexOf(messageType)
-    if (index !== -1) {
-      newBeforeMessages.splice(index, 1)
-    }
-  }
-  config.messageCheckpoint.beforeMessages = newBeforeMessages
-  await updateConfigField('messageCheckpoint', { ...config.messageCheckpoint })
-}
-
-// 切换消息类型的 after 状态
-async function toggleMessageAfter(messageType: string, enabled: boolean) {
-  if (!config.messageCheckpoint) {
-    config.messageCheckpoint = { beforeMessages: [], afterMessages: [], modelOuterLayerOnly: true }
-  }
-  const newAfterMessages = [...(config.messageCheckpoint.afterMessages || [])]
-  if (enabled) {
-    if (!newAfterMessages.includes(messageType)) {
-      newAfterMessages.push(messageType)
-    }
-  } else {
-    const index = newAfterMessages.indexOf(messageType)
-    if (index !== -1) {
-      newAfterMessages.splice(index, 1)
-    }
-  }
-  config.messageCheckpoint.afterMessages = newAfterMessages
-  await updateConfigField('messageCheckpoint', { ...config.messageCheckpoint })
-}
-
-// 切换模型消息只在最外层创建存档点
-async function toggleModelOuterLayerOnly(enabled: boolean) {
-  if (!config.messageCheckpoint) {
-    config.messageCheckpoint = { beforeMessages: [], afterMessages: [], modelOuterLayerOnly: enabled }
-  } else {
-    config.messageCheckpoint.modelOuterLayerOnly = enabled
-  }
-  await updateConfigField('messageCheckpoint', { ...config.messageCheckpoint })
-}
-
-// 切换是否合并无变更的存档点
-async function toggleMergeUnchangedCheckpoints(enabled: boolean) {
-  if (!config.messageCheckpoint) {
-    config.messageCheckpoint = { beforeMessages: [], afterMessages: [], mergeUnchangedCheckpoints: enabled }
-  } else {
-    config.messageCheckpoint.mergeUnchangedCheckpoints = enabled
-  }
-  await updateConfigField('messageCheckpoint', { ...config.messageCheckpoint })
-  
-  // 同步更新 chatStore，实现实时响应
-  chatStore.setMergeUnchangedCheckpoints(enabled)
-}
-
-// 检查是否启用了模型消息存档点
-const hasModelMessageCheckpoint = computed(() => {
-  const mc = config.messageCheckpoint
-  return mc?.beforeMessages?.includes('model') || mc?.afterMessages?.includes('model')
-})
-
-// 全选/取消消息 before
-async function toggleAllMessageBefore(enabled: boolean) {
-  if (!config.messageCheckpoint) {
-    config.messageCheckpoint = { beforeMessages: [], afterMessages: [] }
-  }
-  config.messageCheckpoint.beforeMessages = enabled ? messageTypes.value.map(m => m.name) : []
-  await updateConfigField('messageCheckpoint', { ...config.messageCheckpoint })
-}
-
-// 全选/取消消息 after
-async function toggleAllMessageAfter(enabled: boolean) {
-  if (!config.messageCheckpoint) {
-    config.messageCheckpoint = { beforeMessages: [], afterMessages: [] }
-  }
-  config.messageCheckpoint.afterMessages = enabled ? messageTypes.value.map(m => m.name) : []
-  await updateConfigField('messageCheckpoint', { ...config.messageCheckpoint })
-}
-
-// 检查消息类型是否全选
-const isAllMessageBeforeSelected = computed(() => {
-  return messageTypes.value.every(m => config.messageCheckpoint?.beforeMessages?.includes(m.name))
-})
-
-const isAllMessageAfterSelected = computed(() => {
-  return messageTypes.value.every(m => config.messageCheckpoint?.afterMessages?.includes(m.name))
-})
-
-// 检查工具是否在 before 列表中
-function isToolInBefore(toolName: string): boolean {
-  return config.beforeTools.includes(toolName)
-}
-
-// 检查工具是否在 after 列表中
-function isToolInAfter(toolName: string): boolean {
-  return config.afterTools.includes(toolName)
-}
-
-// 切换工具的 before 状态并保存
-async function toggleToolBefore(toolName: string, enabled: boolean) {
-  const newBeforeTools = [...config.beforeTools]
-  if (enabled) {
-    if (!newBeforeTools.includes(toolName)) {
-      newBeforeTools.push(toolName)
-    }
-  } else {
-    const index = newBeforeTools.indexOf(toolName)
-    if (index !== -1) {
-      newBeforeTools.splice(index, 1)
-    }
-  }
-  await updateConfigField('beforeTools', newBeforeTools)
-}
-
-// 切换工具的 after 状态并保存
-async function toggleToolAfter(toolName: string, enabled: boolean) {
-  const newAfterTools = [...config.afterTools]
-  if (enabled) {
-    if (!newAfterTools.includes(toolName)) {
-      newAfterTools.push(toolName)
-    }
-  } else {
-    const index = newAfterTools.indexOf(toolName)
-    if (index !== -1) {
-      newAfterTools.splice(index, 1)
-    }
-  }
-  await updateConfigField('afterTools', newAfterTools)
-}
-
-// 获取工具显示名称
-function getToolDisplayName(name: string): string {
-  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-// 全选/取消 before 并保存
-async function toggleAllBefore(enabled: boolean) {
-  const newBeforeTools = enabled ? displayTools.value.map(t => t.name) : []
-  await updateConfigField('beforeTools', newBeforeTools)
-}
-
-// 全选/取消 after 并保存
-async function toggleAllAfter(enabled: boolean) {
-  const newAfterTools = enabled ? displayTools.value.map(t => t.name) : []
-  await updateConfigField('afterTools', newAfterTools)
-}
-
-// 检查是否全选
-const isAllBeforeSelected = computed(() => {
-  return displayTools.value.length > 0 && displayTools.value.every(t => config.beforeTools.includes(t.name))
-})
-
-const isAllAfterSelected = computed(() => {
-  return displayTools.value.length > 0 && displayTools.value.every(t => config.afterTools.includes(t.name))
-})
-
-// 筛选后的对话列表
-const filteredConversations = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return conversationsWithCheckpoints.value
-  }
-  const query = searchQuery.value.toLowerCase()
-  return conversationsWithCheckpoints.value.filter(c =>
-    c.title.toLowerCase().includes(query) ||
-    c.conversationId.toLowerCase().includes(query)
-  )
-})
-
-// 加载带有存档点的对话列表
 async function loadConversationsWithCheckpoints() {
   isCleanupLoading.value = true
   try {
@@ -364,11 +51,11 @@ async function loadConversationsWithCheckpoints() {
       'checkpoint.getAllConversationsWithCheckpoints',
       {}
     )
+
     if (response?.conversations) {
       conversationsWithCheckpoints.value = response.conversations
 
-      // Prune selection/deleting state when list refreshes.
-      const existingIds = new Set(conversationsWithCheckpoints.value.map(c => c.conversationId))
+      const existingIds = new Set(conversationsWithCheckpoints.value.map(conversation => conversation.conversationId))
       selectedConversationIds.value = new Set(
         [...selectedConversationIds.value].filter(id => existingIds.has(id))
       )
@@ -383,33 +70,27 @@ async function loadConversationsWithCheckpoints() {
   }
 }
 
-function isConversationSelected(conversationId: string): boolean {
-  return selectedConversationIds.value.has(conversationId)
-}
-
 function setConversationSelected(conversationId: string, selected: boolean) {
   const next = new Set(selectedConversationIds.value)
-  if (selected) {
-    next.add(conversationId)
-  } else {
-    next.delete(conversationId)
-  }
+  if (selected) next.add(conversationId)
+  else next.delete(conversationId)
   selectedConversationIds.value = next
 }
 
-const selectedCount = computed(() => selectedConversationIds.value.size)
-
-const isAllFilteredSelected = computed(() => {
-  const convs = filteredConversations.value
-  return convs.length > 0 && convs.every(c => selectedConversationIds.value.has(c.conversationId))
-})
-
 function toggleSelectAllFiltered(selected: boolean) {
   const next = new Set(selectedConversationIds.value)
-  for (const conv of filteredConversations.value) {
-    if (selected) next.add(conv.conversationId)
-    else next.delete(conv.conversationId)
+  const filteredConversations = !searchQuery.value.trim()
+    ? conversationsWithCheckpoints.value
+    : conversationsWithCheckpoints.value.filter(conversation =>
+      conversation.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      conversation.conversationId.toLowerCase().includes(searchQuery.value.toLowerCase())
+    )
+
+  for (const conversation of filteredConversations) {
+    if (selected) next.add(conversation.conversationId)
+    else next.delete(conversation.conversationId)
   }
+
   selectedConversationIds.value = next
 }
 
@@ -423,41 +104,23 @@ function showDeleteConfirmDialog(conversation: ConversationWithCheckpoints) {
 }
 
 function showDeleteSelectedConfirmDialog() {
-  const targets = conversationsWithCheckpoints.value.filter(c => selectedConversationIds.value.has(c.conversationId))
+  const targets = conversationsWithCheckpoints.value.filter(conversation =>
+    selectedConversationIds.value.has(conversation.conversationId)
+  )
   if (targets.length === 0) return
   deleteConfirmTargets.value = targets
   showDeleteConfirm.value = true
 }
 
-// 取消删除
 function cancelDelete() {
   showDeleteConfirm.value = false
   deleteConfirmTargets.value = []
 }
 
-const deleteConfirmTotalCheckpoints = computed(() =>
-  deleteConfirmTargets.value.reduce((sum, c) => sum + (c.checkpointCount || 0), 0)
-)
-
-const deleteConfirmTotalSize = computed(() =>
-  deleteConfirmTargets.value.reduce((sum, c) => sum + (c.totalSize || 0), 0)
-)
-
-const deleteConfirmMessage = computed(() => {
-  if (deleteConfirmTargets.value.length === 1) {
-    const title = deleteConfirmTargets.value[0]?.title || ''
-    return t('components.settings.checkpoint.sections.cleanup.confirmDelete.messageSingle', { title })
-  }
-  return t('components.settings.checkpoint.sections.cleanup.confirmDelete.messageSelected', {
-    count: deleteConfirmTargets.value.length
-  })
-})
-
-// 确认删除对话的所有存档点（支持批量）
 async function confirmDeleteCheckpoints() {
   if (deleteConfirmTargets.value.length === 0) return
 
-  const idsToDelete = deleteConfirmTargets.value.map(c => c.conversationId)
+  const idsToDelete = deleteConfirmTargets.value.map(conversation => conversation.conversationId)
   showDeleteConfirm.value = false
   isBatchDeleting.value = idsToDelete.length > 1
 
@@ -473,7 +136,7 @@ async function confirmDeleteCheckpoints() {
 
         if (response?.success) {
           conversationsWithCheckpoints.value = conversationsWithCheckpoints.value.filter(
-            c => c.conversationId !== conversationId
+            conversation => conversation.conversationId !== conversationId
           )
           setConversationSelected(conversationId, false)
         }
@@ -486,7 +149,6 @@ async function confirmDeleteCheckpoints() {
       }
     }
 
-    // If current conversation was affected, refresh its checkpoint list once.
     const currentId = chatStore.currentConversationId
     if (currentId && idsToDelete.includes(currentId)) {
       await chatStore.loadCheckpoints()
@@ -497,426 +159,213 @@ async function confirmDeleteCheckpoints() {
   }
 }
 
-// 格式化时间
-function formatRelativeTime(timestamp?: number): string {
-  if (!timestamp) return ''
-  
-  const now = Date.now()
-  const diff = now - timestamp
-  
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-  
-  if (diff < minute) {
-    return t('components.settings.checkpoint.sections.cleanup.timeFormat.justNow')
-  } else if (diff < hour) {
-    return t('components.settings.checkpoint.sections.cleanup.timeFormat.minutesAgo', { count: Math.floor(diff / minute) })
-  } else if (diff < day) {
-    return t('components.settings.checkpoint.sections.cleanup.timeFormat.hoursAgo', { count: Math.floor(diff / hour) })
-  } else if (diff < 7 * day) {
-    return t('components.settings.checkpoint.sections.cleanup.timeFormat.daysAgo', { count: Math.floor(diff / day) })
-  } else {
-    return new Date(timestamp).toLocaleDateString()
-  }
-}
-
-// 格式化文件大小
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  
-  const units = ['B', 'KB', 'MB', 'GB']
-  const k = 1024
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  const size = bytes / Math.pow(k, i)
-  
-  return `${size.toFixed(i > 0 ? 1 : 0)} ${units[i]}`
-}
-
-// 格式化检查点数量
-function formatCheckpointCount(count: number): string {
-  return t('components.settings.checkpoint.sections.cleanup.checkpointCount', { count })
-}
-
-// 组件挂载
 onMounted(() => {
-  loadConfig()
-  loadConversationsWithCheckpoints()
+  void loadConfig()
+  void loadConversationsWithCheckpoints()
 })
 </script>
 
 <template>
   <div class="checkpoint-settings">
-    <!-- 加载状态 -->
     <div v-if="isLoading" class="loading-state">
       <i class="codicon codicon-loading codicon-modifier-spin"></i>
       <span>{{ t('components.settings.checkpoint.loading') }}</span>
     </div>
-    
+
     <template v-else>
-      <!-- 全局开关 -->
       <div class="setting-group">
         <div class="setting-header">
           <CustomCheckbox
             :modelValue="config.enabled"
             :label="t('components.settings.checkpoint.sections.enable.label')"
-            @update:modelValue="(v: boolean) => updateConfigField('enabled', v)"
+            @update:modelValue="(value: boolean) => updateConfigField('enabled', value)"
           />
         </div>
         <p class="setting-description">
           {{ t('components.settings.checkpoint.sections.enable.description') }}
         </p>
       </div>
-      
+
       <div class="divider"></div>
-      
-      <!-- 消息类型存档点 -->
-      <div class="setting-group" :class="{ disabled: !config.enabled }">
-        <h4 class="group-title">
-          <i class="codicon codicon-comment"></i>
-          {{ t('components.settings.checkpoint.sections.messages.title') }}
-        </h4>
-        <p class="setting-description">
-          {{ t('components.settings.checkpoint.sections.messages.description') }}
-        </p>
-        
-        <!-- 消息类型表格 -->
-        <div class="tools-table">
-          <div class="table-header">
-            <div class="col-tool">{{ t('components.settings.checkpoint.sections.messages.title') }}</div>
-            <div class="col-before">
-              <CustomCheckbox
-                :modelValue="isAllMessageBeforeSelected"
-                :label="t('components.settings.checkpoint.sections.messages.beforeLabel')"
-                :disabled="!config.enabled"
-                @update:modelValue="toggleAllMessageBefore"
-              />
-            </div>
-            <div class="col-after">
-              <CustomCheckbox
-                :modelValue="isAllMessageAfterSelected"
-                :label="t('components.settings.checkpoint.sections.messages.afterLabel')"
-                :disabled="!config.enabled"
-                @update:modelValue="toggleAllMessageAfter"
-              />
-            </div>
-          </div>
-          
-          <div
-            v-for="msg in messageTypes"
-            :key="msg.name"
-            class="table-row"
-          >
-            <div class="col-tool">
-              <span class="tool-name">{{ msg.displayName }}</span>
-              <span class="tool-desc">{{ msg.description }}</span>
-            </div>
-            <div class="col-before">
-              <CustomCheckbox
-                :modelValue="isMessageInBefore(msg.name)"
-                :disabled="!config.enabled"
-                @update:modelValue="(val: boolean) => toggleMessageBefore(msg.name, val)"
-              />
-            </div>
-            <div class="col-after">
-              <CustomCheckbox
-                :modelValue="isMessageInAfter(msg.name)"
-                :disabled="!config.enabled"
-                @update:modelValue="(val: boolean) => toggleMessageAfter(msg.name, val)"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <!-- 模型消息高级选项 -->
-        <div v-if="hasModelMessageCheckpoint" class="advanced-option">
-          <CustomCheckbox
-            :modelValue="config.messageCheckpoint?.modelOuterLayerOnly ?? true"
-            :label="t('components.settings.checkpoint.sections.messages.options.modelOuterLayerOnly.label')"
-            :disabled="!config.enabled"
-            @update:modelValue="toggleModelOuterLayerOnly"
-          />
-          <p class="option-hint">
-            {{ t('components.settings.checkpoint.sections.messages.options.modelOuterLayerOnly.hint') }}
-          </p>
-        </div>
-        
-        <!-- 合并无变更存档点选项 -->
-        <div class="advanced-option">
-          <CustomCheckbox
-            :modelValue="config.messageCheckpoint?.mergeUnchangedCheckpoints ?? true"
-            :label="t('components.settings.checkpoint.sections.messages.options.mergeUnchanged.label')"
-            :disabled="!config.enabled"
-            @update:modelValue="toggleMergeUnchangedCheckpoints"
-          />
-          <p class="option-hint">
-            {{ t('components.settings.checkpoint.sections.messages.options.mergeUnchanged.hint') }}
-          </p>
-        </div>
-      </div>
-      
+
+      <CheckpointMessageSettingsSection
+        :enabled="config.enabled"
+        :message-types="messageTypes"
+        :message-checkpoint="config.messageCheckpoint"
+        @toggle-all-before="toggleAllMessageBefore"
+        @toggle-all-after="toggleAllMessageAfter"
+        @toggle-before="toggleMessageBefore($event.messageType, $event.enabled)"
+        @toggle-after="toggleMessageAfter($event.messageType, $event.enabled)"
+        @toggle-model-outer-layer-only="toggleModelOuterLayerOnly"
+        @toggle-merge-unchanged-checkpoints="toggleMergeUnchangedCheckpoints"
+      />
+
       <div class="divider"></div>
-      
-      <!-- 工具备份配置 -->
-      <div class="setting-group" :class="{ disabled: !config.enabled }">
-        <h4 class="group-title">
-          <i class="codicon codicon-file-code"></i>
-          {{ t('components.settings.checkpoint.sections.tools.title') }}
-        </h4>
-        <p class="setting-description">
-          {{ t('components.settings.checkpoint.sections.tools.description') }}
-        </p>
-        
-        <!-- 工具列表 -->
-        <div class="tools-table">
-          <div class="table-header">
-            <div class="col-tool">{{ t('components.settings.checkpoint.sections.tools.title') }}</div>
-            <div class="col-before">
-              <CustomCheckbox
-                :modelValue="isAllBeforeSelected"
-                :label="t('components.settings.checkpoint.sections.tools.beforeLabel')"
-                :disabled="!config.enabled"
-                @update:modelValue="toggleAllBefore"
-              />
-            </div>
-            <div class="col-after">
-              <CustomCheckbox
-                :modelValue="isAllAfterSelected"
-                :label="t('components.settings.checkpoint.sections.tools.afterLabel')"
-                :disabled="!config.enabled"
-                @update:modelValue="toggleAllAfter"
-              />
-            </div>
-          </div>
-          
-          <div
-            v-for="tool in displayTools"
-            :key="tool.name"
-            class="table-row"
-          >
-            <div class="col-tool">
-              <span class="tool-name">{{ getToolDisplayName(tool.name) }}</span>
-              <span class="tool-desc">{{ tool.description }}</span>
-            </div>
-            <div class="col-before">
-              <CustomCheckbox
-                :modelValue="isToolInBefore(tool.name)"
-                :disabled="!config.enabled"
-                @update:modelValue="(val: boolean) => toggleToolBefore(tool.name, val)"
-              />
-            </div>
-            <div class="col-after">
-              <CustomCheckbox
-                :modelValue="isToolInAfter(tool.name)"
-                :disabled="!config.enabled"
-                @update:modelValue="(val: boolean) => toggleToolAfter(tool.name, val)"
-              />
-            </div>
-          </div>
-          
-          <!-- 空状态 -->
-          <div v-if="displayTools.length === 0" class="empty-state">
-            <span>{{ t('components.settings.checkpoint.sections.tools.empty') }}</span>
-          </div>
-        </div>
-      </div>
-      
+
+      <CheckpointToolSettingsSection
+        :enabled="config.enabled"
+        :tools="allTools"
+        :before-tools="config.beforeTools"
+        :after-tools="config.afterTools"
+        @toggle-all-before="toggleAllBefore"
+        @toggle-all-after="toggleAllAfter"
+        @toggle-before="toggleToolBefore($event.toolName, $event.enabled)"
+        @toggle-after="toggleToolAfter($event.toolName, $event.enabled)"
+      />
+
       <div class="divider"></div>
-      
-      <!-- 其他配置 -->
+
       <div class="setting-group" :class="{ disabled: !config.enabled }">
         <h4 class="group-title">
           <i class="codicon codicon-settings-gear"></i>
           {{ t('components.settings.checkpoint.sections.other.title') }}
         </h4>
-        
+
         <div class="form-row">
           <label>{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.label') }}</label>
           <input
             type="text"
             :value="config.maxCheckpoints"
-            @input="(e: any) => { const v = parseInt(e.target.value); updateConfigField('maxCheckpoints', isNaN(v) ? -1 : v); }"
             :disabled="!config.enabled"
             class="number-input"
             placeholder="-1"
+            @input="(event: Event) => { const value = parseInt((event.target as HTMLInputElement).value); updateConfigField('maxCheckpoints', isNaN(value) ? -1 : value) }"
           />
           <span class="hint">{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.hint') }}</span>
         </div>
-
       </div>
-      
+
       <div class="divider"></div>
-      
-      <!-- 存档点清理 -->
-      <div class="setting-group">
-        <h4 class="group-title">
-          <i class="codicon codicon-trash"></i>
-          {{ t('components.settings.checkpoint.sections.cleanup.title') }}
-        </h4>
-        <p class="setting-description">
-          {{ t('components.settings.checkpoint.sections.cleanup.description') }}
-        </p>
 
-        <div class="form-row">
-          <CustomCheckbox
-            :modelValue="config.cleanupExpiredConversationsOnStartup ?? false"
-            :label="t('components.settings.checkpoint.sections.other.autoCleanup.label')"
-            :hint="t('components.settings.checkpoint.sections.other.autoCleanup.hint')"
-            @update:modelValue="(val: boolean) => updateConfigField('cleanupExpiredConversationsOnStartup', val)"
-          />
-        </div>
-        
-        <!-- 搜索框 -->
-        <div class="search-box">
-          <i class="codicon codicon-search"></i>
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('components.settings.checkpoint.sections.cleanup.searchPlaceholder')"
-            class="search-input"
-            :disabled="isDeletingAny"
-          />
-          <button
-            v-if="searchQuery"
-            class="clear-search"
-            :disabled="isDeletingAny"
-            @click="searchQuery = ''"
-          >
-            <i class="codicon codicon-close"></i>
-          </button>
-        </div>
-        
-        <!-- 对话列表 -->
-        <div class="conversations-list-wrapper">
-          <CustomScrollbar>
-            <div class="conversations-list">
-              <div v-if="isCleanupLoading" class="list-loading">
-                <i class="codicon codicon-loading codicon-modifier-spin"></i>
-                <span>{{ t('components.settings.checkpoint.sections.cleanup.loading') }}</span>
-              </div>
-              
-              <div v-else-if="filteredConversations.length === 0" class="list-empty">
-                <i class="codicon codicon-inbox"></i>
-                <span v-if="searchQuery">{{ t('components.settings.checkpoint.sections.cleanup.noMatch') }}</span>
-                <span v-else>{{ t('components.settings.checkpoint.sections.cleanup.noCheckpoints') }}</span>
-              </div>
-
-              <template v-else>
-                <div class="cleanup-toolbar">
-                  <CustomCheckbox
-                    :modelValue="isAllFilteredSelected"
-                    :label="t('components.settings.checkpoint.sections.cleanup.selectAll')"
-                    :disabled="isDeletingAny"
-                    @update:modelValue="toggleSelectAllFiltered"
-                  />
-
-                  <div class="cleanup-toolbar-actions">
-                    <span class="selection-info">
-                      {{ t('components.settings.checkpoint.sections.cleanup.selectedCount', { count: selectedCount }) }}
-                    </span>
-
-                    <button
-                      class="btn-batch-delete"
-                      :disabled="selectedCount === 0 || isDeletingAny"
-                      @click="showDeleteSelectedConfirmDialog"
-                    >
-                      <i v-if="isDeletingAny" class="codicon codicon-loading codicon-modifier-spin"></i>
-                      <i v-else class="codicon codicon-trash"></i>
-                      {{ t('components.settings.checkpoint.sections.cleanup.deleteSelected') }}
-                    </button>
-
-                    <button
-                      class="btn-clear-selection"
-                      :disabled="selectedCount === 0 || isDeletingAny"
-                      @click="clearSelection"
-                    >
-                      {{ t('components.settings.checkpoint.sections.cleanup.clearSelection') }}
-                    </button>
-
-                  </div>
-                </div>
-
-                <div
-                  v-for="conv in filteredConversations"
-                  :key="conv.conversationId"
-                  class="conversation-item"
-                >
-                  <div class="conversation-select">
-                    <CustomCheckbox
-                      :modelValue="isConversationSelected(conv.conversationId)"
-                      :disabled="isDeletingAny"
-                      @update:modelValue="(val: boolean) => setConversationSelected(conv.conversationId, val)"
-                    />
-                  </div>
-
-                  <div class="conversation-info">
-                    <div class="conversation-title">{{ conv.title }}</div>
-                    <div class="conversation-meta">
-                      <span class="checkpoint-count">
-                        <i class="codicon codicon-archive"></i>
-                        {{ formatCheckpointCount(conv.checkpointCount) }}
-                      </span>
-                      <span class="size-info">
-                        <i class="codicon codicon-database"></i>
-                        {{ formatSize(conv.totalSize) }}
-                      </span>
-                      <span class="update-time">
-                        {{ formatRelativeTime(conv.updatedAt) }}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    class="delete-btn"
-                    :disabled="deletingConversationIds.has(conv.conversationId) || isDeletingAny"
-                    @click="showDeleteConfirmDialog(conv)"
-                  >
-                    <i v-if="deletingConversationIds.has(conv.conversationId)" class="codicon codicon-loading codicon-modifier-spin"></i>
-                    <i v-else class="codicon codicon-trash"></i>
-                  </button>
-                </div>
-              </template>
-            </div>
-          </CustomScrollbar>
-        </div>
-        
-        <!-- 刷新按钮 -->
-        <button
-          class="refresh-btn"
-          :disabled="isCleanupLoading || isDeletingAny"
-          @click="loadConversationsWithCheckpoints"
-        >
-          <i class="codicon codicon-refresh" :class="{ 'codicon-modifier-spin': isCleanupLoading }"></i>
-          {{ t('components.settings.checkpoint.sections.cleanup.refresh') }}
-        </button>
-      </div>
-      
+      <CheckpointCleanupSection
+        :auto-cleanup="config.cleanupExpiredConversationsOnStartup ?? false"
+        :search-query="searchQuery"
+        :conversations="conversationsWithCheckpoints"
+        :is-cleanup-loading="isCleanupLoading"
+        :is-deleting-any="isDeletingAny"
+        :selected-conversation-ids="selectedConversationIds"
+        :deleting-conversation-ids="deletingConversationIds"
+        :show-delete-confirm="showDeleteConfirm"
+        :delete-confirm-targets="deleteConfirmTargets"
+        @update:auto-cleanup="updateConfigField('cleanupExpiredConversationsOnStartup', $event)"
+        @update:search-query="searchQuery = $event"
+        @toggle-select-all-filtered="toggleSelectAllFiltered"
+        @clear-selection="clearSelection"
+        @toggle-conversation-selected="setConversationSelected($event.conversationId, $event.selected)"
+        @request-delete-conversation="showDeleteConfirmDialog"
+        @request-delete-selected="showDeleteSelectedConfirmDialog"
+        @refresh="loadConversationsWithCheckpoints"
+        @cancel-delete="cancelDelete"
+        @confirm-delete="confirmDeleteCheckpoints"
+      />
     </template>
-    
-    <!-- 删除确认对话框 -->
-    <div v-if="showDeleteConfirm" class="delete-confirm-overlay" @click.self="cancelDelete">
-      <div class="delete-confirm-dialog">
-        <div class="dialog-header">
-          <i class="codicon codicon-warning"></i>
-          <span>{{ t('components.settings.checkpoint.sections.cleanup.confirmDelete.title') }}</span>
-        </div>
-        <div class="dialog-body">
-          <p>{{ deleteConfirmMessage }}</p>
-          <p class="delete-stats">
-            {{ t('components.settings.checkpoint.sections.cleanup.confirmDelete.stats', {
-              count: deleteConfirmTotalCheckpoints,
-              size: formatSize(deleteConfirmTotalSize)
-            }) }}
-          </p>
-          <p class="warning-text">{{ t('components.settings.checkpoint.sections.cleanup.confirmDelete.warning') }}</p>
-        </div>
-        <div class="dialog-footer">
-          <button class="btn-cancel" @click="cancelDelete">{{ t('components.settings.checkpoint.sections.cleanup.confirmDelete.cancel') }}</button>
-          <button class="btn-delete" @click="confirmDeleteCheckpoints">{{ t('components.settings.checkpoint.sections.cleanup.confirmDelete.delete') }}</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
-<style scoped src="./CheckpointSettings.part1.css"></style>
-<style scoped src="./CheckpointSettings.part2.css"></style>
+<style scoped>
+.checkpoint-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.loading-state .codicon {
+  font-size: 24px;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+
+.setting-group.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.setting-header {
+  display: flex;
+  align-items: center;
+}
+
+.setting-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.group-title .codicon {
+  font-size: 14px;
+  color: var(--vscode-foreground);
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-row label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.number-input {
+  width: 100px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.number-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.number-input:disabled {
+  opacity: 0.6;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.divider {
+  height: 1px;
+  background: var(--vscode-panel-border);
+}
+
+.codicon-modifier-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

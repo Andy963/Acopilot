@@ -142,6 +142,199 @@ export type StreamPayloadByType = {
   cancelStream: CancelStreamPayload;
 };
 
+export type GuardedHandlerMessageType =
+  | 'validation.runCommand'
+  | 'storagePath.migrate'
+  | 'tools.setToolEnabled'
+  | 'tools.updateToolConfig'
+  | 'tools.setToolAutoExec'
+  | 'tools.updateMaxToolIterations'
+  | 'tools.updateListFilesConfig'
+  | 'tools.updateFindFilesConfig'
+  | 'tools.updateSearchInFilesConfig'
+  | 'tools.updateApplyDiffConfig'
+  | 'tools.updateExecuteCommandConfig';
+
+export type ValidationRunCommandPayload = {
+  conversationId: string;
+  toolCallId: string;
+  command: string;
+  cwd?: string;
+  shell?: string;
+  timeout?: number;
+  presetId?: string;
+  presetLabel?: string;
+};
+
+export type StoragePathMigratePayload = {
+  path: string;
+};
+
+export type ToolEnabledPayload = {
+  toolName: string;
+  enabled: boolean;
+};
+
+export type ToolAutoExecPayload = {
+  toolName: string;
+  autoExec: boolean;
+};
+
+export type ToolConfigUpdatePayload = {
+  toolName: string;
+  config: Record<string, unknown>;
+};
+
+export type MaxToolIterationsPayload = {
+  maxIterations: number;
+};
+
+export type ConfigUpdatePayload = {
+  config: Record<string, unknown>;
+};
+
+export type GuardedHandlerPayloadByType = {
+  'validation.runCommand': ValidationRunCommandPayload;
+  'storagePath.migrate': StoragePathMigratePayload;
+  'tools.setToolEnabled': ToolEnabledPayload;
+  'tools.updateToolConfig': ToolConfigUpdatePayload;
+  'tools.setToolAutoExec': ToolAutoExecPayload;
+  'tools.updateMaxToolIterations': MaxToolIterationsPayload;
+  'tools.updateListFilesConfig': ConfigUpdatePayload;
+  'tools.updateFindFilesConfig': ConfigUpdatePayload;
+  'tools.updateSearchInFilesConfig': ConfigUpdatePayload;
+  'tools.updateApplyDiffConfig': ConfigUpdatePayload;
+  'tools.updateExecuteCommandConfig': ConfigUpdatePayload;
+};
+
+function asNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function parseConfigUpdatePayload(type: string, data: unknown): ParseResult<ConfigUpdatePayload> {
+  if (!isRecord(data)) return err(`${type} requires an object payload`);
+  if (!isRecord(data.config)) return err(`${type} requires data.config (object)`);
+  return ok({ config: data.config });
+}
+
+export function parseGuardedHandlerPayload(
+  type: 'validation.runCommand',
+  data: unknown
+): ParseResult<ValidationRunCommandPayload>;
+export function parseGuardedHandlerPayload(
+  type: 'storagePath.migrate',
+  data: unknown
+): ParseResult<StoragePathMigratePayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.setToolEnabled',
+  data: unknown
+): ParseResult<ToolEnabledPayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateToolConfig',
+  data: unknown
+): ParseResult<ToolConfigUpdatePayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.setToolAutoExec',
+  data: unknown
+): ParseResult<ToolAutoExecPayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateMaxToolIterations',
+  data: unknown
+): ParseResult<MaxToolIterationsPayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateListFilesConfig',
+  data: unknown
+): ParseResult<ConfigUpdatePayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateFindFilesConfig',
+  data: unknown
+): ParseResult<ConfigUpdatePayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateSearchInFilesConfig',
+  data: unknown
+): ParseResult<ConfigUpdatePayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateApplyDiffConfig',
+  data: unknown
+): ParseResult<ConfigUpdatePayload>;
+export function parseGuardedHandlerPayload(
+  type: 'tools.updateExecuteCommandConfig',
+  data: unknown
+): ParseResult<ConfigUpdatePayload>;
+export function parseGuardedHandlerPayload(
+  type: string,
+  data: unknown
+): ParseResult<Record<string, unknown>> | null;
+export function parseGuardedHandlerPayload(type: string, data: unknown): ParseResult<Record<string, unknown>> | null {
+  switch (type) {
+    case 'validation.runCommand': {
+      if (!isRecord(data)) return err(`${type} requires an object payload`);
+      const conversationId = asNonEmptyString(data.conversationId);
+      const toolCallId = asNonEmptyString(data.toolCallId);
+      const command = asNonEmptyString(data.command);
+      const cwd = data.cwd === undefined ? undefined : asString(data.cwd);
+      const shell = data.shell === undefined ? undefined : asString(data.shell);
+      const timeout = data.timeout === undefined ? undefined : asFiniteNumber(data.timeout);
+      const presetId = data.presetId === undefined ? undefined : asString(data.presetId);
+      const presetLabel = data.presetLabel === undefined ? undefined : asString(data.presetLabel);
+
+      if (!conversationId) return err(`${type} requires data.conversationId (string)`);
+      if (!toolCallId) return err(`${type} requires data.toolCallId (string)`);
+      if (!command) return err(`${type} requires data.command (string)`);
+      if (data.cwd !== undefined && cwd === undefined) return err(`${type} requires data.cwd (string) when provided`);
+      if (data.shell !== undefined && shell === undefined) return err(`${type} requires data.shell (string) when provided`);
+      if (data.timeout !== undefined && timeout === undefined) return err(`${type} requires data.timeout (number) when provided`);
+      if (data.presetId !== undefined && presetId === undefined) return err(`${type} requires data.presetId (string) when provided`);
+      if (data.presetLabel !== undefined && presetLabel === undefined) return err(`${type} requires data.presetLabel (string) when provided`);
+
+      return ok({ conversationId, toolCallId, command, cwd, shell, timeout, presetId, presetLabel });
+    }
+    case 'storagePath.migrate': {
+      if (!isRecord(data)) return err(`${type} requires an object payload`);
+      const targetPath = asNonEmptyString(data.path);
+      if (!targetPath) return err(`${type} requires data.path (string)`);
+      return ok({ path: targetPath });
+    }
+    case 'tools.setToolEnabled': {
+      if (!isRecord(data)) return err(`${type} requires an object payload`);
+      const toolName = asNonEmptyString(data.toolName);
+      const enabled = asBoolean(data.enabled);
+      if (!toolName) return err(`${type} requires data.toolName (string)`);
+      if (enabled === undefined) return err(`${type} requires data.enabled (boolean)`);
+      return ok({ toolName, enabled });
+    }
+    case 'tools.updateToolConfig': {
+      if (!isRecord(data)) return err(`${type} requires an object payload`);
+      const toolName = asNonEmptyString(data.toolName);
+      if (!toolName) return err(`${type} requires data.toolName (string)`);
+      if (!isRecord(data.config)) return err(`${type} requires data.config (object)`);
+      return ok({ toolName, config: data.config });
+    }
+    case 'tools.setToolAutoExec': {
+      if (!isRecord(data)) return err(`${type} requires an object payload`);
+      const toolName = asNonEmptyString(data.toolName);
+      const autoExec = asBoolean(data.autoExec);
+      if (!toolName) return err(`${type} requires data.toolName (string)`);
+      if (autoExec === undefined) return err(`${type} requires data.autoExec (boolean)`);
+      return ok({ toolName, autoExec });
+    }
+    case 'tools.updateMaxToolIterations': {
+      if (!isRecord(data)) return err(`${type} requires an object payload`);
+      const maxIterations = asFiniteNumber(data.maxIterations);
+      if (maxIterations === undefined) return err(`${type} requires data.maxIterations (number)`);
+      return ok({ maxIterations });
+    }
+    case 'tools.updateListFilesConfig':
+    case 'tools.updateFindFilesConfig':
+    case 'tools.updateSearchInFilesConfig':
+    case 'tools.updateApplyDiffConfig':
+    case 'tools.updateExecuteCommandConfig':
+      return parseConfigUpdatePayload(type, data);
+    default:
+      return null;
+  }
+}
+
 export function parseStreamPayload(type: 'chatStream', data: unknown): ParseResult<ChatStreamPayload>;
 export function parseStreamPayload(type: 'retryStream', data: unknown): ParseResult<RetryStreamPayload>;
 export function parseStreamPayload(type: 'editAndRetryStream', data: unknown): ParseResult<EditAndRetryStreamPayload>;

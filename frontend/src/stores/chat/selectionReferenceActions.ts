@@ -18,6 +18,15 @@ function normalizeBoolean(value: unknown): boolean | undefined {
   return undefined
 }
 
+function buildSelectionReferenceKey(input: Pick<SelectionReference, 'uri' | 'path' | 'startLine' | 'endLine'>): string {
+  return [
+    input.uri.trim(),
+    input.path.trim(),
+    input.startLine,
+    input.endLine
+  ].join('::')
+}
+
 export async function addSelectionReference(state: ChatStoreState, input: Partial<SelectionReference>): Promise<void> {
   const path = normalizeString(input.path).trim()
   const uri = normalizeString(input.uri).trim()
@@ -41,16 +50,12 @@ export async function addSelectionReference(state: ChatStoreState, input: Partia
     createdAt: typeof input.createdAt === 'number' ? input.createdAt : Date.now()
   }
 
-  // 去重：同文件同范围内容相同则不重复添加
-  const exists = state.selectionReferences.value.some((s) =>
-    s.path === item.path &&
-    s.startLine === item.startLine &&
-    s.endLine === item.endLine &&
-    s.text === item.text
-  )
-  if (exists) return
+  const itemKey = buildSelectionReferenceKey(item)
+  const next = state.selectionReferences.value.filter((selection) => {
+    return buildSelectionReferenceKey(selection) !== itemKey
+  })
 
-  state.selectionReferences.value = [item, ...state.selectionReferences.value]
+  state.selectionReferences.value = [item, ...next]
 }
 
 export async function removeSelectionReference(state: ChatStoreState, id: string): Promise<void> {

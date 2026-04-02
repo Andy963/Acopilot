@@ -1,253 +1,69 @@
-/**
- * Acopilot - 完整的聊天视图提供者
- * 
- * 集成后端API模块，提供完整功能
- */
-
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
-import { t, setLanguage as setBackendLanguage } from '../backend/i18n';
+import { setLanguage as setBackendLanguage } from '../backend/i18n';
 import type { SupportedLanguage } from '../backend/i18n';
 import { debugLog } from '../backend/core/logger';
-import {
-    ConversationManager,
-    FileSystemStorageAdapter
-} from '../backend/modules/conversation';
-import { ConfigManager, MementoStorageAdapter } from '../backend/modules/config';
-import { ChannelManager } from '../backend/modules/channel';
-import { ChatHandler } from '../backend/modules/api/chat';
-import { ModelsHandler } from '../backend/modules/api/models';
-import { SettingsManager, FileSettingsStorage, StoragePathManager } from '../backend/modules/settings';
-import type { StoragePathConfig, StorageStats } from '../backend/modules/settings';
-import { SettingsHandler } from '../backend/modules/api/settings';
-import { CheckpointManager } from '../backend/modules/checkpoint';
-import { McpManager, VSCodeFileSystemMcpStorageAdapter } from '../backend/modules/mcp';
-import type { CreateMcpServerInput, UpdateMcpServerInput, McpServerInfo } from '../backend/modules/mcp';
-import { DependencyManager, type InstallProgressEvent } from '../backend/modules/dependencies';
-import { toolRegistry, registerAllTools, onTerminalOutput, onImageGenOutput, TaskManager } from '../backend/tools';
-import type { TerminalOutputEvent, ImageGenOutputEvent, TaskEvent } from '../backend/tools';
-import {
-    setGlobalSettingsManager,
-    setGlobalConfigManager,
-    setGlobalChannelManager,
-    setGlobalToolRegistry,
-    setGlobalDiffStorageManager
-} from '../backend/core/settingsContext';
-import { DiffStorageManager } from '../backend/modules/conversation';
-import { MessageRouter } from './MessageRouter';
-import { initializeChatBackend } from './chatBackendInitializer';
-import type { HandlerContext, DiffPreviewContentProvider as IDiffPreviewContentProvider } from './types';
+import { TaskManager } from '../backend/tools';
+import { initializeChatBackend, type ChatBackendInitializationResult, type RetryStatus } from './chatBackendInitializer';
+import { ChatViewBridge } from './chatViewBridge';
+import { buildChatWebviewHtml, getChatWebviewLocalResourceRoots } from './chatViewHtml';
+import { ChatViewSmokeStateTracker, type SmokeStatus } from './chatViewSmokeState';
+import { DiffPreviewContentProvider } from './diffPreviewProvider';
 import { isRecord, parseWebviewRequest } from './protocol';
-import { readFrontendBuildAssets, resolveFrontendAssetFsPath } from './utils';
-
-/**
- * Diff 预览内容提供者
- */
-class DiffPreviewContentProvider implements vscode.TextDocumentContentProvider, IDiffPreviewContentProvider {
-    private contents: Map<string, string> = new Map();
-    private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
-
-    public onDidChange = this.onDidChangeEmitter.event;
-
-    public setContent(uri: string, content: string): void {
-        this.contents.set(uri, content);
-    }
-
-    public provideTextDocumentContent(uri: vscode.Uri): string {
-        return this.contents.get(uri.toString()) || '';
-    }
-
-    public dispose(): void {
-        this.contents.clear();
-        this.onDidChangeEmitter.dispose();
-    }
-}
-
-function getNonce(length: number = 32): string {
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let nonce = '';
-    for (let i = 0; i < length; i++) {
-        nonce += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return nonce;
-}
+import type { HandlerContext } from './types';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
-    private _view?: vscode.WebviewView;
+    private readonly bridge = new ChatViewBridge();
+    private readonly smokeState = new ChatViewSmokeStateTracker();
+    private readonly diffPreviewProvider = new DiffPreviewContentProvider();
+    private readonly initPromise: Promise<void>;
 
-    // Webview readiness handshake
-    private webviewReady = false;
-    private pendingWebviewMessages: unknown[] = [];
-
-    // Diff 预览内容提供者
-    private diffPreviewProvider: DiffPreviewContentProvider;
-    private diffPreviewProviderDisposable: vscode.Disposable;
-
-    // 后端模块
-    private configManager!: ConfigManager;
-    private channelManager!: ChannelManager;
-    private conversationManager!: ConversationManager;
-    private chatHandler!: ChatHandler;
-    private modelsHandler!: ModelsHandler;
-    private settingsManager!: SettingsManager;
-    private settingsHandler!: SettingsHandler;
-    private checkpointManager!: CheckpointManager;
-    private mcpManager!: McpManager;
-    private dependencyManager!: DependencyManager;
-    private storagePathManager!: StoragePathManager;
-    private diffStorageManager!: DiffStorageManager;
-
-    // 消息路由器
-    private messageRouter!: MessageRouter;
-
-    // 事件取消订阅函数
-    private terminalOutputUnsubscribe?: () => void;
-    private imageGenOutputUnsubscribe?: () => void;
-    private taskEventUnsubscribe?: () => void;
-    private dependencyProgressUnsubscribe?: () => void;
-
-    // 初始化状态
-    private initPromise: Promise<void>;
+    private backend?: ChatBackendInitializationResult;
 
     constructor(private readonly context: vscode.ExtensionContext) {
-        // 初始化 Diff 预览内容提供者
-        this.diffPreviewProvider = new DiffPreviewContentProvider();
-        this.diffPreviewProviderDisposable = vscode.workspace.registerTextDocumentContentProvider(
-            'acopilot-diff-preview',
-            this.diffPreviewProvider
+        context.subscriptions.push(
+            vscode.workspace.registerTextDocumentContentProvider(
+                'acopilot-diff-preview',
+                this.diffPreviewProvider
+            )
         );
-        context.subscriptions.push(this.diffPreviewProviderDisposable);
 
-        // 异步初始化后端
-        this.initPromise = this.initializeBackend().catch(err => {
-            console.error('Failed to initialize backend:', err);
-            throw err;
+        this.initPromise = this.initializeBackend().catch((error) => {
+            console.error('Failed to initialize backend:', error);
+            throw error;
         });
     }
 
-    /**
-     * 初始化后端模块
-     */
-    private async initializeBackend() {
-        const backend = await initializeChatBackend({
+    private async initializeBackend(): Promise<void> {
+        this.backend = await initializeChatBackend({
             context: this.context,
             onRetryStatus: (status) => this.handleRetryStatus(status),
-            onTerminalOutputEvent: (event) => this.handleTerminalOutputEvent(event),
-            onImageGenOutputEvent: (event) => this.handleImageGenOutputEvent(event),
-            onTaskEvent: (event) => this.handleTaskEvent(event),
-            onDependencyProgressEvent: (event) => this.handleDependencyProgressEvent(event),
-            getView: () => this._view,
-            sendResponse: this.sendResponse.bind(this),
-            sendError: this.sendError.bind(this)
-        });
-
-        this.configManager = backend.configManager;
-        this.channelManager = backend.channelManager;
-        this.conversationManager = backend.conversationManager;
-        this.chatHandler = backend.chatHandler;
-        this.modelsHandler = backend.modelsHandler;
-        this.settingsManager = backend.settingsManager;
-        this.settingsHandler = backend.settingsHandler;
-        this.checkpointManager = backend.checkpointManager;
-        this.mcpManager = backend.mcpManager;
-        this.dependencyManager = backend.dependencyManager;
-        this.storagePathManager = backend.storagePathManager;
-        this.diffStorageManager = backend.diffStorageManager;
-        this.messageRouter = backend.messageRouter;
-
-        this.terminalOutputUnsubscribe = backend.terminalOutputUnsubscribe;
-        this.imageGenOutputUnsubscribe = backend.imageGenOutputUnsubscribe;
-        this.taskEventUnsubscribe = backend.taskEventUnsubscribe;
-        this.dependencyProgressUnsubscribe = backend.dependencyProgressUnsubscribe;
-    }
-
-    /**
-     * 处理终端输出事件，推送到前端
-     */
-    private handleTerminalOutputEvent(event: TerminalOutputEvent): void {
-        if (!this._view) return;
-
-        this._view.webview.postMessage({
-            type: 'terminalOutput',
-            data: event
-        });
-    }
-
-    /**
-     * 处理图像生成输出事件，推送到前端
-     */
-    private handleImageGenOutputEvent(event: ImageGenOutputEvent): void {
-        if (!this._view) return;
-
-        this._view.webview.postMessage({
-            type: 'imageGenOutput',
-            data: event
-        });
-    }
-
-    /**
-     * 处理统一任务事件，推送到前端
-     */
-    private handleTaskEvent(event: TaskEvent): void {
-        if (!this._view) return;
-
-        this._view.webview.postMessage({
-            type: 'taskEvent',
-            data: event
-        });
-    }
-
-    /**
-     * 处理依赖安装进度事件，推送到前端
-     */
-    private handleDependencyProgressEvent(event: InstallProgressEvent): void {
-        if (!this._view) return;
-
-        this._view.webview.postMessage({
-            type: 'dependencyProgress',
-            data: event
-        });
-    }
-
-    /**
-     * 处理重试状态，推送到前端
-     */
-    private handleRetryStatus(status: {
-        type: 'retrying' | 'retrySuccess' | 'retryFailed';
-        attempt: number;
-        maxAttempts: number;
-        error?: string;
-        nextRetryIn?: number;
-    }): void {
-        if (!this._view) return;
-
-        this._view.webview.postMessage({
-            type: 'retryStatus',
-            data: status
+            onTerminalOutputEvent: (event) => this.bridge.postHostEvent('terminalOutput', event),
+            onImageGenOutputEvent: (event) => this.bridge.postHostEvent('imageGenOutput', event),
+            onTaskEvent: (event) => this.bridge.postHostEvent('taskEvent', event),
+            onDependencyProgressEvent: (event) => this.bridge.postHostEvent('dependencyProgress', event),
+            getView: () => this.bridge.getView(),
+            sendResponse: (requestId, data) => this.sendResponse(requestId, data),
+            sendError: (requestId, code, message) => this.sendError(requestId, code, message)
         });
     }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
+        _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
-    ) {
-        this._view = webviewView;
-        this.webviewReady = false;
+    ): void {
+        this.bridge.attachView(webviewView);
+        this.smokeState.reset();
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.file(path.join(this.context.extensionPath, 'frontend', 'dist')),
-                vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons'))
-            ]
+            localResourceRoots: getChatWebviewLocalResourceRoots(this.context.extensionPath)
         };
+        webviewView.webview.html = buildChatWebviewHtml({
+            webview: webviewView.webview,
+            extensionPath: this.context.extensionPath
+        });
 
-        webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
-
-        // 监听来自 webview 的消息
         webviewView.webview.onDidReceiveMessage(
             async (message: unknown) => {
                 await this.handleMessage(message);
@@ -257,38 +73,34 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         );
     }
 
-    /**
-     * 创建处理器上下文
-     */
     private createHandlerContext(requestId: string): HandlerContext {
+        const backend = this.requireBackend();
+
         return {
             context: this.context,
-            view: this._view,
-            configManager: this.configManager,
-            channelManager: this.channelManager,
-            conversationManager: this.conversationManager,
-            chatHandler: this.chatHandler,
-            modelsHandler: this.modelsHandler,
-            settingsManager: this.settingsManager,
-            settingsHandler: this.settingsHandler,
-            checkpointManager: this.checkpointManager,
-            mcpManager: this.mcpManager,
-            dependencyManager: this.dependencyManager,
-            storagePathManager: this.storagePathManager,
-            diffStorageManager: this.diffStorageManager,
-            streamAbortControllers: this.messageRouter.getAbortManager() as any,
+            view: this.bridge.getView(),
+            configManager: backend.configManager,
+            channelManager: backend.channelManager,
+            conversationManager: backend.conversationManager,
+            chatHandler: backend.chatHandler,
+            modelsHandler: backend.modelsHandler,
+            settingsManager: backend.settingsManager,
+            settingsHandler: backend.settingsHandler,
+            checkpointManager: backend.checkpointManager,
+            mcpManager: backend.mcpManager,
+            dependencyManager: backend.dependencyManager,
+            storagePathManager: backend.storagePathManager,
+            diffStorageManager: backend.diffStorageManager,
+            streamAbortControllers: backend.messageRouter.getAbortManager() as any,
             diffPreviewProvider: this.diffPreviewProvider,
-            sendResponse: this.sendResponse.bind(this),
-            sendError: this.sendError.bind(this),
-            getCurrentWorkspaceUri: this.getCurrentWorkspaceUri.bind(this),
-            syncLanguageToBackend: this.syncLanguageToBackend.bind(this)
+            sendResponse: (id, data) => this.sendResponse(id, data),
+            sendError: (id, code, message) => this.sendError(id, code, message),
+            getCurrentWorkspaceUri: () => this.getCurrentWorkspaceUri(),
+            syncLanguageToBackend: () => this.syncLanguageToBackend()
         };
     }
 
-    /**
-     * 处理来自前端的消息
-     */
-    private async handleMessage(message: unknown) {
+    private async handleMessage(message: unknown): Promise<void> {
         const parsed = parseWebviewRequest(message);
         if (!parsed) {
             console.warn('Ignoring invalid webview message');
@@ -298,22 +110,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         const { type, data, requestId } = parsed;
 
         try {
-            // Webview ready handshake: flush any queued commands
             if (type === 'webviewReady') {
-                this.webviewReady = true;
-                this.flushPendingWebviewMessages();
+                this.bridge.markReady();
                 this.sendResponse(requestId, { success: true });
                 return;
             }
 
-            // 等待初始化完成
+            if (type === 'uiStateChanged') {
+                this.smokeState.update(data);
+                this.sendResponse(requestId, { success: true });
+                return;
+            }
+
             await this.initPromise;
 
-            // 创建处理器上下文
-            const ctx = this.createHandlerContext(requestId);
-
-            // 使用消息路由器处理消息
-            const handled = await this.messageRouter.route(type, data, requestId, ctx);
+            const handled = await this.requireBackend().messageRouter.route(
+                type,
+                data,
+                requestId,
+                this.createHandlerContext(requestId)
+            );
 
             if (!handled) {
                 console.warn('Unknown message type:', type);
@@ -327,33 +143,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private enqueueWebviewMessage(message: unknown): void {
-        if (this._view?.webview && this.webviewReady) {
-            this._view.webview.postMessage(message);
-            return;
-        }
-
-        this.pendingWebviewMessages.push(message);
-        // 防止极端情况下无限增长
-        if (this.pendingWebviewMessages.length > 200) {
-            this.pendingWebviewMessages.shift();
-        }
+    private handleRetryStatus(status: RetryStatus): void {
+        this.bridge.postHostEvent('retryStatus', status);
     }
 
-    private flushPendingWebviewMessages(): void {
-        if (!this._view?.webview || !this.webviewReady) return;
-        const pending = this.pendingWebviewMessages.splice(0);
-        for (const msg of pending) {
-            this._view.webview.postMessage(msg);
+    private requireBackend(): ChatBackendInitializationResult {
+        if (!this.backend) {
+            throw new Error('Chat backend has not been initialized yet.');
         }
+
+        return this.backend;
     }
 
-    /**
-     * 同步语言设置到后端 i18n
-     */
     private syncLanguageToBackend(): void {
         try {
-            const settings = this.settingsManager.getSettings();
+            const settings = this.requireBackend().settingsManager.getSettings();
             const language = settings.ui?.language || 'zh-CN';
             setBackendLanguage(language as SupportedLanguage);
         } catch (error) {
@@ -361,148 +165,47 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /**
-     * 获取当前工作区 URI
-     */
     private getCurrentWorkspaceUri(): string | null {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         return workspaceFolder ? workspaceFolder.uri.toString() : null;
     }
 
-    /**
-     * 取消所有活跃的流式请求
-     */
     public cancelAllStreams(): void {
-        this.messageRouter?.cancelAllStreams();
+        this.backend?.messageRouter.cancelAllStreams();
         debugLog('All active streams cancelled');
     }
 
-    /**
-     * 清理资源
-     */
+    public getSmokeStatus(): SmokeStatus {
+        return this.smokeState.getStatus({
+            viewResolved: !!this.bridge.getView(),
+            webviewReady: this.bridge.isReady()
+        });
+    }
+
     public dispose(): void {
-        // 取消所有活跃的流式请求
         this.cancelAllStreams();
 
-        // 取消终端输出订阅
-        if (this.terminalOutputUnsubscribe) {
-            this.terminalOutputUnsubscribe();
-        }
+        this.backend?.terminalOutputUnsubscribe();
+        this.backend?.imageGenOutputUnsubscribe();
+        this.backend?.taskEventUnsubscribe();
+        this.backend?.dependencyProgressUnsubscribe();
 
-        // 取消图像生成输出订阅
-        if (this.imageGenOutputUnsubscribe) {
-            this.imageGenOutputUnsubscribe();
-        }
-
-        // 取消统一任务事件订阅
-        if (this.taskEventUnsubscribe) {
-            this.taskEventUnsubscribe();
-        }
-
-        // 取消依赖安装进度订阅
-        if (this.dependencyProgressUnsubscribe) {
-            this.dependencyProgressUnsubscribe();
-        }
-
-        // 取消所有活跃任务
         TaskManager.cancelAllTasks();
-
-        // 释放 MCP 管理器资源（断开所有连接）
-        this.mcpManager?.dispose();
+        this.backend?.mcpManager.dispose();
+        this.diffPreviewProvider.dispose();
 
         debugLog('ChatViewProvider disposed');
     }
 
-    /**
-     * 发送响应到前端
-     */
-    private sendResponse(requestId: string, data: unknown) {
-        this._view?.webview.postMessage({
-            type: 'response',
-            requestId,
-            success: true,
-            data
-        });
+    private sendResponse(requestId: string, data: unknown): void {
+        this.bridge.sendResponse(requestId, data);
     }
 
-    /**
-     * 发送错误到前端
-     */
-    private sendError(requestId: string, code: string, message: string) {
-        this._view?.webview.postMessage({
-            type: 'error',
-            requestId,
-            success: false,
-            error: {
-                code,
-                message
-            }
-        });
+    private sendError(requestId: string, code: string, message: string): void {
+        this.bridge.sendError(requestId, code, message);
     }
 
-    /**
-     * 发送命令到 Webview
-     */
     public sendCommand(command: string, data?: unknown): void {
-        this.enqueueWebviewMessage({
-            type: 'command',
-            command,
-            data
-        });
-    }
-
-    /**
-     * 生成webview的HTML
-     */
-    private getHtmlForWebview(webview: vscode.Webview): string {
-        const nonce = getNonce();
-        const distDir = path.join(this.context.extensionPath, 'frontend', 'dist');
-        const indexHtmlPath = path.join(distDir, 'index.html');
-        const fallbackScriptPath = path.join(distDir, 'index.js');
-        const fallbackStylePath = path.join(distDir, 'index.css');
-        let scriptUris = [webview.asWebviewUri(vscode.Uri.file(fallbackScriptPath))];
-        let styleUris = [webview.asWebviewUri(vscode.Uri.file(fallbackStylePath))];
-
-        try {
-            const assets = readFrontendBuildAssets(indexHtmlPath);
-            if (assets.scriptPaths.length > 0) {
-                scriptUris = assets.scriptPaths.map(assetPath =>
-                    webview.asWebviewUri(vscode.Uri.file(resolveFrontendAssetFsPath(distDir, assetPath)))
-                );
-            }
-            if (assets.stylePaths.length > 0) {
-                styleUris = assets.stylePaths.map(assetPath =>
-                    webview.asWebviewUri(vscode.Uri.file(resolveFrontendAssetFsPath(distDir, assetPath)))
-                );
-            }
-        } catch (error) {
-            console.warn('Failed to resolve frontend build assets from dist/index.html, using fallback asset names.', error);
-        }
-
-        const codiconsUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(this.context.extensionPath, 'resources', 'codicons', 'codicon.css'))
-        );
-        const styleLinks = styleUris
-            .map(styleUri => `<link href="${styleUri}" rel="stylesheet">`)
-            .join('\n    ');
-        const scriptTags = scriptUris
-            .map(scriptUri => `<script nonce="${nonce}" src="${scriptUri}"></script>`)
-            .join('\n    ');
-
-        return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data: blob:; media-src ${webview.cspSource} data: blob:;">
-    <link href="${codiconsUri}" rel="stylesheet">
-    ${styleLinks}
-    <title>Acopilot Chat</title>
-</head>
-<body>
-    <div id="app"></div>
-    ${scriptTags}
-</body>
-</html>`;
+        this.bridge.sendCommand(command, data);
     }
 }

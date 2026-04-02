@@ -2,6 +2,19 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.0] - 2026-04-01
+
+### Improved
+  - Build/Release: unify root validation, build, package, and smoke entrypoints around npm-driven workflows, and gate GitHub prereleases with validate/build/package steps.
+  - Smoke: add both development-extension and packaged-VSIX smoke validation paths so the published artifact can be verified before testing.
+  - Refactor: split several large extension/webview/frontend modules into smaller focused files, including extension bootstrap, ChatViewProvider bridge logic, app shell, plan modal, checkpoint settings, prompt skills, markdown rendering, and message-list orchestration.
+
+### Fixed
+  - Frontend: restore a green frontend typecheck baseline and remove several UI contract mismatches in settings, tools, and shared types.
+  - UI: stabilize Acopilot view entry, chat/history/settings navigation, selection/file injection dedupe, and persisted language handling across reloads.
+  - Runtime: make default config bootstrap honor the normal config/secret contract, bind streamed tool parsing to each request instead of ambient active config, serialize same-conversation writes, and prevent deleted conversations from being silently recreated.
+  - Validation: harden malformed side-effect request rejection and persist post-edit validation preset execution through runtime, history, and reload flows.
+
 ## [1.0.60] - 2026-04-01
 
 ### Fixed
