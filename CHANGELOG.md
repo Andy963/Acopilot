@@ -2,15 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
-## [1.0.61-pre.3] - 2026-04-03
-
-### Fixed
-  - Chat: restore streaming auto-follow so new assistant output keeps the message list pinned to the latest content by default, and only pause follow mode after an actual user scroll.
-
 ## [1.0.61-pre.2] - 2026-04-03
 
 ### Fixed
   - Chat: reserve the "Context Used" block at the top of the first assistant reply while streaming, then fill it in after completion to avoid late layout jumps when users are reading older content.
+  - Chat: restore streaming auto-follow so new assistant output keeps the message list pinned to the latest content by default, and only pause follow mode after an actual user scroll.
 
 ## [1.0.61-pre.1] - 2026-04-02
 
