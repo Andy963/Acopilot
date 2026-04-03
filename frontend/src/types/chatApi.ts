@@ -202,7 +202,7 @@ export interface PendingToolCall {
  * 前端接收的流式消息格式
  */
 export interface StreamChunk {
-  type: 'chunk' | 'complete' | 'error' | 'toolIteration' | 'cancelled' | 'checkpoints' | 'awaitingConfirmation' | 'toolsExecuting'
+  type: 'chunk' | 'complete' | 'error' | 'toolIteration' | 'cancelled' | 'checkpoints' | 'awaitingConfirmation' | 'toolsExecuting' | 'contextInfo'
   conversationId: string
   chunk?: BackendStreamChunk
   content?: Content
@@ -217,4 +217,6 @@ export interface StreamChunk {
   pendingToolCalls?: PendingToolCall[]
   /** 标记工具即将开始执行（用于在工具执行前先发送计时信息） */
   toolsExecuting?: boolean
+  /** Context snapshot payload when `type` is `contextInfo`. */
+  contextSnapshot?: any
 }

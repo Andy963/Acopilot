@@ -178,6 +178,16 @@ export async function* runToolLoop(
             toolAllowList,
         });
 
+        // On the first iteration, send contextSnapshot early so the frontend
+        // can display the "Context Used" card before LLM generation completes.
+        if (iteration === 0 && contextSnapshot) {
+            yield {
+                conversationId,
+                contextSnapshot,
+                contextInfo: true as const,
+            };
+        }
+
         let finalContent: Content;
         let openaiResponseId: string | undefined;
 

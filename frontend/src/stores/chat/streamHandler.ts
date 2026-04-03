@@ -10,6 +10,7 @@ import type { StreamChunk } from '../../types'
 import type { ChatStoreState, CheckpointRecord } from './types'
 
 import {
+  handleContextInfo,
   handleChunkType,
   handleToolsExecuting,
   handleAwaitingConfirmation,
@@ -53,6 +54,10 @@ export function handleStreamChunk(
   }
   
   switch (chunk.type) {
+    case 'contextInfo':
+      handleContextInfo(chunk, state)
+      break
+
     case 'chunk':
       if (chunk.chunk && state.streamingMessageId.value) {
         handleChunkType(chunk, state)

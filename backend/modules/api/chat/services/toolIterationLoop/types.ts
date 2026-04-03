@@ -8,7 +8,8 @@ import type {
     ChatStreamToolIterationData,
     ChatStreamCheckpointsData,
     ChatStreamToolConfirmationData,
-    ChatStreamToolsExecutingData
+    ChatStreamToolsExecutingData,
+    ChatStreamContextInfoData
 } from '../../types';
 
 export interface ToolIterationLoopConfig {
@@ -29,7 +30,8 @@ export type ToolIterationLoopOutput =
     | ChatStreamToolIterationData
     | ChatStreamCheckpointsData
     | ChatStreamToolConfirmationData
-    | ChatStreamToolsExecutingData;
+    | ChatStreamToolsExecutingData
+    | ChatStreamContextInfoData;
 
 export interface NonStreamToolLoopResult {
     content?: Content;

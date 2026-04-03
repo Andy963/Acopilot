@@ -18,6 +18,19 @@ import {
 } from './streamHelpers'
 
 /**
+ * Handles the `contextInfo` chunk which carries an early context snapshot.
+ */
+export function handleContextInfo(chunk: StreamChunk, state: ChatStoreState): void {
+  if (!chunk.contextSnapshot) return
+  const message = state.allMessages.value.find(m => m.id === state.streamingMessageId.value)
+  if (!message) return
+  if (!message.metadata) {
+    message.metadata = {}
+  }
+  message.metadata.contextSnapshot = chunk.contextSnapshot
+}
+
+/**
  * 处理 chunk 类型
  */
 export function handleChunkType(chunk: StreamChunk, state: ChatStoreState): void {

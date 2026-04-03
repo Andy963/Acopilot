@@ -6,6 +6,7 @@ import type {
   ChatStreamCheckpointsData,
   ChatStreamToolConfirmationData,
   ChatStreamToolsExecutingData,
+  ChatStreamContextInfoData,
 } from '../../types';
 
 export type ChatStreamOutput =
@@ -15,5 +16,6 @@ export type ChatStreamOutput =
   | ChatStreamToolIterationData
   | ChatStreamCheckpointsData
   | ChatStreamToolConfirmationData
-  | ChatStreamToolsExecutingData;
+  | ChatStreamToolsExecutingData
+  | ChatStreamContextInfoData;
 

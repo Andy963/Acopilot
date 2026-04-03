@@ -25,7 +25,7 @@ import type { StreamChunk, GenerateResponse } from '../../channel/types';
 import { ChannelError, ErrorType } from '../../channel/types';
 import { getDiffManager } from '../../../tools/file/diffManager';
 import { getMultimodalCapability, type MultimodalCapability, type ChannelType as UtilChannelType, type ToolMode as UtilToolMode } from '../../../tools/utils';
-import type { ChatRequestData, ChatMode, ChatSuccessData, ChatErrorData, ChatStreamChunkData, ChatStreamCompleteData, ChatStreamErrorData, ChatStreamToolIterationData, ChatStreamCheckpointsData, ChatStreamToolConfirmationData, ChatStreamToolsExecutingData, ToolConfirmationResponseData, PendingToolCall, RetryRequestData, EditAndRetryRequestData, DeleteToMessageRequestData, DeleteToMessageSuccessData, DeleteToMessageErrorData, AttachmentData, SummarizeContextRequestData, SummarizeContextSuccessData, SummarizeContextErrorData, ContextInspectorData } from './types';
+import type { ChatRequestData, ChatMode, ChatSuccessData, ChatErrorData, ChatStreamChunkData, ChatStreamCompleteData, ChatStreamErrorData, ChatStreamToolIterationData, ChatStreamCheckpointsData, ChatStreamToolConfirmationData, ChatStreamToolsExecutingData, ChatStreamContextInfoData, ToolConfirmationResponseData, PendingToolCall, RetryRequestData, EditAndRetryRequestData, DeleteToMessageRequestData, DeleteToMessageSuccessData, DeleteToMessageErrorData, AttachmentData, SummarizeContextRequestData, SummarizeContextSuccessData, SummarizeContextErrorData, ContextInspectorData } from './types';
 import { generateToolCallId, type ConversationRound, type FunctionCallInfo } from './utils';
 import { ToolCallParserService, MessageBuilderService, TokenEstimationService, ContextTrimService, ToolExecutionService, SummarizeService, ToolIterationLoopService, CheckpointService, OrphanedToolCallService, DiffInterruptService, ChatFlowService } from './services';
 import { StreamResponseProcessor, isAsyncGenerator } from './handlers';
@@ -256,7 +256,7 @@ export class ChatHandler {
     async *handleChatStream(
         request: ChatRequestData
     ): AsyncGenerator<
-        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamCheckpointsData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData
+        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamCheckpointsData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData | ChatStreamContextInfoData
     > {
         try {
             for await (const chunk of this.chatFlowService.handleChatStream(request)) {
@@ -290,7 +290,7 @@ export class ChatHandler {
     async *handleToolConfirmation(
         request: ToolConfirmationResponseData
     ): AsyncGenerator<
-        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamCheckpointsData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData
+        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamCheckpointsData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData | ChatStreamContextInfoData
     > {
         // 新实现：委托给 ChatFlowService 处理完整流程，保留统一的错误处理逻辑
         try {
@@ -384,7 +384,7 @@ export class ChatHandler {
     async *handleRetryStream(
         request: RetryRequestData
     ): AsyncGenerator<
-        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData
+        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData | ChatStreamContextInfoData
     > {
         try {
             for await (const chunk of this.chatFlowService.handleRetryStream(request)) {
@@ -439,7 +439,7 @@ export class ChatHandler {
     async *handleEditAndRetryStream(
         request: EditAndRetryRequestData
     ): AsyncGenerator<
-        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamCheckpointsData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData
+        ChatStreamChunkData | ChatStreamCompleteData | ChatStreamErrorData | ChatStreamToolIterationData | ChatStreamCheckpointsData | ChatStreamToolConfirmationData | ChatStreamToolsExecutingData | ChatStreamContextInfoData
     > {
         try {
             for await (const chunk of this.chatFlowService.handleEditAndRetryStream(request)) {

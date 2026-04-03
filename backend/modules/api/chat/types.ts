@@ -403,6 +403,16 @@ export interface ChatStreamToolsExecutingData {
 }
 
 /**
+ * Context info payload sent before LLM generation starts so the UI can render
+ * the "Context Used" card early.
+ */
+export interface ChatStreamContextInfoData {
+    conversationId: string;
+    contextSnapshot: import('../../conversation/types').ContextSnapshot;
+    contextInfo: true;
+}
+
+/**
  * 工具确认响应请求数据（前端发送到后端）
  */
 export interface ToolConfirmationResponseData {
