@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.4] - 2026-04-03
+
+### Fixed
+  - Chat: stream an early context snapshot chunk so the "Context Used" card can render without waiting for generation to finish.
+  - Chat: route the context snapshot to the active streaming message metadata for stable incremental rendering.
+
 ## [1.0.61-pre.2] - 2026-04-03
 
 ### Fixed
