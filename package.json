@@ -2,7 +2,7 @@
   "name": "acopilot",
   "displayName": "Acopilot",
   "description": "Acopilot 是一个AI编程助手插件，支持多模态和复杂功能。",
-  "version": "1.0.61-pre.0",
+  "version": "1.0.61-pre.1",
   "publisher": "Andy963",
   "icon": "resources/icon.png",
   "engines": {
@@ -144,7 +144,7 @@
     "build": "npm run build:backend && npm run build:frontend",
     "smoke:vscode": "npm run build && node ./test/smokeVscode.js --source=development",
     "smoke:vscode:vsix": "npm run package && node ./test/smokeVscode.js --source=vsix",
-    "package:vsix": "npx @vscode/vsce package --dependencies",
+    "package:vsix": "vsce package --dependencies",
     "package": "npm run clean:vsix && npm run package:vsix",
     "validate": "npm run typecheck && npm test",
     "test": "vitest run",
@@ -159,6 +159,7 @@
     "undici-types": "^6.21.0"
   },
   "devDependencies": {
+    "@vscode/vsce": "^3.7.1",
     "@types/node": "^24.10.2",
     "@types/vscode": "^1.96.0",
     "vitest": "^4.0.17"

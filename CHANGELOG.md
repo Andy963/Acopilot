@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.1] - 2026-04-02
+
+### Improved
+  - Build/Release: pin `@vscode/vsce` as a workspace dev dependency so VSIX packaging no longer depends on a transient `npx` install.
+
+### Fixed
+  - Settings: wrap long inline code and tag preview content in the context settings panel so long entries no longer overflow or force horizontal clipping.
+
 ## [1.0.61-pre.0] - 2026-04-01
 
 ### Improved
