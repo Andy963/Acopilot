@@ -14,10 +14,9 @@ import { formatFileSize } from '../../utils/file'
 const { t } = useI18n()
 
 const props = defineProps<{
-  snapshot: ContextInspectorData
+  snapshot?: ContextInspectorData | null
+  loading?: boolean
 }>()
-
-
 
 const expanded = ref(false)
 
@@ -28,6 +27,7 @@ const pinnedSelections = computed(() => injected.value?.pinnedSelections)
 const attachments = computed(() => injected.value?.attachments)
 
 const hasInjected = computed(() => {
+  if (props.loading) return true
   const i = injected.value
   if (!i) return false
   return Boolean(
@@ -86,6 +86,8 @@ const pinnedPromptCount = computed(() => (pinnedPromptSummary.value ? 1 : 0))
 const referenceCount = computed(() => pinnedFilesUsedCount.value + pinnedSelectionsCount.value + attachmentsCount.value + pinnedPromptCount.value)
 
 const headerMeta = computed(() => {
+  if (props.loading) return t('common.loading')
+
   const parts: string[] = []
 
   const pf = pinnedFiles.value
@@ -109,6 +111,13 @@ const headerMeta = computed(() => {
 
   return parts.join(' · ')
 })
+
+const canExpand = computed(() => !props.loading && hasInjected.value)
+
+function toggleExpanded(): void {
+  if (!canExpand.value) return
+  expanded.value = !expanded.value
+}
 
 function isPinnedPromptModule(m: ContextInspectorModule): boolean {
   const title = String(m?.title || '').trim().toUpperCase()
@@ -142,15 +151,25 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
 
 <template>
   <div v-if="hasInjected" class="context-used-card">
-    <div class="context-used-header" @click="expanded = !expanded">
+    <div
+      class="context-used-header"
+      :class="{ 'context-used-header-loading': loading }"
+      @click="toggleExpanded"
+    >
       <i class="codicon" :class="expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
       <i class="codicon codicon-references context-used-icon"></i>
       <span class="context-used-title">{{ t('components.message.stats.contextUsed') }}</span>
-      <span v-if="headerMeta" class="context-used-meta">{{ headerMeta }}</span>
-      <span v-if="referenceCount > 0" class="context-used-count">({{ referenceCount }})</span>
+      <span
+        v-if="headerMeta"
+        class="context-used-meta"
+        :class="{ 'context-used-meta-loading': loading }"
+      >
+        {{ headerMeta }}
+      </span>
+      <span v-if="!loading && referenceCount > 0" class="context-used-count">({{ referenceCount }})</span>
     </div>
 
-    <div v-if="expanded" class="context-used-body">
+    <div v-if="expanded && !loading" class="context-used-body">
       <div v-if="pinnedPromptSummary" class="section">
         <div class="section-title">{{ t('components.common.contextInspectorModal.injected.pinnedPrompt') }}</div>
         <div class="section-kv"><code>{{ pinnedPromptSummary }}</code></div>
@@ -214,6 +233,14 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   background: var(--vscode-list-hoverBackground);
 }
 
+.context-used-header-loading {
+  cursor: default;
+}
+
+.context-used-header-loading:hover {
+  background: transparent;
+}
+
 .context-used-icon {
   color: var(--vscode-textLink-foreground);
 }
@@ -233,6 +260,10 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+
+.context-used-meta-loading {
+  font-style: italic;
 }
 
 .context-used-count {

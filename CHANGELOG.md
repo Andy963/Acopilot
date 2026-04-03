@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.2] - 2026-04-03
+
+### Fixed
+  - Chat: reserve the "Context Used" block at the top of the first assistant reply while streaming, then fill it in after completion to avoid late layout jumps when users are reading older content.
+
 ## [1.0.61-pre.1] - 2026-04-02
 
 ### Improved

@@ -54,6 +54,7 @@ const {
   contextSnapshot,
   hasContextSnapshot,
   showContextUsedCard,
+  reserveContextUsedCard,
   messageClass,
   formattedTime,
   startEdit,
@@ -130,9 +131,10 @@ const {
 	        <!-- 显示模式 -->
 	        <div class="message-content">
 	        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
-	        <template v-if="showContextUsedCard && contextSnapshot">
+	        <template v-if="reserveContextUsedCard">
 	          <ContextUsedMessage
-	            :snapshot="contextSnapshot"
+	            :snapshot="contextSnapshot || null"
+	            :loading="!showContextUsedCard"
 	            @open-details="handleOpenContextUsed"
 	          />
 	        </template>
