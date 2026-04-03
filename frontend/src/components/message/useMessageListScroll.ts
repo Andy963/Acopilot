@@ -2,8 +2,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } 
 import { useChatStore } from '../../stores'
 import type { Message } from '../../types'
 import {
-  computeAnchorClampDelta,
-  computeGuardAction,
   createInitialStreamingFollowState,
   pauseForUserScroll,
   resetAfterStreamEnd,
@@ -21,7 +19,6 @@ export interface ScrollbarHandle {
 
 const VISIBLE_INCREMENT = 40
 const DEFAULT_STICKY_THRESHOLD_PX = 50
-const STREAMING_GUARD_MARGIN_PX = 8
 
 export function useMessageListScroll(messages: Ref<Message[]>) {
   const chatStore = useChatStore()
@@ -122,35 +119,12 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     })
   }
 
-  function performStreamingAutoScroll(container: HTMLElement, streamingMessageId: string) {
+  function performStreamingAutoScroll(container: HTMLElement) {
     if (streamingFollowState.value.mode !== 'following') return
 
     withProgrammaticScroll(() => {
       container.scrollTop = container.scrollHeight
     })
-
-    const anchor = container.querySelector<HTMLElement>(`[data-message-id="${streamingMessageId}"]`)
-    if (!anchor) {
-      wasAtBottom.value = isAtBottom(container)
-      return
-    }
-
-    const containerRect = container.getBoundingClientRect()
-    const anchorRect = anchor.getBoundingClientRect()
-    const clampDeltaPx = computeAnchorClampDelta({
-      containerTopPx: containerRect.top,
-      anchorTopPx: anchorRect.top,
-      marginPx: STREAMING_GUARD_MARGIN_PX
-    })
-
-    const { nextState, clampDeltaPx: nextClampDeltaPx } = computeGuardAction(streamingFollowState.value, clampDeltaPx)
-    if (nextClampDeltaPx > 0) {
-      withProgrammaticScroll(() => {
-        container.scrollTop = Math.max(0, container.scrollTop - nextClampDeltaPx)
-      })
-    }
-
-    resetStreamingFollowState(nextState)
     wasAtBottom.value = isAtBottom(container)
   }
 
@@ -169,7 +143,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
 
     const streamingMessageId = chatStore.streamingMessageId
     if (chatStore.isStreaming && streamingMessageId) {
-      performStreamingAutoScroll(container, streamingMessageId)
+      performStreamingAutoScroll(container)
       return
     }
 
