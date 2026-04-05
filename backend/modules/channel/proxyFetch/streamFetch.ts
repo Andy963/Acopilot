@@ -1,4 +1,4 @@
-import * as http from 'http';
+import * as net from 'net';
 import * as tls from 'tls';
 import { URL } from 'url';
 
@@ -6,6 +6,7 @@ import { t } from '../../../i18n';
 import { ChannelError, ErrorType } from '../types';
 
 import { DEFAULT_TIMEOUT_MS, USER_AGENT } from './constants';
+import { resolveProxyUrl } from './resolveProxyUrl';
 import type { FetchOptions } from './types';
 
 async function parseJsonOrTextResponseBody(response: Response): Promise<any> {
@@ -28,7 +29,10 @@ export async function* proxyStreamFetch(
     init: FetchOptions,
     proxyUrl?: string
 ): AsyncGenerator<string> {
-    if (!proxyUrl) {
+    const targetUrl = new URL(url);
+    const resolvedProxyUrl = resolveProxyUrl({ configuredProxyUrl: proxyUrl, targetUrl });
+
+    if (!resolvedProxyUrl) {
         const headersWithUserAgent = { 'User-Agent': USER_AGENT, ...init.headers };
         const response = await fetch(url, {
             method: init.method,
@@ -80,70 +84,81 @@ export async function* proxyStreamFetch(
         return;
     }
 
-    const targetUrl = new URL(url);
-    const proxyParsed = new URL(proxyUrl);
+    const proxyParsed = new URL(resolvedProxyUrl);
     const targetHost = targetUrl.hostname;
     const targetPort = targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80);
     const isHttps = targetUrl.protocol === 'https:';
+    const proxyPort = parseInt(proxyParsed.port || (proxyParsed.protocol === 'https:' ? '443' : '80'), 10);
+    const proxyAuthorization = buildProxyAuthorization(proxyParsed);
 
     if (init.signal?.aborted) {
         throw new Error('Request cancelled');
     }
 
-    const socket = await new Promise<tls.TLSSocket | import('net').Socket>((resolve, reject) => {
+    const socket = await new Promise<tls.TLSSocket | net.Socket>((resolve, reject) => {
         const timeout = init.timeout || DEFAULT_TIMEOUT_MS;
 
-        // Listen to abort signal.
+        // Use net.connect directly to bypass VS Code's http.request patch.
+        const rawSocket = net.connect(proxyPort, proxyParsed.hostname, () => {
+            const connectHeaders = [`CONNECT ${targetHost}:${targetPort} HTTP/1.1`, `Host: ${targetHost}:${targetPort}`];
+            if (proxyAuthorization) {
+                connectHeaders.push(`Proxy-Authorization: ${proxyAuthorization}`);
+            }
+            rawSocket.write(connectHeaders.join('\r\n') + '\r\n\r\n');
+        });
+
+        rawSocket.setTimeout(timeout);
+
         const onAbort = () => {
-            proxyReq.destroy();
+            rawSocket.destroy();
             reject(new Error('Request cancelled'));
         };
         if (init.signal) {
             init.signal.addEventListener('abort', onAbort, { once: true });
         }
 
-        const proxyReq = http.request({
-            hostname: proxyParsed.hostname,
-            port: proxyParsed.port || 80,
-            method: 'CONNECT',
-            path: `${targetHost}:${targetPort}`,
-            timeout
-        });
+        let connectBuffer = '';
+        const onData = (chunk: Buffer) => {
+            connectBuffer += chunk.toString('utf8');
+            const headerEnd = connectBuffer.indexOf('\r\n\r\n');
+            if (headerEnd === -1) return;
 
-        proxyReq.on('connect', (res, socket) => {
-            if (res.statusCode !== 200) {
-                socket.destroy();
-                reject(new Error(`Proxy CONNECT failed: ${res.statusCode}`));
+            rawSocket.removeListener('data', onData);
+
+            const statusMatch = connectBuffer.match(/HTTP\/\d\.\d (\d+)/);
+            const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+            if (statusCode !== 200) {
+                rawSocket.destroy();
+                reject(new Error(`Proxy CONNECT failed: ${statusCode}`));
                 return;
             }
 
             if (isHttps) {
                 const tlsSocket = tls.connect({
-                    socket: socket,
+                    socket: rawSocket,
                     servername: targetHost,
                     rejectUnauthorized: false
                 }, () => {
                     resolve(tlsSocket);
                 });
-
                 tlsSocket.on('error', (error: Error) => {
                     reject(new Error(`TLS error: ${error.message}`));
                 });
             } else {
-                resolve(socket);
+                resolve(rawSocket);
             }
-        });
+        };
 
-        proxyReq.on('error', (error) => {
+        rawSocket.on('data', onData);
+
+        rawSocket.on('error', (error) => {
             reject(new Error(`Proxy request failed: ${error.message}`));
         });
 
-        proxyReq.on('timeout', () => {
-            proxyReq.destroy();
+        rawSocket.on('timeout', () => {
+            rawSocket.destroy();
             reject(new Error('Proxy request timeout'));
         });
-
-        proxyReq.end();
     });
 
     // Send request.
@@ -408,4 +423,12 @@ export async function* proxyStreamFetch(
             socket.end();
         });
     }
+}
+
+function buildProxyAuthorization(proxyUrl: URL): string | undefined {
+    if (!proxyUrl.username && !proxyUrl.password) return undefined;
+
+    const username = decodeURIComponent(proxyUrl.username || '');
+    const password = decodeURIComponent(proxyUrl.password || '');
+    return `Basic ${Buffer.from(`${username}:${password}`, 'utf8').toString('base64')}`;
 }

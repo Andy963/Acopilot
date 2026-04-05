@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Message } from '../frontend/src/types'
 import {
   isContextUsedCardCandidate,
+  shouldRenderContextUsedCard,
   shouldReserveContextUsedCard,
   shouldShowContextUsedCard
 } from '../frontend/src/components/message/contextUsedCard'
@@ -68,18 +69,40 @@ describe('context used card visibility', () => {
     expect(shouldReserveContextUsedCard(messages[2], 2, messages)).toBe(false)
   })
 
-  it('does not render for assistant messages that contain tool calls', () => {
+  it('shows the card for tool-only messages when contextSnapshot is present', () => {
     const messages = [
       createMessage({ id: 'user-1', role: 'user', content: 'hello' }),
       createMessage({
         id: 'assistant-1',
         streaming: true,
-        parts: [{ functionCall: { name: 'read_file', args: {} } }]
+        parts: [{ functionCall: { name: 'read_file', args: {} } }],
+        metadata: {
+          contextSnapshot: {
+            generatedAt: 1,
+            conversationId: 'conv',
+            configId: 'cfg',
+            providerType: 'openai',
+            model: 'gpt-test'
+          } as any
+        }
       })
     ]
 
-    expect(isContextUsedCardCandidate(messages[1], 1, messages)).toBe(false)
-    expect(shouldReserveContextUsedCard(messages[1], 1, messages)).toBe(false)
-    expect(shouldShowContextUsedCard(messages[1], 1, messages)).toBe(false)
+    // Tool-only messages are not candidates, but should still show
+    // the card when they carry a contextSnapshot.
+    expect(shouldReserveContextUsedCard(messages[1], 1, messages)).toBe(true)
+    expect(shouldShowContextUsedCard(messages[1], 1, messages)).toBe(true)
+  })
+
+  it('keeps rendering once a context snapshot exists even without injected references', () => {
+    expect(
+      shouldRenderContextUsedCard({
+        generatedAt: 1,
+        conversationId: 'conv',
+        configId: 'cfg',
+        providerType: 'openai',
+        model: 'gpt-test'
+      } as any, false)
+    ).toBe(true)
   })
 })

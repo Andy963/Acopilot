@@ -6,6 +6,7 @@
 
 import { EventEmitter } from 'events';
 import { t } from '../../i18n';
+import { createProxyFetch } from '../channel/proxyFetch';
 
 /**
  * JSON-RPC 请求
@@ -279,7 +280,8 @@ export class HttpMcpClient extends EventEmitter {
         
         let response: Response;
         try {
-            response = await fetch(this.url, {
+            const proxyFetch = createProxyFetch();
+            response = await proxyFetch(this.url, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(request),
@@ -397,7 +399,8 @@ export class HttpMcpClient extends EventEmitter {
             headers['Mcp-Session-Id'] = this.sessionId;
         }
         
-        await fetch(this.url, {
+        const proxyFetch = createProxyFetch();
+        await proxyFetch(this.url, {
             method: 'POST',
             headers,
             body: JSON.stringify(notification)

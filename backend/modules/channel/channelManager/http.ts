@@ -104,158 +104,70 @@ export class ChannelManagerHttp extends ChannelManagerBase {
     }
 
     try {
-      if (proxyUrl) {
-        let buffer = '';
+      let buffer = '';
 
-        for await (const chunk of proxyStreamFetch(
-          url,
-          {
-            method,
-            headers,
-            body: body ? JSON.stringify(body) : undefined,
-            timeout,
-            signal: controller.signal,
-          },
-          proxyUrl
-        )) {
-          if (externalSignal?.aborted) {
-            break;
-          }
-
-          if (chunk) {
-            resetTimeout();
-            appendPreview(chunk);
-          }
-
-          buffer += chunk;
-
-          if (!buffer.trim()) {
-            buffer = '';
-            continue;
-          }
-
-          const result = parseStreamBuffer(buffer);
-          buffer = result.remaining;
-
-          for (const parsed of result.chunks) {
-            parsedChunkCount++;
-            yield parsed;
-          }
-        }
-
-        if (buffer.trim()) {
-          const result = parseStreamBuffer(buffer, true);
-          for (const chunk of result.chunks) {
-            parsedChunkCount++;
-            yield chunk;
-          }
-        }
-
-        if (parsedChunkCount === 0) {
-          const preview = streamPreview.trim();
-          if (preview) {
-            throw new ChannelError(
-              ErrorType.PARSE_ERROR,
-              t('modules.channel.errors.streamNoParsableChunks'),
-              { url, preview: preview.slice(0, 4096) }
-            );
-          }
-          throw new ChannelError(
-            ErrorType.NETWORK_ERROR,
-            t('modules.channel.errors.streamNoDataReceived'),
-            { url }
-          );
-        }
-
-        if (isTimedOut) {
-          throw new ChannelError(ErrorType.TIMEOUT_ERROR, t('modules.channel.errors.requestTimeoutNoResponse', { timeout }));
-        }
-      } else {
-        const response = await fetch(url, {
+      for await (const chunk of proxyStreamFetch(
+        url,
+        {
           method,
           headers,
           body: body ? JSON.stringify(body) : undefined,
+          timeout,
           signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const errorBody = await parseJsonOrTextResponseBody(response);
-          throw new ChannelError(ErrorType.API_ERROR, t('modules.channel.errors.apiError', { status: response.status }), {
-            status: response.status,
-            headers: Object.fromEntries(response.headers.entries()),
-            url,
-            body: errorBody,
-          });
+        },
+        proxyUrl
+      )) {
+        if (externalSignal?.aborted) {
+          break;
         }
 
-        if (!response.body) {
-          throw new ChannelError(ErrorType.NETWORK_ERROR, t('modules.channel.errors.noResponseBody'));
+        if (chunk) {
+          resetTimeout();
+          appendPreview(chunk);
         }
 
-        const contentType = response.headers.get('content-type') || undefined;
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+        buffer += chunk;
 
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            resetTimeout();
-
-            const decoded = decoder.decode(value, { stream: true });
-            appendPreview(decoded);
-            buffer += decoded;
-
-            if (!buffer.trim()) {
-              buffer = '';
-              continue;
-            }
-
-            const result = parseStreamBuffer(buffer);
-            buffer = result.remaining;
-
-            for (const chunk of result.chunks) {
-              parsedChunkCount++;
-              yield chunk;
-            }
-          }
-
-          const rest = decoder.decode();
-          appendPreview(rest);
-          buffer += rest;
-
-          if (buffer.trim()) {
-            const result = parseStreamBuffer(buffer, true);
-            for (const chunk of result.chunks) {
-              parsedChunkCount++;
-              yield chunk;
-            }
-          }
-
-          if (parsedChunkCount === 0) {
-            const preview = streamPreview.trim();
-            if (preview) {
-              throw new ChannelError(
-                ErrorType.PARSE_ERROR,
-                t('modules.channel.errors.streamNoParsableChunks'),
-                { url, status: response.status, contentType, preview: preview.slice(0, 4096) }
-              );
-            }
-            throw new ChannelError(
-              ErrorType.NETWORK_ERROR,
-              t('modules.channel.errors.streamNoDataReceived'),
-              { url, status: response.status, contentType }
-            );
-          }
-
-          if (isTimedOut) {
-            throw new ChannelError(ErrorType.TIMEOUT_ERROR, t('modules.channel.errors.requestTimeoutNoResponse', { timeout }));
-          }
-        } finally {
-          reader.releaseLock();
+        if (!buffer.trim()) {
+          buffer = '';
+          continue;
         }
+
+        const result = parseStreamBuffer(buffer);
+        buffer = result.remaining;
+
+        for (const parsed of result.chunks) {
+          parsedChunkCount++;
+          yield parsed;
+        }
+      }
+
+      if (buffer.trim()) {
+        const result = parseStreamBuffer(buffer, true);
+        for (const chunk of result.chunks) {
+          parsedChunkCount++;
+          yield chunk;
+        }
+      }
+
+      if (parsedChunkCount === 0) {
+        const preview = streamPreview.trim();
+        if (preview) {
+          throw new ChannelError(
+            ErrorType.PARSE_ERROR,
+            t('modules.channel.errors.streamNoParsableChunks'),
+            { url, preview: preview.slice(0, 4096) }
+          );
+        }
+        throw new ChannelError(
+          ErrorType.NETWORK_ERROR,
+          t('modules.channel.errors.streamNoDataReceived'),
+          { url }
+        );
+      }
+
+      if (isTimedOut) {
+        throw new ChannelError(ErrorType.TIMEOUT_ERROR, t('modules.channel.errors.requestTimeoutNoResponse', { timeout }));
       }
     } catch (error) {
       if (error instanceof ChannelError) {

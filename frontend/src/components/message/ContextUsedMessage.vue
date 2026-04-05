@@ -10,6 +10,7 @@ import { computed, ref } from 'vue'
 import type { ContextInspectorData, ContextInspectorModule, ContextInjectedAttachment, ContextInjectedPinnedFile, ContextInjectedPinnedSelection } from '../../types'
 import { useI18n } from '../../i18n'
 import { formatFileSize } from '../../utils/file'
+import { shouldRenderContextUsedCard } from './contextUsedCard'
 
 const { t } = useI18n()
 
@@ -25,6 +26,7 @@ const pinnedFiles = computed(() => injected.value?.pinnedFiles)
 const pinnedPrompt = computed(() => injected.value?.pinnedPrompt)
 const pinnedSelections = computed(() => injected.value?.pinnedSelections)
 const attachments = computed(() => injected.value?.attachments)
+const shouldRenderCard = computed(() => shouldRenderContextUsedCard(props.snapshot, props.loading))
 
 const hasInjected = computed(() => {
   if (props.loading) return true
@@ -150,13 +152,23 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
 </script>
 
 <template>
-  <div v-if="hasInjected" class="context-used-card">
+  <div v-if="shouldRenderCard" class="context-used-card">
     <div
       class="context-used-header"
-      :class="{ 'context-used-header-loading': loading }"
+      :class="{
+        'context-used-header-loading': loading,
+        'context-used-header-static': !canExpand
+      }"
       @click="toggleExpanded"
     >
-      <i class="codicon" :class="expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
+      <i
+        class="codicon"
+        :class="{
+          'codicon-chevron-down': canExpand && expanded,
+          'codicon-chevron-right': canExpand && !expanded,
+          'context-used-chevron-placeholder': !canExpand
+        }"
+      ></i>
       <i class="codicon codicon-references context-used-icon"></i>
       <span class="context-used-title">{{ t('components.message.stats.contextUsed') }}</span>
       <span
@@ -218,6 +230,18 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   background: rgba(127, 127, 127, 0.04);
   overflow: hidden;
   margin-bottom: 10px;
+}
+
+.context-used-header-static {
+  cursor: default;
+}
+
+.context-used-header-static:hover {
+  background: transparent;
+}
+
+.context-used-chevron-placeholder {
+  visibility: hidden;
 }
 
 .context-used-header {
