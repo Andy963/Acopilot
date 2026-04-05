@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.3] - 2026-04-05
+
+### Fixed
+  - Proxy: route chat streaming, model discovery, MCP HTTP, and Codex skill downloads through Acopilot's own proxy setting when enabled, and fall back to direct connections when disabled.
+  - MCP: skip invalid persisted MCP server entries instead of failing the full config load.
+  - Chat: keep the "Context Used" card visible after streaming completes when a context snapshot exists.
+
 ## [1.0.61-pre.4] - 2026-04-03
 
 ### Fixed
