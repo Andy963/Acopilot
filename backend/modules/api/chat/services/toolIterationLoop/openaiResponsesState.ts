@@ -87,7 +87,7 @@ export async function loadOpenAIResponsesState(params: {
             } else if (lastSyncedHistoryLength > 0 && lastSyncedHistoryLength < fullHistory.length) {
                 const relativeStart = Math.max(0, lastSyncedHistoryLength - trimStartIndex);
                 const deltaHistory = history.slice(relativeStart);
-                if (deltaHistory.length > 0) {
+                if (deltaHistory.length > 0 && isDeltaHistoryComplete(deltaHistory)) {
                     previousResponseId = state.previousResponseId;
                     history = deltaHistory;
                 }
@@ -101,4 +101,28 @@ export async function loadOpenAIResponsesState(params: {
         previousResponseId,
         history
     };
+}
+
+/**
+ * Verify that the delta history is self-contained: every function_call_output
+ * must have a matching function_call within the same delta. If not, the delta
+ * is incomplete and we should fall back to sending the full history.
+ */
+function isDeltaHistoryComplete(delta: Content[]): boolean {
+    const callIds = new Set<string>();
+    for (const content of delta) {
+        for (const part of content.parts) {
+            if (part.functionCall?.id) {
+                callIds.add(part.functionCall.id);
+            }
+        }
+    }
+    for (const content of delta) {
+        for (const part of content.parts) {
+            if (part.functionResponse?.id && !callIds.has(part.functionResponse.id)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
