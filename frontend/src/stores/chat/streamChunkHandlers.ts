@@ -4,7 +4,7 @@
  * 处理各种类型的 StreamChunk
  */
 
-import type { Message, StreamChunk } from '../../types'
+import type { Message, MessageMetadata, StreamChunk } from '../../types'
 import type { ChatStoreState, CheckpointRecord } from './types'
 import { generateId } from '../../utils/format'
 import { contentToMessage } from './parsers'
@@ -16,6 +16,20 @@ import {
   flushToolCallBuffer,
   handleFunctionCallPart
 } from './streamHelpers'
+
+/**
+ * Merge message metadata so that newer values win, but fields only
+ * present in the old metadata (e.g. contextSnapshot written by
+ * handleContextInfo during streaming) are preserved.
+ */
+export function mergeMessageMetadata(
+  existing: MessageMetadata | undefined,
+  incoming: MessageMetadata | undefined
+): MessageMetadata {
+  if (!existing) return incoming ?? {}
+  if (!incoming) return { ...existing }
+  return { ...existing, ...incoming, contextSnapshot: incoming.contextSnapshot ?? existing.contextSnapshot }
+}
 
 /**
  * Handles the `contextInfo` chunk which carries an early context snapshot.
@@ -109,6 +123,7 @@ export function handleToolsExecuting(chunk: StreamChunk, state: ChatStoreState):
     const updatedMessage: Message = {
       ...message,
       ...finalMessage,
+      metadata: mergeMessageMetadata(message.metadata, finalMessage.metadata),
       streaming: false,
       tools: existingTools  // 保留原始 tools，避免被 finalMessage 覆盖
     }
@@ -160,6 +175,7 @@ export function handleAwaitingConfirmation(chunk: StreamChunk, state: ChatStoreS
     const updatedMessage: Message = {
       ...message,
       ...finalMessage,
+      metadata: mergeMessageMetadata(message.metadata, finalMessage.metadata),
       streaming: false
     }
     
@@ -266,6 +282,7 @@ export function handleToolIteration(
     const updatedMessage: Message = {
       ...message,
       ...finalMessage,
+      metadata: mergeMessageMetadata(message.metadata, finalMessage.metadata),
       streaming: false,
       tools: restoredTools
     }
@@ -351,6 +368,7 @@ export function handleComplete(
     const updatedMessage: Message = {
       ...message,
       ...finalMessage,
+      metadata: mergeMessageMetadata(message.metadata, finalMessage.metadata),
       streaming: false
     }
     

@@ -96,7 +96,13 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     nextTick(() => {
       const newScrollHeight = container.scrollHeight
       container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight)
-      isLoadingMore.value = false
+
+      // Delay clearing the flag until the next frame so that any
+      // synchronous scroll events fired by the scrollTop assignment
+      // still see isLoadingMore === true and skip re-triggering.
+      requestAnimationFrame(() => {
+        isLoadingMore.value = false
+      })
     })
   }
 

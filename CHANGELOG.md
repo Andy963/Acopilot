@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.5] - 2026-04-07
+
+### Fixed
+  - Chat: preserve the early `contextSnapshot` metadata across finalized streaming/tool-state updates so the in-message "Context Used" card stays available after tool loops and completion.
+  - Chat: stop recursive history pagination reloads by keeping the `isLoadingMore` guard active until the next animation frame after restoring scroll position.
+
 ## [1.0.61-pre.3] - 2026-04-05
 
 ### Fixed
