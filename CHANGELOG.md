@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.6] - 2026-04-07
+
+### Fixed
+  - Chat: remove the redundant in-message "Context Used" block from the top of assistant replies while keeping the existing context inspector entry in the footer.
+
 ## [1.0.61-pre.5] - 2026-04-07
 
 ### Fixed

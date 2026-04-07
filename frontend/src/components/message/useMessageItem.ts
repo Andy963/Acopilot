@@ -4,7 +4,6 @@ import type { Attachment, CheckpointRecord, Message } from '../../types'
 import { formatModelName, formatTime } from '../../utils/format'
 import { useI18n } from '../../i18n'
 import { buildRenderBlocks, mergeThoughtToolBlocks, type RenderBlock } from './messageItemBlocks'
-import { shouldReserveContextUsedCard, shouldShowContextUsedCard } from './contextUsedCard'
 
 function formatDuration(ms: number): string {
   const seconds = ms / 1000
@@ -218,16 +217,7 @@ export function useMessageItem(
     )
   })
 
-  const contextSnapshot = computed(() => props.message.metadata?.contextSnapshot)
   const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
-
-  const showContextUsedCard = computed(() => {
-    return shouldShowContextUsedCard(props.message, props.messageIndex, chatStore.allMessages)
-  })
-
-  const reserveContextUsedCard = computed(() => {
-    return shouldReserveContextUsedCard(props.message, props.messageIndex, chatStore.allMessages)
-  })
 
   function formatTokenCount(count: number | undefined): string {
     if (count === undefined) return ''
@@ -343,10 +333,7 @@ export function useMessageItem(
     finishReasonTitle,
     finishReasonIcon,
     finishReasonSpin,
-    contextSnapshot,
     hasContextSnapshot,
-    showContextUsedCard,
-    reserveContextUsedCard,
     messageClass,
     formattedTime,
     startEdit,

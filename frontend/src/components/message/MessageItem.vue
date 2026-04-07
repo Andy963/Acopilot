@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { EditDialog, IconButton, MarkdownRenderer, RetryDialog } from '../common'
 import type { Attachment, Message } from '../../types'
-import ContextUsedMessage from './ContextUsedMessage.vue'
 import MessageActions from './MessageActions.vue'
 import MessageAttachments from './MessageAttachments.vue'
 import TaskCardMessage from './TaskCardMessage.vue'
@@ -51,10 +50,7 @@ const {
   finishReasonTitle,
   finishReasonIcon,
   finishReasonSpin,
-  contextSnapshot,
   hasContextSnapshot,
-  showContextUsedCard,
-  reserveContextUsedCard,
   messageClass,
   formattedTime,
   startEdit,
@@ -130,15 +126,6 @@ const {
         
 	        <!-- 显示模式 -->
 	        <div class="message-content">
-	        <!-- 对话内 Context Used 摘要（类似 Copilot 的 references 展示） -->
-	        <template v-if="reserveContextUsedCard">
-	          <ContextUsedMessage
-	            :snapshot="contextSnapshot || null"
-	            :loading="!showContextUsedCard"
-	            @open-details="handleOpenContextUsed"
-	          />
-	        </template>
-	
 	        <!-- 有 parts 时：按 parts 原始顺序渲染内容块 -->
 	        <template v-if="displayBlocks.length > 0">
 	          <template v-for="(block, index) in displayBlocks" :key="index">
