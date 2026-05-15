@@ -47,11 +47,15 @@ export function createChatComputed(state: ChatStoreState): ChatStoreComputed {
   /** 最大上下文 Tokens（从配置获取） */
   const maxContextTokens = computed(() => state.currentConfig.value?.maxContextTokens || 128000)
 
-  /** 当前使用的 Tokens（从最后一条助手消息获取） */
+  /** 当前使用的 Tokens（优先使用后端本次请求上下文估算） */
   const usedTokens = computed(() => {
     // 从后往前找最后一条助手消息
     for (let i = state.allMessages.value.length - 1; i >= 0; i--) {
       const msg = state.allMessages.value[i]
+      const estimatedTotalTokens = msg.metadata?.contextSnapshot?.estimatedTotalTokens
+      if (msg.role === 'assistant' && typeof estimatedTotalTokens === 'number') {
+        return estimatedTotalTokens
+      }
       if (msg.role === 'assistant' && msg.metadata?.usageMetadata) {
         return msg.metadata.usageMetadata.totalTokenCount || 0
       }

@@ -400,38 +400,42 @@ export class ContextTrimService {
                         : 0;
                 estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens + extraOpenFileTokens;
                 hasEstimatedTokens = true;
-            } else if (message.role === 'model' && message.usageMetadata) {
-                // model 消息：根据用户配置、消息内容和回合位置决定是否计算思考 token
+            } else if (message.role === 'model') {
+                // model 消息：按实际会再次发送给 API 的 parts 估算，避免只用 candidatesTokenCount 漏算正文/工具调用
                 const isCurrentRound = i >= lastNonFunctionResponseUserIndex;
                 const hasThought = this.messageBuilderService.hasThoughtContent(message.parts);
                 const hasSignatures = this.messageBuilderService.hasThoughtSignatures(message.parts);
-                
-                let includeThoughtsToken = false;
+
+                let includeThoughtParts = false;
                 
                 if (isCurrentRound) {
                     // 当前轮：根据当前轮配置和消息内容决定
-                    includeThoughtsToken = (sendCurrentThoughts && hasThought) ||
+                    includeThoughtParts = (sendCurrentThoughts && hasThought) ||
                                           (sendCurrentThoughtSignatures && hasSignatures);
                 } else {
                     // 历史轮：根据历史轮配置、消息内容和 historyThinkingRounds 决定
                     const isInHistoryThoughtRange = i >= historyThoughtMinIndex && i < historyThoughtMaxIndex;
                     if (isInHistoryThoughtRange) {
-                        includeThoughtsToken = (sendHistoryThoughts && hasThought) ||
+                        includeThoughtParts = (sendHistoryThoughts && hasThought) ||
                                               (sendHistoryThoughtSignatures && hasSignatures);
                     }
                 }
-                
-                const modelTokens = (message.usageMetadata.candidatesTokenCount ?? 0) +
-                                   (includeThoughtsToken ? (message.usageMetadata.thoughtsTokenCount ?? 0) : 0);
-                if (modelTokens > 0) {
-                    estimatedTotalTokens += modelTokens;
-                    hasEstimatedTokens = true;
-                }
-            } else if (message.role === 'model') {
-                // model 消息没有 usageMetadata，估算 token 数
-                const modelTokens = this.tokenEstimationService.estimateMessageTokens(message);
+
+                const estimatedMessage = includeThoughtParts
+                    ? message
+                    : {
+                        ...message,
+                        parts: message.parts.filter(part => !part.thought || part.thoughtSignatures)
+                    };
+                const estimatedContentTokens = estimatedMessage.parts.length > 0
+                    ? this.tokenEstimationService.estimateMessageTokens(estimatedMessage)
+                    : 0;
+                const modelTokens = Math.max(
+                    estimatedContentTokens,
+                    message.usageMetadata?.candidatesTokenCount ?? 0
+                );
                 estimatedTotalTokens += modelTokens;
-                hasEstimatedTokens = true;
+                hasEstimatedTokens = hasEstimatedTokens || modelTokens > 0;
             }
         }
         

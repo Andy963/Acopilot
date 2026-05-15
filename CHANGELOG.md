@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.7] - 2026-05-15
+
+### Fixed
+  - Chat: count assistant message content and tool calls in context estimates so automatic summarization and trimming trigger before the model context overflows.
+  - UI: show the backend estimated context usage in the token ring when available instead of relying only on provider response usage.
+
 ## [1.0.61-pre.6] - 2026-04-07
 
 ### Fixed

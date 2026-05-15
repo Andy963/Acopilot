@@ -89,6 +89,8 @@ export interface ContextInspectorData {
   configId: string
   providerType: string
   model: string
+  estimatedTotalTokens?: number
+  maxContextTokens?: number
   tools: ContextInspectorTools
   systemInstructionPreview: string
   systemInstructionCharCount: number

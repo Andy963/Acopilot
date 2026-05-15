@@ -176,6 +176,8 @@ export async function* runToolLoop(
             toolsEnabled,
             pinnedPromptEnabled,
             toolAllowList,
+            estimatedTotalTokens,
+            maxContextTokens,
         });
 
         // On the first iteration, send contextSnapshot early so the frontend

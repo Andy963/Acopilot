@@ -215,6 +215,8 @@ export async function runNonStreamLoop(
             configId,
             providerType: config.type,
             model: (config as any).model || '',
+            estimatedTotalTokens,
+            maxContextTokens,
             tools: {
                 toolMode,
                 total: declarations.length,

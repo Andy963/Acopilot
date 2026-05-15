@@ -90,6 +90,8 @@ export interface ContextSnapshot {
     configId: string;
     providerType: string;
     model: string;
+    estimatedTotalTokens?: number;
+    maxContextTokens?: number;
     tools: ContextSnapshotTools;
     systemInstructionPreview: string;
     systemInstructionCharCount: number;

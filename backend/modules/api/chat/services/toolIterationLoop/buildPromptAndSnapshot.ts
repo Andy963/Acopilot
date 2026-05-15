@@ -23,6 +23,8 @@ export async function buildPromptAndSnapshot(params: {
     toolsEnabled: boolean;
     pinnedPromptEnabled: boolean;
     toolAllowList?: string[];
+    estimatedTotalTokens?: number;
+    maxContextTokens?: number;
 }): Promise<{
     dynamicSystemPrompt: string;
     toolMode: ContextSnapshotTools['toolMode'];
@@ -40,7 +42,9 @@ export async function buildPromptAndSnapshot(params: {
         selectionReferences,
         toolsEnabled,
         pinnedPromptEnabled,
-        toolAllowList
+        toolAllowList,
+        estimatedTotalTokens,
+        maxContextTokens
     } = params;
 
     const { conversationId, configId, config, isFirstMessage = false } = loopConfig;
@@ -135,6 +139,8 @@ export async function buildPromptAndSnapshot(params: {
         configId,
         providerType: config.type,
         model: (config as any).model || '',
+        estimatedTotalTokens,
+        maxContextTokens,
         tools: {
             toolMode,
             total: declarations.length,
