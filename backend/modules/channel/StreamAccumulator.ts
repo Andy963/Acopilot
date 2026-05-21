@@ -13,6 +13,65 @@ import { extractToolCallsFromParts } from './streamAccumulator/extractToolCalls'
 import { handleFunctionCallPart } from './streamAccumulator/handleFunctionCallPart';
 
 /**
+ * 将 partial usage 合并到既有 usageMetadata。
+ *
+ * 规则：
+ * - 仅覆盖 `next` 中有定义的字段，避免分块上报的 provider（如 Anthropic）
+ *   后到的 chunk 把先到的字段清掉；
+ * - 关于 `totalTokenCount`：
+ *   - 若任何一个 chunk 的 `next.totalTokenCount` 明确给出过值（视为权威值），
+ *     则始终采用最后一次权威值，不再被派生覆盖；
+ *   - 否则按 prompt + candidates + thoughts 派生（每次合并都重新派生，
+ *     这样 Anthropic 先收到 promptTokenCount、后收到 candidatesTokenCount 时
+ *     total 也能跟着更新）。
+ *   - 注意 `cachedPromptTokenCount` 是 prompt 的子集，不参与求和。
+ */
+function mergeUsageMetadata(
+    prev: UsageMetadata | undefined,
+    next: StreamUsageMetadata,
+    state: { totalIsAuthoritative: boolean }
+): UsageMetadata {
+    const merged: UsageMetadata = { ...(prev || {}) };
+
+    if (next.promptTokenCount !== undefined) {
+        merged.promptTokenCount = next.promptTokenCount;
+    }
+    if (next.cachedPromptTokenCount !== undefined) {
+        merged.cachedPromptTokenCount = next.cachedPromptTokenCount;
+    }
+    if (next.candidatesTokenCount !== undefined) {
+        merged.candidatesTokenCount = next.candidatesTokenCount;
+    }
+    if (next.thoughtsTokenCount !== undefined) {
+        merged.thoughtsTokenCount = next.thoughtsTokenCount;
+    }
+    if (next.promptTokensDetails !== undefined) {
+        merged.promptTokensDetails = next.promptTokensDetails;
+    }
+    if (next.candidatesTokensDetails !== undefined) {
+        merged.candidatesTokensDetails = next.candidatesTokensDetails;
+    }
+
+    if (next.totalTokenCount !== undefined) {
+        merged.totalTokenCount = next.totalTokenCount;
+        state.totalIsAuthoritative = true;
+    } else if (!state.totalIsAuthoritative) {
+        const hasAnyComponent =
+            merged.promptTokenCount !== undefined ||
+            merged.candidatesTokenCount !== undefined ||
+            merged.thoughtsTokenCount !== undefined;
+        if (hasAnyComponent) {
+            merged.totalTokenCount =
+                (merged.promptTokenCount || 0) +
+                (merged.candidatesTokenCount || 0) +
+                (merged.thoughtsTokenCount || 0);
+        }
+    }
+
+    return merged;
+}
+
+/**
  * 流式累加器
  *
  * 负责接收和累加流式响应块，最终生成完整的 Content
@@ -36,6 +95,12 @@ export class StreamAccumulator {
     
     /** 完整的 Token 使用统计 */
     private usageMetadata?: UsageMetadata;
+
+    /**
+     * 是否有任何 chunk 明确给出过 totalTokenCount。
+     * 一旦为 true，后续 partial usage 不会再用派生值覆盖它。
+     */
+    private usageTotalState: { totalIsAuthoritative: boolean } = { totalIsAuthoritative: false };
     
     /** 结束原因 */
     private finishReason?: string;
@@ -111,17 +176,19 @@ export class StreamAccumulator {
         }
         
         // 保存完整的 token 使用统计（包括多模态详情）
-        // 这个可能在第一个 done chunk 中，也可能在后续的 usage chunk 中
+        //
+        // 不同 provider 上报 usage 的方式不同：
+        // - OpenAI / Gemini / OpenAI Responses：在最后一个 chunk 一次性给出完整 usage；
+        // - Anthropic：将 usage 拆成 `message_start`（仅 promptTokenCount）和
+        //   `message_delta`（仅 candidatesTokenCount）两次发送，
+        //   并且不会直接给出 totalTokenCount。
+        //
+        // 因此这里必须按字段 merge，而不是整体覆盖，
+        // 否则后到的 partial usage 会把先到的字段清掉，
+        // 最终导致 `totalTokenCount`、`promptTokenCount` 全部丢失，
+        // 上层（前端 usedTokens / token ring）只能拿到 0。
         if (chunk.usage) {
-            this.usageMetadata = {
-                promptTokenCount: chunk.usage.promptTokenCount,
-                cachedPromptTokenCount: chunk.usage.cachedPromptTokenCount,
-                candidatesTokenCount: chunk.usage.candidatesTokenCount,
-                totalTokenCount: chunk.usage.totalTokenCount,
-                thoughtsTokenCount: chunk.usage.thoughtsTokenCount,
-                promptTokensDetails: chunk.usage.promptTokensDetails,
-                candidatesTokensDetails: chunk.usage.candidatesTokensDetails
-            };
+            this.usageMetadata = mergeUsageMetadata(this.usageMetadata, chunk.usage, this.usageTotalState);
         }
         
         // 保存结束原因（如果有）
@@ -361,6 +428,7 @@ export class StreamAccumulator {
         this.parts = [];
         this.isDone = false;
         this.usageMetadata = undefined;
+        this.usageTotalState = { totalIsAuthoritative: false };
         this.finishReason = undefined;
         this.modelVersion = undefined;
         this.thoughtSignatures = {};

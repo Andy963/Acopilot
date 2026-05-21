@@ -131,8 +131,9 @@ export class SummarizeService {
             // 4. 获取对话历史
             const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
-            // 5. 找到最后一个总结消息的位置，从该位置之后开始识别回合
+            // 5. 找到最后一个总结消息的位置
             const lastSummaryIndex = this.contextTrimService.findLastSummaryIndex(fullHistory);
+            const summaryCarryover = lastSummaryIndex >= 0 ? fullHistory[lastSummaryIndex] : undefined;
             const historyStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex + 1 : 0;
 
             // 只对总结之后的历史进行回合识别
@@ -169,7 +170,7 @@ export class SummarizeService {
             const summarizeEndIndex = historyStartIndex + summarizeEndIndexRelative;
 
             // 提取需要总结的消息
-            const messagesToSummarize = fullHistory.slice(0, summarizeEndIndex);
+            const messagesToSummarize = fullHistory.slice(historyStartIndex, summarizeEndIndex);
 
             if (messagesToSummarize.length === 0) {
                 return {
@@ -190,6 +191,7 @@ export class SummarizeService {
 
             // 构建历史
             const summaryRequestHistory: Content[] = [
+                ...(summaryCarryover ? this.cleanMessagesForSummarize([summaryCarryover], config) : []),
                 ...cleanedMessages,
                 {
                     role: 'user',
@@ -267,12 +269,12 @@ export class SummarizeService {
                 };
             }
 
-            // 11. 删除已存在的旧总结消息
+            // 11. 删除本次总结范围内已存在的旧总结消息
             let insertIndex = summarizeEndIndex;
             const currentHistory = await this.conversationManager.getHistoryRef(conversationId);
 
             const summaryIndicesToDelete: number[] = [];
-            for (let i = 0; i < summarizeEndIndex; i++) {
+            for (let i = historyStartIndex; i < summarizeEndIndex; i++) {
                 if (currentHistory[i]?.isSummary) {
                     summaryIndicesToDelete.push(i);
                 }

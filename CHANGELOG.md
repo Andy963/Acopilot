@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.8] - 2026-05-20
+
+### Fixed
+  - Chat: merge partial streaming usage metadata so Anthropic-style token chunks preserve prompt, output, and derived total counts.
+  - Chat: prevent automatic context summarization from re-summarizing history before the latest summary, and avoid counting summary messages as normal user rounds.
+  - UI: preserve explicit zero token values in context-window calculations.
+
 ## [1.0.61-pre.7] - 2026-05-15
 
 ### Fixed

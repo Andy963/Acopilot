@@ -29,6 +29,7 @@ import {
     getLastUserSelectionReferences,
     getLastUserTaskContext,
     identifyConversationRounds,
+    isConversationRoundStart,
     performContextTrim,
     type RoundTokenInfo
 } from './contextTrim/utils';
@@ -105,7 +106,7 @@ export class ContextTrimService {
         }
         
         // 获取最大上下文和阈值
-        const maxContextTokens = (config as any).maxContextTokens || 128000;
+        const maxContextTokens = (config as any).maxContextTokens ?? 128000;
         const thresholdConfig = config.contextThreshold ?? '80%';
         const threshold = this.calculateThreshold(thresholdConfig, maxContextTokens);
         
@@ -173,7 +174,7 @@ export class ContextTrimService {
         
         // 获取当前渠道类型（gemini, openai, anthropic, custom）
         const channelType = config.type || 'custom';
-        const maxContextTokens = (config as any).maxContextTokens || 128000;
+        const maxContextTokens = (config as any).maxContextTokens ?? 128000;
         
         // 查找最后一个总结消息
         const lastSummaryIndex = this.findLastSummaryIndex(fullHistory);
@@ -232,7 +233,7 @@ export class ContextTrimService {
         let lastNonFunctionResponseUserIndex = -1;
         for (let i = fullHistory.length - 1; i >= 0; i--) {
             const message = fullHistory[i];
-            if (message.role === 'user' && !message.isFunctionResponse) {
+            if (isConversationRoundStart(message)) {
                 lastNonFunctionResponseUserIndex = i;
                 break;
             }
@@ -242,7 +243,7 @@ export class ContextTrimService {
         const roundStartIndices: number[] = [];
         for (let i = 0; i < fullHistory.length; i++) {
             const message = fullHistory[i];
-            if (message.role === 'user' && !message.isFunctionResponse) {
+            if (isConversationRoundStart(message)) {
                 roundStartIndices.push(i);
             }
         }
@@ -366,7 +367,7 @@ export class ContextTrimService {
             
             if (message.role === 'user') {
                 // 检测新回合开始（非函数响应的用户消息）
-                if (!message.isFunctionResponse) {
+                if (isConversationRoundStart(message)) {
                     // 保存上一个回合的信息
                     if (currentRoundStartIndex !== -1) {
                         roundTokenInfos.push({
@@ -383,19 +384,19 @@ export class ContextTrimService {
                 const extraSelectionTokens =
                     selectionReferencesTokens > 0 &&
                     i === lastNonFunctionResponseUserIndex &&
-                    !message.isFunctionResponse
+                    isConversationRoundStart(message)
                         ? selectionReferencesTokens
                         : 0;
                 const extraTaskContextTokens =
                     taskContextTokens > 0 &&
                     i === lastNonFunctionResponseUserIndex &&
-                    !message.isFunctionResponse
+                    isConversationRoundStart(message)
                         ? taskContextTokens
                         : 0;
                 const extraOpenFileTokens =
                     openFileContextTokens > 0 &&
                     i === lastNonFunctionResponseUserIndex &&
-                    !message.isFunctionResponse
+                    isConversationRoundStart(message)
                         ? openFileContextTokens
                         : 0;
                 estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens + extraOpenFileTokens;
