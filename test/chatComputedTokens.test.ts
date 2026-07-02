@@ -52,7 +52,9 @@ function createState(overrides: Partial<ChatStoreState>): ChatStoreState {
 }
 
 describe('chat computed token usage', () => {
-  it('prefers context snapshot estimated tokens over provider usage metadata', () => {
+  it('prefers real provider usage metadata over the pre-request context snapshot estimate', () => {
+    // usageMetadata is the ground truth returned after the API call (same numbers shown
+    // under each message's footer); the pre-request estimate must not shadow it.
     const state = createState({
       allMessages: ref([
         { id: 'user-1', role: 'user', content: 'hello', timestamp: 1 },
@@ -77,7 +79,65 @@ describe('chat computed token usage', () => {
 
     const computed = createChatComputed(state);
 
-    expect(computed.usedTokens.value).toBe(9000);
-    expect(computed.tokenUsagePercent.value).toBe(90);
+    expect(computed.usedTokens.value).toBe(100);
+    expect(computed.tokenUsagePercent.value).toBe(1);
+  });
+
+  it('falls back to the context snapshot estimate while the message is still streaming', () => {
+    // No usageMetadata yet (the request hasn't returned usage), so the ring should show
+    // the pre-request estimate instead of silently reporting 0 / a stale earlier turn.
+    const state = createState({
+      allMessages: ref([
+        { id: 'user-1', role: 'user', content: 'hello', timestamp: 1 },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: '',
+          timestamp: 2,
+          streaming: true,
+          metadata: {
+            contextSnapshot: {
+              generatedAt: 1,
+              configId: 'config',
+              providerType: 'openai',
+              model: 'model',
+              estimatedTotalTokens: 4200,
+            } as any,
+          },
+        },
+      ]),
+    });
+
+    const computed = createChatComputed(state);
+
+    expect(computed.usedTokens.value).toBe(4200);
+  });
+
+  it('skips a completed turn missing both usage and estimate and walks back to an earlier one', () => {
+    const state = createState({
+      allMessages: ref([
+        { id: 'user-1', role: 'user', content: 'hello', timestamp: 1 },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'hi',
+          timestamp: 2,
+          metadata: {
+            usageMetadata: { totalTokenCount: 500 },
+          },
+        },
+        { id: 'user-2', role: 'user', content: 'follow up', timestamp: 3 },
+        {
+          id: 'assistant-2',
+          role: 'assistant',
+          content: '',
+          timestamp: 4,
+        },
+      ]),
+    });
+
+    const computed = createChatComputed(state);
+
+    expect(computed.usedTokens.value).toBe(500);
   });
 });

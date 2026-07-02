@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.9] - 2026-07-02
+
+### Fixed
+  - Chat: use CJK-aware character-to-token estimation instead of a uniform 4-chars-per-token heuristic, fixing systemic undercounting of Chinese/Japanese/Korean text in context-usage estimates.
+  - UI: prioritize the provider's actual `usageMetadata` over the pre-request token estimate when computing the input-box context-usage ring, so completed turns match the per-message footer stats.
+
 ## [1.0.61-pre.8] - 2026-05-20
 
 ### Fixed

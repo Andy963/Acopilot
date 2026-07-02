@@ -19,6 +19,7 @@ import type { PromptManager } from '../../../prompt';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { ConversationRound, ContextTrimInfo } from '../utils';
 import type { TokenEstimationService } from './TokenEstimationService';
+import { estimateTextTokens } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
 import { getPinnedPromptBlock } from './pinnedPrompt';
 import { getSelectionReferencesBlock } from './selectionReferences';
@@ -201,17 +202,17 @@ export class ContextTrimService {
         const selectionReferencesBlock = getSelectionReferencesBlock(
             selectionReferences ?? getLastUserSelectionReferences(fullHistory)
         );
-        const selectionReferencesTokens = selectionReferencesBlock ? Math.ceil(selectionReferencesBlock.length / 4) : 0;
+        const selectionReferencesTokens = selectionReferencesBlock ? estimateTextTokens(selectionReferencesBlock) : 0;
 
         const taskContextText = getLastUserTaskContext(fullHistory);
         const taskContextBlock = taskContextText ? `====\n\nTASK CONTEXT\n\n${taskContextText}` : '';
-        const taskContextTokens = taskContextBlock ? Math.ceil(taskContextBlock.length / 4) : 0;
+        const taskContextTokens = taskContextBlock ? estimateTextTokens(taskContextBlock) : 0;
 
         const openFileContextText = getLastUserOpenFileContext(fullHistory);
         const openFileContextBlock = openFileContextText
             ? (openFileContextText.startsWith('====') ? openFileContextText : `====\n\nOPEN FILE CONTEXT\n\n${openFileContextText}`)
             : '';
-        const openFileContextTokens = openFileContextBlock ? Math.ceil(openFileContextBlock.length / 4) : 0;
+        const openFileContextTokens = openFileContextBlock ? estimateTextTokens(openFileContextBlock) : 0;
         
         // 计算从 effectiveStartIndex 开始的消息 token 数
         // 这是解决上下文振荡问题的关键：使用累加的单条消息 token 数，而不是 API 返回的累计值
