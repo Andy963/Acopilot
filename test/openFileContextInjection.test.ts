@@ -38,20 +38,23 @@ describe('open file context injection', () => {
 
       const injected = injectOpenFileContextIntoHistory(requestHistory as any, block);
       const text = injected[0].parts[0].text as string;
-      expect(text.startsWith('====\n\nOPEN FILE CONTEXT')).toBe(true);
+      expect(text.startsWith('====\n\nCURRENT TURN CONTEXT')).toBe(true);
+      expect(text).toContain('background information for the latest user request');
+      expect(text).toContain('====\n\nLATEST USER REQUEST\n\nQuestion?');
+      expect(text.indexOf('OPEN FILE CONTEXT')).toBeLessThan(text.indexOf('LATEST USER REQUEST'));
       expect(text).toContain('line1');
       expect(text).toContain('Question?');
     });
   });
 
-  it('does not inject when block is empty/undefined', () => {
+  it('still labels the latest user request when open file context is empty/undefined', () => {
     const requestHistory: any[] = [
       { role: 'user', parts: [{ text: 'Question?' }] },
     ];
 
     const injected = injectOpenFileContextIntoHistory(requestHistory as any, undefined);
-    expect(injected).toBe(requestHistory);
-    expect(injected[0].parts[0].text).toBe('Question?');
+    expect(injected).not.toBe(requestHistory);
+    expect(injected[0].parts[0].text).toBe('====\n\nLATEST USER REQUEST\n\nQuestion?');
   });
 
   it('reads open file context from the latest user message', () => {

@@ -11,6 +11,7 @@ import {
     OPENAI_RESPONSES_CONTINUATION_KEY,
     OPENAI_RESPONSES_FEATURES_KEY,
     OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY,
+    appendConversationMessageSemantics,
     appendOpenAIResponsesStatefulMarker,
     buildSnapshotModules,
     countMcpTools,
@@ -20,9 +21,7 @@ import {
     getLastUserTaskContext,
     getLastUserOpenFileContext,
     getOrInitConversationStartTime,
-    injectOpenFileContextIntoHistory,
-    injectSelectionReferencesIntoHistory,
-    injectTaskContextIntoHistory,
+    injectCurrentTurnContextIntoHistory,
     isOpenAIResponsesContinuationError,
     isOpenAIResponsesPromptCacheKeyError,
     truncatePreview,
@@ -178,6 +177,8 @@ export async function runNonStreamLoop(
                 : toolsDefinition;
         }
 
+        systemInstruction = appendConversationMessageSemantics(systemInstruction);
+
         const sysPreview = truncatePreview(systemInstruction, 25000);
         const toolDefPreview = toolsDefinition
             ? truncatePreview(toolsDefinition, 12000)
@@ -249,13 +250,11 @@ export async function runNonStreamLoop(
             try {
                 response = await deps.channelManager.generate({
                     configId,
-                    history: injectSelectionReferencesIntoHistory(
-                        injectOpenFileContextIntoHistory(
-                            injectTaskContextIntoHistory(requestHistory, taskContext),
-                            openFileContext
-                        ),
+                    history: injectCurrentTurnContextIntoHistory(requestHistory, {
+                        taskContext,
+                        openFileContext,
                         selectionReferences
-                    ),
+                    }),
                     dynamicSystemPrompt,
                     previousResponseId: requestPreviousResponseId,
                     promptCacheKey: requestPromptCacheKey,

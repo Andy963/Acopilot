@@ -5,7 +5,13 @@ import { convertToolsToXML } from '../../../../../tools/xmlFormatter';
 
 import type { ToolIterationLoopDeps } from './deps';
 import type { ToolIterationLoopConfig } from './types';
-import { buildSnapshotModules, countMcpTools, getOrInitConversationStartTime, truncatePreview } from './helpers';
+import {
+    appendConversationMessageSemantics,
+    buildSnapshotModules,
+    countMcpTools,
+    getOrInitConversationStartTime,
+    truncatePreview
+} from './helpers';
 
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
 import { getSelectionReferencesInjectedInfo } from '../selectionReferences';
@@ -101,6 +107,8 @@ export async function buildPromptAndSnapshot(params: {
             ? `${systemInstruction}\n\n${toolsDefinition}`
             : toolsDefinition;
     }
+
+    systemInstruction = appendConversationMessageSemantics(systemInstruction);
 
     const sysPreview = truncatePreview(systemInstruction, 25000);
     const toolDefPreview = toolsDefinition

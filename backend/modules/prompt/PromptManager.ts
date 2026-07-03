@@ -176,7 +176,11 @@ export class PromptManager {
             result = result.replace(regex, value)
         }
         
-        return result.trim()
+        return [customPrefix, result, customSuffix]
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .join('\n\n')
+            .trim()
     }
     
     /**
