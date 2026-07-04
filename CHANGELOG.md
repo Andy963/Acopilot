@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.10] - 2026-07-04
+
+### Fixed
+  - Chat: keep prior conversation history unchanged while labeling only the final user message as `LATEST USER REQUEST`, so conflicting earlier user instructions do not override the latest request.
+  - Chat: inject conversation-structure semantics into the actual request system instruction instead of the user-editable prompt template.
+  - Chat: mark generated summaries as historical background so old summarized instructions cannot outrank the latest user request.
+
 ## [1.0.61-pre.9] - 2026-07-02
 
 ### Fixed
