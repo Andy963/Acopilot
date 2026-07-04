@@ -23,21 +23,28 @@ const {
   isLoadingSkills,
   selectedSkillId,
   selectedSkill,
+  presets,
+  isLoadingPresets,
+  selectedPresetId,
+  selectedPreset,
   customPromptDraft,
   isSavingPinnedPrompt,
-  saveAsSkillName,
-  isSavingAsSkill,
+  presetNameDraft,
+  isSavingPreset,
   hasPinnedPrompt,
   enabledPinnedFilesCount,
   loadSkills,
+  loadPinnedPromptPresets,
   openPanel,
   emitClose,
   handleRemovePinnedFile,
   handleTogglePinnedFile,
   handleSavePinnedPrompt,
-  handleSaveCustomPromptAsSkill,
+  handleSaveCustomPromptAsPreset,
   handleClearPinnedPrompt,
   handleSelectSkill,
+  handleSelectPreset,
+  handleCustomPromptEdited,
   handleDragEnter,
   handleDragOver,
   handleDragLeave,
@@ -190,6 +197,30 @@ defineExpose({
 
     <div v-else class="pinned-custom-content">
       <div class="pinned-custom-row">
+        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.presetsLabel') }}</label>
+        <select
+          v-model="selectedPresetId"
+          class="pinned-custom-preset-select"
+          :disabled="isLoadingPresets"
+          @change="handleSelectPreset(selectedPresetId)"
+        >
+          <option value="" disabled>{{ t('components.input.pinnedFilesPanel.custom.presetsEmptyOption') }}</option>
+          <option v-for="preset in presets" :key="preset.id" :value="preset.id">
+            {{ preset.name || preset.id }}
+          </option>
+        </select>
+        <button class="pinned-skill-refresh" :disabled="isLoadingPresets" @click="loadPinnedPromptPresets" :title="t('common.refresh')">
+          <i class="codicon" :class="isLoadingPresets ? 'codicon-loading codicon-modifier-spin' : 'codicon-refresh'"></i>
+        </button>
+      </div>
+      <div v-if="!isLoadingPresets && presets.length === 0" class="pinned-custom-hint">
+        {{ t('components.input.pinnedFilesPanel.custom.presetsEmpty') }}
+      </div>
+      <div v-else-if="selectedPreset" class="pinned-custom-hint">
+        {{ t('components.input.pinnedFilesPanel.custom.selectedPresetHint', { name: selectedPreset.name || selectedPreset.id }) }}
+      </div>
+
+      <div class="pinned-custom-row">
         <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.label') }}</label>
       </div>
       <textarea
@@ -197,6 +228,7 @@ defineExpose({
         class="pinned-custom-textarea"
         rows="7"
         :placeholder="t('components.input.pinnedFilesPanel.custom.placeholder')"
+        @input="handleCustomPromptEdited"
       ></textarea>
       <div class="pinned-custom-actions">
         <button class="pinned-custom-save" @click="handleSavePinnedPrompt" :disabled="isSavingPinnedPrompt">
@@ -211,25 +243,25 @@ defineExpose({
         {{ t('components.input.pinnedFilesPanel.custom.hint') }}
       </div>
 
-      <div class="pinned-custom-save-as-skill">
-        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.saveAsSkillLabel') }}</label>
-        <div class="pinned-custom-save-as-skill-row">
+      <div class="pinned-custom-save-as-preset">
+        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.saveAsPresetLabel') }}</label>
+        <div class="pinned-custom-save-as-preset-row">
           <input
-            v-model="saveAsSkillName"
-            class="pinned-custom-save-as-skill-input"
-            :placeholder="t('components.input.pinnedFilesPanel.custom.saveAsSkillNamePlaceholder')"
+            v-model="presetNameDraft"
+            class="pinned-custom-save-as-preset-input"
+            :placeholder="t('components.input.pinnedFilesPanel.custom.saveAsPresetNamePlaceholder')"
           />
           <button
-            class="pinned-custom-save-as-skill-btn"
-            :disabled="isSavingAsSkill || !customPromptDraft.trim() || !saveAsSkillName.trim()"
-            @click="handleSaveCustomPromptAsSkill"
+            class="pinned-custom-save-as-preset-btn"
+            :disabled="isSavingPreset || !customPromptDraft.trim() || !presetNameDraft.trim()"
+            @click="handleSaveCustomPromptAsPreset"
           >
-            <i v-if="isSavingAsSkill" class="codicon codicon-loading codicon-modifier-spin"></i>
-            <span v-else>{{ t('components.input.pinnedFilesPanel.custom.saveAsSkillButton') }}</span>
+            <i v-if="isSavingPreset" class="codicon codicon-loading codicon-modifier-spin"></i>
+            <span v-else>{{ t('components.input.pinnedFilesPanel.custom.saveAsPresetButton') }}</span>
           </button>
         </div>
         <div class="pinned-custom-hint">
-          {{ t('components.input.pinnedFilesPanel.custom.saveAsSkillHint') }}
+          {{ t('components.input.pinnedFilesPanel.custom.saveAsPresetHint') }}
         </div>
       </div>
     </div>

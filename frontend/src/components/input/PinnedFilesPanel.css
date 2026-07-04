@@ -132,13 +132,17 @@
 
 .pinned-skill-content,
 .pinned-custom-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.pinned-skill-row {
+.pinned-skill-row,
+.pinned-custom-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -149,7 +153,8 @@
   font-size: 12px;
 }
 
-.pinned-skill-select {
+.pinned-skill-select,
+.pinned-custom-preset-select {
   flex: 1;
   min-width: 0;
   padding: 4px 8px;
@@ -162,11 +167,13 @@
   cursor: pointer;
 }
 
-.pinned-skill-select:focus {
+.pinned-skill-select:focus,
+.pinned-custom-preset-select:focus {
   border-color: var(--vscode-focusBorder);
 }
 
-.pinned-skill-select:disabled {
+.pinned-skill-select:disabled,
+.pinned-custom-preset-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -238,7 +245,7 @@
   cursor: pointer;
 }
 
-.pinned-custom-save-as-skill {
+.pinned-custom-save-as-preset {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -246,13 +253,13 @@
   border-top: 1px solid var(--vscode-panel-border);
 }
 
-.pinned-custom-save-as-skill-row {
+.pinned-custom-save-as-preset-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.pinned-custom-save-as-skill-input {
+.pinned-custom-save-as-preset-input {
   flex: 1;
   min-width: 0;
   padding: 4px 8px;
@@ -264,11 +271,11 @@
   outline: none;
 }
 
-.pinned-custom-save-as-skill-input:focus {
+.pinned-custom-save-as-preset-input:focus {
   border-color: var(--vscode-focusBorder);
 }
 
-.pinned-custom-save-as-skill-btn {
+.pinned-custom-save-as-preset-btn {
   flex-shrink: 0;
   border: none;
   background: transparent;
@@ -277,7 +284,7 @@
   white-space: nowrap;
 }
 
-.pinned-custom-save-as-skill-btn:disabled {
+.pinned-custom-save-as-preset-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

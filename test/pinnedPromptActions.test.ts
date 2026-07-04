@@ -39,6 +39,17 @@ describe('resolveDefaultPinnedPromptForNewConversation', () => {
     })
   })
 
+  it('applies the remembered workspace preset selection', async () => {
+    mockSendToExtension.mockResolvedValue({ default: { mode: 'preset', presetId: 'prompt-review' } })
+
+    const result = await resolveDefaultPinnedPromptForNewConversation()
+
+    expect(result).toEqual({
+      pinnedPrompt: { mode: 'preset', presetId: 'prompt-review' },
+      fromWorkspaceDefault: true
+    })
+  })
+
   it('falls back to none when no workspace default exists', async () => {
     mockSendToExtension.mockResolvedValue({ default: null })
 
@@ -85,6 +96,16 @@ describe('setPinnedPrompt workspace default sync', () => {
     await setPinnedPrompt(state, { mode: 'none' })
 
     expect(mockSendToExtension).toHaveBeenCalledWith('setPinnedPromptWorkspaceDefault', { value: null })
+  })
+
+  it('remembers a preset selection at the workspace level', async () => {
+    const state = createState()
+
+    await setPinnedPrompt(state, { mode: 'preset', presetId: 'prompt-review' })
+
+    expect(mockSendToExtension).toHaveBeenCalledWith('setPinnedPromptWorkspaceDefault', {
+      value: { mode: 'preset', presetId: 'prompt-review' }
+    })
   })
 
   it('does not touch the workspace default for ad-hoc custom text', async () => {

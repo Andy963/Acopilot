@@ -5,6 +5,7 @@ import type {
   GenerateImageToolConfig,
   PinnedFileItem,
   PinnedFilesConfig,
+  PinnedPromptPreset,
   PinnedPromptWorkspaceDefault,
   ProxySettings,
   RemoveBackgroundToolConfig,
@@ -255,6 +256,15 @@ export class SettingsManager extends SettingsManagerTools {
     await this.updateToolsConfigEntry('system_prompt', this.getSystemPromptConfig(), config);
   }
 
+  getPinnedPromptPresets(): PinnedPromptPreset[] {
+    const presets = this.getSystemPromptConfig().pinnedPromptPresets;
+    return Array.isArray(presets) ? presets : [];
+  }
+
+  async updatePinnedPromptPresets(presets: PinnedPromptPreset[]): Promise<void> {
+    await this.updateSystemPromptConfig({ pinnedPromptPresets: presets });
+  }
+
   getSystemPromptTemplate(): string {
     return this.getSystemPromptConfig().template;
   }
@@ -267,19 +277,11 @@ export class SettingsManager extends SettingsManagerTools {
     return this.getSystemPromptConfig().customSuffix;
   }
 
-  /**
-   * 获取指定 workspace 上一次记住的固定提示词选择（仅支持 skill 引用）。
-   * 用于新建对话时自动带入，实现“同项目换对话不丢”。
-   */
   getPinnedPromptWorkspaceDefault(workspaceUri: string): PinnedPromptWorkspaceDefault | null {
     const defaults = this.getSystemPromptConfig().pinnedPromptWorkspaceDefaults || {};
     return defaults[workspaceUri] || null;
   }
 
-  /**
-   * 更新/清除指定 workspace 记住的固定提示词选择。
-   * 传入 null 表示清除该 workspace 的记忆。
-   */
   async setPinnedPromptWorkspaceDefault(
     workspaceUri: string,
     value: PinnedPromptWorkspaceDefault | null

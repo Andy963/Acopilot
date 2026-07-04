@@ -42,9 +42,11 @@ export interface ContextInjectedPinnedFiles {
 }
 
 export interface ContextInjectedPinnedPrompt {
-    mode: 'none' | 'skill' | 'custom';
+    mode: 'none' | 'skill' | 'custom' | 'preset';
     skillId?: string;
     skillName?: string;
+    presetId?: string;
+    presetName?: string;
     customPromptCharCount?: number;
 }
 

@@ -83,25 +83,24 @@ export interface AttachmentData {
 /**
  * 对话固定提示词/技能（每个对话独立）
  */
-export type PinnedPromptMode = 'none' | 'skill' | 'custom'
+export type PinnedPromptMode = 'none' | 'skill' | 'custom' | 'preset'
 
 export interface PinnedPromptState {
   mode: PinnedPromptMode
   skillId?: string
+  presetId?: string
   customPrompt?: string
 }
 
-/**
- * Workspace-scoped remembered pinned-prompt selection.
- *
- * Only references a skill id; the prompt text itself always lives in the
- * global skills library so it survives conversation switches and can be
- * re-selected (not re-typed) even after switching workspace/project.
- */
-export interface PinnedPromptWorkspaceDefault {
-  mode: 'skill'
-  skillId: string
-}
+export type PinnedPromptWorkspaceDefault =
+  | {
+    mode: 'skill'
+    skillId: string
+  }
+  | {
+    mode: 'preset'
+    presetId: string
+  }
 
 /**
  * 本条消息引用（选中代码片段）

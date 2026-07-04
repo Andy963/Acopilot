@@ -31,6 +31,40 @@ describe('SettingsManager pinned prompt workspace default', () => {
     expect(settingsManager.getPinnedPromptWorkspaceDefault('file:///workspace-b')).toBeNull();
   });
 
+  it('persists and retrieves a per-workspace preset selection', async () => {
+    const settingsManager = await createSettingsManager();
+
+    await settingsManager.setPinnedPromptWorkspaceDefault('file:///workspace-a', {
+      mode: 'preset',
+      presetId: 'prompt-review'
+    });
+
+    expect(settingsManager.getPinnedPromptWorkspaceDefault('file:///workspace-a')).toEqual({
+      mode: 'preset',
+      presetId: 'prompt-review'
+    });
+  });
+
+  it('persists pinned prompt presets globally', async () => {
+    const settingsManager = await createSettingsManager();
+
+    await settingsManager.updatePinnedPromptPresets([
+      {
+        id: 'prompt-review',
+        name: 'Review',
+        prompt: 'Review code carefully.'
+      }
+    ]);
+
+    expect(settingsManager.getPinnedPromptPresets()).toEqual([
+      {
+        id: 'prompt-review',
+        name: 'Review',
+        prompt: 'Review code carefully.'
+      }
+    ]);
+  });
+
   it('clears a workspace default without disturbing other workspaces', async () => {
     const settingsManager = await createSettingsManager();
 

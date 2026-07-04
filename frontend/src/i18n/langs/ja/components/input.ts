@@ -27,7 +27,7 @@ export const jaComponentsInput = {
     },
     pinnedFilesPanel: {
         title: 'ピン留め',
-        description: 'ピン留めファイルは毎回の会話で送信；Skill/カスタムプロンプトは現在の会話にのみ適用',
+        description: 'ピン留めファイルは毎回の会話で送信；Skill/カスタムプロンプトはここで選択できます',
         loading: '読み込み中...',
         empty: 'ピン留めファイルがありません',
         notExists: '存在しません',
@@ -53,15 +53,19 @@ export const jaComponentsInput = {
             manageHint: '設定 > システムプロンプト で Skills を管理'
         },
         custom: {
+            presetsLabel: '保存済みプロンプト',
+            presetsEmptyOption: '保存済みプロンプトを選択',
+            presetsEmpty: '保存済みプロンプトはまだありません。下で保存するとプロジェクトを超えて再利用できます。',
+            selectedPresetHint: '選択中のプロンプト: {name}',
             label: 'カスタムプロンプト',
             placeholder: '現在の会話にのみ適用されるプロンプトを入力...',
-            save: '保存',
+            save: 'この会話で使用',
             clear: 'クリア',
-            hint: '保存後、この会話のシステムプロンプトに追加されます',
-            saveAsSkillLabel: '再利用可能な項目として保存',
-            saveAsSkillNamePlaceholder: 'Skill 名',
-            saveAsSkillButton: 'Skill として保存',
-            saveAsSkillHint: '保存した Skill は会話やプロジェクトを超えて保持され、再入力せずに選択できます'
+            hint: 'これは現在の会話にのみ適用されます。プロジェクトを超えて再利用するには下で保存してください。',
+            saveAsPresetLabel: '再利用可能なプロンプトとして保存',
+            saveAsPresetNamePlaceholder: 'プロンプト名',
+            saveAsPresetButton: 'プロンプトを保存',
+            saveAsPresetHint: '保存したプロンプトはグローバルに保持され、別プロジェクトでも選択できます'
         },
         workspaceDefaultApplied: 'このプロジェクトで記憶されたピン留めプロンプトを適用しました'
     },
@@ -101,6 +105,7 @@ export const jaComponentsInput = {
         fileInOtherWorkspace: 'ファイルは別のワークスペースに属しています: {workspaceName}',
         fileAdded: 'ピン留めファイルを追加しました: {path}',
         addFailed: '追加に失敗しました: {error}',
+        loadPinnedPromptPresetsFailed: '保存済みプロンプトの読み込みに失敗しました: {error}',
         cannotGetFilePath: 'ファイルパスを取得できません。VSCode エクスプローラーまたはタブからドラッグしてください',
         fileNotMatchOrNotInWorkspace: 'ファイルがワークスペース内にないか、ファイル名が一致しません',
         removeFailed: '削除に失敗しました: {error}'

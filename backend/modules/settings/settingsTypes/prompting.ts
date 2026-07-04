@@ -14,24 +14,31 @@ export interface SkillDefinition {
     [key: string]: unknown;
 }
 
-/**
- * Per-workspace remembered pinned-prompt selection.
- *
- * Only references a skill (never raw custom text) so the actual prompt
- * content always lives in a single persisted place (`skills`), and
- * switching conversations within the same workspace can restore the
- * selection without duplicating text across settings entries.
- */
-export interface PinnedPromptWorkspaceDefault {
-    mode: 'skill';
-    skillId: string;
+export interface PinnedPromptPreset {
+    id: string;
+    name: string;
+    prompt: string;
+    createdAt?: number;
+    updatedAt?: number;
+    [key: string]: unknown;
 }
+
+export type PinnedPromptWorkspaceDefault =
+    | {
+        mode: 'skill';
+        skillId: string;
+    }
+    | {
+        mode: 'preset';
+        presetId: string;
+    };
 
 export interface SystemPromptConfig {
     template: string;
     customPrefix: string;
     customSuffix: string;
     skills?: SkillDefinition[];
+    pinnedPromptPresets?: PinnedPromptPreset[];
     pinnedPromptWorkspaceDefaults?: Record<string, PinnedPromptWorkspaceDefault>;
     [key: string]: unknown;
 }
@@ -188,6 +195,7 @@ export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
     customPrefix: '',
     customSuffix: '',
     skills: [],
+    pinnedPromptPresets: [],
     pinnedPromptWorkspaceDefaults: {}
 };
 

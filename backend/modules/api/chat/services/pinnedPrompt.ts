@@ -1,12 +1,13 @@
 import type { ConversationManager } from '../../../conversation/ConversationManager';
 import { getGlobalSettingsManager } from '../../../../core/settingsContext';
-import type { SkillDefinition } from '../../../settings/types';
+import type { PinnedPromptPreset, SkillDefinition } from '../../../settings/types';
 
-export type ConversationPinnedPromptMode = 'none' | 'skill' | 'custom';
+export type ConversationPinnedPromptMode = 'none' | 'skill' | 'custom' | 'preset';
 
 export interface ConversationPinnedPrompt {
     mode: ConversationPinnedPromptMode;
     skillId?: string;
+    presetId?: string;
     customPrompt?: string;
 }
 
@@ -14,6 +15,8 @@ export interface PinnedPromptInjectedInfo {
     mode: ConversationPinnedPromptMode;
     skillId?: string;
     skillName?: string;
+    presetId?: string;
+    presetName?: string;
     customPromptCharCount?: number;
 }
 
@@ -33,6 +36,19 @@ function normalizeSkills(raw: unknown): SkillDefinition[] {
             prompt: String((s as any).prompt || '')
         }))
         .filter((s) => s.id && s.prompt.trim());
+}
+
+function normalizePinnedPromptPresets(raw: unknown): PinnedPromptPreset[] {
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+        .filter((preset): preset is PinnedPromptPreset => isRecord(preset))
+        .map((preset) => ({
+            id: String(preset.id || '').trim(),
+            name: String(preset.name || '').trim(),
+            prompt: String((preset as any).prompt || '')
+        }))
+        .filter((preset) => preset.id && preset.prompt.trim());
 }
 
 export async function getPinnedPromptInjectedInfo(
@@ -63,6 +79,24 @@ export async function getPinnedPromptInjectedInfo(
             mode: 'skill',
             skillId,
             skillName: skill?.name
+        };
+    }
+
+    if (mode === 'preset') {
+        const presetId = typeof rawPinnedPrompt.presetId === 'string'
+            ? rawPinnedPrompt.presetId.trim()
+            : '';
+        if (!presetId) return { mode: 'none' };
+
+        const settingsManager = getGlobalSettingsManager();
+        const presets = normalizePinnedPromptPresets(settingsManager?.getSystemPromptConfig()?.pinnedPromptPresets);
+        const preset = presets.find((p) => p.id === presetId);
+        if (!preset) return { mode: 'none' };
+
+        return {
+            mode: 'preset',
+            presetId,
+            presetName: preset.name
         };
     }
 
@@ -108,6 +142,24 @@ export async function getPinnedPromptBlock(
 
         const title = skill.name ? `SKILL: ${skill.name}` : 'SKILL';
         const prompt = skill.prompt.trim();
+        if (!prompt) return '';
+
+        return `====\n\n${title}\n\n${prompt}`;
+    }
+
+    if (mode === 'preset') {
+        const presetId = typeof rawPinnedPrompt.presetId === 'string'
+            ? rawPinnedPrompt.presetId.trim()
+            : '';
+        if (!presetId) return '';
+
+        const settingsManager = getGlobalSettingsManager();
+        const presets = normalizePinnedPromptPresets(settingsManager?.getSystemPromptConfig()?.pinnedPromptPresets);
+        const preset = presets.find((p) => p.id === presetId);
+        if (!preset) return '';
+
+        const title = preset.name ? `PINNED PROMPT: ${preset.name}` : 'PINNED PROMPT';
+        const prompt = preset.prompt.trim();
         if (!prompt) return '';
 
         return `====\n\n${title}\n\n${prompt}`;

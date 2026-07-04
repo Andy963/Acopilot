@@ -9,10 +9,19 @@ function normalizeWorkspaceDefault(value: unknown): PinnedPromptWorkspaceDefault
   if (!value || typeof value !== 'object') return null
 
   const obj = value as any
-  const skillId = normalizeString(obj.skillId).trim()
-  if (obj.mode !== 'skill' || !skillId) return null
+  if (obj.mode === 'skill') {
+    const skillId = normalizeString(obj.skillId).trim()
+    if (!skillId) return null
+    return { mode: 'skill', skillId }
+  }
 
-  return { mode: 'skill', skillId }
+  if (obj.mode === 'preset') {
+    const presetId = normalizeString(obj.presetId).trim()
+    if (!presetId) return null
+    return { mode: 'preset', presetId }
+  }
+
+  return null
 }
 
 async function getWorkspacePinnedPromptDefault(): Promise<PinnedPromptWorkspaceDefault | null> {
@@ -36,7 +45,7 @@ async function setWorkspacePinnedPromptDefault(value: PinnedPromptWorkspaceDefau
 /**
  * Resolves the pinned prompt for a brand-new (not-yet-persisted) conversation.
  *
- * Applies the workspace's remembered skill selection, if any, so switching
+ * Applies the workspace's remembered reusable prompt selection, if any, so switching
  * conversations within the same project restores the last used pinned
  * prompt instead of starting empty every time.
  */
@@ -47,6 +56,13 @@ export async function resolveDefaultPinnedPromptForNewConversation(): Promise<{
   const workspaceDefault = await getWorkspacePinnedPromptDefault()
 
   if (workspaceDefault) {
+    if (workspaceDefault.mode === 'preset') {
+      return {
+        pinnedPrompt: { mode: 'preset', presetId: workspaceDefault.presetId },
+        fromWorkspaceDefault: true
+      }
+    }
+
     return {
       pinnedPrompt: { mode: 'skill', skillId: workspaceDefault.skillId },
       fromWorkspaceDefault: true
@@ -57,7 +73,7 @@ export async function resolveDefaultPinnedPromptForNewConversation(): Promise<{
 }
 
 function normalizeMode(mode: unknown): PinnedPromptMode {
-  if (mode === 'skill' || mode === 'custom' || mode === 'none') return mode
+  if (mode === 'skill' || mode === 'custom' || mode === 'preset' || mode === 'none') return mode
   return 'none'
 }
 
@@ -73,6 +89,7 @@ export function normalizePinnedPrompt(value: unknown): PinnedPromptState {
   return {
     mode: normalizeMode(obj.mode),
     skillId: normalizeString(obj.skillId),
+    presetId: normalizeString(obj.presetId),
     customPrompt: normalizeString(obj.customPrompt)
   }
 }
@@ -95,12 +112,10 @@ export async function setPinnedPrompt(state: ChatStoreState, pinnedPrompt: Pinne
   state.pinnedPrompt.value = pinnedPrompt
   state.pinnedPromptFromWorkspaceDefault.value = false
 
-  // Remember this selection at the workspace level (skill only) so new
-  // conversations in the same workspace can restore it automatically.
-  // Custom raw text is intentionally not remembered here; it must be saved
-  // as a skill first (see PromptSkillsSection-style "save as skill" flow).
   if (pinnedPrompt.mode === 'skill' && pinnedPrompt.skillId?.trim()) {
     await setWorkspacePinnedPromptDefault({ mode: 'skill', skillId: pinnedPrompt.skillId.trim() })
+  } else if (pinnedPrompt.mode === 'preset' && pinnedPrompt.presetId?.trim()) {
+    await setWorkspacePinnedPromptDefault({ mode: 'preset', presetId: pinnedPrompt.presetId.trim() })
   } else if (pinnedPrompt.mode === 'none') {
     await setWorkspacePinnedPromptDefault(null)
   }
@@ -122,6 +137,9 @@ export async function setPinnedPrompt(state: ChatStoreState, pinnedPrompt: Pinne
 export function shouldPersistPinnedPrompt(pinnedPrompt: PinnedPromptState): boolean {
   if (pinnedPrompt.mode === 'skill') {
     return Boolean(pinnedPrompt.skillId && pinnedPrompt.skillId.trim())
+  }
+  if (pinnedPrompt.mode === 'preset') {
+    return Boolean(pinnedPrompt.presetId && pinnedPrompt.presetId.trim())
   }
   if (pinnedPrompt.mode === 'custom') {
     return Boolean(pinnedPrompt.customPrompt && pinnedPrompt.customPrompt.trim())
