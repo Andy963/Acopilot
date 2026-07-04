@@ -107,6 +107,7 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
 
   it('saves the custom draft as a reusable skill and selects it', async () => {
     mockSendToExtension.mockImplementation(async (type: string) => {
+      if (type === 'skills.list') return { skills: [] }
       if (type === 'updateSystemPromptConfig') return { success: true }
       throw new Error(`Unexpected request: ${type}`)
     })
@@ -117,6 +118,7 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
 
     await panel.handleSaveCustomPromptAsSkill()
 
+    expect(mockSendToExtension).toHaveBeenCalledWith('skills.list', {})
     expect(mockSendToExtension).toHaveBeenCalledWith('updateSystemPromptConfig', {
       config: {
         skills: [
@@ -139,10 +141,15 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
   })
 
   it('deduplicates skill ids generated from the same name', async () => {
-    mockSendToExtension.mockResolvedValue({ success: true })
+    mockSendToExtension.mockImplementation(async (type: string) => {
+      if (type === 'skills.list') {
+        return { skills: [{ id: 'tdd-reminder', name: 'TDD Reminder', prompt: 'Existing' }] }
+      }
+      if (type === 'updateSystemPromptConfig') return { success: true }
+      throw new Error(`Unexpected request: ${type}`)
+    })
 
     const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
-    panel.skills.value = [{ id: 'tdd-reminder', name: 'TDD Reminder', prompt: 'Existing' }]
     panel.customPromptDraft.value = 'New reminder text'
     panel.saveAsSkillName.value = 'TDD Reminder'
 

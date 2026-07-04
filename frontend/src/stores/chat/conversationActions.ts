@@ -37,6 +37,8 @@ export async function createNewConversation(
   state.error.value = null
   state.planRunner.value = null
   state.postEditValidationPending.value = false
+  state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.pinnedPromptFromWorkspaceDefault.value = false
   state.chatMode.value = createDefaultChatMode()
   state.selectionReferences.value = []
 

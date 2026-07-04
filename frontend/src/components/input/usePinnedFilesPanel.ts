@@ -255,8 +255,10 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
 
     isSavingAsSkill.value = true
     try {
-      const id = uniqueSkillId(skills.value, slugifySkillName(name))
-      const nextSkills = [...skills.value, { id, name, description: '', prompt }]
+      const response = await sendToExtension<{ skills: unknown }>('skills.list', {})
+      const latestSkills = normalizeSkills(response?.skills)
+      const id = uniqueSkillId(latestSkills, slugifySkillName(name))
+      const nextSkills = [...latestSkills, { id, name, description: '', prompt }]
 
       await sendToExtension('updateSystemPromptConfig', { config: { skills: nextSkills } })
       skills.value = nextSkills

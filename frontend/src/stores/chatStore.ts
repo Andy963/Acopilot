@@ -95,7 +95,8 @@ import type { SendMessageOptions } from './chat/messageActions'
 import type { PinnedPromptState } from './chat/types'
 import {
   setPinnedPrompt as setPinnedPromptFn,
-  dismissPinnedPromptWorkspaceDefaultNotice as dismissPinnedPromptWorkspaceDefaultNoticeFn
+  dismissPinnedPromptWorkspaceDefaultNotice as dismissPinnedPromptWorkspaceDefaultNoticeFn,
+  resolveDefaultPinnedPromptForNewConversation
 } from './chat/pinnedPromptActions'
 import { persistChatMode } from './chat/chatModeActions'
 import type { SelectionReference } from './chat/types'
@@ -276,6 +277,10 @@ export const useChatStore = defineStore('chat', () => {
 
     state.currentConversationId.value = null
     state.allMessages.value = []
+
+    const { pinnedPrompt, fromWorkspaceDefault } = await resolveDefaultPinnedPromptForNewConversation()
+    state.pinnedPrompt.value = pinnedPrompt
+    state.pinnedPromptFromWorkspaceDefault.value = fromWorkspaceDefault
   }
 
   // ============ 返回 ============
