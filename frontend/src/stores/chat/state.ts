@@ -90,6 +90,9 @@ export function createChatState(): ChatStoreState {
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
 
+  /** 当前 pinnedPrompt 是否是新建对话时从 workspace 记忆自动带入的 */
+  const pinnedPromptFromWorkspaceDefault = ref(false)
+
   /** 本条消息引用（发送后自动清空） */
   const selectionReferences = ref<SelectionReference[]>([])
 
@@ -129,6 +132,7 @@ export function createChatState(): ChatStoreState {
     workspaceFilter,
     chatMode,
     pinnedPrompt,
+    pinnedPromptFromWorkspaceDefault,
     selectionReferences,
     planRunner,
     postEditValidationPending,

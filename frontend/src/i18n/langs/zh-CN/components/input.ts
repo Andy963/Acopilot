@@ -57,8 +57,13 @@ export const zhCNComponentsInput = {
             placeholder: '输入仅对当前对话生效的提示词...',
             save: '保存',
             clear: '清空',
-            hint: '保存后会作为系统提示词额外注入当前对话'
-        }
+            hint: '保存后会作为系统提示词额外注入当前对话',
+            saveAsSkillLabel: '保存为可复用条目',
+            saveAsSkillNamePlaceholder: 'Skill 名称',
+            saveAsSkillButton: '保存为 Skill',
+            saveAsSkillHint: '保存后的 Skill 会跨对话、跨项目持久保留，之后只需选择，不用重新输入'
+        },
+        workspaceDefaultApplied: '已应用当前项目记住的固定提示词'
     },
     messageContextOverrides: {
         title: '本条上下文',

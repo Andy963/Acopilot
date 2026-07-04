@@ -93,7 +93,10 @@ import {
 import type { SendMessageOptions } from './chat/messageActions'
 
 import type { PinnedPromptState } from './chat/types'
-import { setPinnedPrompt as setPinnedPromptFn } from './chat/pinnedPromptActions'
+import {
+  setPinnedPrompt as setPinnedPromptFn,
+  dismissPinnedPromptWorkspaceDefaultNotice as dismissPinnedPromptWorkspaceDefaultNoticeFn
+} from './chat/pinnedPromptActions'
 import { persistChatMode } from './chat/chatModeActions'
 import type { SelectionReference } from './chat/types'
 import {
@@ -183,6 +186,7 @@ export const useChatStore = defineStore('chat', () => {
   const setInputValue = (value: string) => setInputValueAction(state, value)
   const clearInputValue = () => clearInputValueAction(state)
   const setPinnedPrompt = (pinnedPrompt: PinnedPromptState) => setPinnedPromptFn(state, pinnedPrompt)
+  const dismissPinnedPromptWorkspaceDefaultNotice = () => dismissPinnedPromptWorkspaceDefaultNoticeFn(state)
   const addSelectionReference = (selection: Partial<SelectionReference>) => addSelectionReferenceFn(state, selection)
   const removeSelectionReference = (id: string) => removeSelectionReferenceFn(state, id)
   const clearSelectionReferences = () => clearSelectionReferencesFn(state)
@@ -397,7 +401,9 @@ export const useChatStore = defineStore('chat', () => {
 
     // 固定提示词/技能
     pinnedPrompt: state.pinnedPrompt,
+    pinnedPromptFromWorkspaceDefault: state.pinnedPromptFromWorkspaceDefault,
     setPinnedPrompt,
+    dismissPinnedPromptWorkspaceDefaultNotice,
 
     // 本条消息引用（选中代码片段）
     selectionReferences: state.selectionReferences,

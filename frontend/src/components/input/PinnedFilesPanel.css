@@ -238,6 +238,50 @@
   cursor: pointer;
 }
 
+.pinned-custom-save-as-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-custom-save-as-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pinned-custom-save-as-skill-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  outline: none;
+}
+
+.pinned-custom-save-as-skill-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.pinned-custom-save-as-skill-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pinned-custom-save-as-skill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .pinned-files-footer {
   padding: 8px 12px 12px;
   border-top: 1px solid var(--vscode-panel-border);

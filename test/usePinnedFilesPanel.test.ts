@@ -105,6 +105,52 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
     expect(mockSendToExtension).not.toHaveBeenCalled()
   })
 
+  it('saves the custom draft as a reusable skill and selects it', async () => {
+    mockSendToExtension.mockImplementation(async (type: string) => {
+      if (type === 'updateSystemPromptConfig') return { success: true }
+      throw new Error(`Unexpected request: ${type}`)
+    })
+
+    const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
+    panel.customPromptDraft.value = 'Always write tests first'
+    panel.saveAsSkillName.value = 'TDD Reminder'
+
+    await panel.handleSaveCustomPromptAsSkill()
+
+    expect(mockSendToExtension).toHaveBeenCalledWith('updateSystemPromptConfig', {
+      config: {
+        skills: [
+          {
+            id: 'tdd-reminder',
+            name: 'TDD Reminder',
+            description: '',
+            prompt: 'Always write tests first',
+          },
+        ],
+      },
+    })
+    expect(mockChatStore.setPinnedPrompt).toHaveBeenCalledWith({
+      mode: 'skill',
+      skillId: 'tdd-reminder',
+    })
+    expect(panel.selectedSkillId.value).toBe('tdd-reminder')
+    expect(panel.pinPanelTab.value).toBe('skill')
+    expect(panel.saveAsSkillName.value).toBe('')
+  })
+
+  it('deduplicates skill ids generated from the same name', async () => {
+    mockSendToExtension.mockResolvedValue({ success: true })
+
+    const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
+    panel.skills.value = [{ id: 'tdd-reminder', name: 'TDD Reminder', prompt: 'Existing' }]
+    panel.customPromptDraft.value = 'New reminder text'
+    panel.saveAsSkillName.value = 'TDD Reminder'
+
+    await panel.handleSaveCustomPromptAsSkill()
+
+    expect(panel.selectedSkillId.value).toBe('tdd-reminder-2')
+  })
+
   it('clears the pinned prompt via chatStore', async () => {
     const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
     panel.customPromptDraft.value = 'Temporary prompt'

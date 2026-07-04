@@ -5,6 +5,7 @@ import type {
   GenerateImageToolConfig,
   PinnedFileItem,
   PinnedFilesConfig,
+  PinnedPromptWorkspaceDefault,
   ProxySettings,
   RemoveBackgroundToolConfig,
   ResizeImageToolConfig,
@@ -264,6 +265,34 @@ export class SettingsManager extends SettingsManagerTools {
 
   getSystemPromptSuffix(): string {
     return this.getSystemPromptConfig().customSuffix;
+  }
+
+  /**
+   * 获取指定 workspace 上一次记住的固定提示词选择（仅支持 skill 引用）。
+   * 用于新建对话时自动带入，实现“同项目换对话不丢”。
+   */
+  getPinnedPromptWorkspaceDefault(workspaceUri: string): PinnedPromptWorkspaceDefault | null {
+    const defaults = this.getSystemPromptConfig().pinnedPromptWorkspaceDefaults || {};
+    return defaults[workspaceUri] || null;
+  }
+
+  /**
+   * 更新/清除指定 workspace 记住的固定提示词选择。
+   * 传入 null 表示清除该 workspace 的记忆。
+   */
+  async setPinnedPromptWorkspaceDefault(
+    workspaceUri: string,
+    value: PinnedPromptWorkspaceDefault | null
+  ): Promise<void> {
+    const nextDefaults = { ...(this.getSystemPromptConfig().pinnedPromptWorkspaceDefaults || {}) };
+
+    if (value) {
+      nextDefaults[workspaceUri] = value;
+    } else {
+      delete nextDefaults[workspaceUri];
+    }
+
+    await this.updateSystemPromptConfig({ pinnedPromptWorkspaceDefaults: nextDefaults });
   }
 
   getTokenCountConfig(): Readonly<TokenCountConfig> {

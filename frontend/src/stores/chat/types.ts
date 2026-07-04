@@ -92,6 +92,18 @@ export interface PinnedPromptState {
 }
 
 /**
+ * Workspace-scoped remembered pinned-prompt selection.
+ *
+ * Only references a skill id; the prompt text itself always lives in the
+ * global skills library so it survives conversation switches and can be
+ * re-selected (not re-typed) even after switching workspace/project.
+ */
+export interface PinnedPromptWorkspaceDefault {
+  mode: 'skill'
+  skillId: string
+}
+
+/**
  * 本条消息引用（选中代码片段）
  */
 export interface SelectionReference {
@@ -178,6 +190,8 @@ export interface ChatStoreState {
   chatMode: Ref<ChatMode>
   /** 当前对话的固定提示词/技能 */
   pinnedPrompt: Ref<PinnedPromptState>
+  /** 当前 pinnedPrompt 是否是新建对话时从 workspace 记忆自动带入的（用于显示可关闭提示） */
+  pinnedPromptFromWorkspaceDefault: Ref<boolean>
 
   /** 本条消息引用（发送后自动清空） */
   selectionReferences: Ref<SelectionReference[]>

@@ -25,6 +25,8 @@ const {
   selectedSkill,
   customPromptDraft,
   isSavingPinnedPrompt,
+  saveAsSkillName,
+  isSavingAsSkill,
   hasPinnedPrompt,
   enabledPinnedFilesCount,
   loadSkills,
@@ -33,6 +35,7 @@ const {
   handleRemovePinnedFile,
   handleTogglePinnedFile,
   handleSavePinnedPrompt,
+  handleSaveCustomPromptAsSkill,
   handleClearPinnedPrompt,
   handleSelectSkill,
   handleDragEnter,
@@ -206,6 +209,28 @@ defineExpose({
       </div>
       <div class="pinned-custom-hint">
         {{ t('components.input.pinnedFilesPanel.custom.hint') }}
+      </div>
+
+      <div class="pinned-custom-save-as-skill">
+        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.saveAsSkillLabel') }}</label>
+        <div class="pinned-custom-save-as-skill-row">
+          <input
+            v-model="saveAsSkillName"
+            class="pinned-custom-save-as-skill-input"
+            :placeholder="t('components.input.pinnedFilesPanel.custom.saveAsSkillNamePlaceholder')"
+          />
+          <button
+            class="pinned-custom-save-as-skill-btn"
+            :disabled="isSavingAsSkill || !customPromptDraft.trim() || !saveAsSkillName.trim()"
+            @click="handleSaveCustomPromptAsSkill"
+          >
+            <i v-if="isSavingAsSkill" class="codicon codicon-loading codicon-modifier-spin"></i>
+            <span v-else>{{ t('components.input.pinnedFilesPanel.custom.saveAsSkillButton') }}</span>
+          </button>
+        </div>
+        <div class="pinned-custom-hint">
+          {{ t('components.input.pinnedFilesPanel.custom.saveAsSkillHint') }}
+        </div>
       </div>
     </div>
 

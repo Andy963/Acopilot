@@ -57,8 +57,13 @@ export const jaComponentsInput = {
             placeholder: '現在の会話にのみ適用されるプロンプトを入力...',
             save: '保存',
             clear: 'クリア',
-            hint: '保存後、この会話のシステムプロンプトに追加されます'
-        }
+            hint: '保存後、この会話のシステムプロンプトに追加されます',
+            saveAsSkillLabel: '再利用可能な項目として保存',
+            saveAsSkillNamePlaceholder: 'Skill 名',
+            saveAsSkillButton: 'Skill として保存',
+            saveAsSkillHint: '保存した Skill は会話やプロジェクトを超えて保持され、再入力せずに選択できます'
+        },
+        workspaceDefaultApplied: 'このプロジェクトで記憶されたピン留めプロンプトを適用しました'
     },
     messageContextOverrides: {
         title: '今回のコンテキスト',

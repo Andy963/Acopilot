@@ -12,11 +12,13 @@ import InputAreaFooter from './InputAreaFooter.vue'
 import PinnedFilesPanel from './PinnedFilesPanel.vue'
 import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
+import { IconButton } from '../common'
 import { useChatStore } from '../../stores'
 import type { Attachment } from '../../types'
 import { useInputAreaConfig } from './useInputAreaConfig'
 import { useInputAreaInput } from './useInputAreaInput'
 import { useAtFilePicker } from './useAtFilePicker'
+import { useI18n } from '../../i18n'
 
 // 固定文件项类型
 const props = defineProps<{
@@ -27,6 +29,7 @@ const props = defineProps<{
 
 // 从 store 读取等待状态
 const chatStore = useChatStore()
+const { t } = useI18n()
 
 const {
   isLoadingConfigs,
@@ -138,6 +141,18 @@ function openPinnedFilesPanel() {
 
     <!-- 单个输入框容器：所有控件都在同一个框内 -->
     <div class="composer">
+      <!-- 提示：本对话自动带入了当前 workspace 记住的固定提示词 -->
+      <div v-if="chatStore.pinnedPromptFromWorkspaceDefault" class="pinned-workspace-default-banner">
+        <i class="codicon codicon-pin"></i>
+        <span>{{ t('components.input.pinnedFilesPanel.workspaceDefaultApplied') }}</span>
+        <IconButton
+          icon="codicon-close"
+          size="small"
+          :aria-label="t('components.input.remove')"
+          @click="chatStore.dismissPinnedPromptWorkspaceDefaultNotice()"
+        />
+      </div>
+
       <!-- 顶部：文件/钉住 -->
       <ComposerTopBar
         :uploading="uploading"
@@ -415,6 +430,28 @@ function openPinnedFilesPanel() {
   color: var(--vscode-badge-foreground);
   background: var(--vscode-badge-background);
   border-radius: 7px;
+}
+
+.pinned-workspace-default-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-textBlockQuote-background, var(--vscode-editor-inactiveSelectionBackground));
+  border-radius: 6px;
+}
+
+.pinned-workspace-default-banner .codicon-pin {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.pinned-workspace-default-banner span {
+  flex: 1;
+  min-width: 0;
 }
 
 </style>

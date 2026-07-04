@@ -57,8 +57,13 @@ export const enComponentsInput = {
             placeholder: 'Enter a prompt that only applies to the current conversation...',
             save: 'Save',
             clear: 'Clear',
-            hint: 'After saving, it will be injected into the system prompt for this conversation'
-        }
+            hint: 'After saving, it will be injected into the system prompt for this conversation',
+            saveAsSkillLabel: 'Save as a reusable skill',
+            saveAsSkillNamePlaceholder: 'Skill name',
+            saveAsSkillButton: 'Save as skill',
+            saveAsSkillHint: 'Saved skills persist across conversations and projects, and can be re-selected instead of retyped'
+        },
+        workspaceDefaultApplied: 'Applied the pinned prompt remembered for this project'
     },
     messageContextOverrides: {
         title: 'This message',

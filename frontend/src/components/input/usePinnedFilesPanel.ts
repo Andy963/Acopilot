@@ -44,6 +44,24 @@ function normalizeSkills(raw: unknown): SkillDefinition[] {
     .filter(s => s.id && s.prompt.trim())
 }
 
+function slugifySkillName(name: string): string {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return base || `skill-${Date.now()}`
+}
+
+function uniqueSkillId(existingSkills: SkillDefinition[], base: string): string {
+  if (!existingSkills.some(s => s.id === base)) return base
+
+  let suffix = 2
+  while (existingSkills.some(s => s.id === `${base}-${suffix}`)) suffix++
+  return `${base}-${suffix}`
+}
+
 function getErrorMessageByCode(errorCode?: string, rawMessage?: string): string {
   if (errorCode === 'OUTSIDE_WORKSPACE') return 'File must be inside the workspace'
   if (errorCode === 'FILE_TOO_LARGE') return 'File is too large'
@@ -67,6 +85,8 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
   const selectedSkillId = ref('')
   const customPromptDraft = ref('')
   const isSavingPinnedPrompt = ref(false)
+  const saveAsSkillName = ref('')
+  const isSavingAsSkill = ref(false)
 
   const selectedSkill = computed(() => skills.value.find(s => s.id === selectedSkillId.value) || null)
 
@@ -228,6 +248,36 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     }
   }
 
+  async function handleSaveCustomPromptAsSkill() {
+    const prompt = customPromptDraft.value.trim()
+    const name = saveAsSkillName.value.trim()
+    if (!prompt || !name) return
+
+    isSavingAsSkill.value = true
+    try {
+      const id = uniqueSkillId(skills.value, slugifySkillName(name))
+      const nextSkills = [...skills.value, { id, name, description: '', prompt }]
+
+      await sendToExtension('updateSystemPromptConfig', { config: { skills: nextSkills } })
+      skills.value = nextSkills
+      saveAsSkillName.value = ''
+
+      selectedSkillId.value = id
+      pinPanelTab.value = 'skill'
+      await chatStore.setPinnedPrompt({ mode: 'skill', skillId: id })
+
+      await showNotification(t('components.input.notifications.pinnedPromptSaved'), 'info')
+    } catch (error: any) {
+      console.error('Failed to save custom prompt as skill:', error)
+      await showNotification(
+        t('components.input.notifications.savePinnedPromptFailed', { error: error.message || t('common.unknownError') }),
+        'error',
+      )
+    } finally {
+      isSavingAsSkill.value = false
+    }
+  }
+
   async function handleClearPinnedPrompt() {
     isSavingPinnedPrompt.value = true
     try {
@@ -326,6 +376,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
 
   async function openPanel() {
     syncPinnedPromptDraftFromStore()
+    saveAsSkillName.value = ''
     pinPanelTab.value =
       chatStore.pinnedPrompt?.mode === 'skill'
         ? 'skill'
@@ -365,6 +416,8 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     selectedSkill,
     customPromptDraft,
     isSavingPinnedPrompt,
+    saveAsSkillName,
+    isSavingAsSkill,
     hasPinnedPrompt,
     enabledPinnedFilesCount,
     loadPinnedFiles,
@@ -376,6 +429,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     handleRemovePinnedFile,
     handleTogglePinnedFile,
     handleSavePinnedPrompt,
+    handleSaveCustomPromptAsSkill,
     handleClearPinnedPrompt,
     handleSelectSkill,
     handleDragEnter,
