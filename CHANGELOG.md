@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.12] - 2026-07-04
+
+### Added
+  - Pinned Context: add a real global reusable prompt preset library under the custom prompt tab, so saved prompts can be selected again across projects without retyping or converting them into skills.
+
+### Fixed
+  - Pinned Context: restore selected prompt presets for new conversations in the same workspace and inject preset content from global settings.
+
 ## [1.0.61-pre.11] - 2026-07-04
 
 ### Added
