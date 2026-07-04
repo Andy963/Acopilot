@@ -9,6 +9,7 @@ All notable changes to the "Acopilot" extension will be documented in this file.
 
 ### Fixed
   - Pinned Context: restore selected prompt presets for new conversations in the same workspace and inject preset content from global settings.
+  - Pinned Context: keep the custom prompt textarea tall enough to type and edit multi-line prompts after adding preset controls.
 
 ## [1.0.61-pre.11] - 2026-07-04
 
