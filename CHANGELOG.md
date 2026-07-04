@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.11] - 2026-07-04
+
+### Added
+  - Pinned Context: persist reusable pinned prompt selections per workspace so new conversations in the same project restore the last selected skill.
+  - Pinned Context: add a "save as skill" flow for custom pinned prompt text so prompts can be reused across conversations and projects without retyping.
+
+### Fixed
+  - Pinned Context: register the `skills.list` webview handler used by the pinned skill selector.
+  - Pinned Context: avoid overwriting existing skills when saving a custom pinned prompt as a reusable skill.
+
 ## [1.0.61-pre.10] - 2026-07-04
 
 ### Fixed
