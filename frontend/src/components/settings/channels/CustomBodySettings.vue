@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { CustomScrollbar } from '../../common'
 import { useI18n } from '../../../i18n'
+import { validateAdvancedBodyJson, validateDottedBodyKeys, type ValidationIssue } from './customPayloadValidation'
 
 const { t } = useI18n()
 
@@ -38,7 +39,38 @@ const customBodyItems = computed<CustomBodyItem[]>(() => {
 const localJsonValue = ref('')
 
 // JSON 解析错误
-const jsonError = ref('')
+const jsonError = ref<ValidationIssue | null>(null)
+
+const exampleJson = `{
+  "extra_body": {
+    "google": {
+      "thinking_config": {
+        "include_thoughts": false
+      }
+    }
+  }
+}`
+
+const bodyItemIssues = computed(() => validateDottedBodyKeys(customBodyItems.value))
+
+function getItemIssue(index: number): ValidationIssue | undefined {
+  return bodyItemIssues.value.find(issue => issue.index === index)
+}
+
+function formatBodyItemIssue(issue: ValidationIssue): string {
+  return t(`components.channels.customBody.validation.${issue.code}`)
+}
+
+const formattedJsonError = computed(() => {
+  const issue = jsonError.value
+  if (!issue) return ''
+  const base = t(`components.channels.customBody.validation.${issue.code}`)
+  const detail = issue.detail ? `: ${issue.detail}` : ''
+  const location = issue.line && issue.column
+    ? ` ${t('components.channels.customBody.validation.location', { line: issue.line, column: issue.column })}`
+    : ''
+  return `${base}${detail}${location}`
+})
 
 // 监听配置变化，同步到本地状态（仅当本地没有错误时）
 watch(() => props.customBody.json, (newJson) => {
@@ -89,16 +121,7 @@ function updateItem(index: number, field: 'key' | 'value' | 'enabled', value: st
 function handleJsonInput(e: Event) {
   const target = e.target as HTMLTextAreaElement
   localJsonValue.value = target.value
-  
-  // 实时验证 JSON
-  try {
-    if (target.value.trim()) {
-      JSON.parse(target.value)
-    }
-    jsonError.value = ''
-  } catch {
-    jsonError.value = 'JSON 格式错误'
-  }
+  jsonError.value = validateAdvancedBodyJson(target.value)
 }
 
 // 保存复杂模式 JSON（失焦时）
@@ -111,6 +134,25 @@ function saveJson() {
   emit('update:config', {
     ...props.customBody,
     json: localJsonValue.value
+  })
+}
+
+function insertExampleJson() {
+  localJsonValue.value = exampleJson
+  jsonError.value = null
+  saveJson()
+}
+
+function resetJson() {
+  localJsonValue.value = ''
+  jsonError.value = null
+  saveJson()
+}
+
+function clearSimpleItems() {
+  emit('update:config', {
+    ...props.customBody,
+    items: []
   })
 }
 </script>
@@ -133,7 +175,7 @@ function saveJson() {
           @change="updateMode('simple')"
         />
         <span class="radio-mark"></span>
-        <span class="radio-text">简单模式</span>
+        <span class="radio-text">{{ t('components.channels.customBody.modeSimple') }}</span>
       </label>
       <label class="radio-option" :class="{ disabled: !enabled }">
         <input
@@ -145,7 +187,7 @@ function saveJson() {
           @change="updateMode('advanced')"
         />
         <span class="radio-mark"></span>
-        <span class="radio-text">复杂模式</span>
+        <span class="radio-text">{{ t('components.channels.customBody.modeAdvanced') }}</span>
       </label>
     </div>
     
@@ -172,11 +214,13 @@ function saveJson() {
           <input
             type="text"
             class="body-key"
+            :class="{ 'has-error': getItemIssue(index) }"
             :value="item.key"
             :placeholder="t('components.channels.customBody.keyPlaceholder')"
             :disabled="!enabled"
             @input="(e: any) => updateItem(index, 'key', e.target.value)"
           />
+          <span v-if="getItemIssue(index)" class="body-key-error">{{ formatBodyItemIssue(getItemIssue(index)!) }}</span>
           <textarea
             class="body-value"
             :value="item.value"
@@ -213,10 +257,28 @@ function saveJson() {
         <i class="codicon codicon-add"></i>
         {{ t('components.channels.customBody.addItem') }}
       </button>
+      <button
+        class="secondary-action-btn"
+        :disabled="!enabled || customBodyItems.length === 0"
+        @click="clearSimpleItems"
+      >
+        <i class="codicon codicon-clear-all"></i>
+        {{ t('components.channels.customBody.clearItems') }}
+      </button>
     </div>
     
     <!-- 复杂模式：完整 JSON 编辑器 -->
     <div v-if="customBody.mode === 'advanced'" class="body-json-editor" :class="{ disabled: !enabled }">
+      <div class="json-actions">
+        <button type="button" :disabled="!enabled" @click="insertExampleJson">
+          <i class="codicon codicon-symbol-snippet"></i>
+          {{ t('components.channels.customBody.insertExample') }}
+        </button>
+        <button type="button" :disabled="!enabled" @click="resetJson">
+          <i class="codicon codicon-discard"></i>
+          {{ t('components.channels.customBody.resetDefault') }}
+        </button>
+      </div>
       <textarea
         class="json-textarea"
         :class="{ 'has-error': jsonError }"
@@ -235,7 +297,7 @@ function saveJson() {
         @input="handleJsonInput"
         @blur="saveJson"
       ></textarea>
-      <span v-if="jsonError" class="json-error">{{ t('components.channels.customBody.jsonError') }}</span>
+      <span v-if="jsonError" class="json-error">{{ formattedJsonError }}</span>
       <span class="body-json-hint">{{ t('components.channels.customBody.jsonHint') }}</span>
     </div>
   </div>

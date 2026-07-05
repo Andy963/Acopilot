@@ -23,6 +23,7 @@ const props = defineProps<{
   isWaitingForResponse: boolean
   canSend: boolean
   attachments?: Attachment[]
+  summarizeKeepRecentRounds?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   updateThinkingEffort: [value: string]
   updateChatMode: [value: string]
   openContextInspector: [attachments?: Attachment[]]
+  openChannelSettings: []
   summarize: []
   send: []
   cancel: []
@@ -102,6 +104,27 @@ const ringDashOffset = computed(() => {
 function emitOpenContextInspector() {
   emit('openContextInspector', props.attachments)
 }
+
+function handleTokenRingKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  emitOpenContextInspector()
+}
+
+const summarizeTooltipContent = computed(() => {
+  const base = t('components.input.summarizeContext')
+  const rounds = props.summarizeKeepRecentRounds
+  if (typeof rounds !== 'number' || !Number.isFinite(rounds) || rounds < 0) return base
+  return `${base} · ${t('components.input.summarizeKeepRoundsHint', { count: rounds })}`
+})
+
+const hasNoModelsConfigured = computed(() => {
+  return !props.isLoadingConfigs && props.unifiedModelOptions.length === 0
+})
+
+function emitOpenChannelSettings() {
+  emit('openChannelSettings')
+}
 </script>
 
 <template>
@@ -120,10 +143,22 @@ function emitOpenContextInspector() {
       </div>
 
       <div class="model-selector-wrapper">
+        <Tooltip v-if="hasNoModelsConfigured" :content="t('components.input.configureModelHint')" placement="top">
+          <button
+            type="button"
+            class="configure-model-link"
+            :aria-label="t('components.input.configureModelHint')"
+            @click="emitOpenChannelSettings"
+          >
+            <i class="codicon codicon-settings-gear"></i>
+            <span>{{ t('components.input.configureModelLink') }}</span>
+          </button>
+        </Tooltip>
         <UnifiedModelSelector
+          v-else
           :model-value="props.unifiedModelValue"
           :options="props.unifiedModelOptions"
-          :disabled="props.isLoadingConfigs || props.unifiedModelOptions.length === 0"
+          :disabled="props.isLoadingConfigs"
           :drop-up="true"
           @update:model-value="(value) => emit('updateUnifiedModel', value)"
         />
@@ -143,18 +178,25 @@ function emitOpenContextInspector() {
     </div>
 
     <div ref="composerFooterActionsRef" class="composer-footer-actions">
-      <Tooltip :content="t('components.input.summarizeContext')" placement="top">
+      <Tooltip :content="summarizeTooltipContent" placement="top">
         <IconButton
           icon="codicon-fold"
           size="small"
           class="summarize-button"
           :disabled="props.isWaitingForResponse"
-          :aria-label="t('components.input.summarizeContext')"
+          :aria-label="summarizeTooltipContent"
           @click="emit('summarize')"
         />
       </Tooltip>
 
-      <div class="token-ring-wrapper" @click="emitOpenContextInspector">
+      <div
+        class="token-ring-wrapper"
+        role="button"
+        tabindex="0"
+        :aria-label="t('components.common.contextInspectorModal.title')"
+        @click="emitOpenContextInspector"
+        @keydown="handleTokenRingKeydown"
+      >
         <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
           <circle
             cx="11"
@@ -186,6 +228,7 @@ function emitOpenContextInspector() {
             <span class="token-tooltip-label">{{ t('components.input.context') }}</span>
             <span class="token-tooltip-value">{{ formatNumber(props.usedTokens) }} / {{ formatNumber(props.maxContextTokens) }}</span>
           </div>
+          <div class="token-tooltip-hint">{{ t('components.input.openContextInspectorHint') }}</div>
         </div>
       </div>
 
@@ -248,6 +291,42 @@ function emitOpenContextInspector() {
   max-width: 100%;
 }
 
+.model-selector-wrapper :deep(.tooltip-wrapper) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.configure-model-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.configure-model-link:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.configure-model-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.configure-model-link .codicon {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
 .thinking-effort-wrapper {
   flex: 0 0 78px;
   min-width: 78px;
@@ -271,7 +350,21 @@ function emitOpenContextInspector() {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm, 2px);
   cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.token-ring-wrapper:hover,
+.token-ring-wrapper:focus-visible {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.token-ring-wrapper:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
 }
 
 .token-ring {
@@ -295,7 +388,8 @@ function emitOpenContextInspector() {
   pointer-events: none;
 }
 
-.token-ring-wrapper:hover .token-tooltip {
+.token-ring-wrapper:hover .token-tooltip,
+.token-ring-wrapper:focus-visible .token-tooltip {
   opacity: 1;
   visibility: visible;
 }
@@ -335,5 +429,13 @@ function emitOpenContextInspector() {
   color: var(--vscode-foreground);
   font-family: var(--vscode-editor-font-family);
   font-size: 10px;
+}
+
+.token-tooltip-hint {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-editorWidget-border);
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
 }
 </style>

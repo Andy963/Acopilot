@@ -57,6 +57,11 @@ export const jaComponentsSettingsPart1 = {
                 useAuthorizationHintGemini: 'x-goog-api-keyをAuthorization: Bearer形式に変換して送信',
                 useAuthorizationHintAnthropic: 'x-api-keyをAuthorization: Bearer形式に変換して送信'
             },
+            connectionTest: {
+                button: '接続をテスト',
+                testing: 'テスト中...',
+                hint: '最小リクエストで API Key、URL、選択中のモデルを確認します'
+            },
             stream: {
                 label: 'ストリーム出力'
             },
@@ -82,6 +87,8 @@ export const jaComponentsSettingsPart1 = {
                     label: 'JSON 境界マーカー',
                     description: 'JSON 形式 + 境界マーカーを使用（推奨）'
                 },
+                boundaryHint: 'ここではこのチャンネルのリクエストプロトコル能力を制御します。ツールの有効化と自動実行は Tools 設定で管理してください。',
+                openToolsSettings: 'Tools 設定を開く',
                 hint: {
                     functionCall: 'Function Calling: API ネイティブの関数呼び出し機能を使用',
                     xml: 'XML プロンプト: ツールを XML 形式に変換してシステムプロンプトに挿入',
@@ -193,6 +200,20 @@ export const jaComponentsSettingsPart1 = {
                 headersConfigured: '{count} Header',
                 maxRetries: '最大 {count} 回',
                 thresholdValue: '閾値'
+            },
+            capabilitySummary: {
+                title: 'モデル機能サマリー',
+                model: 'モデル',
+                contextWindow: 'コンテキスト',
+                maxOutput: '出力',
+                toolProtocol: 'ツール',
+                multimodal: 'マルチモーダル',
+                reasoning: '推論',
+                promptCache: 'Prompt Cache',
+                stream: 'ストリーム',
+                notSelected: '未選択',
+                unknown: '不明',
+                providerDefault: 'Provider デフォルト'
             },
             multimodalSummary: '画像 (PNG/JPG)、PDF。',
             viewCompatibility: '互換性マトリクスを見る'

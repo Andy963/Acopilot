@@ -135,12 +135,23 @@ export const enComponentsChannels = {
         valuePlaceholder: 'Value (supports JSON, e.g.: {"key": "value"})',
         empty: 'No custom body items',
         addItem: 'Add Item',
+        clearItems: 'Clear Items',
+        insertExample: 'Insert Example',
+        resetDefault: 'Reset Default',
         jsonError: 'JSON format error',
         jsonHint: 'Complete JSON format, supports nested override',
         jsonPlaceholder: '{\n  "extra_body": {\n    "google": {\n      "thinking_config": {\n        "include_thoughts": false\n      }\n    }\n  }\n}',
         enabled: 'Enabled',
         disabled: 'Disabled',
-        deleteTooltip: 'Delete'
+        deleteTooltip: 'Delete',
+        validation: {
+            invalidJson: 'Invalid JSON',
+            rootMustBeObject: 'JSON root must be an object',
+            emptyKey: 'Enabled key cannot be empty',
+            emptyPathSegment: 'Dotted path cannot contain empty segments',
+            duplicateKey: 'Duplicate key',
+            location: '(line {line}, column {column})'
+        }
     },
     customHeaders: {
         hint: 'Add custom HTTP request headers, sent to API in order',
@@ -149,9 +160,15 @@ export const enComponentsChannels = {
         keyDuplicate: 'Duplicate key name',
         empty: 'No custom headers',
         addHeader: 'Add Header',
+        clearHeaders: 'Clear Headers',
         enabled: 'Enabled',
         disabled: 'Disabled',
-        deleteTooltip: 'Delete'
+        deleteTooltip: 'Delete',
+        validation: {
+            emptyKey: 'Enabled header name cannot be empty',
+            invalidHeaderName: 'Invalid HTTP header name',
+            duplicateKey: 'Duplicate header name'
+        }
     },
     toolOptions: {
         cropImage: {

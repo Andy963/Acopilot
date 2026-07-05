@@ -2,6 +2,20 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.4] - 2026-07-05
+
+### Added
+  - Channel Settings: add a "Test Connection" action that validates the active URL, API key, and model with a minimal no-tools, no-retry request and redacts sensitive data from errors.
+  - Channel Settings: show a model capability summary covering model metadata, context/output limits, tool protocol, multimodal, reasoning, prompt cache, and streaming state.
+
+### Improved
+  - Composer footer: make the context token ring visibly interactive, keyboard accessible, and clearer about opening the Context Inspector.
+  - Composer footer: show the current summarization retention strategy in the manual summarize tooltip and refresh it after returning from settings.
+  - Composer footer: replace the dead disabled model selector with a direct "Configure model" link when no model is configured.
+  - Channel Settings: clarify that tool mode controls channel request protocol while tool enablement and auto-execution live in Tools settings.
+  - Channel Settings: strengthen custom body and header validation with JSON object-root checks, error locations, duplicate/empty-key warnings, examples, reset, and clear actions.
+  - Tests: add Vue aliasing for Vitest so frontend composable mocks resolve consistently.
+
 ## [1.0.62-pre.2] - 2026-07-05
 
 ### Improved

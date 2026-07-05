@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'frontend/src'),
       'pinia': resolve(__dirname, 'frontend/node_modules/pinia/index.js'),
+      'vue': resolve(__dirname, 'frontend/node_modules/vue/index.js'),
     },
   },
   test: {

@@ -57,6 +57,11 @@ export const zhCNComponentsSettingsPart1 = {
                 useAuthorizationHintGemini: '将 x-goog-api-key 转为 Authorization: Bearer 格式发送',
                 useAuthorizationHintAnthropic: '将 x-api-key 转为 Authorization: Bearer 格式发送'
             },
+            connectionTest: {
+                button: '测试连接',
+                testing: '测试中...',
+                hint: '用最小请求检查 API Key、URL 和当前模型是否可用'
+            },
             stream: {
                 label: '流式输出'
             },
@@ -82,6 +87,8 @@ export const zhCNComponentsSettingsPart1 = {
                     label: 'JSON 边界标记',
                     description: '使用 JSON 格式 + 边界标记（推荐）'
                 },
+                boundaryHint: '这里控制当前 Channel 的请求协议能力；具体工具启用和自动执行请到 Tools 设置中管理。',
+                openToolsSettings: '打开 Tools 设置',
                 hint: {
                     functionCall: 'Function Calling: 使用 API 原生函数调用功能',
                     xml: 'XML 提示词: 将工具转换为 XML 格式插入系统提示词',
@@ -193,6 +200,20 @@ export const zhCNComponentsSettingsPart1 = {
                 headersConfigured: '{count} 个 Header',
                 maxRetries: '最多 {count} 次',
                 thresholdValue: '阈值'
+            },
+            capabilitySummary: {
+                title: '模型能力摘要',
+                model: '模型',
+                contextWindow: '上下文',
+                maxOutput: '输出',
+                toolProtocol: '工具协议',
+                multimodal: '多模态',
+                reasoning: '推理',
+                promptCache: 'Prompt Cache',
+                stream: '流式',
+                notSelected: '未选择',
+                unknown: '未知',
+                providerDefault: 'Provider 默认'
             },
             multimodalSummary: '文档图片 (PNG/JPG)，PDF。',
             viewCompatibility: '查看兼容性矩阵'

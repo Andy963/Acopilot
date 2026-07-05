@@ -135,12 +135,23 @@ export const zhCNComponentsChannels = {
         valuePlaceholder: '值 (支持 JSON，如: {"key": "value"})',
         empty: '暂无自定义 Body 项',
         addItem: '添加项',
+        clearItems: '清空项',
+        insertExample: '插入示例',
+        resetDefault: '恢复默认',
         jsonError: 'JSON 格式错误',
         jsonHint: '完整 JSON 格式，支持嵌套覆盖',
         jsonPlaceholder: '{\n  "extra_body": {\n    "google": {\n      "thinking_config": {\n        "include_thoughts": false\n      }\n    }\n  }\n}',
         enabled: '已启用',
         disabled: '已禁用',
-        deleteTooltip: '删除'
+        deleteTooltip: '删除',
+        validation: {
+            invalidJson: 'JSON 格式错误',
+            rootMustBeObject: 'JSON 根节点必须是对象',
+            emptyKey: '已启用字段的键名不能为空',
+            emptyPathSegment: '点路径不能包含空片段',
+            duplicateKey: '键名重复',
+            location: '（第 {line} 行，第 {column} 列）'
+        }
     },
     customHeaders: {
         hint: '添加自定义 HTTP 请求标头，按照顺序发送到 API',
@@ -149,9 +160,15 @@ export const zhCNComponentsChannels = {
         keyDuplicate: '键名重复',
         empty: '暂无自定义标头',
         addHeader: '添加标头',
+        clearHeaders: '清空标头',
         enabled: '已启用',
         disabled: '已禁用',
-        deleteTooltip: '删除'
+        deleteTooltip: '删除',
+        validation: {
+            emptyKey: '已启用 Header 名不能为空',
+            invalidHeaderName: 'HTTP Header 名不合法',
+            duplicateKey: 'Header 名重复'
+        }
     },
     toolOptions: {
         cropImage: {
