@@ -4,7 +4,7 @@ export const enComponentsInput = {
     send: 'Send message',
     stopGenerating: 'Stop generating',
     attachFile: 'Attach file',
-    pinnedFiles: 'Pinned',
+    pinnedFiles: 'Pinned Context',
     createPlan: 'Plan & Run',
     summarizeContext: 'Summarize context',
     selectChannel: 'Select channel',
@@ -26,7 +26,7 @@ export const enComponentsInput = {
         addInSettings: 'Please add models in settings'
     },
     pinnedFilesPanel: {
-        title: 'Pinned',
+        title: 'Pinned Context',
         description: 'Pinned files are sent in every chat; Skill/custom prompt can be selected here',
         loading: 'Loading...',
         empty: 'No pinned files',

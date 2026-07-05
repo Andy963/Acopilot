@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.2] - 2026-07-05
+
+### Improved
+  - Pinned Context: rename "Pinned Files" to "Pinned Context" across the composer entry point and panel title, since the panel also manages skill and custom prompt selection, not just files.
+  - Pinned Context: reorder the panel tabs to custom prompt, files, skill, and default to the custom prompt tab when no skill is actively pinned.
+  - Composer: fix a misleading CSS class name on the "Plan & Run" button that still referenced the removed "create task" flow.
+
+### Removed
+  - Composer: remove the orphaned "Create Task" (GitHub issue → task) modal and its dead event wiring; it had no reachable UI entry point and no backend support.
+
 ## [1.0.62-pre.1] - 2026-07-05
 
 ### Improved

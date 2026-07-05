@@ -83,7 +83,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
   const isLoadingPinnedFiles = ref(false)
   const isDraggingOver = ref(false)
 
-  const pinPanelTab = ref<PinPanelTab>('files')
+  const pinPanelTab = ref<PinPanelTab>('custom')
 
   const skills = ref<SkillDefinition[]>([])
   const isLoadingSkills = ref(false)
@@ -469,9 +469,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     pinPanelTab.value =
       chatStore.pinnedPrompt?.mode === 'skill'
         ? 'skill'
-        : chatStore.pinnedPrompt?.mode === 'custom' || chatStore.pinnedPrompt?.mode === 'preset'
-          ? 'custom'
-          : 'files'
+        : 'custom'
 
     await loadPinnedFiles()
     await checkPinnedFilesExistence()

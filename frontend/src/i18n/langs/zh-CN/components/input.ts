@@ -4,7 +4,7 @@ export const zhCNComponentsInput = {
     send: '发送消息',
     stopGenerating: '停止生成',
     attachFile: '添加附件',
-    pinnedFiles: '固定内容',
+    pinnedFiles: '固定上下文',
     createPlan: 'Plan & Run',
     summarizeContext: '总结上下文',
     selectChannel: '选择渠道',
@@ -26,7 +26,7 @@ export const zhCNComponentsInput = {
         addInSettings: '请在设置中添加模型'
     },
     pinnedFilesPanel: {
-        title: '固定内容',
+        title: '固定上下文',
         description: '固定文件会在每次对话发送；Skill/自定义提示词可在这里选择',
         loading: '加载中...',
         empty: '暂无固定文件',

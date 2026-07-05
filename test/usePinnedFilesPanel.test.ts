@@ -66,6 +66,38 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
     expect(panel.customPromptDraft.value).toBe('Remember the pinned prompt')
   })
 
+  it('defaults to the custom tab when no pinned prompt mode is active', async () => {
+    mockChatStore.pinnedPrompt = { mode: 'none' }
+    mockSendToExtension.mockImplementation(async (type: string) => {
+      if (type === 'getPinnedFilesConfig') return { files: [] }
+      if (type === 'skills.list') return { skills: [] }
+      if (type === 'pinnedPromptPresets.list') return { presets: [] }
+      throw new Error(`Unexpected request: ${type}`)
+    })
+
+    const panel = usePinnedFilesPanel({ visible: true }, vi.fn() as any)
+
+    await panel.openPanel()
+
+    expect(panel.pinPanelTab.value).toBe('custom')
+  })
+
+  it('opens directly to the skill tab when a skill is pinned', async () => {
+    mockChatStore.pinnedPrompt = { mode: 'skill', skillId: 'skill.review' }
+    mockSendToExtension.mockImplementation(async (type: string) => {
+      if (type === 'getPinnedFilesConfig') return { files: [] }
+      if (type === 'skills.list') return { skills: [] }
+      if (type === 'pinnedPromptPresets.list') return { presets: [] }
+      throw new Error(`Unexpected request: ${type}`)
+    })
+
+    const panel = usePinnedFilesPanel({ visible: true }, vi.fn() as any)
+
+    await panel.openPanel()
+
+    expect(panel.pinPanelTab.value).toBe('skill')
+  })
+
   it('saves a custom pinned prompt via chatStore using customPrompt', async () => {
     const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
     panel.pinPanelTab.value = 'custom'

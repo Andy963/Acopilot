@@ -10,7 +10,6 @@ import FilePickerPanel from './FilePickerPanel.vue'
 import ComposerTopBar from './ComposerTopBar.vue'
 import InputAreaFooter from './InputAreaFooter.vue'
 import PinnedFilesPanel from './PinnedFilesPanel.vue'
-import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { IconButton } from '../common'
 import { useChatStore } from '../../stores'
@@ -106,9 +105,6 @@ function handlePasteFiles(files: File[]) {
   emit('pasteFiles', files)
 }
 
-// Create Task Modal
-const showCreateTaskModal = ref(false)
-
 // Create Plan Modal
 const showCreatePlanModal = ref(false)
 
@@ -157,7 +153,6 @@ async function handleSummarize() {
 
 <template>
   <div class="input-area">
-    <CreateTaskModal v-model="showCreateTaskModal" />
     <CreatePlanModal v-model="showCreatePlanModal" />
 
     <PinnedFilesPanel
@@ -191,7 +186,6 @@ async function handleSummarize() {
         @remove-attachment="handleRemoveAttachment"
         @remove-selection-reference="chatStore.removeSelectionReference"
         @open-pinned-panel="openPinnedFilesPanel"
-        @open-task-modal="showCreateTaskModal = true"
         @open-plan-modal="showCreatePlanModal = true"
       />
 

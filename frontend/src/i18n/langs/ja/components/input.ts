@@ -4,7 +4,7 @@ export const jaComponentsInput = {
     send: 'メッセージを送信',
     stopGenerating: '生成を停止',
     attachFile: 'ファイルを添付',
-    pinnedFiles: 'ピン留め',
+    pinnedFiles: 'ピン留めコンテキスト',
     createPlan: 'Plan & Run',
     summarizeContext: 'コンテキストを要約',
     selectChannel: 'チャンネルを選択',
@@ -26,7 +26,7 @@ export const jaComponentsInput = {
         addInSettings: '設定でモデルを追加してください'
     },
     pinnedFilesPanel: {
-        title: 'ピン留め',
+        title: 'ピン留めコンテキスト',
         description: 'ピン留めファイルは毎回の会話で送信；Skill/カスタムプロンプトはここで選択できます',
         loading: '読み込み中...',
         empty: 'ピン留めファイルがありません',
