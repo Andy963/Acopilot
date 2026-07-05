@@ -22,9 +22,7 @@ import {
     getLastUserSelectionReferences,
     getLastUserTaskContext,
     getLastUserOpenFileContext,
-    injectOpenFileContextIntoHistory,
-    injectSelectionReferencesIntoHistory,
-    injectTaskContextIntoHistory,
+    injectCurrentTurnContextIntoHistory,
     isOpenAIResponsesContinuationError,
     isOpenAIResponsesPromptCacheKeyError,
     type OpenAIResponsesContinuationState,
@@ -210,13 +208,11 @@ export async function* runToolLoop(
             try {
                 const response = await deps.channelManager.generate({
                     configId,
-                    history: injectSelectionReferencesIntoHistory(
-                        injectOpenFileContextIntoHistory(
-                            injectTaskContextIntoHistory(requestHistory, taskContext),
-                            openFileContext
-                        ),
+                    history: injectCurrentTurnContextIntoHistory(requestHistory, {
+                        taskContext,
+                        openFileContext,
                         selectionReferences
-                    ),
+                    }),
                     abortSignal,
                     dynamicSystemPrompt,
                     previousResponseId: requestPreviousResponseId,

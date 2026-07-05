@@ -2,6 +2,38 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.13] - 2026-07-05
+
+### Fixed
+  - Chat: restore the manual context summarization button in the composer footer so users can compact older conversation history on demand.
+  - Chat: reset OpenAI Responses continuation and prompt-cache state after manual summarization so the next request uses the summarized history instead of stale response state.
+
+## [1.0.61-pre.12] - 2026-07-04
+
+### Added
+  - Pinned Context: add a real global reusable prompt preset library under the custom prompt tab, so saved prompts can be selected again across projects without retyping or converting them into skills.
+
+### Fixed
+  - Pinned Context: restore selected prompt presets for new conversations in the same workspace and inject preset content from global settings.
+  - Pinned Context: keep the custom prompt textarea tall enough to type and edit multi-line prompts after adding preset controls.
+
+## [1.0.61-pre.11] - 2026-07-04
+
+### Added
+  - Pinned Context: persist reusable pinned prompt selections per workspace so new conversations in the same project restore the last selected skill.
+  - Pinned Context: add a "save as skill" flow for custom pinned prompt text so prompts can be reused across conversations and projects without retyping.
+
+### Fixed
+  - Pinned Context: register the `skills.list` webview handler used by the pinned skill selector.
+  - Pinned Context: avoid overwriting existing skills when saving a custom pinned prompt as a reusable skill.
+
+## [1.0.61-pre.10] - 2026-07-04
+
+### Fixed
+  - Chat: keep prior conversation history unchanged while labeling only the final user message as `LATEST USER REQUEST`, so conflicting earlier user instructions do not override the latest request.
+  - Chat: inject conversation-structure semantics into the actual request system instruction instead of the user-editable prompt template.
+  - Chat: mark generated summaries as historical background so old summarized instructions cannot outrank the latest user request.
+
 ## [1.0.61-pre.9] - 2026-07-02
 
 ### Fixed

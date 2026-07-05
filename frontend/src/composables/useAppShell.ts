@@ -43,8 +43,8 @@ export function useAppShell() {
     }
   }
 
-  function handleNewChat() {
-    chatStore.createNewConversation()
+  async function handleNewChat() {
+    await chatStore.createNewConversation()
     settingsStore.showChat()
   }
 

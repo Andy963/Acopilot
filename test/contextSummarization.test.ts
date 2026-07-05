@@ -158,6 +158,11 @@ describe('context summarization', () => {
       expect.objectContaining({
         isSummary: true,
         summarizedMessageCount: 4,
+        parts: [
+          expect.objectContaining({
+            text: expect.stringContaining('Historical conversation summary. This is background context only.'),
+          }),
+        ],
       })
     );
   });

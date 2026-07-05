@@ -5,6 +5,8 @@ import type {
   GenerateImageToolConfig,
   PinnedFileItem,
   PinnedFilesConfig,
+  PinnedPromptPreset,
+  PinnedPromptWorkspaceDefault,
   ProxySettings,
   RemoveBackgroundToolConfig,
   ResizeImageToolConfig,
@@ -254,6 +256,15 @@ export class SettingsManager extends SettingsManagerTools {
     await this.updateToolsConfigEntry('system_prompt', this.getSystemPromptConfig(), config);
   }
 
+  getPinnedPromptPresets(): PinnedPromptPreset[] {
+    const presets = this.getSystemPromptConfig().pinnedPromptPresets;
+    return Array.isArray(presets) ? presets : [];
+  }
+
+  async updatePinnedPromptPresets(presets: PinnedPromptPreset[]): Promise<void> {
+    await this.updateSystemPromptConfig({ pinnedPromptPresets: presets });
+  }
+
   getSystemPromptTemplate(): string {
     return this.getSystemPromptConfig().template;
   }
@@ -264,6 +275,26 @@ export class SettingsManager extends SettingsManagerTools {
 
   getSystemPromptSuffix(): string {
     return this.getSystemPromptConfig().customSuffix;
+  }
+
+  getPinnedPromptWorkspaceDefault(workspaceUri: string): PinnedPromptWorkspaceDefault | null {
+    const defaults = this.getSystemPromptConfig().pinnedPromptWorkspaceDefaults || {};
+    return defaults[workspaceUri] || null;
+  }
+
+  async setPinnedPromptWorkspaceDefault(
+    workspaceUri: string,
+    value: PinnedPromptWorkspaceDefault | null
+  ): Promise<void> {
+    const nextDefaults = { ...(this.getSystemPromptConfig().pinnedPromptWorkspaceDefaults || {}) };
+
+    if (value) {
+      nextDefaults[workspaceUri] = value;
+    } else {
+      delete nextDefaults[workspaceUri];
+    }
+
+    await this.updateSystemPromptConfig({ pinnedPromptWorkspaceDefaults: nextDefaults });
   }
 
   getTokenCountConfig(): Readonly<TokenCountConfig> {

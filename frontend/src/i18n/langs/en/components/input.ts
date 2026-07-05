@@ -27,7 +27,7 @@ export const enComponentsInput = {
     },
     pinnedFilesPanel: {
         title: 'Pinned',
-        description: 'Pinned files are sent in every chat; Skill/custom prompt only applies to the current conversation',
+        description: 'Pinned files are sent in every chat; Skill/custom prompt can be selected here',
         loading: 'Loading...',
         empty: 'No pinned files',
         notExists: 'Does not exist',
@@ -53,12 +53,21 @@ export const enComponentsInput = {
             manageHint: 'Manage skills in Settings > System Prompt'
         },
         custom: {
+            presetsLabel: 'Saved prompts',
+            presetsEmptyOption: 'Choose a saved prompt',
+            presetsEmpty: 'No saved prompts yet. Save one below to reuse it across projects.',
+            selectedPresetHint: 'Selected saved prompt: {name}',
             label: 'Custom Prompt',
             placeholder: 'Enter a prompt that only applies to the current conversation...',
-            save: 'Save',
+            save: 'Use for this conversation',
             clear: 'Clear',
-            hint: 'After saving, it will be injected into the system prompt for this conversation'
-        }
+            hint: 'This only applies to the current conversation. Save as a reusable prompt below to reuse it across projects.',
+            saveAsPresetLabel: 'Save as reusable prompt',
+            saveAsPresetNamePlaceholder: 'Prompt name',
+            saveAsPresetButton: 'Save prompt',
+            saveAsPresetHint: 'Saved prompts persist globally and can be selected again in other projects'
+        },
+        workspaceDefaultApplied: 'Applied the pinned prompt remembered for this project'
     },
     messageContextOverrides: {
         title: 'This message',
@@ -96,6 +105,7 @@ export const enComponentsInput = {
         fileInOtherWorkspace: 'File belongs to another workspace: {workspaceName}',
         fileAdded: 'Added pinned file: {path}',
         addFailed: 'Add failed: {error}',
+        loadPinnedPromptPresetsFailed: 'Load saved prompts failed: {error}',
         cannotGetFilePath: 'Cannot get file path, please drag from VSCode Explorer or tab',
         fileNotMatchOrNotInWorkspace: 'File is not in workspace or filename does not match',
         removeFailed: 'Remove failed: {error}'

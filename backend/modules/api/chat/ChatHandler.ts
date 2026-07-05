@@ -337,7 +337,17 @@ export class ChatHandler {
     async handleSummarizeContext(
         request: SummarizeContextRequestData
     ): Promise<SummarizeContextSuccessData | SummarizeContextErrorData> {
-        return this.summarizeService.handleSummarizeContext(request);
+        const result = await this.summarizeService.handleSummarizeContext(request);
+        if (result.success) {
+            const config = await this.configManager.getConfig(request.configId);
+            if (config?.type === 'openai-responses') {
+                await this.toolIterationLoopService.resetOpenAIResponsesContinuationState(
+                    request.conversationId,
+                    request.configId
+                );
+            }
+        }
+        return result;
     }
 
     /**

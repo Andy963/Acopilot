@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import UnifiedModelSelector, { type UnifiedModelOption } from './UnifiedModelSelector.vue'
 import SendButton from './SendButton.vue'
-import { CustomSelect, type SelectOption } from '../common'
+import { CustomSelect, IconButton, Tooltip, type SelectOption } from '../common'
 import { formatNumber } from '../../utils/format'
 import { useI18n } from '../../i18n'
 import type { Attachment } from '../../types'
@@ -30,6 +30,7 @@ const emit = defineEmits<{
   updateThinkingEffort: [value: string]
   updateChatMode: [value: string]
   openContextInspector: [attachments?: Attachment[]]
+  summarize: []
   send: []
   cancel: []
 }>()
@@ -142,6 +143,17 @@ function emitOpenContextInspector() {
     </div>
 
     <div ref="composerFooterActionsRef" class="composer-footer-actions">
+      <Tooltip :content="t('components.input.summarizeContext')" placement="top">
+        <IconButton
+          icon="codicon-fold"
+          size="small"
+          class="summarize-button"
+          :disabled="props.isWaitingForResponse"
+          :aria-label="t('components.input.summarizeContext')"
+          @click="emit('summarize')"
+        />
+      </Tooltip>
+
       <div class="token-ring-wrapper" @click="emitOpenContextInspector">
         <svg class="token-ring" width="22" height="22" viewBox="0 0 22 22">
           <circle
@@ -221,6 +233,10 @@ function emitOpenContextInspector() {
   flex-wrap: nowrap;
   justify-content: flex-end;
   margin-left: auto;
+}
+
+.summarize-button :deep(i.codicon) {
+  font-size: 14px;
 }
 
 .model-selector-wrapper {
