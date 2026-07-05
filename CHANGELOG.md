@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.13] - 2026-07-05
+
+### Fixed
+  - Chat: restore the manual context summarization button in the composer footer so users can compact older conversation history on demand.
+  - Chat: reset OpenAI Responses continuation and prompt-cache state after manual summarization so the next request uses the summarized history instead of stale response state.
+
 ## [1.0.61-pre.12] - 2026-07-04
 
 ### Added

@@ -170,7 +170,7 @@ export class ToolIterationLoopService {
         return { lastAt: v.lastAt, lastHistoryLength: v.lastHistoryLength };
     }
 
-    private async resetOpenAIResponsesContinuationState(conversationId: string, configId: string): Promise<void> {
+    async resetOpenAIResponsesContinuationState(conversationId: string, configId: string): Promise<void> {
         await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
         const promptCacheKey = createOpenAIResponsesPromptCacheKey(conversationId, configId);
         const nextState: OpenAIResponsesPromptCacheState = { configId, promptCacheKey };

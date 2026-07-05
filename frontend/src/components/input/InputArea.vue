@@ -19,6 +19,7 @@ import { useInputAreaConfig } from './useInputAreaConfig'
 import { useInputAreaInput } from './useInputAreaInput'
 import { useAtFilePicker } from './useAtFilePicker'
 import { useI18n } from '../../i18n'
+import { showNotification } from '../../utils/vscode'
 
 // 固定文件项类型
 const props = defineProps<{
@@ -126,6 +127,32 @@ function openPinnedFilesPanel() {
   showPinnedFilesPanel.value = true
 }
 
+async function handleSummarize() {
+  try {
+    const result = await chatStore.summarizeContext()
+
+    if (!result.success) {
+      await showNotification(
+        t('components.input.notifications.summarizeFailed', { error: result.error || t('common.unknownError') }),
+        'error'
+      )
+      return
+    }
+
+    if (result.summarizedMessageCount && result.summarizedMessageCount > 0) {
+      await showNotification(
+        t('components.input.notifications.summarizeSuccess', { count: result.summarizedMessageCount }),
+        'info'
+      )
+    }
+  } catch (error: any) {
+    await showNotification(
+      t('components.input.notifications.summarizeError', { error: error.message || t('common.unknownError') }),
+      'error'
+    )
+  }
+}
+
 </script>
 
 <template>
@@ -222,6 +249,7 @@ function openPinnedFilesPanel() {
         @update-thinking-effort="handleThinkingEffortChange"
         @update-chat-mode="(value) => chatStore.setChatMode(value as any)"
         @open-context-inspector="(atts) => chatStore.openContextInspectorPreview(atts)"
+        @summarize="handleSummarize"
         @send="handleSend"
         @cancel="handleCancel"
       />
