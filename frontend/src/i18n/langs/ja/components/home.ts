@@ -5,5 +5,7 @@ export const jaComponentsHome = {
     quickStart: 'クイックスタート',
     recentChats: '最近の会話',
     noRecentChats: '会話履歴がありません',
-    viewAll: 'すべて表示'
+    viewAll: 'すべて表示',
+    configureModel: 'モデルを設定',
+    searchHistory: '履歴を検索'
 };

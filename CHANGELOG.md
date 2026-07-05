@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.1] - 2026-07-05
+
+### Improved
+  - Welcome: show a primary "Configure Model" call-to-action when no channel/model is configured yet, so first-time users can reach setup immediately.
+  - Welcome: display workspace info on recent conversations and add a more prominent history search entry.
+  - History: extend search to match preview text, workspace, message count, and dates instead of title only.
+  - History: add sort (updated/created/title/messages) and grouping (by date/workspace) controls.
+  - History: add multi-select bulk management with delete-selected, delete-visible, and delete-by-group actions.
+  - History: route all conversation deletion (welcome and history page) through a shared confirmation dialog showing the affected title or count.
+
 ## [1.0.61-pre.13] - 2026-07-05
 
 ### Fixed

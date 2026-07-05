@@ -9,7 +9,8 @@
  * 用户可以在下方输入框输入消息开始新对话
  */
 
-import { CustomScrollbar } from '../common'
+import { computed, ref } from 'vue'
+import { ConfirmDialog, CustomScrollbar } from '../common'
 import ConversationList from '../history/ConversationList.vue'
 import { useChatStore, useSettingsStore } from '@/stores'
 import { useI18n } from '@/i18n'
@@ -18,6 +19,25 @@ const { t } = useI18n()
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
 
+const needsModelConfig = computed(() => !chatStore.configId || !chatStore.currentConfig)
+const pendingDeleteId = ref<string | null>(null)
+const showDeleteConfirm = ref(false)
+const pendingDeleteMessage = computed(() => {
+  const id = pendingDeleteId.value
+  const conversation = id ? chatStore.conversations.find(item => item.id === id) : null
+  return t('components.history.deleteConversationConfirmMessage', {
+    title: conversation?.title || t('components.history.noTitle')
+  })
+})
+
+function handleConfigureModel() {
+  settingsStore.showSettings('channel')
+}
+
+function handleOpenHistorySearch() {
+  settingsStore.showHistory()
+}
+
 // 处理选择对话
 async function handleSelect(id: string) {
   await chatStore.switchConversation(id)
@@ -25,6 +45,15 @@ async function handleSelect(id: string) {
 
 // 处理删除对话
 async function handleDelete(id: string) {
+  if (chatStore.isDeletingConversation(id)) return
+  pendingDeleteId.value = id
+  showDeleteConfirm.value = true
+}
+
+async function confirmDelete() {
+  const id = pendingDeleteId.value
+  pendingDeleteId.value = null
+  if (!id) return
   await chatStore.deleteConversation(id)
 }
 </script>
@@ -44,6 +73,20 @@ async function handleDelete(id: string) {
         <p class="welcome-hint">
           {{ t('components.home.welcomeHint') }}
         </p>
+        <div class="welcome-actions">
+          <button
+            v-if="needsModelConfig"
+            class="primary-action-btn"
+            @click="handleConfigureModel"
+          >
+            <i class="codicon codicon-settings-gear"></i>
+            {{ t('components.home.configureModel') }}
+          </button>
+          <button class="secondary-action-btn" @click="handleOpenHistorySearch">
+            <i class="codicon codicon-search"></i>
+            {{ t('components.home.searchHistory') }}
+          </button>
+        </div>
       </div>
     </div>
     
@@ -51,7 +94,8 @@ async function handleDelete(id: string) {
     <div class="history-section" v-if="chatStore.filteredConversations.length > 0 || chatStore.isLoadingConversations">
       <div class="section-header">
         <h2 class="section-title">{{ t('components.home.recentChats') }}</h2>
-        <button class="view-all-btn" @click="settingsStore.showHistory" v-if="!chatStore.isLoadingConversations">
+        <button class="view-all-btn prominent" @click="settingsStore.showHistory" v-if="!chatStore.isLoadingConversations">
+          <i class="codicon codicon-history"></i>
           {{ t('components.home.viewAll') }}
           <i class="codicon codicon-chevron-right"></i>
         </button>
@@ -63,6 +107,7 @@ async function handleDelete(id: string) {
           :current-id="chatStore.currentConversationId"
           :loading="chatStore.isLoadingConversations"
           :format-time="chatStore.formatTime"
+          show-workspace
           @select="handleSelect"
           @delete="handleDelete"
         />
@@ -73,6 +118,16 @@ async function handleDelete(id: string) {
     <div class="no-history" v-else-if="!chatStore.isLoadingConversations">
       <p class="no-history-text">{{ t('components.home.noRecentChats') }}</p>
     </div>
+
+    <ConfirmDialog
+      v-model="showDeleteConfirm"
+      :title="t('components.history.deleteConversation')"
+      :message="pendingDeleteMessage"
+      :confirm-text="t('components.history.confirmDelete')"
+      :cancel-text="t('components.history.cancel')"
+      is-danger
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
@@ -136,6 +191,45 @@ async function handleDelete(id: string) {
   opacity: 0.7;
 }
 
+.welcome-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.primary-action-btn,
+.secondary-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.primary-action-btn {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-background);
+}
+
+.primary-action-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.secondary-action-btn {
+  color: var(--vscode-foreground);
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.secondary-action-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
 /* 历史对话区域 */
 .history-section {
   flex: 1;
@@ -173,6 +267,10 @@ async function handleDelete(id: string) {
   font-size: 11px;
   cursor: pointer;
   transition: background 0.15s;
+}
+
+.view-all-btn.prominent {
+  border: 1px solid var(--vscode-panel-border);
 }
 
 .view-all-btn:hover {
