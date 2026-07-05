@@ -1,6 +1,7 @@
 import type { ToolUsage } from '../../types'
 import { isReadOnlyShellCommand } from '../../utils/commandReadOnly'
 import { getToolConfig } from '../../utils/toolRegistry'
+import { getValidationPresetMetadata } from '../../stores/chat/validationPresets'
 
 export type Translator = (key: string, params?: Record<string, unknown>) => string
 
@@ -77,6 +78,16 @@ export function toolClassName(name: string): string {
 }
 
 export function getToolLabel(tool: ToolUsage): string {
+  if (tool.name === 'execute_command') {
+    const preset = getValidationPresetMetadata(tool.args)
+    if (preset?.label) {
+      return `Validation: ${preset.label}`
+    }
+    if (preset?.id) {
+      return 'Validation'
+    }
+  }
+
   const config = getToolConfig(tool.name)
   return config?.label || tool.name
 }

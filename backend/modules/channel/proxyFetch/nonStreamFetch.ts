@@ -1,17 +1,19 @@
-import * as http from 'http';
+import * as net from 'net';
 import * as tls from 'tls';
 import { URL } from 'url';
 
 import { DEFAULT_TIMEOUT_MS, USER_AGENT } from './constants';
+import { resolveProxyUrl } from './resolveProxyUrl';
 import type { FetchOptions, FetchResponse } from './types';
 
 export function createProxyFetch(proxyUrl?: string) {
-    if (!proxyUrl) {
-        return fetch;
-    }
-
     return async (url: string | URL, init?: RequestInit): Promise<Response> => {
         const targetUrl = typeof url === 'string' ? new URL(url) : url;
+        const resolvedProxyUrl = resolveProxyUrl({ configuredProxyUrl: proxyUrl, targetUrl });
+        if (!resolvedProxyUrl) {
+            return fetch(targetUrl, init);
+        }
+
         const options: FetchOptions = {
             method: init?.method || 'GET',
             headers: {
@@ -23,7 +25,7 @@ export function createProxyFetch(proxyUrl?: string) {
             signal: init?.signal
         };
 
-        const response = await fetchWithProxy(targetUrl, options, proxyUrl);
+        const response = await fetchWithProxy(targetUrl, options, resolvedProxyUrl);
 
         const responseText = await response.text();
         return new Response(responseText, {
@@ -43,6 +45,8 @@ async function fetchWithProxy(
     const targetHost = targetUrl.hostname;
     const targetPort = targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80);
     const isHttps = targetUrl.protocol === 'https:';
+    const proxyPort = parseInt(proxyParsed.port || (proxyParsed.protocol === 'https:' ? '443' : '80'), 10);
+    const proxyAuthorization = buildProxyAuthorization(proxyParsed);
 
     if (init.signal?.aborted) {
         throw new Error('Request cancelled');
@@ -51,63 +55,82 @@ async function fetchWithProxy(
     return new Promise((resolve, reject) => {
         const timeout = init.timeout || DEFAULT_TIMEOUT_MS;
 
-        const proxyReq = http.request({
-            hostname: proxyParsed.hostname,
-            port: proxyParsed.port || 80,
-            method: 'CONNECT',
-            path: `${targetHost}:${targetPort}`,
-            timeout
+        // Use net.connect directly to bypass VS Code's http.request patch.
+        const rawSocket = net.connect(proxyPort, proxyParsed.hostname, () => {
+            const connectHeaders = [`CONNECT ${targetHost}:${targetPort} HTTP/1.1`, `Host: ${targetHost}:${targetPort}`];
+            if (proxyAuthorization) {
+                connectHeaders.push(`Proxy-Authorization: ${proxyAuthorization}`);
+            }
+            rawSocket.write(connectHeaders.join('\r\n') + '\r\n\r\n');
         });
 
+        rawSocket.setTimeout(timeout);
+
         const onAbort = () => {
-            proxyReq.destroy();
+            rawSocket.destroy();
             reject(new Error('Request cancelled'));
         };
         if (init.signal) {
             init.signal.addEventListener('abort', onAbort, { once: true });
         }
 
-        proxyReq.on('connect', (res, socket) => {
-            if (res.statusCode !== 200) {
-                socket.destroy();
-                reject(new Error(`Proxy CONNECT failed: ${res.statusCode}`));
+        let connectBuffer = '';
+        const onData = (chunk: Buffer) => {
+            connectBuffer += chunk.toString('utf8');
+            const headerEnd = connectBuffer.indexOf('\r\n\r\n');
+            if (headerEnd === -1) return;
+
+            rawSocket.removeListener('data', onData);
+
+            const statusMatch = connectBuffer.match(/HTTP\/\d\.\d (\d+)/);
+            const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+            if (statusCode !== 200) {
+                rawSocket.destroy();
+                reject(new Error(`Proxy CONNECT failed: ${statusCode}`));
                 return;
             }
 
             if (isHttps) {
                 const tlsSocket = tls.connect({
-                    socket: socket,
+                    socket: rawSocket,
                     servername: targetHost,
                     rejectUnauthorized: false
                 }, () => {
                     sendRequestOverSocket(tlsSocket, targetUrl, init, resolve, reject);
                 });
-
                 tlsSocket.on('error', (error: Error) => {
                     reject(new Error(`TLS error: ${error.message}`));
                 });
             } else {
-                sendRequestOverSocket(socket, targetUrl, init, resolve, reject);
+                sendRequestOverSocket(rawSocket, targetUrl, init, resolve, reject);
             }
-        });
+        };
 
-        proxyReq.on('error', (error) => {
+        rawSocket.on('data', onData);
+
+        rawSocket.on('error', (error) => {
             if (init.signal) {
                 init.signal.removeEventListener('abort', onAbort);
             }
             reject(new Error(`Proxy request failed: ${error.message}`));
         });
 
-        proxyReq.on('timeout', () => {
+        rawSocket.on('timeout', () => {
             if (init.signal) {
                 init.signal.removeEventListener('abort', onAbort);
             }
-            proxyReq.destroy();
+            rawSocket.destroy();
             reject(new Error('Proxy request timeout'));
         });
-
-        proxyReq.end();
     });
+}
+
+function buildProxyAuthorization(proxyUrl: URL): string | undefined {
+    if (!proxyUrl.username && !proxyUrl.password) return undefined;
+
+    const username = decodeURIComponent(proxyUrl.username || '');
+    const password = decodeURIComponent(proxyUrl.password || '');
+    return `Basic ${Buffer.from(`${username}:${password}`, 'utf8').toString('base64')}`;
 }
 
 function sendRequestOverSocket(
@@ -330,4 +353,3 @@ function decodeChunkedBuffer(data: Buffer): string {
 
     return Buffer.concat(resultChunks).toString('utf8');
 }
-

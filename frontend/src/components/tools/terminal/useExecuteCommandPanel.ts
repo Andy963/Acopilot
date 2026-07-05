@@ -1,4 +1,4 @@
-import { computed, nextTick, onMounted, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useTerminalStore } from '../../../stores/terminalStore'
 import { sendToExtension } from '../../../utils/vscode'
 import {

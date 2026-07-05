@@ -234,8 +234,11 @@ export class VSCodeFileSystemMcpStorageAdapter implements McpStorageAdapter {
     /**
      * 将 JSON 格式转换为 McpServerConfig
      * 支持简化格式：只有 command 和 args
+     * 返回 null 表示条目无效，应跳过
      */
-    private jsonToConfig(id: string, json: McpServerJsonEntry): McpServerConfig {
+    private jsonToConfig(id: string, json: McpServerJsonEntry): McpServerConfig | null {
+        if (!json || typeof json !== 'object') return null;
+
         const type = this.inferType(json);
         const transport: any = { type };
         
@@ -302,7 +305,12 @@ export class VSCodeFileSystemMcpStorageAdapter implements McpStorageAdapter {
 
     async getAllConfigs(): Promise<McpServerConfig[]> {
         const data = await this.readFile();
-        return Object.entries(data.mcpServers).map(([id, json]) => this.jsonToConfig(id, json));
+        const results: McpServerConfig[] = [];
+        for (const [id, json] of Object.entries(data.mcpServers)) {
+            const config = this.jsonToConfig(id, json);
+            if (config) results.push(config);
+        }
+        return results;
     }
 
     async saveConfig(config: McpServerConfig): Promise<void> {
@@ -321,6 +329,6 @@ export class VSCodeFileSystemMcpStorageAdapter implements McpStorageAdapter {
         const data = await this.readFile();
         const json = data.mcpServers[id];
         if (!json) return null;
-        return this.jsonToConfig(id, json);
+        return this.jsonToConfig(id, json) ?? null;
     }
 }

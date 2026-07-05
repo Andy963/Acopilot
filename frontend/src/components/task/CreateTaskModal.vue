@@ -21,7 +21,6 @@ const {
   analysisProgress,
   intentSummary,
   suggestedPrompt,
-  taskContext,
   promptExpanded,
   canCreate,
   handleOpenIssue,

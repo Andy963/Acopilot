@@ -5,7 +5,13 @@ import { convertToolsToXML } from '../../../../../tools/xmlFormatter';
 
 import type { ToolIterationLoopDeps } from './deps';
 import type { ToolIterationLoopConfig } from './types';
-import { buildSnapshotModules, countMcpTools, getOrInitConversationStartTime, truncatePreview } from './helpers';
+import {
+    appendConversationMessageSemantics,
+    buildSnapshotModules,
+    countMcpTools,
+    getOrInitConversationStartTime,
+    truncatePreview
+} from './helpers';
 
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
 import { getSelectionReferencesInjectedInfo } from '../selectionReferences';
@@ -23,6 +29,8 @@ export async function buildPromptAndSnapshot(params: {
     toolsEnabled: boolean;
     pinnedPromptEnabled: boolean;
     toolAllowList?: string[];
+    estimatedTotalTokens?: number;
+    maxContextTokens?: number;
 }): Promise<{
     dynamicSystemPrompt: string;
     toolMode: ContextSnapshotTools['toolMode'];
@@ -40,7 +48,9 @@ export async function buildPromptAndSnapshot(params: {
         selectionReferences,
         toolsEnabled,
         pinnedPromptEnabled,
-        toolAllowList
+        toolAllowList,
+        estimatedTotalTokens,
+        maxContextTokens
     } = params;
 
     const { conversationId, configId, config, isFirstMessage = false } = loopConfig;
@@ -98,6 +108,8 @@ export async function buildPromptAndSnapshot(params: {
             : toolsDefinition;
     }
 
+    systemInstruction = appendConversationMessageSemantics(systemInstruction);
+
     const sysPreview = truncatePreview(systemInstruction, 25000);
     const toolDefPreview = toolsDefinition
         ? truncatePreview(toolsDefinition, 12000)
@@ -135,6 +147,8 @@ export async function buildPromptAndSnapshot(params: {
         configId,
         providerType: config.type,
         model: (config as any).model || '',
+        estimatedTotalTokens,
+        maxContextTokens,
         tools: {
             toolMode,
             total: declarations.length,

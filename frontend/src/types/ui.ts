@@ -1,3 +1,5 @@
+import type { Message } from './message'
+
 // ============ Context Inspector ============
 
 export interface ContextInspectorModule {
@@ -39,9 +41,11 @@ export interface ContextInjectedPinnedFiles {
 }
 
 export interface ContextInjectedPinnedPrompt {
-  mode: 'none' | 'skill' | 'custom'
+  mode: 'none' | 'skill' | 'custom' | 'preset'
   skillId?: string
   skillName?: string
+  presetId?: string
+  presetName?: string
   customPromptCharCount?: number
 }
 
@@ -87,6 +91,8 @@ export interface ContextInspectorData {
   configId: string
   providerType: string
   model: string
+  estimatedTotalTokens?: number
+  maxContextTokens?: number
   tools: ContextInspectorTools
   systemInstructionPreview: string
   systemInstructionCharCount: number

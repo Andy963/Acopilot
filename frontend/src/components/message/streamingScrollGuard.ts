@@ -53,4 +53,3 @@ export function computeGuardAction(
   if (clampDeltaPx <= 0) return { nextState: state, clampDeltaPx: 0 }
   return { nextState: pauseForGuard(state), clampDeltaPx }
 }
-

@@ -1,52 +1,50 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  computeAnchorClampDelta,
   computeGuardAction,
   createInitialStreamingFollowState,
+  pauseForUserScroll,
   resetForNewStream,
-  resumeFollowLatest
+  resetAfterStreamEnd,
+  resumeFollowLatest,
+  shouldShowJumpToLatest
 } from '../frontend/src/components/message/streamingScrollGuard'
 
 describe('streaming scroll guard', () => {
-  it('computes a clamp delta only when the anchor is above the visible threshold', () => {
-    expect(
-      computeAnchorClampDelta({
-        containerTopPx: 100,
-        anchorTopPx: 120,
-        marginPx: 8
-      })
-    ).toBe(0)
-
-    expect(
-      computeAnchorClampDelta({
-        containerTopPx: 100,
-        anchorTopPx: 90,
-        marginPx: 8
-      })
-    ).toBe(18)
-  })
-
-  it('pauses following when guard is enabled and clamp is needed', () => {
+  it('allows streaming to follow by default', () => {
     const state = createInitialStreamingFollowState()
-    const result = computeGuardAction(state, 12)
-    expect(result.clampDeltaPx).toBe(12)
-    expect(result.nextState.mode).toBe('paused_guard')
+    expect(state).toEqual({ mode: 'following', guardEnabled: true })
+    expect(shouldShowJumpToLatest(true, state)).toBe(false)
   })
 
-  it('does not guard when follow-latest is explicitly resumed', () => {
-    const state = resumeFollowLatest(createInitialStreamingFollowState())
-    const result = computeGuardAction(state, 12)
-    expect(result.clampDeltaPx).toBe(0)
-    expect(result.nextState.mode).toBe('following')
+  it('shows jump-to-latest only after the user manually pauses streaming follow', () => {
+    const paused = pauseForUserScroll(createInitialStreamingFollowState())
+    expect(paused).toEqual({ mode: 'paused_user', guardEnabled: true })
+    expect(shouldShowJumpToLatest(true, paused)).toBe(true)
+    expect(shouldShowJumpToLatest(false, paused)).toBe(false)
   })
 
-  it('resets to guarded following on new stream', () => {
-    const state = resumeFollowLatest(createInitialStreamingFollowState())
-    const reset = resetForNewStream()
-    expect(state.guardEnabled).toBe(false)
-    expect(reset.guardEnabled).toBe(true)
-    expect(reset.mode).toBe('following')
+  it('resumes following when jump-to-latest is triggered', () => {
+    const resumed = resumeFollowLatest(pauseForUserScroll(createInitialStreamingFollowState()))
+    expect(resumed).toEqual({ mode: 'following', guardEnabled: false })
+  })
+
+  it('resets to following when a new stream starts or ends', () => {
+    const paused = pauseForUserScroll(createInitialStreamingFollowState())
+    expect(resetForNewStream()).toEqual({ mode: 'following', guardEnabled: true })
+    expect(resetAfterStreamEnd()).toEqual({ mode: 'following', guardEnabled: true })
+    expect(resumeFollowLatest(paused)).toEqual({ mode: 'following', guardEnabled: false })
+  })
+
+  it('disables guard clamping after jump-to-latest until the next stream reset', () => {
+    const resumed = resumeFollowLatest(createInitialStreamingFollowState())
+    expect(computeGuardAction(resumed, 24)).toEqual({
+      nextState: { mode: 'following', guardEnabled: false },
+      clampDeltaPx: 0
+    })
+    expect(computeGuardAction(resetForNewStream(), 24)).toEqual({
+      nextState: { mode: 'paused_guard', guardEnabled: true },
+      clampDeltaPx: 24
+    })
   })
 })
-

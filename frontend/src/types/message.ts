@@ -1,3 +1,6 @@
+import type { Attachment, ToolCall, ToolResult, ToolUsage } from './chatApi'
+import type { ContextInjectionOverrides, ContextInspectorData } from './ui'
+
 /**
  * Acopilot 前端类型定义
  */

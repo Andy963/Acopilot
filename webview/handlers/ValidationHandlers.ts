@@ -37,7 +37,7 @@ function findLatestThoughtSignatures(history: ReadonlyArray<Content>): ThoughtSi
 }
 
 export const runValidationCommand: MessageHandler = async (data, requestId, ctx) => {
-  const { conversationId, toolCallId, command, cwd, shell, timeout } = data || {};
+  const { conversationId, toolCallId, command, cwd, shell, timeout, presetId, presetLabel } = data || {};
 
   if (!conversationId || typeof conversationId !== 'string') {
     ctx.sendError(requestId, 'RUN_VALIDATION_COMMAND_ERROR', 'conversationId is required');
@@ -56,6 +56,8 @@ export const runValidationCommand: MessageHandler = async (data, requestId, ctx)
   if (typeof cwd === 'string' && cwd.trim()) toolArgs.cwd = cwd;
   if (typeof shell === 'string' && shell.trim()) toolArgs.shell = shell;
   if (typeof timeout === 'number') toolArgs.timeout = timeout;
+  if (typeof presetId === 'string' && presetId.trim()) toolArgs.validationPresetId = presetId.trim();
+  if (typeof presetLabel === 'string' && presetLabel.trim()) toolArgs.validationPresetLabel = presetLabel.trim();
 
   // 兼容 Gemini Thinking：在 function_call 流程中需要回传 thoughtSignature。
   // 校验预设是“用户主动触发”的本地工具执行，但为了不破坏后续对话请求的历史结构，

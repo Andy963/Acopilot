@@ -3,7 +3,7 @@
  */
 
 import type { Message } from '../../types'
-import { translate } from '../../composables/useI18n'
+import { translate } from '../../i18n'
 import { useSettingsStore } from '../settingsStore'
 
 /**

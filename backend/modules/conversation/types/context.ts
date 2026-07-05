@@ -42,9 +42,11 @@ export interface ContextInjectedPinnedFiles {
 }
 
 export interface ContextInjectedPinnedPrompt {
-    mode: 'none' | 'skill' | 'custom';
+    mode: 'none' | 'skill' | 'custom' | 'preset';
     skillId?: string;
     skillName?: string;
+    presetId?: string;
+    presetName?: string;
     customPromptCharCount?: number;
 }
 
@@ -90,6 +92,8 @@ export interface ContextSnapshot {
     configId: string;
     providerType: string;
     model: string;
+    estimatedTotalTokens?: number;
+    maxContextTokens?: number;
     tools: ContextSnapshotTools;
     systemInstructionPreview: string;
     systemInstructionCharCount: number;

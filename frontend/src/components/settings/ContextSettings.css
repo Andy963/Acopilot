@@ -293,14 +293,19 @@
 
 .preview-content {
   font-size: 12px;
+  min-width: 0;
 }
 
 .preview-content code {
   display: inline-block;
+  max-width: 100%;
   padding: 2px 6px;
   margin: 2px;
   font-family: var(--vscode-editor-font-family);
   font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   background: var(--vscode-textCodeBlock-background);
   border-radius: 3px;
 }
@@ -309,6 +314,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
 }
 
 .truncated {

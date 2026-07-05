@@ -25,7 +25,7 @@ export async function loadOpenAIResponsesState(params: {
     previousResponseId?: string;
     history: Content[];
 }> {
-    const { deps, conversationId, configId, configType, fullHistory, trimStartIndex } = params;
+    const { deps, conversationId, configId, configType, fullHistory } = params;
     let history = params.history;
 
     let openaiResponsesFeatures: OpenAIResponsesFeatures | null = null;
@@ -84,13 +84,13 @@ export async function loadOpenAIResponsesState(params: {
             if (lastSyncedHistoryLength > fullHistory.length) {
                 await deps.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
                 await deps.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY, null);
-            } else if (lastSyncedHistoryLength > 0 && lastSyncedHistoryLength < fullHistory.length) {
-                const relativeStart = Math.max(0, lastSyncedHistoryLength - trimStartIndex);
-                const deltaHistory = history.slice(relativeStart);
-                if (deltaHistory.length > 0) {
-                    previousResponseId = state.previousResponseId;
-                    history = deltaHistory;
-                }
+            } else if (lastSyncedHistoryLength > 0) {
+                // Keep sending the full trimmed history even when continuation
+                // metadata exists. Many OpenAI-compatible gateways accept
+                // previous_response_id syntactically but do not actually replay
+                // the server-side context faithfully, which can look like the
+                // conversation lost all prior turns.
+                previousResponseId = state.previousResponseId;
             }
         }
     }

@@ -1,7 +1,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useSettingsStore, type SettingsTab } from '@/stores/settingsStore'
 import { sendToExtension } from '@/utils/vscode'
-import { useI18n, SUPPORTED_LANGUAGES } from '@/i18n'
+import { normalizeSupportedLanguage, useI18n, SUPPORTED_LANGUAGES } from '@/i18n'
+import type { SupportedLanguage } from '@/i18n/types'
 import type { SelectOption } from '../common'
 
 interface TabItem {
@@ -60,7 +61,7 @@ export function useSettingsPanel() {
     url: '',
   })
 
-  const languageSetting = ref<string>('auto')
+  const languageSetting = ref<SupportedLanguage>('auto')
   const isSaving = ref(false)
   const saveMessage = ref('')
 
@@ -89,8 +90,9 @@ export function useSettingsPanel() {
       }
 
       if (response?.settings?.ui?.language) {
-        languageSetting.value = response.settings.ui.language
-        setLanguage(response.settings.ui.language)
+        const nextLanguage = normalizeSupportedLanguage(response.settings.ui.language)
+        languageSetting.value = nextLanguage
+        setLanguage(nextLanguage)
       }
 
       await loadStorageConfig()
@@ -285,12 +287,13 @@ export function useSettingsPanel() {
   }
 
   async function updateLanguage(lang: string) {
-    languageSetting.value = lang
-    setLanguage(lang as any)
+    const nextLanguage = normalizeSupportedLanguage(lang)
+    languageSetting.value = nextLanguage
+    setLanguage(nextLanguage)
 
     try {
       await sendToExtension('updateUISettings', {
-        ui: { language: lang },
+        ui: { language: nextLanguage },
       })
     } catch (error) {
       console.error('Failed to save language setting:', error)

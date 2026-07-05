@@ -6,6 +6,7 @@
 
 import { t } from '../../../i18n';
 import { redactSensitiveText } from '../../../core/redaction';
+import { estimateTextTokens } from '../chat/services/TokenEstimationService';
 import type { SettingsManager } from '../../settings/SettingsManager';
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import type {
@@ -414,7 +415,7 @@ export class SettingsHandler {
     }> {
         return {
             success: true,
-            totalTokens: Math.ceil((request.text || '').length / 4)
+            totalTokens: estimateTextTokens(request.text || '')
         };
     }
 }

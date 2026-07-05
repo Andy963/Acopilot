@@ -17,6 +17,7 @@ const {
   riskAutoExecuteOptions,
   validationKindOptions,
   loadConfig,
+  saveConfig,
   toggleShell,
   updateShellPath,
   setDefaultShell,

@@ -217,53 +217,7 @@ export function useMessageItem(
     )
   })
 
-  const contextSnapshot = computed(() => props.message.metadata?.contextSnapshot)
   const hasContextSnapshot = computed(() => !!props.message.metadata?.contextSnapshot)
-
-  const showContextUsedCard = computed(() => {
-    if (isUser.value || isTool.value || isSummary.value) return false
-    if (!props.message.metadata?.contextSnapshot) return false
-
-    const hasFunctionCall = (m: Message) => m.parts?.some((p) => p.functionCall)
-    if (hasFunctionCall(props.message)) return false
-
-    const all = chatStore.allMessages
-    const currentIndex = props.messageIndex
-    if (!Array.isArray(all) || currentIndex <= 0 || currentIndex >= all.length) return true
-
-    let lastUserIndex = -1
-    for (let i = currentIndex - 1; i >= 0; i--) {
-      const m = all[i]
-      if (!m || m.role !== 'user') continue
-      if (m.isFunctionResponse === true) continue
-      if (m.isSummary === true) continue
-      lastUserIndex = i
-      break
-    }
-
-    if (lastUserIndex < 0) {
-      for (let i = 0; i < currentIndex; i++) {
-        const m = all[i]
-        if (!m || m.role !== 'assistant') continue
-        if (m.isFunctionResponse === true) continue
-        if (m.isSummary === true) continue
-        if (hasFunctionCall(m)) continue
-        return false
-      }
-      return true
-    }
-
-    for (let i = lastUserIndex + 1; i < currentIndex; i++) {
-      const m = all[i]
-      if (!m || m.role !== 'assistant') continue
-      if (m.isFunctionResponse === true) continue
-      if (m.isSummary === true) continue
-      if (hasFunctionCall(m)) continue
-      return false
-    }
-
-    return true
-  })
 
   function formatTokenCount(count: number | undefined): string {
     if (count === undefined) return ''
@@ -379,9 +333,7 @@ export function useMessageItem(
     finishReasonTitle,
     finishReasonIcon,
     finishReasonSpin,
-    contextSnapshot,
     hasContextSnapshot,
-    showContextUsedCard,
     messageClass,
     formattedTime,
     startEdit,

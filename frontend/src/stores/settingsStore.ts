@@ -5,6 +5,9 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { SupportedLanguage } from '@/i18n/types'
+import { normalizeSupportedLanguage } from '@/i18n/language'
+import { loadState, saveState } from '@/utils/vscode'
 
 export type SettingsTab = 'channel' | 'tools' | 'mcp' | 'checkpoint' | 'summarize' | 'imageGen' | 'dependencies' | 'context' | 'prompt' | 'general'
 
@@ -12,7 +15,13 @@ export type SettingsTab = 'channel' | 'tools' | 'mcp' | 'checkpoint' | 'summariz
 export type AppView = 'chat' | 'history' | 'settings'
 
 /** 支持的语言 */
-export type Language = 'zh-CN' | 'en'
+export type Language = SupportedLanguage
+
+const LANGUAGE_STATE_KEY = 'ui.language'
+
+function loadInitialLanguage(): Language {
+  return normalizeSupportedLanguage(loadState(LANGUAGE_STATE_KEY, 'auto'))
+}
 
 export const useSettingsStore = defineStore('settings', () => {
   // 当前视图（默认为聊天）
@@ -21,8 +30,8 @@ export const useSettingsStore = defineStore('settings', () => {
   // 设置面板的标签页
   const activeTab = ref<SettingsTab>('channel')
   
-  // 当前语言（默认中文）
-  const language = ref<Language>('zh-CN')
+  // 当前语言（默认跟随系统）
+  const language = ref<Language>(loadInitialLanguage())
 
   // 计算属性：是否显示设置面板（向后兼容）
   const isVisible = computed(() => currentView.value === 'settings')
@@ -57,7 +66,9 @@ export const useSettingsStore = defineStore('settings', () => {
   
   // 设置语言
   function setLanguage(lang: Language) {
-    language.value = lang
+    const nextLanguage = normalizeSupportedLanguage(lang)
+    language.value = nextLanguage
+    saveState(LANGUAGE_STATE_KEY, nextLanguage)
   }
 
   return {

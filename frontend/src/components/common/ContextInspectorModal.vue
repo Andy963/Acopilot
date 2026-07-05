@@ -156,6 +156,11 @@ const pinnedPromptSummary = computed(() => {
     return p.skillName || p.skillId || 'skill'
   }
 
+  if (p.mode === 'preset') {
+    if (p.presetName && p.presetId) return `${p.presetName} (${p.presetId})`
+    return p.presetName || p.presetId || 'preset'
+  }
+
   if (p.mode === 'custom') {
     const count = typeof p.customPromptCharCount === 'number' ? p.customPromptCharCount : 0
     return t('components.common.contextInspectorModal.injected.pinnedPromptCustom', { count })

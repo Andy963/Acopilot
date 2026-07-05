@@ -10,27 +10,17 @@ import { computed, onMounted, ref } from 'vue'
 import { useChatStore } from '../../stores'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { sendToExtension } from '../../utils/vscode'
+import { getRunnableValidationPresets, type RunnableValidationPreset } from '../../stores/chat/validationPresets'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
-
-interface PostEditValidationPreset {
-  id: string
-  label: string
-  command: string
-  cwd?: string
-  shell?: string
-  timeout?: number
-  kind?: 'build' | 'test' | 'lint' | 'custom'
-  enabled?: boolean
-}
 
 const expanded = ref(true)
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 
 const enabled = ref(true)
-const presets = ref<PostEditValidationPreset[]>([])
+const presets = ref<RunnableValidationPreset[]>([])
 
 const hasPresets = computed(() => presets.value.length > 0)
 
@@ -43,8 +33,7 @@ async function loadPresets() {
     const pe = cfg.postEditValidation || {}
 
     enabled.value = pe.enabled ?? true
-    const list = Array.isArray(pe.presets) ? pe.presets : []
-    presets.value = list.filter((p: any) => p && p.command && p.enabled !== false)
+    presets.value = getRunnableValidationPresets(pe.presets)
   } catch (err: any) {
     loadError.value = err?.message || 'Failed to load validation presets'
   } finally {
@@ -60,15 +49,9 @@ function dismiss() {
   chatStore.postEditValidationPending = false
 }
 
-async function runPreset(preset: PostEditValidationPreset) {
+async function runPreset(preset: RunnableValidationPreset) {
   if (!preset?.command) return
-  await chatStore.runPostEditValidationCommand({
-    label: preset.label,
-    command: preset.command,
-    cwd: preset.cwd,
-    shell: preset.shell,
-    timeout: preset.timeout
-  })
+  await chatStore.runPostEditValidationCommand(preset)
 }
 
 onMounted(() => {

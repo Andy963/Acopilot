@@ -10,14 +10,14 @@ import { computed, ref } from 'vue'
 import type { ContextInspectorData, ContextInspectorModule, ContextInjectedAttachment, ContextInjectedPinnedFile, ContextInjectedPinnedSelection } from '../../types'
 import { useI18n } from '../../i18n'
 import { formatFileSize } from '../../utils/file'
+import { shouldRenderContextUsedCard } from './contextUsedCard'
 
 const { t } = useI18n()
 
 const props = defineProps<{
-  snapshot: ContextInspectorData
+  snapshot?: ContextInspectorData | null
+  loading?: boolean
 }>()
-
-
 
 const expanded = ref(false)
 
@@ -26,8 +26,10 @@ const pinnedFiles = computed(() => injected.value?.pinnedFiles)
 const pinnedPrompt = computed(() => injected.value?.pinnedPrompt)
 const pinnedSelections = computed(() => injected.value?.pinnedSelections)
 const attachments = computed(() => injected.value?.attachments)
+const shouldRenderCard = computed(() => shouldRenderContextUsedCard(props.snapshot, props.loading))
 
 const hasInjected = computed(() => {
+  if (props.loading) return true
   const i = injected.value
   if (!i) return false
   return Boolean(
@@ -45,6 +47,11 @@ const pinnedPromptSummary = computed(() => {
   if (p.mode === 'skill') {
     if (p.skillName && p.skillId) return `${p.skillName} (${p.skillId})`
     return p.skillName || p.skillId || 'skill'
+  }
+
+  if (p.mode === 'preset') {
+    if (p.presetName && p.presetId) return `${p.presetName} (${p.presetId})`
+    return p.presetName || p.presetId || 'preset'
   }
 
   if (p.mode === 'custom') {
@@ -86,6 +93,8 @@ const pinnedPromptCount = computed(() => (pinnedPromptSummary.value ? 1 : 0))
 const referenceCount = computed(() => pinnedFilesUsedCount.value + pinnedSelectionsCount.value + attachmentsCount.value + pinnedPromptCount.value)
 
 const headerMeta = computed(() => {
+  if (props.loading) return t('common.loading')
+
   const parts: string[] = []
 
   const pf = pinnedFiles.value
@@ -109,6 +118,13 @@ const headerMeta = computed(() => {
 
   return parts.join(' · ')
 })
+
+const canExpand = computed(() => !props.loading && hasInjected.value)
+
+function toggleExpanded(): void {
+  if (!canExpand.value) return
+  expanded.value = !expanded.value
+}
 
 function isPinnedPromptModule(m: ContextInspectorModule): boolean {
   const title = String(m?.title || '').trim().toUpperCase()
@@ -141,16 +157,36 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
 </script>
 
 <template>
-  <div v-if="hasInjected" class="context-used-card">
-    <div class="context-used-header" @click="expanded = !expanded">
-      <i class="codicon" :class="expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
+  <div v-if="shouldRenderCard" class="context-used-card">
+    <div
+      class="context-used-header"
+      :class="{
+        'context-used-header-loading': loading,
+        'context-used-header-static': !canExpand
+      }"
+      @click="toggleExpanded"
+    >
+      <i
+        class="codicon"
+        :class="{
+          'codicon-chevron-down': canExpand && expanded,
+          'codicon-chevron-right': canExpand && !expanded,
+          'context-used-chevron-placeholder': !canExpand
+        }"
+      ></i>
       <i class="codicon codicon-references context-used-icon"></i>
       <span class="context-used-title">{{ t('components.message.stats.contextUsed') }}</span>
-      <span v-if="headerMeta" class="context-used-meta">{{ headerMeta }}</span>
-      <span v-if="referenceCount > 0" class="context-used-count">({{ referenceCount }})</span>
+      <span
+        v-if="headerMeta"
+        class="context-used-meta"
+        :class="{ 'context-used-meta-loading': loading }"
+      >
+        {{ headerMeta }}
+      </span>
+      <span v-if="!loading && referenceCount > 0" class="context-used-count">({{ referenceCount }})</span>
     </div>
 
-    <div v-if="expanded" class="context-used-body">
+    <div v-if="expanded && !loading" class="context-used-body">
       <div v-if="pinnedPromptSummary" class="section">
         <div class="section-title">{{ t('components.common.contextInspectorModal.injected.pinnedPrompt') }}</div>
         <div class="section-kv"><code>{{ pinnedPromptSummary }}</code></div>
@@ -201,6 +237,18 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   margin-bottom: 10px;
 }
 
+.context-used-header-static {
+  cursor: default;
+}
+
+.context-used-header-static:hover {
+  background: transparent;
+}
+
+.context-used-chevron-placeholder {
+  visibility: hidden;
+}
+
 .context-used-header {
   display: flex;
   align-items: center;
@@ -212,6 +260,14 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
 
 .context-used-header:hover {
   background: var(--vscode-list-hoverBackground);
+}
+
+.context-used-header-loading {
+  cursor: default;
+}
+
+.context-used-header-loading:hover {
+  background: transparent;
 }
 
 .context-used-icon {
@@ -233,6 +289,10 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+
+.context-used-meta-loading {
+  font-style: italic;
 }
 
 .context-used-count {

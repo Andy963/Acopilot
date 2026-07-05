@@ -6,6 +6,7 @@
 
 import { t } from '../../i18n';
 import type { ChannelConfig } from '../config/types';
+import { createProxyFetch } from './proxyFetch';
 
 /**
  * 模型信息
@@ -33,13 +34,14 @@ export interface ModelInfo {
 export async function getGeminiModels(config: ChannelConfig): Promise<ModelInfo[]> {
   const apiKey = (config as any).apiKey;
   const url = (config as any).url || 'https://generativelanguage.googleapis.com/v1beta';
+  const proxyFetch = createProxyFetch();
   
   if (!apiKey) {
     throw new Error(t('modules.channel.modelList.errors.apiKeyRequired'));
   }
   
   try {
-    const response = await fetch(`${url}/models?key=${apiKey}`);
+    const response = await proxyFetch(`${url}/models?key=${apiKey}`);
     
     if (!response.ok) {
       throw new Error(t('modules.channel.modelList.errors.fetchModelsFailed', { error: response.statusText }));
@@ -72,6 +74,7 @@ export async function getGeminiModels(config: ChannelConfig): Promise<ModelInfo[
 export async function getOpenAIModels(config: ChannelConfig): Promise<ModelInfo[]> {
   const apiKey = (config as any).apiKey;
   let url = (config as any).url || 'https://api.openai.com/v1';
+  const proxyFetch = createProxyFetch();
   
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
@@ -87,7 +90,7 @@ export async function getOpenAIModels(config: ChannelConfig): Promise<ModelInfo[
   }
   
   try {
-    const response = await fetch(`${url}/models`, {
+    const response = await proxyFetch(`${url}/models`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`
       }

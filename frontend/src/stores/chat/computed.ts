@@ -45,16 +45,32 @@ export function createChatComputed(state: ChatStoreState): ChatStoreComputed {
   const currentModelName = computed(() => state.currentConfig.value?.model || state.configId.value)
 
   /** 最大上下文 Tokens（从配置获取） */
-  const maxContextTokens = computed(() => state.currentConfig.value?.maxContextTokens || 128000)
+  const maxContextTokens = computed(() => state.currentConfig.value?.maxContextTokens ?? 128000)
 
-  /** 当前使用的 Tokens（从最后一条助手消息获取） */
+  /**
+   * 当前使用的 Tokens（优先使用 provider 返回的真实 usage）
+   *
+   * usageMetadata 是 API 响应之后拿到的真实计数，和每条消息底部展示的
+   * 发送/接收 token 数同源，因此优先使用；只有在该消息还没有真实 usage
+   * （例如正在流式输出、或 provider 未返回 usage）时，才退回后端发请求前
+   * 的本地估算值 contextSnapshot.estimatedTotalTokens 作为临时近似。
+   */
   const usedTokens = computed(() => {
-    // 从后往前找最后一条助手消息
     for (let i = state.allMessages.value.length - 1; i >= 0; i--) {
       const msg = state.allMessages.value[i]
-      if (msg.role === 'assistant' && msg.metadata?.usageMetadata) {
-        return msg.metadata.usageMetadata.totalTokenCount || 0
+      if (msg.role !== 'assistant') continue
+      const usage = msg.metadata?.usageMetadata
+      if (usage) {
+        if (usage.totalTokenCount !== undefined) return usage.totalTokenCount
+        const fallback =
+          (usage.promptTokenCount || 0) +
+          (usage.candidatesTokenCount || 0) +
+          (usage.thoughtsTokenCount || 0)
+        if (fallback > 0) return fallback
+        if (usage.promptTokenCount !== undefined) return usage.promptTokenCount
       }
+      const estimatedTotalTokens = msg.metadata?.contextSnapshot?.estimatedTotalTokens
+      if (typeof estimatedTotalTokens === 'number') return estimatedTotalTokens
     }
     return 0
   })

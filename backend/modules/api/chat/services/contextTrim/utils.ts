@@ -58,7 +58,7 @@ export function identifyConversationRounds(history: Content[]): ConversationRoun
     for (let i = 0; i < history.length; i++) {
         const message = history[i];
 
-        if (message.role === 'user' && !message.isFunctionResponse) {
+        if (isConversationRoundStart(message)) {
             if (currentRoundStart !== -1) {
                 rounds.push({
                     startIndex: currentRoundStart,
@@ -85,6 +85,10 @@ export function identifyConversationRounds(history: Content[]): ConversationRoun
     }
 
     return rounds;
+}
+
+export function isConversationRoundStart(message: Content): boolean {
+    return message.role === 'user' && !message.isFunctionResponse && !message.isSummary;
 }
 
 export function calculateThreshold(threshold: number | string, maxContextTokens: number): number {

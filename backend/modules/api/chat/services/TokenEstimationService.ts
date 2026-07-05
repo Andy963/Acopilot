@@ -21,6 +21,61 @@ import { isInternalMarkerMimeType } from '../../../conversation/internalMarkers'
  */
 export type NormalizedChannelType = 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | undefined;
 
+/**
+ * 每 token 对应的 ASCII/Latin 字符数
+ *
+ * 主流 BPE 分词器（o200k/cl100k 系列）对英文的压缩比大约是这个值。
+ */
+const ASCII_CHARS_PER_TOKEN = 4;
+
+/**
+ * 每 token 对应的 CJK 字符数
+ *
+ * 中文/日文/韩文在主流分词器下远没有英文压缩得好，
+ * 实测大致落在 1.5~2 字符/token 之间，这里取 1.8 作为折中估计。
+ * 如果沿用 ASCII 的 4 字符/token 计算，中文场景会被低估 2~4 倍。
+ */
+const CJK_CHARS_PER_TOKEN = 1.8;
+
+/**
+ * 判断给定的 Unicode 码点是否属于 CJK 字符
+ *
+ * 覆盖：中文（含扩展 A 区、兼容表意文字）、日文假名、韩文音节。
+ */
+function isCJKCodePoint(codePoint: number): boolean {
+    return (
+        (codePoint >= 0x4e00 && codePoint <= 0x9fff) ||   // CJK Unified Ideographs
+        (codePoint >= 0x3400 && codePoint <= 0x4dbf) ||   // CJK Extension A
+        (codePoint >= 0xf900 && codePoint <= 0xfaff) ||   // CJK Compatibility Ideographs
+        (codePoint >= 0x3040 && codePoint <= 0x30ff) ||   // Hiragana + Katakana
+        (codePoint >= 0xac00 && codePoint <= 0xd7a3)      // Hangul Syllables
+    );
+}
+
+/**
+ * 估算任意文本的 token 数（不调用真实分词器）
+ *
+ * 按字符类型分开计算：CJK 字符和 ASCII/其他字符使用不同的字符/token 比例，
+ * 避免统一按 4 字符/token 估算时中文被系统性低估。
+ */
+export function estimateTextTokens(text: string): number {
+    if (!text) return 0;
+
+    let cjkChars = 0;
+    let otherChars = 0;
+
+    for (const ch of text) {
+        const codePoint = ch.codePointAt(0) ?? 0;
+        if (isCJKCodePoint(codePoint)) {
+            cjkChars++;
+        } else {
+            otherChars++;
+        }
+    }
+
+    return Math.ceil(cjkChars / CJK_CHARS_PER_TOKEN + otherChars / ASCII_CHARS_PER_TOKEN);
+}
+
 export class TokenEstimationService {
     constructor(
         private conversationManager: ConversationManager,
@@ -125,17 +180,17 @@ export class TokenEstimationService {
         channelType?: string
     ): Promise<number> {
         // 这里仅使用本地估算，避免在发送请求前额外发起网络请求导致延迟/限流影响。
-        return Math.ceil(systemPrompt.length / 4);
+        return estimateTextTokens(systemPrompt);
     }
     
     /**
      * 估算一条消息的 token 数
      *
      * 遍历消息的所有 parts，根据类型进行估算：
-     * - text: 每 4 个字符约 1 token
+     * - text: 见 estimateTextTokens（区分 CJK / ASCII 字符比例）
      * - inlineData: 使用 estimateMultimodalTokens
-     * - functionCall: JSON 序列化后每 4 字符约 1 token
-     * - functionResponse: JSON 序列化后每 4 字符约 1 token
+     * - functionCall: JSON 序列化后按 estimateTextTokens 估算
+     * - functionResponse: JSON 序列化后按 estimateTextTokens 估算
      *
      * @param message 消息
      * @returns 估算的 token 数
@@ -145,7 +200,7 @@ export class TokenEstimationService {
         
         for (const part of message.parts) {
             if (part.text) {
-                tokens += Math.ceil(part.text.length / 4);
+                tokens += estimateTextTokens(part.text);
             }
             if (part.inlineData) {
                 if (isInternalMarkerMimeType(part.inlineData.mimeType)) {
@@ -155,11 +210,11 @@ export class TokenEstimationService {
             }
             if (part.functionCall) {
                 const argsStr = JSON.stringify(part.functionCall.args);
-                tokens += Math.ceil((part.functionCall.name.length + argsStr.length) / 4);
+                tokens += estimateTextTokens(part.functionCall.name + argsStr);
             }
             if (part.functionResponse) {
                 const responseStr = JSON.stringify(part.functionResponse.response);
-                tokens += Math.ceil((part.functionResponse.name.length + responseStr.length) / 4);
+                tokens += estimateTextTokens(part.functionResponse.name + responseStr);
                 // 如果有 parts（多模态数据）
                 if (part.functionResponse.parts) {
                     for (const responsePart of part.functionResponse.parts) {
@@ -250,8 +305,13 @@ export class TokenEstimationService {
         
         // 纯文本
         if (mimeType.startsWith('text/')) {
-            // 文本：每 4 个字符约 1 token
-            return Math.ceil(estimatedBytes / 4);
+            // 解码后按 CJK/ASCII 分别估算，避免中文文本文件被低估
+            try {
+                const decodedText = Buffer.from(inlineData.data, 'base64').toString('utf-8');
+                return estimateTextTokens(decodedText);
+            } catch {
+                return Math.ceil(estimatedBytes / 4);
+            }
         }
         
         // 其他类型：使用保守估算

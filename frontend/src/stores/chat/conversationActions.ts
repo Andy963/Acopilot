@@ -9,7 +9,7 @@ import { sendToExtension } from '../../utils/vscode'
 import { contentToMessageEnhanced } from './parsers'
 import type { Content } from '../../types'
 import { generateConversationTitleFromText } from '../../utils/conversationTitle'
-import { createDefaultPinnedPrompt, loadPinnedPrompt } from './pinnedPromptActions'
+import { createDefaultPinnedPrompt, loadPinnedPrompt, resolveDefaultPinnedPromptForNewConversation } from './pinnedPromptActions'
 import { createDefaultChatMode, loadChatMode } from './chatModeActions'
 
 /**
@@ -38,9 +38,15 @@ export async function createNewConversation(
   state.planRunner.value = null
   state.postEditValidationPending.value = false
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.pinnedPromptFromWorkspaceDefault.value = false
   state.chatMode.value = createDefaultChatMode()
   state.selectionReferences.value = []
-  
+
+  // 新建对话时，先套用当前 workspace 记住的固定提示词选择（如果有）
+  const { pinnedPrompt, fromWorkspaceDefault } = await resolveDefaultPinnedPromptForNewConversation()
+  state.pinnedPrompt.value = pinnedPrompt
+  state.pinnedPromptFromWorkspaceDefault.value = fromWorkspaceDefault
+
   // 清除所有加载和流式状态
   state.isLoading.value = false
   state.isStreaming.value = false
@@ -227,6 +233,7 @@ export async function switchConversation(
   state.streamingMessageId.value = null
   state.isWaitingForResponse.value = false
   state.pinnedPrompt.value = createDefaultPinnedPrompt()
+  state.pinnedPromptFromWorkspaceDefault.value = false
   state.chatMode.value = createDefaultChatMode()
   state.selectionReferences.value = []
 

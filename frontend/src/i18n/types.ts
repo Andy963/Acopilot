@@ -5,7 +5,13 @@
  * a large hand-written interface definition.
  */
 
-export type SupportedLanguage = 'auto' | 'zh-CN' | 'en' | 'ja';
+export const SUPPORTED_LANGUAGE_VALUES = ['auto', 'zh-CN', 'en', 'ja'] as const;
+
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGE_VALUES)[number];
+
+export function isSupportedLanguage(value: unknown): value is SupportedLanguage {
+  return typeof value === 'string' && SUPPORTED_LANGUAGE_VALUES.includes(value as SupportedLanguage);
+}
 
 export interface LanguageOption {
   value: SupportedLanguage;

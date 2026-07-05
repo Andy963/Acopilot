@@ -24,6 +24,10 @@ export class StreamChunkProcessor {
 
     if ('checkpointOnly' in chunk && chunk.checkpointOnly) {
       this.sendMessage('checkpoints', { checkpoints: chunk.checkpoints });
+    } else if ('contextInfo' in chunk && chunk.contextInfo) {
+      this.sendMessage('contextInfo', {
+        contextSnapshot: chunk.contextSnapshot,
+      });
     } else if ('chunk' in chunk && chunk.chunk) {
       this.sendMessage('chunk', { chunk: chunk.chunk });
     } else if ('toolsExecuting' in chunk && chunk.toolsExecuting) {

@@ -2,6 +2,108 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61-pre.13] - 2026-07-05
+
+### Fixed
+  - Chat: restore the manual context summarization button in the composer footer so users can compact older conversation history on demand.
+  - Chat: reset OpenAI Responses continuation and prompt-cache state after manual summarization so the next request uses the summarized history instead of stale response state.
+
+## [1.0.61-pre.12] - 2026-07-04
+
+### Added
+  - Pinned Context: add a real global reusable prompt preset library under the custom prompt tab, so saved prompts can be selected again across projects without retyping or converting them into skills.
+
+### Fixed
+  - Pinned Context: restore selected prompt presets for new conversations in the same workspace and inject preset content from global settings.
+  - Pinned Context: keep the custom prompt textarea tall enough to type and edit multi-line prompts after adding preset controls.
+
+## [1.0.61-pre.11] - 2026-07-04
+
+### Added
+  - Pinned Context: persist reusable pinned prompt selections per workspace so new conversations in the same project restore the last selected skill.
+  - Pinned Context: add a "save as skill" flow for custom pinned prompt text so prompts can be reused across conversations and projects without retyping.
+
+### Fixed
+  - Pinned Context: register the `skills.list` webview handler used by the pinned skill selector.
+  - Pinned Context: avoid overwriting existing skills when saving a custom pinned prompt as a reusable skill.
+
+## [1.0.61-pre.10] - 2026-07-04
+
+### Fixed
+  - Chat: keep prior conversation history unchanged while labeling only the final user message as `LATEST USER REQUEST`, so conflicting earlier user instructions do not override the latest request.
+  - Chat: inject conversation-structure semantics into the actual request system instruction instead of the user-editable prompt template.
+  - Chat: mark generated summaries as historical background so old summarized instructions cannot outrank the latest user request.
+
+## [1.0.61-pre.9] - 2026-07-02
+
+### Fixed
+  - Chat: use CJK-aware character-to-token estimation instead of a uniform 4-chars-per-token heuristic, fixing systemic undercounting of Chinese/Japanese/Korean text in context-usage estimates.
+  - UI: prioritize the provider's actual `usageMetadata` over the pre-request token estimate when computing the input-box context-usage ring, so completed turns match the per-message footer stats.
+
+## [1.0.61-pre.8] - 2026-05-20
+
+### Fixed
+  - Chat: merge partial streaming usage metadata so Anthropic-style token chunks preserve prompt, output, and derived total counts.
+  - Chat: prevent automatic context summarization from re-summarizing history before the latest summary, and avoid counting summary messages as normal user rounds.
+  - UI: preserve explicit zero token values in context-window calculations.
+
+## [1.0.61-pre.7] - 2026-05-15
+
+### Fixed
+  - Chat: count assistant message content and tool calls in context estimates so automatic summarization and trimming trigger before the model context overflows.
+  - UI: show the backend estimated context usage in the token ring when available instead of relying only on provider response usage.
+
+## [1.0.61-pre.6] - 2026-04-07
+
+### Fixed
+  - Chat: remove the redundant in-message "Context Used" block from the top of assistant replies while keeping the existing context inspector entry in the footer.
+
+## [1.0.61-pre.5] - 2026-04-07
+
+### Fixed
+  - Chat: preserve the early `contextSnapshot` metadata across finalized streaming/tool-state updates so the in-message "Context Used" card stays available after tool loops and completion.
+  - Chat: stop recursive history pagination reloads by keeping the `isLoadingMore` guard active until the next animation frame after restoring scroll position.
+
+## [1.0.61-pre.3] - 2026-04-05
+
+### Fixed
+  - Proxy: route chat streaming, model discovery, MCP HTTP, and Codex skill downloads through Acopilot's own proxy setting when enabled, and fall back to direct connections when disabled.
+  - MCP: skip invalid persisted MCP server entries instead of failing the full config load.
+  - Chat: keep the "Context Used" card visible after streaming completes when a context snapshot exists.
+
+## [1.0.61-pre.4] - 2026-04-03
+
+### Fixed
+  - Chat: stream an early context snapshot chunk so the "Context Used" card can render without waiting for generation to finish.
+  - Chat: route the context snapshot to the active streaming message metadata for stable incremental rendering.
+
+## [1.0.61-pre.2] - 2026-04-03
+
+### Fixed
+  - Chat: reserve the "Context Used" block at the top of the first assistant reply while streaming, then fill it in after completion to avoid late layout jumps when users are reading older content.
+  - Chat: restore streaming auto-follow so new assistant output keeps the message list pinned to the latest content by default, and only pause follow mode after an actual user scroll.
+
+## [1.0.61-pre.1] - 2026-04-02
+
+### Improved
+  - Build/Release: pin `@vscode/vsce` as a workspace dev dependency so VSIX packaging no longer depends on a transient `npx` install.
+
+### Fixed
+  - Settings: wrap long inline code and tag preview content in the context settings panel so long entries no longer overflow or force horizontal clipping.
+
+## [1.0.61-pre.0] - 2026-04-01
+
+### Improved
+  - Build/Release: unify root validation, build, package, and smoke entrypoints around npm-driven workflows, and gate GitHub prereleases with validate/build/package steps.
+  - Smoke: add both development-extension and packaged-VSIX smoke validation paths so the published artifact can be verified before testing.
+  - Refactor: split several large extension/webview/frontend modules into smaller focused files, including extension bootstrap, ChatViewProvider bridge logic, app shell, plan modal, checkpoint settings, prompt skills, markdown rendering, and message-list orchestration.
+
+### Fixed
+  - Frontend: restore a green frontend typecheck baseline and remove several UI contract mismatches in settings, tools, and shared types.
+  - UI: stabilize Acopilot view entry, chat/history/settings navigation, selection/file injection dedupe, and persisted language handling across reloads.
+  - Runtime: make default config bootstrap honor the normal config/secret contract, bind streamed tool parsing to each request instead of ambient active config, serialize same-conversation writes, and prevent deleted conversations from being silently recreated.
+  - Validation: harden malformed side-effect request rejection and persist post-edit validation preset execution through runtime, history, and reload flows.
+
 ## [1.0.60] - 2026-04-01
 
 ### Fixed

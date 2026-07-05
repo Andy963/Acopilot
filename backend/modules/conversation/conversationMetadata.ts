@@ -1,91 +1,111 @@
 import { t } from '../../i18n';
-import type { ConversationMetadata } from './types';
+import { serializeConversationOperation } from './conversationLock';
 import type { IStorageAdapter } from './storage';
+import type { ConversationMetadata } from './types';
 
-export async function setConversationTitle(
-  storage: IStorageAdapter,
-  conversationId: string,
-  title: string
-): Promise<void> {
-  let meta = await storage.loadMetadata(conversationId);
-  if (!meta) {
-    meta = {
-      id: conversationId,
-      title,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      custom: {}
-    };
-  } else {
-    meta.title = title;
-    meta.updatedAt = Date.now();
-  }
-  await storage.saveMetadata(meta);
+function cloneMetadata(metadata: ConversationMetadata): ConversationMetadata {
+  return JSON.parse(JSON.stringify(metadata));
 }
 
-export async function setConversationWorkspaceUri(
-  storage: IStorageAdapter,
+export function createConversationMetadata(
   conversationId: string,
-  workspaceUri: string
-): Promise<void> {
-  let meta = await storage.loadMetadata(conversationId);
-  if (!meta) {
-    meta = {
-      id: conversationId,
-      title: t('modules.conversation.defaultTitle', { conversationId }),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      workspaceUri,
-      custom: {}
-    };
-  } else {
-    meta.workspaceUri = workspaceUri;
-    meta.updatedAt = Date.now();
-  }
-  await storage.saveMetadata(meta);
+  title?: string,
+  workspaceUri?: string
+): ConversationMetadata {
+  const now = Date.now();
+  return {
+    id: conversationId,
+    title: title || t('modules.conversation.defaultTitle', { conversationId }),
+    createdAt: now,
+    updatedAt: now,
+    workspaceUri,
+    custom: {}
+  };
 }
 
-export async function getConversationMetadata(
-  storage: IStorageAdapter,
-  conversationId: string
-): Promise<ConversationMetadata | null> {
-  const meta = await storage.loadMetadata(conversationId);
-  return meta ? JSON.parse(JSON.stringify(meta)) : null;
-}
+export class ConversationMetadataStore {
+  constructor(private readonly storage: IStorageAdapter) {}
 
-export async function setConversationCustomMetadata(
-  storage: IStorageAdapter,
-  conversationId: string,
-  key: string,
-  value: unknown
-): Promise<void> {
-  let meta = await storage.loadMetadata(conversationId);
-  if (!meta) {
-    meta = {
-      id: conversationId,
-      title: t('modules.conversation.defaultTitle', { conversationId }),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      custom: {}
-    };
+  async createWithinConversationLock(
+    conversationId: string,
+    title?: string,
+    workspaceUri?: string
+  ): Promise<ConversationMetadata> {
+    const metadata = createConversationMetadata(conversationId, title, workspaceUri);
+    await this.storage.saveMetadata(metadata);
+    return cloneMetadata(metadata);
   }
 
-  if (!meta.custom) {
-    meta.custom = {};
+  async get(conversationId: string): Promise<ConversationMetadata | null> {
+    const metadata = await this.storage.loadMetadata(conversationId);
+    return metadata ? cloneMetadata(metadata) : null;
   }
 
-  meta.custom[key] = value;
-  meta.updatedAt = Date.now();
+  async getCustom(conversationId: string, key: string): Promise<unknown> {
+    const metadata = await this.get(conversationId);
+    return metadata?.custom?.[key];
+  }
 
-  await storage.saveMetadata(meta);
-}
+  async setTitle(conversationId: string, title: string): Promise<void> {
+    await this.mutateExistingConversationMetadata(conversationId, (metadata) => {
+      metadata.title = title;
+    });
+  }
 
-export async function getConversationCustomMetadata(
-  storage: IStorageAdapter,
-  conversationId: string,
-  key: string
-): Promise<unknown> {
-  const meta = await getConversationMetadata(storage, conversationId);
-  return meta?.custom?.[key];
+  async setWorkspaceUri(conversationId: string, workspaceUri: string): Promise<void> {
+    await this.mutateExistingConversationMetadata(conversationId, (metadata) => {
+      metadata.workspaceUri = workspaceUri;
+    });
+  }
+
+  async setCustom(conversationId: string, key: string, value: unknown): Promise<void> {
+    await this.mutateExistingConversationMetadata(conversationId, (metadata) => {
+      if (!metadata.custom) {
+        metadata.custom = {};
+      }
+
+      metadata.custom[key] = value;
+    });
+  }
+
+  async touchExistingWithinConversationLock(conversationId: string): Promise<void> {
+    const metadata = await this.storage.loadMetadata(conversationId);
+    if (!metadata) {
+      return;
+    }
+
+    metadata.updatedAt = Date.now();
+    await this.storage.saveMetadata(metadata);
+  }
+
+  private async mutateExistingConversationMetadata(
+    conversationId: string,
+    mutate: (metadata: ConversationMetadata) => void | Promise<void>
+  ): Promise<void> {
+    await serializeConversationOperation(this.storage, conversationId, async () => {
+      const metadata = await this.loadOrCreateForExistingConversationWithinLock(conversationId);
+      await mutate(metadata);
+      metadata.updatedAt = Date.now();
+      await this.storage.saveMetadata(metadata);
+    });
+  }
+
+  private async loadOrCreateForExistingConversationWithinLock(
+    conversationId: string
+  ): Promise<ConversationMetadata> {
+    const existingMetadata = await this.storage.loadMetadata(conversationId);
+    if (existingMetadata) {
+      return existingMetadata;
+    }
+
+    const existingHistory = await this.storage.loadHistory(conversationId);
+    if (!existingHistory) {
+      throw new Error(t('modules.conversation.errors.conversationNotFound', { conversationId }));
+    }
+
+    const metadata = createConversationMetadata(conversationId);
+    await this.storage.saveMetadata(metadata);
+    return metadata;
+  }
 }
 

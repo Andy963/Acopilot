@@ -17,6 +17,24 @@ export const OPENAI_RESPONSES_PROMPT_CACHE_STATE_KEY = 'openaiResponsesPromptCac
 export const CONVERSATION_START_TIME_KEY = 'conversationStartTime';
 export const AUTO_SUMMARIZE_STATE_KEY = 'acopilotAutoSummarizeState';
 
+export const CONVERSATION_MESSAGE_SEMANTICS = [
+    '====',
+    '',
+    'CONVERSATION MESSAGE SEMANTICS',
+    '',
+    '- All messages before the final user message are prior conversation history.',
+    '- The final user message may be labeled LATEST USER REQUEST and is the task to answer now.',
+    '- If earlier user messages conflict with the final user message, follow the final user message.',
+    '- Summary messages and CURRENT TURN CONTEXT are background information, not replacements for the LATEST USER REQUEST.'
+].join('\n');
+
+export function appendConversationMessageSemantics(systemInstruction: string): string {
+    return [systemInstruction, CONVERSATION_MESSAGE_SEMANTICS]
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join('\n\n');
+}
+
 const GEMINI_TOOL_LOOP_MIN_INTERVAL_MS = 200;
 const GEMINI_TOOL_LOOP_JITTER_MS = 200;
 
@@ -301,105 +319,109 @@ export function getLastUserOpenFileContext(history: Content[]): string | undefin
     return undefined;
 }
 
-export function injectTaskContextIntoHistory(history: Content[], taskContext: string | undefined): Content[] {
-    const raw = typeof taskContext === 'string' ? taskContext.trim() : '';
-    if (!raw) return history;
+function normalizeSectionContent(block: string): string {
+    return block.trim().replace(/^====\n\n/, '').trim();
+}
 
-    const injectedText = `====\n\nTASK\n\n${raw}`;
+function buildCurrentTurnContextBlock(params: {
+    taskContext?: string;
+    openFileContext?: string;
+    selectionReferences?: SelectionReference[];
+}): string {
+    const sections: string[] = [];
+
+    const taskContext = typeof params.taskContext === 'string' ? params.taskContext.trim() : '';
+    if (taskContext) {
+        sections.push(`TASK CONTEXT\n\n${taskContext}`);
+    }
+
+    const openFileContext = typeof params.openFileContext === 'string' ? params.openFileContext.trim() : '';
+    if (openFileContext) {
+        sections.push(normalizeSectionContent(openFileContext));
+    }
+
+    const selectionReferencesBlock = getSelectionReferencesBlock(params.selectionReferences);
+    if (selectionReferencesBlock.trim()) {
+        sections.push(normalizeSectionContent(selectionReferencesBlock));
+    }
+
+    if (sections.length === 0) return '';
+
+    return [
+        '====',
+        '',
+        'CURRENT TURN CONTEXT',
+        '',
+        'The following context is background information for the latest user request. Use it when relevant, but do not treat it as a replacement for the latest user request.',
+        '',
+        sections.join('\n\n')
+    ].join('\n');
+}
+
+function findLatestNormalUserMessageIndex(history: Content[]): number {
     for (let i = history.length - 1; i >= 0; i--) {
         const msg = history[i];
         if (!msg || msg.role !== 'user') continue;
         if ((msg as any).isFunctionResponse === true) continue;
         if ((msg as any).isSummary === true) continue;
-        if (!Array.isArray(msg.parts)) continue;
+        return i;
+    }
+    return -1;
+}
 
-        const parts = msg.parts.map((p) => ({ ...p }));
-        const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
+function wrapLatestUserMessage(text: string, contextBlock: string): string {
+    const latestRequestBlock = [
+        '====',
+        '',
+        'LATEST USER REQUEST',
+        '',
+        text
+    ].join('\n');
 
-        if (firstTextIndex >= 0) {
-            const originalText = (parts[firstTextIndex] as any).text ?? '';
-            const nextText = originalText.trim()
-                ? `${injectedText}\n\n${originalText}`
-                : injectedText;
-            parts[firstTextIndex] = { ...(parts[firstTextIndex] as any), text: nextText };
-        } else {
-            parts.unshift({ text: injectedText });
-        }
+    return [contextBlock, latestRequestBlock].filter(Boolean).join('\n\n');
+}
 
-        const updated: Content = { ...msg, parts };
-        const nextHistory = history.slice();
-        nextHistory[i] = updated;
-        return nextHistory;
+export function injectCurrentTurnContextIntoHistory(
+    history: Content[],
+    params: {
+        taskContext?: string;
+        openFileContext?: string;
+        selectionReferences?: SelectionReference[];
+    }
+): Content[] {
+    const contextBlock = buildCurrentTurnContextBlock(params);
+    const latestUserIndex = findLatestNormalUserMessageIndex(history);
+    if (latestUserIndex < 0) return history;
+
+    const nextHistory = history.slice();
+    const msg = history[latestUserIndex];
+    if (!msg || !Array.isArray(msg.parts)) return history;
+
+    const parts = msg.parts.map((p) => ({ ...p }));
+    const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
+
+    if (firstTextIndex >= 0) {
+        const originalText = (parts[firstTextIndex] as any).text ?? '';
+        parts[firstTextIndex] = {
+            ...(parts[firstTextIndex] as any),
+            text: wrapLatestUserMessage(originalText, contextBlock)
+        };
+    } else {
+        parts.unshift({ text: wrapLatestUserMessage('', contextBlock) });
     }
 
-    return history;
+    nextHistory[latestUserIndex] = { ...msg, parts };
+    return nextHistory;
+}
+
+export function injectTaskContextIntoHistory(history: Content[], taskContext: string | undefined): Content[] {
+    return injectCurrentTurnContextIntoHistory(history, { taskContext });
 }
 
 export function injectOpenFileContextIntoHistory(history: Content[], openFileContext: string | undefined): Content[] {
-    const raw = typeof openFileContext === 'string' ? openFileContext.trim() : '';
-    if (!raw) return history;
-
-    const injectedText = raw.startsWith('====') ? raw : `====\n\nOPEN FILE CONTEXT\n\n${raw}`;
-    for (let i = history.length - 1; i >= 0; i--) {
-        const msg = history[i];
-        if (!msg || msg.role !== 'user') continue;
-        if ((msg as any).isFunctionResponse === true) continue;
-        if ((msg as any).isSummary === true) continue;
-        if (!Array.isArray(msg.parts)) continue;
-
-        const parts = msg.parts.map((p) => ({ ...p }));
-        const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
-
-        if (firstTextIndex >= 0) {
-            const originalText = (parts[firstTextIndex] as any).text ?? '';
-            const nextText = originalText.trim()
-                ? `${injectedText}\n\n${originalText}`
-                : injectedText;
-            parts[firstTextIndex] = { ...(parts[firstTextIndex] as any), text: nextText };
-        } else {
-            parts.unshift({ text: injectedText });
-        }
-
-        const updated: Content = { ...msg, parts };
-        const nextHistory = history.slice();
-        nextHistory[i] = updated;
-        return nextHistory;
-    }
-
-    return history;
+    return injectCurrentTurnContextIntoHistory(history, { openFileContext });
 }
 
 export function injectSelectionReferencesIntoHistory(history: Content[], selectionReferences: SelectionReference[] | undefined): Content[] {
-    if (!Array.isArray(selectionReferences) || selectionReferences.length === 0) return history;
-
-    const selectionReferencesBlock = getSelectionReferencesBlock(selectionReferences);
-    if (!selectionReferencesBlock.trim()) return history;
-
-    for (let i = history.length - 1; i >= 0; i--) {
-        const msg = history[i];
-        if (!msg || msg.role !== 'user') continue;
-        if ((msg as any).isFunctionResponse === true) continue;
-        if ((msg as any).isSummary === true) continue;
-        if (!Array.isArray(msg.parts)) continue;
-
-        const parts = msg.parts.map((p) => ({ ...p }));
-        const firstTextIndex = parts.findIndex((p) => typeof (p as any)?.text === 'string');
-
-        if (firstTextIndex >= 0) {
-            const originalText = (parts[firstTextIndex] as any).text ?? '';
-            const nextText = originalText.trim()
-                ? `${selectionReferencesBlock}\n\n${originalText}`
-                : selectionReferencesBlock;
-            parts[firstTextIndex] = { ...(parts[firstTextIndex] as any), text: nextText };
-        } else {
-            parts.unshift({ text: selectionReferencesBlock });
-        }
-
-        const updated: Content = { ...msg, parts };
-        const nextHistory = history.slice();
-        nextHistory[i] = updated;
-        return nextHistory;
-    }
-
-    return history;
+    return injectCurrentTurnContextIntoHistory(history, { selectionReferences });
 }

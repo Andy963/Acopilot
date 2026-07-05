@@ -170,7 +170,7 @@ export class ToolIterationLoopService {
         return { lastAt: v.lastAt, lastHistoryLength: v.lastHistoryLength };
     }
 
-    private async resetOpenAIResponsesContinuationState(conversationId: string, configId: string): Promise<void> {
+    async resetOpenAIResponsesContinuationState(conversationId: string, configId: string): Promise<void> {
         await this.conversationManager.setCustomMetadata(conversationId, OPENAI_RESPONSES_CONTINUATION_KEY, null);
         const promptCacheKey = createOpenAIResponsesPromptCacheKey(conversationId, configId);
         const nextState: OpenAIResponsesPromptCacheState = { configId, promptCacheKey };
@@ -200,7 +200,7 @@ export class ToolIterationLoopService {
         const maxTokens =
             typeof opts.maxContextTokens === 'number' && Number.isFinite(opts.maxContextTokens)
                 ? opts.maxContextTokens
-                : ((opts.config as any).maxContextTokens || 128000);
+                : ((opts.config as any).maxContextTokens ?? 128000);
         const thresholdTokens = Math.floor(maxTokens * pct / 100);
 
         if (opts.estimatedTotalTokens < thresholdTokens) return false;

@@ -4,6 +4,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { createProxyFetch } from '../../backend/modules/channel/proxyFetch';
 
 export interface SkillDefinition {
   id: string;
@@ -48,7 +49,8 @@ function encodeGitHubPath(p: string): string {
 }
 
 async function fetchGitHubJson<T = any>(url: string): Promise<T> {
-  const response = await fetch(url, {
+  const proxyFetch = createProxyFetch()
+  const response = await proxyFetch(url, {
     headers: {
       Accept: 'application/vnd.github+json',
       'User-Agent': 'Acopilot',
@@ -66,7 +68,8 @@ async function fetchGitHubJson<T = any>(url: string): Promise<T> {
 }
 
 async function fetchGitHubBinary(url: string): Promise<Uint8Array> {
-  const response = await fetch(url, {
+  const proxyFetch = createProxyFetch()
+  const response = await proxyFetch(url, {
     headers: {
       Accept: 'application/octet-stream',
       'User-Agent': 'Acopilot',

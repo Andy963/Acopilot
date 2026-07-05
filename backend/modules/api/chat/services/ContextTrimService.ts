@@ -19,6 +19,7 @@ import type { PromptManager } from '../../../prompt';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import type { ConversationRound, ContextTrimInfo } from '../utils';
 import type { TokenEstimationService } from './TokenEstimationService';
+import { estimateTextTokens } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
 import { getPinnedPromptBlock } from './pinnedPrompt';
 import { getSelectionReferencesBlock } from './selectionReferences';
@@ -29,6 +30,7 @@ import {
     getLastUserSelectionReferences,
     getLastUserTaskContext,
     identifyConversationRounds,
+    isConversationRoundStart,
     performContextTrim,
     type RoundTokenInfo
 } from './contextTrim/utils';
@@ -105,7 +107,7 @@ export class ContextTrimService {
         }
         
         // 获取最大上下文和阈值
-        const maxContextTokens = (config as any).maxContextTokens || 128000;
+        const maxContextTokens = (config as any).maxContextTokens ?? 128000;
         const thresholdConfig = config.contextThreshold ?? '80%';
         const threshold = this.calculateThreshold(thresholdConfig, maxContextTokens);
         
@@ -173,7 +175,7 @@ export class ContextTrimService {
         
         // 获取当前渠道类型（gemini, openai, anthropic, custom）
         const channelType = config.type || 'custom';
-        const maxContextTokens = (config as any).maxContextTokens || 128000;
+        const maxContextTokens = (config as any).maxContextTokens ?? 128000;
         
         // 查找最后一个总结消息
         const lastSummaryIndex = this.findLastSummaryIndex(fullHistory);
@@ -200,17 +202,17 @@ export class ContextTrimService {
         const selectionReferencesBlock = getSelectionReferencesBlock(
             selectionReferences ?? getLastUserSelectionReferences(fullHistory)
         );
-        const selectionReferencesTokens = selectionReferencesBlock ? Math.ceil(selectionReferencesBlock.length / 4) : 0;
+        const selectionReferencesTokens = selectionReferencesBlock ? estimateTextTokens(selectionReferencesBlock) : 0;
 
         const taskContextText = getLastUserTaskContext(fullHistory);
         const taskContextBlock = taskContextText ? `====\n\nTASK CONTEXT\n\n${taskContextText}` : '';
-        const taskContextTokens = taskContextBlock ? Math.ceil(taskContextBlock.length / 4) : 0;
+        const taskContextTokens = taskContextBlock ? estimateTextTokens(taskContextBlock) : 0;
 
         const openFileContextText = getLastUserOpenFileContext(fullHistory);
         const openFileContextBlock = openFileContextText
             ? (openFileContextText.startsWith('====') ? openFileContextText : `====\n\nOPEN FILE CONTEXT\n\n${openFileContextText}`)
             : '';
-        const openFileContextTokens = openFileContextBlock ? Math.ceil(openFileContextBlock.length / 4) : 0;
+        const openFileContextTokens = openFileContextBlock ? estimateTextTokens(openFileContextBlock) : 0;
         
         // 计算从 effectiveStartIndex 开始的消息 token 数
         // 这是解决上下文振荡问题的关键：使用累加的单条消息 token 数，而不是 API 返回的累计值
@@ -232,7 +234,7 @@ export class ContextTrimService {
         let lastNonFunctionResponseUserIndex = -1;
         for (let i = fullHistory.length - 1; i >= 0; i--) {
             const message = fullHistory[i];
-            if (message.role === 'user' && !message.isFunctionResponse) {
+            if (isConversationRoundStart(message)) {
                 lastNonFunctionResponseUserIndex = i;
                 break;
             }
@@ -242,7 +244,7 @@ export class ContextTrimService {
         const roundStartIndices: number[] = [];
         for (let i = 0; i < fullHistory.length; i++) {
             const message = fullHistory[i];
-            if (message.role === 'user' && !message.isFunctionResponse) {
+            if (isConversationRoundStart(message)) {
                 roundStartIndices.push(i);
             }
         }
@@ -366,7 +368,7 @@ export class ContextTrimService {
             
             if (message.role === 'user') {
                 // 检测新回合开始（非函数响应的用户消息）
-                if (!message.isFunctionResponse) {
+                if (isConversationRoundStart(message)) {
                     // 保存上一个回合的信息
                     if (currentRoundStartIndex !== -1) {
                         roundTokenInfos.push({
@@ -383,55 +385,59 @@ export class ContextTrimService {
                 const extraSelectionTokens =
                     selectionReferencesTokens > 0 &&
                     i === lastNonFunctionResponseUserIndex &&
-                    !message.isFunctionResponse
+                    isConversationRoundStart(message)
                         ? selectionReferencesTokens
                         : 0;
                 const extraTaskContextTokens =
                     taskContextTokens > 0 &&
                     i === lastNonFunctionResponseUserIndex &&
-                    !message.isFunctionResponse
+                    isConversationRoundStart(message)
                         ? taskContextTokens
                         : 0;
                 const extraOpenFileTokens =
                     openFileContextTokens > 0 &&
                     i === lastNonFunctionResponseUserIndex &&
-                    !message.isFunctionResponse
+                    isConversationRoundStart(message)
                         ? openFileContextTokens
                         : 0;
                 estimatedTotalTokens += tokenCount + extraSelectionTokens + extraTaskContextTokens + extraOpenFileTokens;
                 hasEstimatedTokens = true;
-            } else if (message.role === 'model' && message.usageMetadata) {
-                // model 消息：根据用户配置、消息内容和回合位置决定是否计算思考 token
+            } else if (message.role === 'model') {
+                // model 消息：按实际会再次发送给 API 的 parts 估算，避免只用 candidatesTokenCount 漏算正文/工具调用
                 const isCurrentRound = i >= lastNonFunctionResponseUserIndex;
                 const hasThought = this.messageBuilderService.hasThoughtContent(message.parts);
                 const hasSignatures = this.messageBuilderService.hasThoughtSignatures(message.parts);
-                
-                let includeThoughtsToken = false;
+
+                let includeThoughtParts = false;
                 
                 if (isCurrentRound) {
                     // 当前轮：根据当前轮配置和消息内容决定
-                    includeThoughtsToken = (sendCurrentThoughts && hasThought) ||
+                    includeThoughtParts = (sendCurrentThoughts && hasThought) ||
                                           (sendCurrentThoughtSignatures && hasSignatures);
                 } else {
                     // 历史轮：根据历史轮配置、消息内容和 historyThinkingRounds 决定
                     const isInHistoryThoughtRange = i >= historyThoughtMinIndex && i < historyThoughtMaxIndex;
                     if (isInHistoryThoughtRange) {
-                        includeThoughtsToken = (sendHistoryThoughts && hasThought) ||
+                        includeThoughtParts = (sendHistoryThoughts && hasThought) ||
                                               (sendHistoryThoughtSignatures && hasSignatures);
                     }
                 }
-                
-                const modelTokens = (message.usageMetadata.candidatesTokenCount ?? 0) +
-                                   (includeThoughtsToken ? (message.usageMetadata.thoughtsTokenCount ?? 0) : 0);
-                if (modelTokens > 0) {
-                    estimatedTotalTokens += modelTokens;
-                    hasEstimatedTokens = true;
-                }
-            } else if (message.role === 'model') {
-                // model 消息没有 usageMetadata，估算 token 数
-                const modelTokens = this.tokenEstimationService.estimateMessageTokens(message);
+
+                const estimatedMessage = includeThoughtParts
+                    ? message
+                    : {
+                        ...message,
+                        parts: message.parts.filter(part => !part.thought || part.thoughtSignatures)
+                    };
+                const estimatedContentTokens = estimatedMessage.parts.length > 0
+                    ? this.tokenEstimationService.estimateMessageTokens(estimatedMessage)
+                    : 0;
+                const modelTokens = Math.max(
+                    estimatedContentTokens,
+                    message.usageMetadata?.candidatesTokenCount ?? 0
+                );
                 estimatedTotalTokens += modelTokens;
-                hasEstimatedTokens = true;
+                hasEstimatedTokens = hasEstimatedTokens || modelTokens > 0;
             }
         }
         

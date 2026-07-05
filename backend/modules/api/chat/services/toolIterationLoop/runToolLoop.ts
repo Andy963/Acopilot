@@ -22,9 +22,7 @@ import {
     getLastUserSelectionReferences,
     getLastUserTaskContext,
     getLastUserOpenFileContext,
-    injectOpenFileContextIntoHistory,
-    injectSelectionReferencesIntoHistory,
-    injectTaskContextIntoHistory,
+    injectCurrentTurnContextIntoHistory,
     isOpenAIResponsesContinuationError,
     isOpenAIResponsesPromptCacheKeyError,
     type OpenAIResponsesContinuationState,
@@ -164,7 +162,7 @@ export async function* runToolLoop(
         let previousResponseId: string | undefined = openaiState.previousResponseId;
         history = openaiState.history;
 
-        const { dynamicSystemPrompt, contextSnapshot } = await buildPromptAndSnapshot({
+        const { dynamicSystemPrompt, toolMode, contextSnapshot } = await buildPromptAndSnapshot({
             deps,
             loopConfig,
             iteration,
@@ -176,7 +174,19 @@ export async function* runToolLoop(
             toolsEnabled,
             pinnedPromptEnabled,
             toolAllowList,
+            estimatedTotalTokens,
+            maxContextTokens,
         });
+
+        // On the first iteration, send contextSnapshot early so the frontend
+        // can display the "Context Used" card before LLM generation completes.
+        if (iteration === 0 && contextSnapshot) {
+            yield {
+                conversationId,
+                contextSnapshot,
+                contextInfo: true as const,
+            };
+        }
 
         let finalContent: Content;
         let openaiResponseId: string | undefined;
@@ -198,13 +208,11 @@ export async function* runToolLoop(
             try {
                 const response = await deps.channelManager.generate({
                     configId,
-                    history: injectSelectionReferencesIntoHistory(
-                        injectOpenFileContextIntoHistory(
-                            injectTaskContextIntoHistory(requestHistory, taskContext),
-                            openFileContext
-                        ),
+                    history: injectCurrentTurnContextIntoHistory(requestHistory, {
+                        taskContext,
+                        openFileContext,
                         selectionReferences
-                    ),
+                    }),
                     abortSignal,
                     dynamicSystemPrompt,
                     previousResponseId: requestPreviousResponseId,
@@ -218,6 +226,7 @@ export async function* runToolLoop(
                     const processor = new StreamResponseProcessor({
                         requestStartTime,
                         providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+                        toolMode,
                         abortSignal,
                         conversationId
                     });
@@ -277,6 +286,7 @@ export async function* runToolLoop(
                     const processor = new StreamResponseProcessor({
                         requestStartTime,
                         providerType: config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
+                        toolMode,
                         abortSignal,
                         conversationId
                     });

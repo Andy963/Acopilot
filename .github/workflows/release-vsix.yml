@@ -14,29 +14,28 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.3.0
         with:
           node-version: 20
-          # Note: do not enable dependency caching here.
-          # This repo uses pnpm (pnpm-lock.yaml). setup-node cache currently
-          # expects npm/yarn lockfiles and can also require pnpm to be present
-          # in PATH when cache=pnpm, which breaks the release job.
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      - name: Install dependencies
+        run: npm run install:all:ci
 
-      - name: Verify pnpm
-        run: pnpm -v
+      - name: Run validators
+        run: npm run validate
 
-      # Note: build.sh installs both root (npm) and frontend (pnpm) dependencies.
+      - name: Build extension
+        run: npm run build
 
-      - name: Build and package VSIX
-        run: bash ./build.sh
+      - name: Package VSIX
+        run: npm run package
 
       - name: Find VSIX
         id: vsix
@@ -65,8 +64,24 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ steps.vsix.outputs.vsix_path }}
-          body_path: RELEASE_NOTES.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VSIX_PATH: ${{ steps.vsix.outputs.vsix_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$VSIX_PATH" --clobber
+            gh release edit "$TAG" \
+              --title "$TAG" \
+              --notes-file RELEASE_NOTES.md \
+              $([[ "$TAG" == *-* ]] && printf '%s' '--prerelease')
+          else
+            gh release create "$TAG" "$VSIX_PATH" \
+              --title "$TAG" \
+              --notes-file RELEASE_NOTES.md \
+              --verify-tag \
+              $([[ "$TAG" == *-* ]] && printf '%s' '--prerelease')
+          fi
