@@ -2,6 +2,23 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.61] - 2026-07-05
+
+### Added
+  - Pinned Context: add reusable prompt presets, workspace-default prompt restoration, and a custom prompt reuse flow.
+  - Prompting: add prompt-context priority semantics so the latest user request reliably outranks older conversation history and summaries.
+  - Context: add richer context inspection, context snapshot preservation, and improved prompt/context module visibility.
+
+### Improved
+  - Chat: restore manual context summarization from the composer and keep OpenAI Responses continuation state aligned after summarization.
+  - Chat: improve token accounting for CJK text, assistant/tool content, streaming usage metadata, cached prompt tokens, and context trimming decisions.
+  - Build/Release: strengthen validation, packaging, and VSIX release workflows for prerelease and stable release cuts.
+
+### Fixed
+  - Pinned Context: preserve custom prompt editor usability and avoid losing selected presets across conversations in the same workspace.
+  - Chat: prevent stale summaries, old user instructions, or continuation state from overriding the latest user request.
+  - UI: stabilize context-used rendering, streaming scroll behavior, token-ring context usage, and summary message handling.
+
 ## [1.0.61-pre.13] - 2026-07-05
 
 ### Fixed
