@@ -93,7 +93,10 @@ export const zhCNComponentsCommon = {
             fullHistory: '历史消息数',
             trimmedHistory: '发送消息数',
             trimStartIndex: '裁剪起点索引',
-            lastSummaryIndex: '最后总结索引'
+            lastSummaryIndex: '最后总结索引',
+            summaryPreview: '上下文总结',
+            summarizedMessages: '已总结消息数',
+            keptRounds: '保留轮数'
         },
         tools: {
             title: '工具定义预览'

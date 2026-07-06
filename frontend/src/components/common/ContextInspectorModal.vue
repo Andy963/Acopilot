@@ -311,6 +311,21 @@ const pinnedSelectionsListText = computed(() => {
               <span class="k">{{ t('components.common.contextInspectorModal.trim.lastSummaryIndex') }}</span>
               <span class="v"><code>{{ data.trim.lastSummaryIndex }}</code></span>
             </div>
+            <div v-if="data.trim.summary?.summarizedMessageCount" class="kv-row">
+              <span class="k">{{ t('components.common.contextInspectorModal.trim.summarizedMessages') }}</span>
+              <span class="v"><code>{{ data.trim.summary.summarizedMessageCount }}</code></span>
+            </div>
+            <div v-if="data.trim.summary?.keptRecentRounds !== undefined" class="kv-row">
+              <span class="k">{{ t('components.common.contextInspectorModal.trim.keptRounds') }}</span>
+              <span class="v"><code>{{ data.trim.summary.keptRecentRounds }}</code></span>
+            </div>
+          </div>
+          <div v-if="data.trim.summary?.preview" class="injected-list">
+            <div class="injected-list-title">
+              {{ t('components.common.contextInspectorModal.trim.summaryPreview') }}
+              <span v-if="data.trim.summary.truncated">({{ t('common.truncated') }})</span>
+            </div>
+            <pre class="pre">{{ data.trim.summary.preview }}</pre>
           </div>
         </div>
 

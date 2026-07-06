@@ -93,7 +93,10 @@ export const enComponentsCommon = {
             fullHistory: 'History messages',
             trimmedHistory: 'Sent messages',
             trimStartIndex: 'Trim start index',
-            lastSummaryIndex: 'Last summary index'
+            lastSummaryIndex: 'Last summary index',
+            summaryPreview: 'Context Summary',
+            summarizedMessages: 'Summarized messages',
+            keptRounds: 'Kept rounds'
         },
         tools: {
             title: 'Tool Definitions'

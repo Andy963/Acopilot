@@ -11,6 +11,7 @@ import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pi
 import { getSelectionReferencesInjectedInfo } from './services/selectionReferences';
 import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
 import { resolveChatModePolicy } from './services/chatMode';
+import { buildSummaryPreview } from './summaryPreview';
 import type { PromptManager } from '../../prompt/PromptManager';
 import type { MessageBuilderService, ContextTrimService } from './services';
 import type {
@@ -136,6 +137,9 @@ export async function buildContextInspectorData(params: {
       }
     }
     const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
+    const summary = lastSummaryIndex >= 0
+      ? buildSummaryPreview(fullHistory[lastSummaryIndex])
+      : undefined;
 
     trim = {
       fullHistoryCount: fullHistory.length,
@@ -143,6 +147,7 @@ export async function buildContextInspectorData(params: {
       trimStartIndex: trimInfo.trimStartIndex,
       lastSummaryIndex,
       effectiveStartIndex,
+      summary,
     };
   }
 

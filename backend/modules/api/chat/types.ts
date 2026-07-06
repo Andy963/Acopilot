@@ -243,6 +243,15 @@ export interface ContextInspectorTrim {
     lastSummaryIndex: number;
     /** 有效起始索引（lastSummaryIndex>=0 时等于 lastSummaryIndex，否则为 0） */
     effectiveStartIndex: number;
+    /** 最近总结消息预览 */
+    summary?: {
+        preview: string;
+        charCount: number;
+        truncated: boolean;
+        summarizedMessageCount?: number;
+        keptRecentRounds?: number;
+        generatedAt?: number;
+    };
 }
 
 /**

@@ -93,7 +93,10 @@ export const jaComponentsCommon = {
             fullHistory: '履歴メッセージ数',
             trimmedHistory: '送信メッセージ数',
             trimStartIndex: 'トリム開始インデックス',
-            lastSummaryIndex: '最後の要約インデックス'
+            lastSummaryIndex: '最後の要約インデックス',
+            summaryPreview: 'コンテキスト要約',
+            summarizedMessages: '要約済みメッセージ数',
+            keptRounds: '保持ラウンド数'
         },
         tools: {
             title: 'ツール定義'

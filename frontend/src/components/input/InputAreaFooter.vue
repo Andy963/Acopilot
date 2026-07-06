@@ -21,6 +21,7 @@ const props = defineProps<{
   usedTokens: number
   maxContextTokens: number
   isWaitingForResponse: boolean
+  isSummarizing: boolean
   canSend: boolean
   attachments?: Attachment[]
   summarizeKeepRecentRounds?: number | null
@@ -193,7 +194,8 @@ function emitOpenChannelSettings() {
           icon="codicon-fold"
           size="small"
           class="summarize-button"
-          :disabled="props.isWaitingForResponse"
+          :loading="props.isSummarizing"
+          :disabled="props.isWaitingForResponse || props.isSummarizing"
           :aria-label="summarizeTooltipContent"
           @click="emit('summarize')"
         />
@@ -294,6 +296,16 @@ function emitOpenChannelSettings() {
 
 .summarize-button :deep(i.codicon) {
   font-size: 14px;
+}
+
+.summarize-button {
+  border: 1px solid transparent;
+}
+
+.summarize-button:hover:not(:disabled),
+.summarize-button:focus-visible {
+  background: var(--vscode-toolbar-hoverBackground);
+  border-color: var(--vscode-focusBorder);
 }
 
 .model-selector-wrapper {

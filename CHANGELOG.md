@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.6] - 2026-07-06
+
+### Fixed
+  - Summary messages: keep the latest context summary visible in the chat message list even when it falls outside the currently loaded/visible message window.
+  - Context Inspector and the in-chat "Context Used" card now surface a summary preview (summarized message count, kept rounds, and cleaned preview text) so a completed summarization is actually visible after it succeeds.
+  - Summary messages: strip the internal authority notice and title prefix consistently so only the real summary text is shown.
+  - Composer footer: the "Summarize context" button now shows a loading state and is disabled while summarizing, instead of appearing unresponsive on click.
+
 ## [1.0.62-pre.5] - 2026-07-06
 
 ### Improved

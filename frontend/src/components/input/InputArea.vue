@@ -121,6 +121,7 @@ const showPinnedFilesPanel = ref(false)
 
 const enabledPinnedFilesCount = ref(0)
 const hasPinnedPrompt = computed(() => Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none'))
+const isSummarizing = ref(false)
 
 function handlePinnedPanelStats(count: number) {
   enabledPinnedFilesCount.value = count
@@ -132,6 +133,9 @@ function openPinnedFilesPanel() {
 }
 
 async function handleSummarize() {
+  if (isSummarizing.value) return
+
+  isSummarizing.value = true
   try {
     const result = await chatStore.summarizeContext()
 
@@ -154,6 +158,8 @@ async function handleSummarize() {
       t('components.input.notifications.summarizeError', { error: error.message || t('common.unknownError') }),
       'error'
     )
+  } finally {
+    isSummarizing.value = false
   }
 }
 
@@ -245,6 +251,7 @@ async function handleSummarize() {
         :used-tokens="chatStore.usedTokens"
         :max-context-tokens="chatStore.maxContextTokens"
         :is-waiting-for-response="chatStore.isWaitingForResponse"
+        :is-summarizing="isSummarizing"
         :can-send="canSend"
         :attachments="attachments"
         :summarize-keep-recent-rounds="summarizeKeepRecentRounds"

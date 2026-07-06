@@ -47,8 +47,10 @@ const summaryGeneratedTime = computed(() => {
 // 获取总结内容（去除 [对话总结] 前缀）
 const summaryContent = computed(() => {
   const content = props.message.content || ''
-  // 移除 [对话总结] 标题和换行
-  return content.replace(/^\[对话总结\]\s*\n*/, '').trim()
+  return content
+    .replace(/^Historical conversation summary\.[\s\S]*?latest user request\.\s*/, '')
+    .replace(/^\[(?:Conversation Summary|对话总结|会話要約)\]\s*/, '')
+    .trim()
 })
 
 // 获取预览文本（前 100 个字符）
@@ -62,6 +64,12 @@ const previewText = computed(() => {
 const usageMetadata = computed(() => props.message.metadata?.usageMetadata)
 const hasTokenInfo = computed(() =>
   usageMetadata.value?.promptTokenCount || usageMetadata.value?.candidatesTokenCount
+)
+
+const hasMeta = computed(() =>
+  Boolean(props.message.summarizedMessageCount) ||
+  props.message.summaryKeptRecentRounds !== undefined ||
+  hasTokenInfo.value
 )
 
 // 删除总结消息
@@ -109,42 +117,48 @@ async function handleResummarize() {
 <template>
   <div class="summary-message">
     <div class="summary-bar" @click="isExpanded = !isExpanded">
-      <!-- 左侧：图标和标题 -->
-      <div class="summary-left">
-        <i class="codicon" :class="isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
-        <span class="summary-title">{{ t('components.message.summary.title') }}</span>
+      <div class="summary-header">
+        <!-- 左侧：图标和标题 -->
+        <div class="summary-header-left">
+          <i class="codicon" :class="isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'"></i>
+          <span class="summary-title">{{ t('components.message.summary.title') }}</span>
+        </div>
+
+        <!-- 右侧：时间 + 操作按钮 -->
+        <div class="summary-header-right">
+          <span class="summary-time">{{ formattedTime }}</span>
+          <button
+            class="summary-action-button"
+            :disabled="isDeleting || isResummarizing"
+            @click.stop="handleResummarize"
+            :title="t('components.message.summary.resummarizeTitle')"
+          >
+            <i class="codicon codicon-refresh"></i>
+          </button>
+          <button
+            class="summary-action-button delete-button"
+            :disabled="isDeleting || isResummarizing"
+            @click.stop="handleDelete"
+            :title="t('components.message.summary.deleteTitle')"
+          >
+            <i class="codicon codicon-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 第二行：压缩统计徽章 + Token 信息，独立换行避免挤压标题 -->
+      <div v-if="hasMeta" class="summary-meta-row">
         <span v-if="message.summarizedMessageCount" class="summary-count">
           {{ t('components.message.summary.compressed', { count: message.summarizedMessageCount }) }}
         </span>
         <span v-if="message.summaryKeptRecentRounds !== undefined" class="summary-count">
           {{ t('components.message.summary.keptRounds', { count: message.summaryKeptRecentRounds }) }}
         </span>
-      </div>
-      
-      <!-- 右侧：删除按钮 + 时间和 Token 信息 -->
-      <div class="summary-right">
         <span v-if="hasTokenInfo" class="summary-tokens">
           <span class="token-before">{{ usageMetadata?.promptTokenCount || 0 }}</span>
           <span class="token-arrow">→</span>
           <span class="token-after">{{ usageMetadata?.candidatesTokenCount || 0 }}</span>
         </span>
-        <span class="summary-time">{{ formattedTime }}</span>
-        <button
-          class="summary-action-button"
-          :disabled="isDeleting || isResummarizing"
-          @click.stop="handleResummarize"
-          :title="t('components.message.summary.resummarizeTitle')"
-        >
-          <i class="codicon codicon-refresh"></i>
-        </button>
-        <button
-          class="summary-action-button delete-button"
-          :disabled="isDeleting || isResummarizing"
-          @click.stop="handleDelete"
-          :title="t('components.message.summary.deleteTitle')"
-        >
-          <i class="codicon codicon-trash"></i>
-        </button>
       </div>
     </div>
     
@@ -178,8 +192,8 @@ async function handleResummarize() {
 
 .summary-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
   padding: 10px 12px;
   background: linear-gradient(
     135deg,
@@ -199,13 +213,23 @@ async function handleResummarize() {
   );
 }
 
-.summary-left {
+.summary-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-.summary-left .codicon {
+.summary-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.summary-header-left .codicon {
+  flex-shrink: 0;
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
 }
@@ -214,20 +238,33 @@ async function handleResummarize() {
   font-size: 13px;
   font-weight: 600;
   color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.summary-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 20px;
 }
 
 .summary-count {
   font-size: 11px;
+  white-space: nowrap;
   color: var(--vscode-descriptionForeground);
   background: var(--vscode-badge-background);
   padding: 2px 8px;
   border-radius: 10px;
-}
-
-.summary-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .summary-tokens {
@@ -235,6 +272,7 @@ async function handleResummarize() {
   align-items: center;
   gap: 6px;
   font-size: 11px;
+  white-space: nowrap;
   color: var(--vscode-descriptionForeground);
 }
 
@@ -258,6 +296,7 @@ async function handleResummarize() {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 .summary-action-button {
