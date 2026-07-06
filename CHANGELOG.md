@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.7] - 2026-07-06
+
+### Improved
+  - Dependencies: Tools Settings now offers one-click installation for missing dependencies directly from each affected tool.
+  - Dependencies: uninstall confirmation now lists tools that will be affected before removing a shared dependency.
+  - Dependencies: installation and uninstall failures now expose copyable diagnostic logs with redaction applied to backend logs.
+  - Dependencies: the settings page now explains how dependency install paths relate to the General storage path.
+
 ## [1.0.62-pre.6] - 2026-07-06
 
 ### Fixed

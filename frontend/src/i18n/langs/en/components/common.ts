@@ -48,7 +48,10 @@ export const enComponentsCommon = {
         title: 'Dependencies Required',
         defaultMessage: 'This feature requires the following dependencies:',
         hint: 'Please go to',
-        linkText: 'Extension Dependencies'
+        linkText: 'Extension Dependencies',
+        installMissing: 'Install missing',
+        installing: 'Installing...',
+        copyFailureLog: 'Copy failure log'
     },
     emptyState: {
         noData: 'No data',

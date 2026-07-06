@@ -305,7 +305,10 @@ export const jaComponentsSettingsPart2b = {
         dependency: {
             required: '依存関係が必要',
             requiredTooltip: 'このツールを使用するには依存関係のインストールが必要です',
-            disabledTooltip: 'ツールが無効か、依存関係が不足しています'
+            disabledTooltip: 'ツールが無効か、依存関係が不足しています',
+            installSuccess: '依存関係をインストールしました: {dependencies}',
+            copyLogSuccess: '依存関係の失敗ログをコピーしました',
+            copyLogFailed: '依存関係の失敗ログのコピーに失敗しました'
         },
         config: {
             tooltip: 'ツールを設定'

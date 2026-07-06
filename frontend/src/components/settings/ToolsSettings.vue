@@ -30,6 +30,10 @@ const {
   isLoading,
   savingTools,
   savingAutoExecTools,
+  installMissingDependencies,
+  isInstallingDependencies,
+  getDependencyInstallFailureLog,
+  copyDependencyInstallFailureLog,
   orderedCategories,
   isMcpTool,
   isDangerousTool,
@@ -197,7 +201,13 @@ const {
 
             <!-- 依赖缺失提示 -->
             <DependencyWarning v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
-              :dependencies="getMissingDependencies(tool.name)" class="tool-dependency-warning" />
+              :dependencies="getMissingDependencies(tool.name)"
+              :show-install-action="true"
+              :installing="isInstallingDependencies(tool.name)"
+              :failure-log="getDependencyInstallFailureLog(tool.name)"
+              class="tool-dependency-warning"
+              @install="installMissingDependencies(tool.name)"
+              @copy-failure-log="copyDependencyInstallFailureLog(tool.name)" />
 
             <!-- 配置面板 -->
             <ListFilesConfig v-if="tool.name === 'list_files' && isConfigExpanded(tool.name)" :tool-name="tool.name" />

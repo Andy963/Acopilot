@@ -1,5 +1,5 @@
 import { computed, onMounted, ref } from 'vue'
-import { sendToExtension } from '@/utils/vscode'
+import { sendToExtension, showNotification } from '@/utils/vscode'
 import { getToolDependencies, hasToolDependencies, TOOL_DEPENDENCIES, useDependency } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
 
@@ -76,6 +76,9 @@ export function useToolsSettings() {
   const isLoading = ref(false)
   const savingTools = ref<Set<string>>(new Set())
   const savingAutoExecTools = ref<Set<string>>(new Set())
+  const installingDependencyTools = ref<Set<string>>(new Set())
+  const installingDependencies = ref<Set<string>>(new Set())
+  const dependencyInstallFailureLogs = ref<Record<string, string>>({})
 
   const toolsByCategory = computed(() => {
     const grouped: Record<string, ToolInfo[]> = {}
@@ -168,6 +171,105 @@ export function useToolsSettings() {
 
   function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
     return categoryTools.filter(tool => isAutoExec(tool.name)).length
+  }
+
+  function buildDependencyInstallFailureLog(params: {
+    toolName: string
+    dependencyName: string
+    error: unknown
+    backendLog?: string
+  }): string {
+    const message = params.error instanceof Error ? params.error.message : String(params.error)
+    return [
+      `Dependency install failed`,
+      `Time: ${new Date().toISOString()}`,
+      `Tool: ${getToolDisplayName(params.toolName)} (${params.toolName})`,
+      `Dependency: ${params.dependencyName}`,
+      `Error: ${message}`,
+      params.backendLog ? `Backend log:\n${params.backendLog}` : '',
+    ].filter(Boolean).join('\n')
+  }
+
+  function isInstallingDependencies(toolName: string): boolean {
+    const required = getToolDependencies(toolName)
+    return installingDependencyTools.value.has(toolName) ||
+      required.some(dependencyName => installingDependencies.value.has(dependencyName))
+  }
+
+  function getDependencyInstallFailureLog(toolName: string): string {
+    return dependencyInstallFailureLogs.value[toolName] || ''
+  }
+
+  async function installMissingDependencies(toolName: string): Promise<void> {
+    const missingDependencies = getMissingDependencies(toolName)
+    if (
+      missingDependencies.length === 0 ||
+      installingDependencyTools.value.has(toolName) ||
+      missingDependencies.some(dependencyName => installingDependencies.value.has(dependencyName))
+    ) {
+      return
+    }
+
+    installingDependencyTools.value.add(toolName)
+    dependencyInstallFailureLogs.value = {
+      ...dependencyInstallFailureLogs.value,
+      [toolName]: '',
+    }
+
+    try {
+      for (const dependencyName of missingDependencies) {
+        installingDependencies.value.add(dependencyName)
+        let result: { success: boolean; log?: string }
+        try {
+          result = await sendToExtension<{ success: boolean; log?: string }>('dependencies.install', { name: dependencyName })
+        } finally {
+          installingDependencies.value.delete(dependencyName)
+        }
+
+        if (!result.success) {
+          const failureLog = buildDependencyInstallFailureLog({
+            toolName,
+            dependencyName,
+            error: new Error(t('components.settings.dependencySettings.progress.installFailed', { name: dependencyName })),
+            backendLog: result.log,
+          })
+          dependencyInstallFailureLogs.value = {
+            ...dependencyInstallFailureLogs.value,
+            [toolName]: failureLog,
+          }
+          console.error('Failed to install tool dependencies:', failureLog)
+          return
+        }
+      }
+
+      await loadDependencies()
+      await showNotification(
+        t('components.settings.toolsSettings.dependency.installSuccess', { dependencies: missingDependencies.join(', ') }),
+        'info'
+      )
+    } catch (error) {
+      const dependencyName = missingDependencies[0] || ''
+      const failureLog = buildDependencyInstallFailureLog({ toolName, dependencyName, error })
+      dependencyInstallFailureLogs.value = {
+        ...dependencyInstallFailureLogs.value,
+        [toolName]: failureLog,
+      }
+      console.error('Failed to install tool dependencies:', failureLog)
+    } finally {
+      installingDependencyTools.value.delete(toolName)
+    }
+  }
+
+  async function copyDependencyInstallFailureLog(toolName: string): Promise<void> {
+    const log = getDependencyInstallFailureLog(toolName)
+    if (!log) return
+
+    try {
+      await navigator.clipboard.writeText(log)
+      await showNotification(t('components.settings.toolsSettings.dependency.copyLogSuccess'), 'info')
+    } catch {
+      await showNotification(t('components.settings.toolsSettings.dependency.copyLogFailed'), 'error')
+    }
   }
 
   async function loadTools() {
@@ -335,12 +437,19 @@ export function useToolsSettings() {
     isLoading,
     savingTools,
     savingAutoExecTools,
+    installingDependencyTools,
+    installingDependencies,
+    dependencyInstallFailureLogs,
     toolsByCategory,
     orderedCategories,
     isMcpTool,
     isDangerousTool,
     isAutoExec,
     loadTools,
+    installMissingDependencies,
+    isInstallingDependencies,
+    getDependencyInstallFailureLog,
+    copyDependencyInstallFailureLog,
     toggleTool,
     toggleAutoExec,
     requestToggleAutoExec,

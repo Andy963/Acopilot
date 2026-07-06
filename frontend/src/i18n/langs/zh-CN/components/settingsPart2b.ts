@@ -305,7 +305,10 @@ export const zhCNComponentsSettingsPart2b = {
         dependency: {
             required: '需要依赖',
             requiredTooltip: '此工具需要安装依赖才能使用',
-            disabledTooltip: '工具已禁用或缺少依赖'
+            disabledTooltip: '工具已禁用或缺少依赖',
+            installSuccess: '已安装依赖：{dependencies}',
+            copyLogSuccess: '依赖失败日志已复制',
+            copyLogFailed: '复制依赖失败日志失败'
         },
         config: {
             tooltip: '配置工具'

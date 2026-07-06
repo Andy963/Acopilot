@@ -128,6 +128,12 @@ export function getToolDependencies(toolName: string): string[] {
   return TOOL_DEPENDENCIES[toolName] || []
 }
 
+export function getToolsForDependency(dependencyName: string): string[] {
+  return Object.entries(TOOL_DEPENDENCIES)
+    .filter(([, dependencies]) => dependencies.includes(dependencyName))
+    .map(([toolName]) => toolName)
+}
+
 /**
  * 检查工具是否有依赖要求
  */

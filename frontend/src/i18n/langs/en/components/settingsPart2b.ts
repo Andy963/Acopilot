@@ -305,7 +305,10 @@ export const enComponentsSettingsPart2b = {
         dependency: {
             required: 'Dependencies Required',
             requiredTooltip: 'This tool requires dependencies to be installed',
-            disabledTooltip: 'Tool is disabled or missing dependencies'
+            disabledTooltip: 'Tool is disabled or missing dependencies',
+            installSuccess: 'Installed dependencies: {dependencies}',
+            copyLogSuccess: 'Dependency failure log copied',
+            copyLogFailed: 'Failed to copy dependency failure log'
         },
         config: {
             tooltip: 'Configure Tool'

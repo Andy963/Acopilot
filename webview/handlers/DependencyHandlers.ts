@@ -24,7 +24,7 @@ export const installDependency: MessageHandler = async (data, requestId, ctx) =>
   try {
     const { name } = data;
     const success = await ctx.dependencyManager.install(name);
-    ctx.sendResponse(requestId, { success });
+    ctx.sendResponse(requestId, { success, log: ctx.dependencyManager.getLastFailureLog(name) });
   } catch (error: any) {
     ctx.sendError(requestId, 'INSTALL_DEPENDENCY_ERROR', error.message || t('webview.errors.installDependencyFailed'));
   }
@@ -37,7 +37,7 @@ export const uninstallDependency: MessageHandler = async (data, requestId, ctx) 
   try {
     const { name } = data;
     const success = await ctx.dependencyManager.uninstall(name);
-    ctx.sendResponse(requestId, { success });
+    ctx.sendResponse(requestId, { success, log: ctx.dependencyManager.getLastFailureLog(name) });
   } catch (error: any) {
     ctx.sendError(requestId, 'UNINSTALL_DEPENDENCY_ERROR', error.message || t('webview.errors.uninstallDependencyFailed'));
   }

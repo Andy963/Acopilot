@@ -9,11 +9,23 @@
       <span class="label">{{ t('components.settings.dependencySettings.installPath') }}</span>
       <code>{{ installPath }}</code>
     </div>
+    <div class="path-note">
+      <i class="codicon codicon-info"></i>
+      <span>{{ t('components.settings.dependencySettings.pathRelation') }}</span>
+    </div>
     
     <!-- 安装进度消息 -->
     <div v-if="progressMessage" class="progress-message" :class="progressType">
       <i :class="progressIcon"></i>
       <span>{{ progressMessage }}</span>
+      <button
+        v-if="progressType === 'error' && lastFailureLog"
+        class="copy-log-button"
+        @click="copyFailureLog"
+      >
+        <i class="codicon codicon-copy"></i>
+        {{ t('components.settings.dependencySettings.copyFailureLog') }}
+      </button>
     </div>
     
     <!-- 按工具分组的依赖面板 -->
@@ -78,7 +90,7 @@
                 v-else
                 class="action-button uninstall-btn"
                 :disabled="uninstalling === depName"
-                @click.stop="uninstallDependency(depName)"
+                @click.stop="requestUninstallDependency(depName)"
               >
                 <i v-if="uninstalling === depName" class="codicon codicon-loading codicon-modifier-spin"></i>
                 <i v-else class="codicon codicon-trash"></i>
@@ -94,13 +106,24 @@
         <p>{{ t('components.settings.dependencySettings.empty') }}</p>
       </div>
     </div>
+
+    <ConfirmDialog
+      v-model="confirmUninstallVisible"
+      :title="t('components.settings.dependencySettings.uninstallConfirm.title')"
+      :message="uninstallConfirmMessage"
+      :confirm-text="t('components.settings.dependencySettings.uninstallConfirm.confirm')"
+      :cancel-text="t('components.settings.dependencySettings.uninstallConfirm.cancel')"
+      :is-danger="true"
+      @confirm="confirmUninstallDependency"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { sendToExtension } from '../../utils/vscode';
-import { TOOL_DEPENDENCIES } from '../../composables/useDependency';
+import { sendToExtension, showNotification } from '../../utils/vscode';
+import ConfirmDialog from '../common/ConfirmDialog.vue';
+import { TOOL_DEPENDENCIES, getToolsForDependency } from '../../composables/useDependency';
 import { useI18n } from '@/i18n';
 
 const { t } = useI18n();
@@ -126,6 +149,9 @@ const installing = ref<string | null>(null);
 const uninstalling = ref<string | null>(null);
 const progressMessage = ref<string>('');
 const progressType = ref<'info' | 'success' | 'error'>('info');
+const lastFailureLog = ref('');
+const confirmUninstallVisible = ref(false);
+const pendingUninstallDependency = ref<string | null>(null);
 
 // 展开的面板（记住状态）
 const STORAGE_KEY = 'acopilot.dependencyPanels.expanded';
@@ -208,6 +234,23 @@ function getInstalledCount(deps: string[]): number {
   return deps.filter(dep => isDependencyInstalled(dep)).length;
 }
 
+function getAffectedToolNames(depName: string): string[] {
+  return getToolsForDependency(depName).map(getToolDisplayName);
+}
+
+const uninstallConfirmMessage = computed(() => {
+  const depName = pendingUninstallDependency.value || '';
+  const tools = getAffectedToolNames(depName);
+  const affectedTools = tools.length > 0
+    ? tools.join(', ')
+    : t('components.settings.dependencySettings.uninstallConfirm.none');
+
+  return t('components.settings.dependencySettings.uninstallConfirm.message', {
+    name: depName,
+    tools: affectedTools
+  });
+});
+
 const progressIcon = computed(() => {
   switch (progressType.value) {
     case 'success':
@@ -229,6 +272,33 @@ async function loadDependencies() {
   }
 }
 
+function buildFailureLog(params: {
+  action: 'install' | 'uninstall';
+  name: string;
+  message: string;
+  log?: string;
+}): string {
+  return [
+    `Dependency ${params.action} failed`,
+    `Time: ${new Date().toISOString()}`,
+    `Dependency: ${params.name}`,
+    installPath.value ? `Install path: ${installPath.value}` : '',
+    `Error: ${params.message}`,
+    params.log ? `Backend log:\n${params.log}` : ''
+  ].filter(Boolean).join('\n');
+}
+
+async function copyFailureLog() {
+  if (!lastFailureLog.value) return;
+
+  try {
+    await navigator.clipboard.writeText(lastFailureLog.value);
+    await showNotification(t('components.settings.dependencySettings.copyFailureLogSuccess'), 'info');
+  } catch {
+    await showNotification(t('components.settings.dependencySettings.copyFailureLogFailed'), 'error');
+  }
+}
+
 // 获取安装路径
 async function getInstallPath() {
   try {
@@ -243,9 +313,10 @@ async function getInstallPath() {
 async function installDependency(name: string) {
   installing.value = name;
   progressMessage.value = '';
+  lastFailureLog.value = '';
   
   try {
-    const result = await sendToExtension<{ success: boolean }>('dependencies.install', { name });
+    const result = await sendToExtension<{ success: boolean; log?: string }>('dependencies.install', { name });
     
     if (result.success) {
       progressType.value = 'success';
@@ -254,22 +325,45 @@ async function installDependency(name: string) {
     } else {
       progressType.value = 'error';
       progressMessage.value = t('components.settings.dependencySettings.progress.installFailed', { name });
+      lastFailureLog.value = buildFailureLog({
+        action: 'install',
+        name,
+        message: progressMessage.value,
+        log: result.log
+      });
     }
   } catch (error: any) {
     progressType.value = 'error';
     progressMessage.value = t('components.settings.dependencySettings.progress.installFailed', { name }) + ': ' + (error.message || t('components.settings.dependencySettings.progress.unknownError'));
+    lastFailureLog.value = buildFailureLog({
+      action: 'install',
+      name,
+      message: error.message || t('components.settings.dependencySettings.progress.unknownError')
+    });
   } finally {
     installing.value = null;
   }
+}
+
+function requestUninstallDependency(name: string) {
+  pendingUninstallDependency.value = name;
+  confirmUninstallVisible.value = true;
+}
+
+function confirmUninstallDependency() {
+  const name = pendingUninstallDependency.value;
+  pendingUninstallDependency.value = null;
+  if (name) void uninstallDependency(name);
 }
 
 // 卸载依赖
 async function uninstallDependency(name: string) {
   uninstalling.value = name;
   progressMessage.value = '';
+  lastFailureLog.value = '';
   
   try {
-    const result = await sendToExtension<{ success: boolean }>('dependencies.uninstall', { name });
+    const result = await sendToExtension<{ success: boolean; log?: string }>('dependencies.uninstall', { name });
     
     if (result.success) {
       progressType.value = 'success';
@@ -278,10 +372,21 @@ async function uninstallDependency(name: string) {
     } else {
       progressType.value = 'error';
       progressMessage.value = t('components.settings.dependencySettings.progress.uninstallFailed', { name });
+      lastFailureLog.value = buildFailureLog({
+        action: 'uninstall',
+        name,
+        message: progressMessage.value,
+        log: result.log
+      });
     }
   } catch (error: any) {
     progressType.value = 'error';
     progressMessage.value = t('components.settings.dependencySettings.progress.uninstallFailed', { name }) + ': ' + (error.message || t('components.settings.dependencySettings.progress.unknownError'));
+    lastFailureLog.value = buildFailureLog({
+      action: 'uninstall',
+      name,
+      message: error.message || t('components.settings.dependencySettings.progress.unknownError')
+    });
   } finally {
     uninstalling.value = null;
   }
@@ -289,7 +394,7 @@ async function uninstallDependency(name: string) {
 
 // 监听进度事件
 function handleProgressEvent(event: any) {
-  const { type, dependency, message, error } = event;
+  const { type, dependency, message, error, log } = event;
   
   switch (type) {
     case 'start':
@@ -304,6 +409,12 @@ function handleProgressEvent(event: any) {
     case 'error':
       progressType.value = 'error';
       progressMessage.value = error || t('components.settings.dependencySettings.progress.failed', { dependency });
+      lastFailureLog.value = buildFailureLog({
+        action: installing.value === dependency ? 'install' : 'uninstall',
+        name: dependency,
+        message: progressMessage.value,
+        log
+      });
       break;
   }
 }
