@@ -43,6 +43,11 @@ const { t } = useI18n()
       {{ t('components.settings.promptSettings.skills.description') }}
     </p>
 
+    <div class="skills-lifecycle-note">
+      <i class="codicon codicon-info"></i>
+      <span>{{ t('components.settings.promptSettings.skills.lifecycleNote') }}</span>
+    </div>
+
     <div v-if="skills.length === 0" class="skills-empty">
       <i class="codicon codicon-info"></i>
       <span>{{ t('components.settings.promptSettings.skills.empty') }}</span>
@@ -112,6 +117,18 @@ const { t } = useI18n()
   margin: 0;
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
+}
+
+.skills-lifecycle-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-textBlockQuote-background);
+  border-left: 3px solid var(--vscode-focusBorder);
+  border-radius: 4px;
 }
 
 .skills-empty {

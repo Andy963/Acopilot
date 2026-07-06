@@ -305,16 +305,29 @@ export const zhCNComponentsSettingsPart2a = {
         saveButton: '保存配置',
         saveSuccess: '保存成功',
         saveFailed: '保存失败',
+        validation: {
+            emptyTemplate: '模板不能为空。',
+            unknownVariables: '未知变量：{variables}。请使用参考列表中的变量。',
+            duplicateVariables: '重复变量：{variables}。最终提示词中会重复注入对应上下文。',
+            fixBeforeSave: '请先修复模板校验错误再保存。'
+        },
+        history: {
+            title: 'Prompt 版本历史',
+            hint: '本地保留最近 10 次保存/重置前的版本。',
+            empty: '暂无历史版本。',
+            restore: '恢复',
+            restored: '已从历史恢复，请保存后生效。'
+        },
         modulesReference: {
             title: '可用变量参考',
             insertTooltip: '插入到模板末尾'
         },
         tokenCount: {
-            label: 'Token 数量',
+            label: '预估 Token 数量',
             channelTooltip: '选择用于计算 token 的渠道',
             refreshTooltip: '刷新 token 计数',
             failed: '计数失败',
-            hint: '显示的是仅模板本身的 token 数，实际系统提示词还包含动态填充的变量内容'
+            hint: '仅为估算值，显示变量展开前的模板 token 数；实际系统提示词还包含动态填充的变量内容。'
         },
         modules: {
             ENVIRONMENT: {
@@ -359,10 +372,11 @@ export const zhCNComponentsSettingsPart2a = {
         exampleOutput: '示例输出：',
         requiresConfigLabel: '依赖配置：',
         skills: {
-            title: 'Skills',
-            add: '添加 Skill',
-            description: '管理可复用的提示词（Skill）。可在对话输入框旁的固定内容面板中选择使用。',
-            empty: '暂无 Skill',
+            title: 'Prompt Skills',
+            add: '添加 Prompt Skill',
+            description: '管理可复用的 Prompt Skills。它们会作为素材库保存，不会自动注入每次对话。',
+            lifecycleNote: '固定 Skill 选择是独立流程：在输入框旁的固定内容面板中选择 Prompt Skill，才会附加到某个对话或工作区默认选择。',
+            empty: '暂无 Prompt Skill',
             saveSuccess: '保存成功',
             saveFailed: '保存失败',
             installFromUrl: {

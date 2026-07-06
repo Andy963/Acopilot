@@ -306,11 +306,24 @@ export const enComponentsSettingsPart2a = {
         saveSuccess: 'Saved successfully',
         saveFailed: 'Save failed',
         tokenCount: {
-            label: 'Token Count',
+            label: 'Estimated Token Count',
             channelTooltip: 'Select channel for token calculation',
             refreshTooltip: 'Refresh token count',
             failed: 'Count failed',
-            hint: 'Shows token count for template only, actual system prompt includes dynamically filled variable content'
+            hint: 'Estimate only. Shows template tokens before variable expansion; the actual system prompt includes dynamically filled variable content.'
+        },
+        validation: {
+            emptyTemplate: 'Template cannot be empty.',
+            unknownVariables: 'Unknown variable(s): {variables}. Use variables from the reference list.',
+            duplicateVariables: 'Duplicate variable(s): {variables}. They will duplicate context in the final prompt.',
+            fixBeforeSave: 'Fix template validation errors before saving.'
+        },
+        history: {
+            title: 'Prompt Version History',
+            hint: 'Keeps the last 10 local versions before save/reset.',
+            empty: 'No previous prompt versions yet.',
+            restore: 'Restore',
+            restored: 'Restored from history. Save to apply it.'
         },
         modulesReference: {
             title: 'Available Variables Reference',
@@ -359,10 +372,11 @@ export const enComponentsSettingsPart2a = {
         exampleOutput: 'Example Output:',
         requiresConfigLabel: 'Requires Config:',
         skills: {
-            title: 'Skills',
-            add: 'Add Skill',
-            description: 'Manage reusable prompts (skills). You can select them from the pinned panel next to the input box.',
-            empty: 'No skills',
+            title: 'Prompt Skills',
+            add: 'Add Prompt Skill',
+            description: 'Manage reusable Prompt Skills. They are saved here as a library and are not automatically injected into every conversation.',
+            lifecycleNote: 'Pinned skill selection is separate: choose Prompt Skills from the pinned panel beside the input box to attach them to a specific conversation or workspace default.',
+            empty: 'No Prompt Skills',
             saveSuccess: 'Saved successfully',
             saveFailed: 'Save failed',
             installFromUrl: {

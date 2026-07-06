@@ -2,6 +2,15 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.8] - 2026-07-07
+
+### Improved
+  - Prompt Settings: add local prompt version history with restore support before saving or resetting templates.
+  - Prompt Settings: validate empty, unknown, and duplicated template variables before saving.
+  - Prompt Settings: add variable autocomplete while editing system prompt templates.
+  - Prompt Settings: clarify Prompt Skills versus pinned skill selection lifecycle.
+  - Prompt Settings: mark template token counts as estimates before dynamic variable expansion.
+
 ## [1.0.62-pre.7] - 2026-07-06
 
 ### Improved
