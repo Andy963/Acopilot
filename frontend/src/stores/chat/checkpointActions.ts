@@ -349,7 +349,8 @@ export async function restoreAndEdit(
  */
 export async function summarizeContext(
   state: ChatStoreState,
-  loadHistory: () => Promise<void>
+  loadHistory: () => Promise<void>,
+  options: { regenerateSummaryIndex?: number } = {}
 ): Promise<{
   success: boolean
   summarizedMessageCount?: number
@@ -372,7 +373,8 @@ export async function summarizeContext(
       error?: { code: string; message: string }
     }>('summarizeContext', {
       conversationId: state.currentConversationId.value,
-      configId: state.configId.value
+      configId: state.configId.value,
+      ...options
     })
     
     if (result.success && result.summaryContent) {

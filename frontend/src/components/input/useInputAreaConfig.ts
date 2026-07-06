@@ -17,12 +17,22 @@ export function useInputAreaConfig() {
   const configs = ref<any[]>([])
   const isLoadingConfigs = ref(false)
   const summarizeKeepRecentRounds = ref<number | null>(null)
+  const summarizeAutoSummarize = ref(false)
+  const summarizeAutoSummarizeThreshold = ref<number | null>(null)
 
   async function loadSummarizeConfig() {
     try {
-      const config = await sendToExtension<{ keepRecentRounds?: number }>('getSummarizeConfig', {})
+      const config = await sendToExtension<{
+        keepRecentRounds?: number
+        autoSummarize?: boolean
+        autoSummarizeThreshold?: number
+      }>('getSummarizeConfig', {})
       summarizeKeepRecentRounds.value = typeof config?.keepRecentRounds === 'number'
         ? config.keepRecentRounds
+        : null
+      summarizeAutoSummarize.value = config?.autoSummarize === true
+      summarizeAutoSummarizeThreshold.value = typeof config?.autoSummarizeThreshold === 'number'
+        ? config.autoSummarizeThreshold
         : null
     } catch (error) {
       console.error('Failed to load summarize config:', error)
@@ -288,6 +298,8 @@ export function useInputAreaConfig() {
     handleThinkingEffortChange,
     handleUnifiedModelChange,
     summarizeKeepRecentRounds,
+    summarizeAutoSummarize,
+    summarizeAutoSummarizeThreshold,
     loadSummarizeConfig
   }
 }

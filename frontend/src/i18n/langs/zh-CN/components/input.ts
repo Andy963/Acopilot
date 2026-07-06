@@ -16,6 +16,7 @@ export const zhCNComponentsInput = {
     remove: '移除',
     tokenUsage: '使用量',
     context: '上下文',
+    autoSummarizeThreshold: '自动总结阈值',
     openContextInspectorHint: '点击查看完整上下文明细',
     fileNotExists: '文件不存在',
     channelSelector: {

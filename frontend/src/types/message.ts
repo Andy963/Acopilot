@@ -120,6 +120,8 @@ export interface Content {
   isSummary?: boolean
   /** 总结消息覆盖的消息数量 */
   summarizedMessageCount?: number
+  summaryKeptRecentRounds?: number
+  summaryGeneratedAt?: number
   /**
    * 思考开始时间戳（毫秒）
    *
@@ -220,6 +222,8 @@ export interface Message {
    * 总结消息覆盖的消息数量
    */
   summarizedMessageCount?: number
+  summaryKeptRecentRounds?: number
+  summaryGeneratedAt?: number
 }
 
 export interface MessageMetadata {

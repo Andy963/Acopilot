@@ -126,6 +126,10 @@ export interface Content {
      * 记录此总结替代了多少条原始消息
      */
     summarizedMessageCount?: number;
+
+    summaryKeptRecentRounds?: number;
+
+    summaryGeneratedAt?: number;
     
     /**
      * 消息创建时间戳（毫秒）

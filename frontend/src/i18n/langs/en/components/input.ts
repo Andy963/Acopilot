@@ -16,6 +16,7 @@ export const enComponentsInput = {
     remove: 'Remove',
     tokenUsage: 'Usage',
     context: 'Context',
+    autoSummarizeThreshold: 'Auto summarize at',
     openContextInspectorHint: 'Click for a full context breakdown',
     fileNotExists: 'File does not exist',
     channelSelector: {

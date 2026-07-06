@@ -34,7 +34,9 @@ export const jaComponentsSettingsPart2b = {
             selectModel: 'モデルを選択',
             selectModelPlaceholder: '要約用のモデルを選択',
             selectModelHint: 'このチャンネルの設定に追加されたモデルのみ表示されます。\nモデルを追加するには、チャンネル設定に移動して設定してください。',
-            warningHint: 'チャンネルとモデルを選択してください。そうしないと、会話モデルが要約に使用されます'
+            warningHint: 'チャンネルとモデルを選択してください。そうしないと、会話モデルが要約に使用されます',
+            invalidSelectionHint: '選択した要約チャンネルまたはモデルが存在しません。チャンネル設定で更新してください。',
+            openChannelSettings: 'チャンネル設定を開く'
         }
     },
     settingsPanel: {

@@ -16,6 +16,7 @@ export const jaComponentsInput = {
     remove: '削除',
     tokenUsage: '使用量',
     context: 'コンテキスト',
+    autoSummarizeThreshold: '自動要約しきい値',
     openContextInspectorHint: 'クリックして詳細な内訳を表示',
     fileNotExists: 'ファイルが存在しません',
     channelSelector: {

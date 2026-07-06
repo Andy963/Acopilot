@@ -213,7 +213,7 @@ export const useChatStore = defineStore('chat', () => {
     restoreAndDeleteFn(state, messageIndex, checkpointId, cancelStream)
   const restoreAndEdit = (messageIndex: number, newContent: string, attachments: Attachment[] | undefined, checkpointId: string) =>
     restoreAndEditFn(state, messageIndex, newContent, attachments, checkpointId, computed.currentModelName.value, cancelStream)
-  const summarizeContext = () => summarizeContextFn(state, () => loadHistory(state))
+  const summarizeContext = (options?: { regenerateSummaryIndex?: number }) => summarizeContextFn(state, () => loadHistory(state), options)
 
   // ============ Context Inspector ============
 

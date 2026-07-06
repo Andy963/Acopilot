@@ -5,7 +5,8 @@ export const summarizeContext: MessageHandler = async (data, requestId, ctx) => 
   try {
     const result = await ctx.chatHandler.handleSummarizeContext({
       conversationId: data.conversationId,
-      configId: data.configId
+      configId: data.configId,
+      regenerateSummaryIndex: data.regenerateSummaryIndex
     });
     ctx.sendResponse(requestId, result);
   } catch (error: any) {

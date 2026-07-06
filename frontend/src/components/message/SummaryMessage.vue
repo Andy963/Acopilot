@@ -12,6 +12,7 @@ import type { Message } from '../../types'
 import { formatTime } from '../../utils/format'
 import { useChatStore } from '../../stores'
 import { useI18n } from '../../i18n'
+import { showNotification } from '../../utils/vscode'
 
 const { t } = useI18n()
 
@@ -28,6 +29,7 @@ const chatStore = useChatStore()
 
 // 删除状态
 const isDeleting = ref(false)
+const isResummarizing = ref(false)
 
 // 展开/收起状态
 const isExpanded = ref(false)
@@ -36,6 +38,11 @@ const isExpanded = ref(false)
 const formattedTime = computed(() =>
   formatTime(props.message.timestamp, 'HH:mm')
 )
+
+const summaryGeneratedTime = computed(() => {
+  if (!props.message.summaryGeneratedAt) return ''
+  return formatTime(props.message.summaryGeneratedAt, 'HH:mm')
+})
 
 // 获取总结内容（去除 [对话总结] 前缀）
 const summaryContent = computed(() => {
@@ -71,6 +78,32 @@ async function handleDelete() {
     isDeleting.value = false
   }
 }
+
+async function handleResummarize() {
+  if (isDeleting.value || isResummarizing.value) return
+
+  isResummarizing.value = true
+  try {
+    const result = await chatStore.summarizeContext({ regenerateSummaryIndex: props.messageIndex })
+    if (!result.success) {
+      await showNotification(
+        t('components.input.notifications.summarizeFailed', { error: result.error || t('common.unknownError') }),
+        'error'
+      )
+    }
+    emit('deleted')
+  } catch (error) {
+    console.error('Failed to resummarize context:', error)
+    await showNotification(
+      t('components.input.notifications.summarizeError', {
+        error: error instanceof Error ? error.message : t('common.unknownError')
+      }),
+      'error'
+    )
+  } finally {
+    isResummarizing.value = false
+  }
+}
 </script>
 
 <template>
@@ -83,6 +116,9 @@ async function handleDelete() {
         <span v-if="message.summarizedMessageCount" class="summary-count">
           {{ t('components.message.summary.compressed', { count: message.summarizedMessageCount }) }}
         </span>
+        <span v-if="message.summaryKeptRecentRounds !== undefined" class="summary-count">
+          {{ t('components.message.summary.keptRounds', { count: message.summaryKeptRecentRounds }) }}
+        </span>
       </div>
       
       <!-- 右侧：删除按钮 + 时间和 Token 信息 -->
@@ -94,8 +130,16 @@ async function handleDelete() {
         </span>
         <span class="summary-time">{{ formattedTime }}</span>
         <button
-          class="delete-button"
-          :disabled="isDeleting"
+          class="summary-action-button"
+          :disabled="isDeleting || isResummarizing"
+          @click.stop="handleResummarize"
+          :title="t('components.message.summary.resummarizeTitle')"
+        >
+          <i class="codicon codicon-refresh"></i>
+        </button>
+        <button
+          class="summary-action-button delete-button"
+          :disabled="isDeleting || isResummarizing"
           @click.stop="handleDelete"
           :title="t('components.message.summary.deleteTitle')"
         >
@@ -106,6 +150,9 @@ async function handleDelete() {
     
     <!-- 展开时显示内容 -->
     <div v-if="isExpanded" class="summary-content">
+      <div v-if="summaryGeneratedTime" class="summary-meta">
+        {{ t('components.message.summary.generatedAt', { time: summaryGeneratedTime }) }}
+      </div>
       <MarkdownRenderer
         :content="summaryContent"
         :latex-only="false"
@@ -213,7 +260,7 @@ async function handleDelete() {
   opacity: 0.7;
 }
 
-.delete-button {
+.summary-action-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -229,22 +276,26 @@ async function handleDelete() {
   transition: opacity 0.15s, background-color 0.15s, color 0.15s;
 }
 
-.summary-bar:hover .delete-button {
+.summary-bar:hover .summary-action-button {
   opacity: 0.7;
 }
 
-.delete-button:hover {
+.summary-action-button:hover {
   opacity: 1 !important;
   background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.delete-button:hover {
   color: var(--vscode-errorForeground);
 }
 
-.delete-button:disabled {
+.summary-action-button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-.delete-button .codicon {
+.summary-action-button .codicon {
   font-size: 14px;
 }
 
@@ -261,6 +312,12 @@ async function handleDelete() {
   padding: 12px;
   border-top: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editor-background);
+}
+
+.summary-meta {
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .summary-text {

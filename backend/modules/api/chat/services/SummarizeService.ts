@@ -70,7 +70,7 @@ export class SummarizeService {
             const { conversationId, configId } = request;
 
             // 从设置中读取总结配置
-            let configKeepRecentRounds = 2;  // 默认值
+            let configKeepRecentRounds = 10;  // 默认值
             let configSummarizePrompt = '';  // 默认值（空则使用内置提示词）
             let useSeparateModel = false;
             let summarizeChannelId = '';
@@ -137,16 +137,44 @@ export class SummarizeService {
             // 4. 获取对话历史
             const fullHistory = await this.conversationManager.getHistoryRef(conversationId);
 
-            // 5. 找到最后一个总结消息的位置
-            const lastSummaryIndex = this.contextTrimService.findLastSummaryIndex(fullHistory);
+            // 5. 找到总结边界
+            const regenerateSummaryIndex = typeof request.regenerateSummaryIndex === 'number'
+                ? request.regenerateSummaryIndex
+                : undefined;
+            const isRegeneratingSummary = regenerateSummaryIndex !== undefined;
+
+            if (isRegeneratingSummary && !fullHistory[regenerateSummaryIndex]?.isSummary) {
+                return {
+                    success: false,
+                    error: {
+                        code: 'SUMMARY_NOT_FOUND',
+                        message: t('modules.api.chat.errors.noMessagesToSummarize')
+                    }
+                };
+            }
+
+            let lastSummaryIndex = this.contextTrimService.findLastSummaryIndex(fullHistory);
+            let historySliceEnd = fullHistory.length;
+
+            if (isRegeneratingSummary) {
+                historySliceEnd = regenerateSummaryIndex;
+                lastSummaryIndex = -1;
+                for (let i = regenerateSummaryIndex - 1; i >= 0; i--) {
+                    if (fullHistory[i]?.isSummary) {
+                        lastSummaryIndex = i;
+                        break;
+                    }
+                }
+            }
+
             const summaryCarryover = lastSummaryIndex >= 0 ? fullHistory[lastSummaryIndex] : undefined;
             const historyStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex + 1 : 0;
 
             // 只对总结之后的历史进行回合识别
-            const historyAfterSummary = fullHistory.slice(historyStartIndex);
+            const historyAfterSummary = fullHistory.slice(historyStartIndex, historySliceEnd);
             const rounds = this.contextTrimService.identifyRounds(historyAfterSummary);
 
-            if (rounds.length <= keepRecentRounds) {
+            if (!isRegeneratingSummary && rounds.length <= keepRecentRounds) {
                 return {
                     success: false,
                     error: {
@@ -157,7 +185,7 @@ export class SummarizeService {
             }
 
             // 6. 确定总结范围
-            const roundsToSummarize = rounds.length - keepRecentRounds;
+            const roundsToSummarize = isRegeneratingSummary ? rounds.length : rounds.length - keepRecentRounds;
 
             if (roundsToSummarize <= 0) {
                 return {
@@ -170,7 +198,7 @@ export class SummarizeService {
             }
 
             // 计算总结范围的结束索引
-            const summarizeEndIndexRelative = roundsToSummarize >= rounds.length
+            const summarizeEndIndexRelative = isRegeneratingSummary || roundsToSummarize >= rounds.length
                 ? historyAfterSummary.length
                 : rounds[roundsToSummarize].startIndex;
             const summarizeEndIndex = historyStartIndex + summarizeEndIndexRelative;
@@ -276,7 +304,7 @@ export class SummarizeService {
             }
 
             // 11. 删除本次总结范围内已存在的旧总结消息
-            let insertIndex = summarizeEndIndex;
+            let insertIndex = isRegeneratingSummary ? regenerateSummaryIndex : summarizeEndIndex;
             const currentHistory = await this.conversationManager.getHistoryRef(conversationId);
 
             const summaryIndicesToDelete: number[] = [];
@@ -286,12 +314,18 @@ export class SummarizeService {
                 }
             }
 
+            if (isRegeneratingSummary) {
+                summaryIndicesToDelete.push(regenerateSummaryIndex);
+            }
+
             if (summaryIndicesToDelete.length > 0) {
                 for (let i = summaryIndicesToDelete.length - 1; i >= 0; i--) {
                     const indexToDelete = summaryIndicesToDelete[i];
                     await this.conversationManager.deleteMessage(conversationId, indexToDelete);
                 }
-                insertIndex = summarizeEndIndex - summaryIndicesToDelete.length;
+                if (!isRegeneratingSummary) {
+                    insertIndex = summarizeEndIndex - summaryIndicesToDelete.length;
+                }
             }
 
             // 12. 创建总结消息并添加到历史
@@ -300,6 +334,8 @@ export class SummarizeService {
                 parts: [{ text: `${SUMMARY_AUTHORITY_NOTICE}\n\n${t('modules.api.chat.prompts.summaryPrefix')}\n\n${summaryText}` }],
                 isSummary: true,
                 summarizedMessageCount: messagesToSummarize.length,
+                summaryKeptRecentRounds: keepRecentRounds,
+                summaryGeneratedAt: Date.now(),
                 usageMetadata: {
                     promptTokenCount: beforeTokenCount,
                     candidatesTokenCount: afterTokenCount

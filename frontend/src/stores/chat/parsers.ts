@@ -221,6 +221,8 @@ export function contentToMessageEnhanced(content: Content, id?: string): Message
     isFunctionResponse,  // 标记是否为纯 functionResponse 消息
     isSummary: content.isSummary,  // 标记是否为总结消息
     summarizedMessageCount: content.summarizedMessageCount,  // 总结消息覆盖的消息数量
+    summaryKeptRecentRounds: content.summaryKeptRecentRounds,
+    summaryGeneratedAt: content.summaryGeneratedAt,
     metadata: {
       modelVersion: content.modelVersion,
       finishReason: content.finishReason,

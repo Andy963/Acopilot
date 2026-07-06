@@ -34,7 +34,9 @@ export const zhCNComponentsSettingsPart2b = {
             selectModel: '选择模型',
             selectModelPlaceholder: '选择用于总结的模型',
             selectModelHint: '只显示该渠道已添加到设置中的模型。\n如需添加更多模型，请前往渠道设置进行配置。',
-            warningHint: '请选择渠道和模型，否则将使用对话时的模型进行总结'
+            warningHint: '请选择渠道和模型，否则将使用对话时的模型进行总结',
+            invalidSelectionHint: '已选择的总结渠道或模型不存在，请前往渠道设置更新。',
+            openChannelSettings: '打开渠道设置'
         }
     },
     settingsPanel: {

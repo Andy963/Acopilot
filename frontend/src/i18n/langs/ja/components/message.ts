@@ -18,7 +18,10 @@ export const jaComponentsMessage = {
     summary: {
         title: 'コンテキスト要約',
         compressed: '{count} 件のメッセージを圧縮しました',
-        deleteTitle: '要約を削除'
+        keptRounds: '直近 {count} ラウンドを保持',
+        generatedAt: '{time} に生成',
+        deleteTitle: '要約を元に戻す',
+        resummarizeTitle: '要約を再生成'
     },
     checkpoint: {
         userMessageBefore: 'ユーザーメッセージ前のチェックポイント',

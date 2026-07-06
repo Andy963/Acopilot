@@ -41,7 +41,9 @@ const {
   unifiedModelValue,
   handleThinkingEffortChange,
   handleUnifiedModelChange,
-  summarizeKeepRecentRounds
+  summarizeKeepRecentRounds,
+  summarizeAutoSummarize,
+  summarizeAutoSummarizeThreshold
 } = useInputAreaConfig()
 
 function handleOpenChannelSettings() {
@@ -246,6 +248,8 @@ async function handleSummarize() {
         :can-send="canSend"
         :attachments="attachments"
         :summarize-keep-recent-rounds="summarizeKeepRecentRounds"
+        :summarize-auto-summarize="summarizeAutoSummarize"
+        :summarize-auto-summarize-threshold="summarizeAutoSummarizeThreshold"
         @update-unified-model="handleUnifiedModelChange"
         @update-thinking-effort="handleThinkingEffortChange"
         @update-chat-mode="(value) => chatStore.setChatMode(value as any)"

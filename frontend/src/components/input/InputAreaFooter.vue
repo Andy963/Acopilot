@@ -24,6 +24,8 @@ const props = defineProps<{
   canSend: boolean
   attachments?: Attachment[]
   summarizeKeepRecentRounds?: number | null
+  summarizeAutoSummarize?: boolean
+  summarizeAutoSummarizeThreshold?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -88,9 +90,17 @@ const showThinkingEffortSelector = computed(() => {
   return availableForSelectors >= minSelectorsWidthWithEffort
 })
 
+const autoSummarizeThreshold = computed(() => {
+  const threshold = props.summarizeAutoSummarizeThreshold
+  if (!props.summarizeAutoSummarize) return null
+  if (typeof threshold !== 'number' || !Number.isFinite(threshold)) return null
+  return Math.min(100, Math.max(0, threshold))
+})
+
 const tokenRingColor = computed(() => {
   const percent = props.tokenUsagePercent
   if (percent >= 90) return '#f14c4c'
+  if (autoSummarizeThreshold.value !== null && percent >= autoSummarizeThreshold.value) return '#cca700'
   if (percent >= 75) return '#cca700'
   return '#89d185'
 })
@@ -227,6 +237,10 @@ function emitOpenChannelSettings() {
           <div class="token-tooltip-row">
             <span class="token-tooltip-label">{{ t('components.input.context') }}</span>
             <span class="token-tooltip-value">{{ formatNumber(props.usedTokens) }} / {{ formatNumber(props.maxContextTokens) }}</span>
+          </div>
+          <div v-if="autoSummarizeThreshold !== null" class="token-tooltip-row">
+            <span class="token-tooltip-label">{{ t('components.input.autoSummarizeThreshold') }}</span>
+            <span class="token-tooltip-value">{{ autoSummarizeThreshold }}%</span>
           </div>
           <div class="token-tooltip-hint">{{ t('components.input.openContextInspectorHint') }}</div>
         </div>

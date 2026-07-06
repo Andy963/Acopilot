@@ -47,16 +47,27 @@ describe('useInputAreaConfig summarize strategy', () => {
     capturedWatchers.length = 0
   })
 
-  it('exposes the configured keep-recent-rounds count', async () => {
+  it('exposes the configured summarize footer state', async () => {
     mockSendToExtension.mockImplementation(async (type: string) => {
-      if (type === 'getSummarizeConfig') return { keepRecentRounds: 3 }
+      if (type === 'getSummarizeConfig') return {
+        keepRecentRounds: 3,
+        autoSummarize: true,
+        autoSummarizeThreshold: 82,
+      }
       throw new Error(`Unexpected request: ${type}`)
     })
 
-    const { summarizeKeepRecentRounds, loadSummarizeConfig } = useInputAreaConfig()
+    const {
+      summarizeKeepRecentRounds,
+      summarizeAutoSummarize,
+      summarizeAutoSummarizeThreshold,
+      loadSummarizeConfig,
+    } = useInputAreaConfig()
     await (loadSummarizeConfig as any)()
 
     expect(summarizeKeepRecentRounds.value).toBe(3)
+    expect(summarizeAutoSummarize.value).toBe(true)
+    expect(summarizeAutoSummarizeThreshold.value).toBe(82)
   })
 
   it('falls back to null when the backend response is missing the field', async () => {

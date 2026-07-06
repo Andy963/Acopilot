@@ -99,6 +99,7 @@ export interface ChatRequestData {
     
     /** 取消信号 */
     abortSignal?: AbortSignal;
+
 }
 
 // ==================== 响应数据 ====================
@@ -288,6 +289,7 @@ export interface RetryRequestData {
     
     /** 取消信号 */
     abortSignal?: AbortSignal;
+
 }
 
 // ==================== 编辑并重试 ====================
@@ -453,7 +455,7 @@ export interface SummarizeContextRequestData {
     /** 配置 ID */
     configId: string;
     
-    /** 保留最近 N 轮不参与总结（默认 2） */
+    /** 保留最近 N 轮不参与总结（默认 10） */
     keepRecentRounds?: number;
     
     /** 自定义总结提示词（可选） */
@@ -461,6 +463,9 @@ export interface SummarizeContextRequestData {
     
     /** 取消信号 */
     abortSignal?: AbortSignal;
+
+    /** 重新生成指定总结消息，成功后原地替换 */
+    regenerateSummaryIndex?: number;
 }
 
 /**

@@ -34,7 +34,9 @@ export const enComponentsSettingsPart2b = {
             selectModel: 'Select Model',
             selectModelPlaceholder: 'Select model for summarization',
             selectModelHint: 'Only shows models added to settings for this channel.\nTo add more models, please go to channel settings to configure.',
-            warningHint: 'Please select a channel and model, otherwise the conversation model will be used for summarization'
+            warningHint: 'Please select a channel and model, otherwise the conversation model will be used for summarization',
+            invalidSelectionHint: 'The selected summarization channel or model no longer exists. Update it in Channel Settings.',
+            openChannelSettings: 'Open Channel Settings'
         }
     },
     settingsPanel: {

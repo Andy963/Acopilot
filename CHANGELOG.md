@@ -2,6 +2,17 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.5] - 2026-07-06
+
+### Improved
+  - Summary Settings: default context summarization retention now keeps the latest 10 rounds.
+  - Composer footer: show the auto-summarize threshold in the token usage tooltip when enabled.
+  - Summary messages: display the retained round count and generation time, and add regenerate/undo actions.
+  - Summary Settings: warn when the dedicated summarization channel or model is missing and link back to Channel Settings.
+
+### Fixed
+  - Summary messages: regenerate summaries in place only after a replacement is successfully generated, so failures keep the existing summary.
+
 ## [1.0.62-pre.4] - 2026-07-05
 
 ### Added

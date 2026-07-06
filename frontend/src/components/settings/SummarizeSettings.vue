@@ -9,8 +9,10 @@ import { CustomCheckbox, CustomSelect, type SelectOption } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { useI18n } from '@/i18n'
 import type { ModelInfo } from '@/types'
+import { useSettingsStore } from '@/stores'
 
 const { t } = useI18n()
+const settingsStore = useSettingsStore()
 
 // 渠道配置类型
 interface ChannelConfig {
@@ -35,7 +37,7 @@ const summarizeConfig = reactive({
   // 总结提示词
   summarizePrompt: '请将以上对话内容进行总结，保留关键信息和上下文要点，去除冗余内容。',
   // 保留最近 N 轮不总结
-  keepRecentRounds: 2,
+  keepRecentRounds: 10,
   // 使用专门的总结模型
   useSeparateModel: false,
   // 总结用的渠道 ID
@@ -71,6 +73,26 @@ const modelOptions = computed<SelectOption[]>(() => {
     description: m.description
   }))
 })
+
+const selectedSummarizeModelExists = computed(() => {
+  if (!summarizeConfig.summarizeModelId) return false
+  return modelOptions.value.some(option => option.value === summarizeConfig.summarizeModelId)
+})
+
+const separateModelWarning = computed(() => {
+  if (!summarizeConfig.useSeparateModel) return ''
+  if (!summarizeConfig.summarizeChannelId || !summarizeConfig.summarizeModelId) {
+    return t('components.settings.summarizeSettings.modelSection.warningHint')
+  }
+  if (!selectedChannel.value || !selectedChannel.value.enabled || !selectedSummarizeModelExists.value) {
+    return t('components.settings.summarizeSettings.modelSection.invalidSelectionHint')
+  }
+  return ''
+})
+
+function openChannelSettings() {
+  settingsStore.showSettings('channel')
+}
 
 // 加载渠道列表
 async function loadChannels() {
@@ -306,9 +328,12 @@ onMounted(async () => {
         </div>
         
         <!-- 选择状态提示 -->
-        <div v-if="!summarizeConfig.summarizeChannelId || !summarizeConfig.summarizeModelId" class="warning-hint">
+        <div v-if="separateModelWarning" class="warning-hint">
           <i class="codicon codicon-warning"></i>
-          <span>{{ t('components.settings.summarizeSettings.modelSection.warningHint') }}</span>
+          <span>{{ separateModelWarning }}</span>
+          <button type="button" class="text-link-button" @click="openChannelSettings">
+            {{ t('components.settings.summarizeSettings.modelSection.openChannelSettings') }}
+          </button>
         </div>
       </template>
     </div>
