@@ -19,6 +19,21 @@ export const jaComponentsInput = {
     autoSummarizeThreshold: '自動要約しきい値',
     openContextInspectorHint: 'クリックして詳細な内訳を表示',
     fileNotExists: 'ファイルが存在しません',
+    contextLifecycle: {
+        label: 'コンテキスト案内',
+        atFile: '@file は今回のリクエストにパスを挿入し、モデルはツールで読み取れます。',
+        attachment: '添付ファイルは現在のメッセージにのみ送信されます。',
+        pinned: 'ピン留めコンテキストは削除するまで会話ターンをまたいで注入されます。'
+    },
+    attachmentSupport: {
+        supported: '対応',
+        converted: 'テキスト',
+        unsupported: '非対応',
+        unknown: '不明',
+        tokenEstimate: '約 {tokens} tokens',
+        truncated: '送信前に切り詰められる可能性があります',
+        truncatedShort: '切り詰め'
+    },
     channelSelector: {
         placeholder: '設定を選択',
         searchPlaceholder: 'チャンネルを検索...',

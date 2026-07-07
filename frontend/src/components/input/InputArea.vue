@@ -43,7 +43,8 @@ const {
   handleUnifiedModelChange,
   summarizeKeepRecentRounds,
   summarizeAutoSummarize,
-  summarizeAutoSummarizeThreshold
+  summarizeAutoSummarizeThreshold,
+  currentConfig
 } = useInputAreaConfig()
 
 function handleOpenChannelSettings() {
@@ -196,6 +197,7 @@ async function handleSummarize() {
         :enabled-pinned-files-count="enabledPinnedFilesCount"
         :has-pinned-prompt="hasPinnedPrompt"
         :selection-references="chatStore.selectionReferences"
+        :current-config="currentConfig"
         @attach-file="handleAttachFile"
         @remove-attachment="handleRemoveAttachment"
         @remove-selection-reference="chatStore.removeSelectionReference"

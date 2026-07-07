@@ -19,6 +19,21 @@ export const zhCNComponentsInput = {
     autoSummarizeThreshold: '自动总结阈值',
     openContextInspectorHint: '点击查看完整上下文明细',
     fileNotExists: '文件不存在',
+    contextLifecycle: {
+        label: '上下文说明',
+        atFile: '@file 只为本次请求插入路径，模型可通过工具读取。',
+        attachment: '附件只随当前消息发送。',
+        pinned: '固定上下文会跨轮注入，直到移除。'
+    },
+    attachmentSupport: {
+        supported: '支持',
+        converted: '文本',
+        unsupported: '不支持',
+        unknown: '未知',
+        tokenEstimate: '约 {tokens} tokens',
+        truncated: '发送前可能被截断',
+        truncatedShort: '截断'
+    },
     channelSelector: {
         placeholder: '选择配置',
         searchPlaceholder: '搜索渠道...',

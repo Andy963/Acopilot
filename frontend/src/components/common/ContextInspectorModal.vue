@@ -186,6 +186,9 @@ const attachmentsListText = computed(() => {
       const meta: string[] = []
       if (item.mimeType) meta.push(item.mimeType)
       if (typeof item.size === 'number') meta.push(`${item.size}B`)
+      if (typeof item.estimatedTokens === 'number') meta.push(`~${item.estimatedTokens} tok`)
+      if (item.inclusionMode) meta.push(item.inclusionMode)
+      if (item.truncated) meta.push(t('common.truncated'))
       return meta.length > 0 ? `${item.name} (${meta.join(', ')})` : item.name
     })
     .join('\n')

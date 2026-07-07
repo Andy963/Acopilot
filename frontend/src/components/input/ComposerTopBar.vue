@@ -13,6 +13,7 @@ const props = defineProps<{
   enabledPinnedFilesCount: number
   hasPinnedPrompt: boolean
   selectionReferences: SelectionReference[]
+  currentConfig?: any
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +31,92 @@ const selectionReferences = computed((): SelectionReference[] => {
 
 const selectionReferencesCount = computed(() => selectionReferences.value.length)
 const hasAttachments = computed(() => props.attachments && props.attachments.length > 0)
+const contextLifecycleTooltip = computed(() => [
+  t('components.input.contextLifecycle.atFile'),
+  t('components.input.contextLifecycle.attachment'),
+  t('components.input.contextLifecycle.pinned')
+].join('\n'))
+
+function isTextMimeType(mimeType: string): boolean {
+  const mt = String(mimeType || '').toLowerCase()
+  return mt.startsWith('text/') ||
+    mt === 'application/json' ||
+    mt === 'application/xml' ||
+    mt === 'application/javascript' ||
+    mt === 'application/x-javascript' ||
+    mt === 'application/sql' ||
+    mt.endsWith('+json') ||
+    mt.endsWith('+xml')
+}
+
+function getTextAttachmentCharCount(attachment: Attachment): number | undefined {
+  if (!attachment.data || typeof atob !== 'function' || typeof TextDecoder === 'undefined') return undefined
+
+  try {
+    const binary = atob(attachment.data)
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+    return new TextDecoder().decode(bytes).length
+  } catch {
+    return undefined
+  }
+}
+
+function estimateAttachmentTokens(attachment: Attachment): number {
+  const mimeType = String(attachment.mimeType || '').toLowerCase()
+  const size = Math.max(0, Number(attachment.size) || 0)
+
+  if (mimeType.startsWith('image/')) return 500
+  if (mimeType.startsWith('audio/')) return Math.max(100, Math.min(Math.ceil((size / (10 * 1024)) * 32), 50000))
+  if (mimeType.startsWith('video/')) return Math.max(500, Math.min(Math.ceil((size / (17 * 1024)) * 295), 200000))
+  if (mimeType === 'application/pdf') return Math.max(500, Math.min(Math.ceil(size / (75 * 1024)) * 500, 100000))
+  if (isTextMimeType(mimeType)) {
+    const charCount = getTextAttachmentCharCount(attachment)
+    const estimatedChars = typeof charCount === 'number' ? charCount : size
+    return Math.max(1, Math.ceil(Math.min(estimatedChars, 200_000) / 4))
+  }
+  return 1000
+}
+
+function isAttachmentTruncated(attachment: Attachment): boolean {
+  const charCount = getTextAttachmentCharCount(attachment)
+  return isTextMimeType(attachment.mimeType) && typeof charCount === 'number' && charCount > 200_000
+}
+
+function isGeminiInlineSupportedMime(mimeType: string): boolean {
+  return mimeType.startsWith('image/') ||
+    mimeType.startsWith('audio/') ||
+    mimeType.startsWith('video/') ||
+    mimeType === 'application/pdf'
+}
+
+function getAttachmentSupport(attachment: Attachment): 'supported' | 'converted' | 'unsupported' | 'unknown' {
+  const config = props.currentConfig
+  const provider = String(config?.type || '').toLowerCase()
+  const mimeType = String(attachment.mimeType || '').toLowerCase()
+
+  if (!provider) return 'unknown'
+  if (isTextMimeType(mimeType)) return 'converted'
+  if (provider === 'gemini' && isGeminiInlineSupportedMime(mimeType)) return 'supported'
+  if (mimeType.startsWith('image/') && ['openai', 'openai-responses', 'anthropic'].includes(provider)) return 'supported'
+  if (provider === 'custom') return 'unknown'
+  return 'unsupported'
+}
+
+function getAttachmentSupportLabel(attachment: Attachment): string {
+  const status = getAttachmentSupport(attachment)
+  return t(`components.input.attachmentSupport.${status}`)
+}
+
+function getAttachmentTitle(attachment: Attachment): string {
+  const meta = [
+    attachment.name,
+    formatFileSize(attachment.size),
+    t('components.input.attachmentSupport.tokenEstimate', { tokens: estimateAttachmentTokens(attachment) }),
+    getAttachmentSupportLabel(attachment)
+  ]
+  if (isAttachmentTruncated(attachment)) meta.push(t('components.input.attachmentSupport.truncated'))
+  return meta.join(' · ')
+}
 
 function emitAttachFile() {
   emit('attachFile')
@@ -111,6 +198,12 @@ async function previewAttachment(attachment: Attachment) {
         @click="emitAttachFile"
       />
     </Tooltip>
+    <Tooltip :content="contextLifecycleTooltip" placement="top">
+      <span class="context-lifecycle-chip">
+        <i class="codicon codicon-info"></i>
+        <span>{{ t('components.input.contextLifecycle.label') }}</span>
+      </span>
+    </Tooltip>
     <Tooltip :content="t('components.input.pinnedFiles')" placement="top">
       <div class="pinned-files-button-wrapper">
         <IconButton
@@ -161,7 +254,8 @@ async function previewAttachment(attachment: Attachment) {
         v-for="attachment in attachments"
         :key="attachment.id"
         class="attachment-item"
-        :title="attachment.name"
+        :class="[`support-${getAttachmentSupport(attachment)}`]"
+        :title="getAttachmentTitle(attachment)"
       >
         <img
           v-if="attachment.type === 'image' && attachment.thumbnail"
@@ -197,7 +291,15 @@ async function previewAttachment(attachment: Attachment) {
           :class="['codicon', getAttachmentIconClass(attachment.type), 'attachment-icon']"
         ></i>
         <span class="attachment-name">{{ attachment.name }}</span>
-        <span class="attachment-size">{{ formatFileSize(attachment.size) }}</span>
+        <span class="attachment-token-cost">
+          ~{{ estimateAttachmentTokens(attachment) }} tok
+        </span>
+        <span v-if="isAttachmentTruncated(attachment)" class="attachment-truncated">
+          {{ t('components.input.attachmentSupport.truncatedShort') }}
+        </span>
+        <span class="attachment-support">
+          {{ getAttachmentSupportLabel(attachment) }}
+        </span>
         <IconButton
           icon="codicon-close"
           size="small"
@@ -231,6 +333,23 @@ async function previewAttachment(attachment: Attachment) {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
+}
+
+.context-lifecycle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  color: var(--vscode-descriptionForeground);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.context-lifecycle-chip .codicon {
+  font-size: 12px;
 }
 
 .reference-truncated {
@@ -268,10 +387,14 @@ async function previewAttachment(attachment: Attachment) {
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
   border-radius: 999px;
-  max-width: 220px;
+  max-width: 340px;
   border: 1px solid var(--vscode-input-border);
   transition: opacity var(--transition-fast, 0.1s);
   min-width: 0;
+}
+
+.attachment-item.support-unsupported {
+  border-color: var(--vscode-inputValidation-warningBorder);
 }
 
 .attachment-item:hover {
@@ -350,8 +473,25 @@ async function previewAttachment(attachment: Attachment) {
   min-width: 0;
 }
 
-.attachment-size {
-  display: none;
+.attachment-token-cost,
+.attachment-truncated,
+.attachment-support {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.attachment-truncated,
+.attachment-support {
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.support-unsupported .attachment-support {
+  color: var(--vscode-inputValidation-warningForeground, inherit);
+  background: var(--vscode-inputValidation-warningBackground);
 }
 
 .attachment-item :deep(.icon-button.small) {

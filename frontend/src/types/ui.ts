@@ -64,6 +64,9 @@ export interface ContextInjectedAttachment {
   mimeType?: string
   size?: number
   url?: string
+  estimatedTokens?: number
+  truncated?: boolean
+  inclusionMode?: 'inline' | 'text' | 'unsupported'
 }
 
 export interface ContextInjectedAttachments {
