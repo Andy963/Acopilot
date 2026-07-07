@@ -74,6 +74,7 @@ export const enComponentsCommon = {
         titleUsed: 'Context Used',
         noData: 'No context data',
         copyDebug: 'Copy debug info',
+        openContextSettings: 'Context settings',
         summary: {
             config: 'Config',
             toolMode: 'Tool mode',

@@ -74,6 +74,7 @@ export const zhCNComponentsCommon = {
         titleUsed: '本条回复使用的上下文',
         noData: '暂无上下文数据',
         copyDebug: '复制调试信息',
+        openContextSettings: '上下文设置',
         summary: {
             config: '配置',
             toolMode: '工具模式',

@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.10] - 2026-07-07
+
+### Improved
+  - Context Settings: preview workspace file tree, diagnostics, and ignore-pattern matches alongside active editor and open tabs.
+  - Context Settings: show estimated token and character cost per context module and for the total configured context.
+  - Context Settings: add a “View current context” bridge to Context Inspector and a return action from Context Inspector back to Context Settings.
+  - Context Settings: validate ignore patterns with matched file counts and sample files.
+  - Context Settings: add diagnostics presets for errors only, open files first, and current workspace.
+  - Tools Settings: keep tool dependencies as an embedded Tools accordion instead of a visually separate settings page.
+
 ## [1.0.62-pre.9] - 2026-07-07
 
 ### Improved

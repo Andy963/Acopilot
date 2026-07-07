@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   refresh: []
+  openSettings: []
 }>()
 
 const visible = computed({
@@ -396,6 +397,11 @@ const pinnedSelectionsListText = computed(() => {
       <button class="btn" :disabled="!data" @click="handleCopyDebug">
         <i class="codicon" :class="copied ? 'codicon-check' : 'codicon-copy'"></i>
         {{ copied ? t('common.copied') : t('components.common.contextInspectorModal.copyDebug') }}
+      </button>
+
+      <button class="btn" @click="emit('openSettings')">
+        <i class="codicon codicon-settings-gear"></i>
+        {{ t('components.common.contextInspectorModal.openContextSettings') }}
       </button>
 
       <button class="btn primary" @click="visible = false">

@@ -1,10 +1,13 @@
 <template>
+  <SettingsGroup
+    :title="t('components.settings.dependencySettings.title')"
+    :description="t('components.settings.dependencySettings.description')"
+    icon="codicon-package"
+    :badge="summaryBadge"
+    storage-key="acopilot.settings.tools.dependencies"
+    :default-expanded="false"
+  >
   <div class="dependency-settings">
-    <div class="section-header">
-      <h3>{{ t('components.settings.dependencySettings.title') }}</h3>
-      <p class="section-desc">{{ t('components.settings.dependencySettings.description') }}</p>
-    </div>
-    
     <div class="install-path" v-if="installPath">
       <span class="label">{{ t('components.settings.dependencySettings.installPath') }}</span>
       <code>{{ installPath }}</code>
@@ -44,7 +47,7 @@
           <i class="codicon codicon-chevron-right expand-icon"></i>
           <span class="panel-title">{{ panel.displayName }}</span>
           <span class="deps-count" :class="{ 'all-installed': areAllDepsInstalled(panel.dependencies) }">
-            {{ getInstalledCount(panel.dependencies) }}/{{ panel.dependencies.length }}
+            {{ t('components.settings.dependencySettings.panel.installedCount', { installed: getInstalledCount(panel.dependencies), total: panel.dependencies.length }) }}
           </span>
         </div>
         
@@ -117,12 +120,14 @@
       @confirm="confirmUninstallDependency"
     />
   </div>
+  </SettingsGroup>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { sendToExtension, showNotification } from '../../utils/vscode';
 import ConfirmDialog from '../common/ConfirmDialog.vue';
+import SettingsGroup from './common/SettingsGroup.vue';
 import { TOOL_DEPENDENCIES, getToolsForDependency } from '../../composables/useDependency';
 import { useI18n } from '@/i18n';
 
@@ -253,6 +258,13 @@ const uninstallConfirmMessage = computed(() => {
     tools: affectedTools
   });
 });
+
+const summaryBadge = computed(() =>
+  t('components.settings.dependencySettings.panel.installedCount', {
+    installed: dependencies.value.filter(d => d.installed).length,
+    total: dependencies.value.length
+  })
+);
 
 const progressIcon = computed(() => {
   switch (progressType.value) {

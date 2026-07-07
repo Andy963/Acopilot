@@ -235,9 +235,9 @@ async function handleInstallMissingDependencies(toolName: string) {
           </div>
         </div>
       </SettingsGroup>
-    </div>
 
-    <DependencySettings ref="dependencySettingsRef" @dependency-changed="loadDependencies" />
+      <DependencySettings ref="dependencySettingsRef" @dependency-changed="loadDependencies" />
+    </div>
 
     <!-- 危险工具开启自动执行二次确认 -->
     <ConfirmDialog

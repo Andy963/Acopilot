@@ -33,7 +33,12 @@ export const jaComponentsSettingsPart2a = {
             workspaceOnly: 'ワークスペース内のファイルのみ',
             openFilesOnly: '開いているファイルのみ',
             maxPerFile: 'ファイルあたりの最大数',
-            maxFiles: '最大ファイル数'
+            maxFiles: '最大ファイル数',
+            presets: {
+                errorsOnly: 'エラーのみ',
+                openFilesFirst: '開いているファイル優先',
+                workspace: '現在のワークスペース'
+            }
         },
         ignorePatterns: {
             title: '無視パターン',
@@ -42,6 +47,8 @@ export const jaComponentsSettingsPart2a = {
             emptyHint: 'カスタム無視パターンがありません',
             inputPlaceholder: 'パターンを入力、例: **/node_modules, *.log',
             addButton: '追加',
+            matchedSummary: '現在の無視パターンに一致: {matched}/{scanned} ファイル',
+            patternMatchCount: '{count} 件一致',
             helpTitle: 'ワイルドカードのヘルプ:',
             helpItems: {
                 wildcard: '* - 任意の文字に一致（パス区切りを除く）',
@@ -53,10 +60,17 @@ export const jaComponentsSettingsPart2a = {
             title: '現在の状態プレビュー',
             autoRefreshBadge: 'リアルタイム更新',
             description: 'AI に送信されるコンテキスト情報のプレビュー（2 秒ごとに自動更新）',
+            openInspector: '現在のコンテキストを表示',
+            workspaceFilesLabel: 'ワークスペースファイルツリー（{count} 行）：',
             activeEditorLabel: '現在のアクティブエディター：',
             openTabsLabel: '開いているタブ（{count} 個）：',
+            diagnosticsLabel: '診断情報（{files} ファイル、{count} 件）：',
+            ignoreMatchesLabel: '無視されたファイル（{count} 件）：',
             noValue: 'なし',
             moreItems: '... さらに {count} 個'
+        },
+        cost: {
+            badge: '~{tokens} tok · {chars} ch'
         },
         saveSuccess: '保存しました',
         saveFailed: '保存に失敗しました'

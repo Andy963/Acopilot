@@ -33,7 +33,12 @@ export const enComponentsSettingsPart2a = {
             workspaceOnly: 'Workspace files only',
             openFilesOnly: 'Open files only',
             maxPerFile: 'Max per file',
-            maxFiles: 'Max files'
+            maxFiles: 'Max files',
+            presets: {
+                errorsOnly: 'Errors only',
+                openFilesFirst: 'Open files first',
+                workspace: 'Current workspace'
+            }
         },
         ignorePatterns: {
             title: 'Ignore Patterns',
@@ -42,6 +47,8 @@ export const enComponentsSettingsPart2a = {
             emptyHint: 'No custom ignore patterns',
             inputPlaceholder: 'Enter pattern, e.g.: **/node_modules, *.log',
             addButton: 'Add',
+            matchedSummary: '{matched}/{scanned} files matched current ignore patterns',
+            patternMatchCount: '{count} matches',
             helpTitle: 'Wildcard Help:',
             helpItems: {
                 wildcard: '* - Matches any character (excludes path separator)',
@@ -53,10 +60,17 @@ export const enComponentsSettingsPart2a = {
             title: 'Current Status Preview',
             autoRefreshBadge: 'Live Update',
             description: 'Preview context information to be sent to AI (auto-refresh every 2 seconds)',
+            openInspector: 'View current context',
+            workspaceFilesLabel: 'Workspace file tree ({count} lines):',
             activeEditorLabel: 'Current Active Editor:',
             openTabsLabel: 'Open Tabs ({count}):',
+            diagnosticsLabel: 'Diagnostics ({files} files, {count} items):',
+            ignoreMatchesLabel: 'Ignored files ({count}):',
             noValue: 'None',
             moreItems: '... {count} more'
+        },
+        cost: {
+            badge: '~{tokens} tok · {chars} ch'
         },
         saveSuccess: 'Saved successfully',
         saveFailed: 'Save failed'

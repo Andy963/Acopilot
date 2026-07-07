@@ -74,6 +74,7 @@ export const jaComponentsCommon = {
         titleUsed: '使用されたコンテキスト',
         noData: 'コンテキストデータがありません',
         copyDebug: 'デバッグ情報をコピー',
+        openContextSettings: 'コンテキスト設定',
         summary: {
             config: '設定',
             toolMode: 'ツールモード',

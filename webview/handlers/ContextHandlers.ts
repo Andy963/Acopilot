@@ -4,8 +4,113 @@
 
 import * as vscode from 'vscode';
 import { t } from '../../backend/i18n';
-import type { HandlerContext, MessageHandler } from '../types';
+import { getWorkspaceFileTree } from '../../backend/modules/prompt/fileTree';
+import type { ContextAwarenessConfig } from '../../backend/modules/settings/settingsTypes/contextAwareness';
+import type { DiagnosticSeverity } from '../../backend/modules/settings/settingsTypes/diagnostics';
+import type { MessageHandler } from '../types';
 import { shouldIgnorePath } from '../utils/WorkspaceUtils';
+
+type WorkspaceDiagnosticPreview = Array<{
+  file: string;
+  diagnostics: Array<{
+    line: number;
+    column: number;
+    severity: DiagnosticSeverity;
+    message: string;
+    source?: string;
+    code?: string | number;
+  }>;
+}>;
+
+function estimateTokensFromChars(chars: number): number {
+  if (!Number.isFinite(chars) || chars <= 0) return 0;
+  return Math.max(1, Math.ceil(chars / 4));
+}
+
+function truncateText(text: string, maxChars: number): { preview: string; charCount: number; truncated: boolean } {
+  const safeText = text || '';
+  return {
+    preview: safeText.length > maxChars ? safeText.slice(0, maxChars) : safeText,
+    charCount: safeText.length,
+    truncated: safeText.length > maxChars
+  };
+}
+
+async function collectWorkspaceFiles(limit = 5000): Promise<string[]> {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) return [];
+
+  const uris = await vscode.workspace.findFiles('**/*', undefined, limit);
+  return uris
+    .filter(uri => vscode.workspace.getWorkspaceFolder(uri))
+    .map(uri => vscode.workspace.asRelativePath(uri, false))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function getDiagnosticsPreview(config: NonNullable<ContextAwarenessConfig['diagnostics']>): WorkspaceDiagnosticPreview {
+  if (!config.enabled) return [];
+
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) return [];
+
+  const severityMap: Record<vscode.DiagnosticSeverity, DiagnosticSeverity> = {
+    [vscode.DiagnosticSeverity.Error]: 'error',
+    [vscode.DiagnosticSeverity.Warning]: 'warning',
+    [vscode.DiagnosticSeverity.Information]: 'information',
+    [vscode.DiagnosticSeverity.Hint]: 'hint'
+  };
+
+  const openFileUris = new Set<string>();
+  if (config.openFilesOnly) {
+    for (const tabGroup of vscode.window.tabGroups.all) {
+      for (const tab of tabGroup.tabs) {
+        if (tab.input instanceof vscode.TabInputText) {
+          openFileUris.add(tab.input.uri.toString());
+        }
+      }
+    }
+  }
+
+  const result: WorkspaceDiagnosticPreview = [];
+  let fileCount = 0;
+
+  for (const [uri, diagnostics] of vscode.languages.getDiagnostics()) {
+    if (config.maxFiles !== -1 && fileCount >= config.maxFiles) break;
+    if (config.workspaceOnly && !vscode.workspace.getWorkspaceFolder(uri)) continue;
+    if (config.openFilesOnly && !openFileUris.has(uri.toString())) continue;
+
+    const filteredDiagnostics = diagnostics
+      .filter(d => config.includeSeverities.includes(severityMap[d.severity]))
+      .slice(0, config.maxDiagnosticsPerFile === -1 ? undefined : config.maxDiagnosticsPerFile)
+      .map(d => ({
+        line: d.range.start.line + 1,
+        column: d.range.start.character + 1,
+        severity: severityMap[d.severity],
+        message: d.message,
+        source: d.source,
+        code: typeof d.code === 'object' ? d.code.value : d.code
+      }));
+
+    if (filteredDiagnostics.length > 0) {
+      result.push({
+        file: vscode.workspace.asRelativePath(uri, false),
+        diagnostics: filteredDiagnostics
+      });
+      fileCount++;
+    }
+  }
+
+  return result;
+}
+
+function diagnosticsToText(diagnostics: WorkspaceDiagnosticPreview): string {
+  return diagnostics
+    .map(file => {
+      const lines = file.diagnostics.map(d => `  Line ${d.line}: [${d.severity}] ${d.message}${d.source ? ` (${d.source})` : ''}`);
+      return `${file.file}:\n${lines.join('\n')}`;
+    })
+    .join('\n\n');
+}
 
 /**
  * 获取上下文感知配置
@@ -51,6 +156,66 @@ export const getContextInspectorData: MessageHandler = async (data, requestId, c
     ctx.sendError(
       requestId,
       'GET_CONTEXT_INSPECTOR_DATA_ERROR',
+      error.message || t('webview.errors.getContextAwarenessConfigFailed')
+    );
+  }
+};
+
+/**
+ * 获取 Context 设置预览统计
+ */
+export const getContextSettingsPreview: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const config = ctx.settingsManager.getContextAwarenessConfig();
+    const ignorePatterns = config.ignorePatterns || [];
+
+    const workspaceTreeText = config.includeWorkspaceFiles
+      ? getWorkspaceFileTree(config.maxFileDepth === -1 ? 100 : config.maxFileDepth, ignorePatterns)
+      : '';
+    const workspaceTree = truncateText(workspaceTreeText, 12000);
+
+    const diagnostics = getDiagnosticsPreview(ctx.settingsManager.getDiagnosticsConfig() as NonNullable<ContextAwarenessConfig['diagnostics']>);
+    const diagnosticsText = diagnosticsToText(diagnostics);
+    const diagnosticsPreview = truncateText(diagnosticsText, 12000);
+
+    const allWorkspaceFiles = await collectWorkspaceFiles();
+    const ignoredFiles = allWorkspaceFiles.filter(file => shouldIgnorePath(file, ignorePatterns));
+    const ignoreSamplesByPattern = ignorePatterns.slice(0, 20).map(pattern => {
+      const matches = allWorkspaceFiles.filter(file => shouldIgnorePath(file, [pattern]));
+      return {
+        pattern,
+        count: matches.length,
+        samples: matches.slice(0, 5)
+      };
+    });
+
+    ctx.sendResponse(requestId, {
+      workspaceFiles: {
+        preview: workspaceTree.preview,
+        charCount: workspaceTree.charCount,
+        estimatedTokens: estimateTokensFromChars(workspaceTree.charCount),
+        truncated: workspaceTree.truncated,
+        lineCount: workspaceTreeText ? workspaceTreeText.split('\n').filter(Boolean).length : 0
+      },
+      diagnostics: {
+        files: diagnostics.length,
+        items: diagnostics.reduce((sum, file) => sum + file.diagnostics.length, 0),
+        preview: diagnosticsPreview.preview,
+        charCount: diagnosticsPreview.charCount,
+        estimatedTokens: estimateTokensFromChars(diagnosticsPreview.charCount),
+        truncated: diagnosticsPreview.truncated
+      },
+      ignorePatterns: {
+        scannedFiles: allWorkspaceFiles.length,
+        matchedFiles: ignoredFiles.length,
+        samples: ignoredFiles.slice(0, 10),
+        byPattern: ignoreSamplesByPattern
+      }
+    });
+  } catch (error: any) {
+    ctx.sendError(
+      requestId,
+      'GET_CONTEXT_SETTINGS_PREVIEW_ERROR',
       error.message || t('webview.errors.getContextAwarenessConfigFailed')
     );
   }
@@ -255,6 +420,7 @@ export function registerContextHandlers(registry: Map<string, MessageHandler>): 
   registry.set('getContextAwarenessConfig', getContextAwarenessConfig);
   registry.set('updateContextAwarenessConfig', updateContextAwarenessConfig);
   registry.set('getContextInspectorData', getContextInspectorData);
+  registry.set('getContextSettingsPreview', getContextSettingsPreview);
   registry.set('getOpenTabs', getOpenTabs);
   registry.set('getActiveEditor', getActiveEditor);
   registry.set('getDiagnosticsConfig', getDiagnosticsConfig);

@@ -66,6 +66,16 @@ describe('dependency settings enhancements', () => {
     expect(manager).toContain('installUnlocked');
   });
 
+  it('wraps dependency settings in a collapsible SettingsGroup instead of a standalone section', () => {
+    const dependencySettings = readProjectFile('frontend/src/components/settings/DependencySettings.vue');
+
+    expect(dependencySettings).toContain('import SettingsGroup');
+    expect(dependencySettings).toContain('<SettingsGroup');
+    expect(dependencySettings).not.toContain('class="section-header"');
+    expect(dependencySettings).not.toContain('<h3>');
+    expect(dependencySettings).toContain('summaryBadge');
+  });
+
   it('shows affected tools before uninstalling and exposes copyable failure logs', () => {
     const dependencySettings = readProjectFile('frontend/src/components/settings/DependencySettings.vue');
 

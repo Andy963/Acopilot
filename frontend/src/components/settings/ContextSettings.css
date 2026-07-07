@@ -25,6 +25,7 @@
 .group-label {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
@@ -106,6 +107,24 @@
 .hint {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
+}
+
+.cost-badge,
+.inline-cost {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cost-badge.primary {
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 24%, transparent);
+  color: var(--vscode-textLink-foreground);
 }
 
 .divider {
@@ -245,11 +264,79 @@
   border-radius: 2px;
 }
 
+.ignore-validation {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: var(--vscode-sideBar-background);
+}
+
+.preview-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.pattern-matches {
+  display: grid;
+  gap: 4px;
+}
+
+.pattern-match-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
 /* 预览区域 */
 .preview-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action-btn,
+.preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.action-btn:hover,
+.preset-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.action-btn.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.action-btn.primary:hover {
+  background: var(--vscode-button-hoverBackground);
 }
 
 .auto-refresh-badge {
@@ -286,6 +373,10 @@
 }
 
 .preview-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   font-size: 12px;
   font-weight: 500;
   color: var(--vscode-foreground);
@@ -315,6 +406,21 @@
   flex-wrap: wrap;
   gap: 4px;
   min-width: 0;
+}
+
+.preview-pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .truncated {
@@ -356,6 +462,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.diagnostics-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 24px;
 }
 
 .severity-checkbox {

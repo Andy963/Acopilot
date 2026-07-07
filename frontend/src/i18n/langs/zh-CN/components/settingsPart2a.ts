@@ -33,7 +33,12 @@ export const zhCNComponentsSettingsPart2a = {
             workspaceOnly: '仅工作区内文件',
             openFilesOnly: '仅打开的文件',
             maxPerFile: '每文件最大数量',
-            maxFiles: '最大文件数'
+            maxFiles: '最大文件数',
+            presets: {
+                errorsOnly: '仅错误',
+                openFilesFirst: '打开文件优先',
+                workspace: '当前工作区'
+            }
         },
         ignorePatterns: {
             title: '忽略模式',
@@ -42,6 +47,8 @@ export const zhCNComponentsSettingsPart2a = {
             emptyHint: '暂无自定义忽略模式',
             inputPlaceholder: '输入模式，如：**/node_modules, *.log',
             addButton: '添加',
+            matchedSummary: '当前忽略规则命中 {matched}/{scanned} 个文件',
+            patternMatchCount: '命中 {count} 个',
             helpTitle: '通配符说明:',
             helpItems: {
                 wildcard: '* - 匹配任意字符（不包含路径分隔符）',
@@ -53,10 +60,17 @@ export const zhCNComponentsSettingsPart2a = {
             title: '当前状态预览',
             autoRefreshBadge: '实时更新',
             description: '预览当前会发送给 AI 的上下文信息（每 2 秒自动刷新）',
+            openInspector: '查看当前上下文',
+            workspaceFilesLabel: '工作区文件树（{count} 行）：',
             activeEditorLabel: '当前活动编辑器：',
             openTabsLabel: '打开的标签页（{count} 个）：',
+            diagnosticsLabel: '诊断信息（{files} 个文件，{count} 条）：',
+            ignoreMatchesLabel: '被忽略的文件（{count} 个）：',
             noValue: '无',
             moreItems: '... 还有 {count} 个'
+        },
+        cost: {
+            badge: '~{tokens} tok · {chars} ch'
         },
         saveSuccess: '保存成功',
         saveFailed: '保存失败'
