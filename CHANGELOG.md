@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.1] - 2026-07-08
+
+### Improved
+  - Input: clarify `@file`, attachments, and pinned context lifecycles, with attachment support, token, and truncation indicators.
+  - Context Settings: harden ignore glob previews against invalid pattern text.
+  - Tools Settings: fix tool enablement and auto-exec controls, add `replace_in_files` configuration, and require confirmation for replacement auto-exec by default.
+  - Image Generation Settings: add explicit provider selection, normalized limits, safe connection testing, and provider-specific tool schemas.
+
 ## [1.1] - 2026-07-07
 
 ### Added
