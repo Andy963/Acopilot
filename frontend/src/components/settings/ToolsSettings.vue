@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { ConfirmDialog, CustomCheckbox, DependencyWarning } from '../common'
 import SettingsGroup from './common/SettingsGroup.vue'
 import ListFilesConfig from './tools/files/list_files.vue'
@@ -12,7 +13,10 @@ import CropImageConfig from './tools/media/crop_image.vue'
 import ResizeImageConfig from './tools/media/resize_image.vue'
 import RotateImageConfig from './tools/media/rotate_image.vue'
 import LocateConfig from './tools/lsp/locate.vue'
+import DependencySettings from './DependencySettings.vue'
 import { useToolsSettings } from './useToolsSettings'
+
+const dependencySettingsRef = ref<{ refreshDependencies: () => Promise<void> } | null>(null)
 
 const {
   t,
@@ -24,6 +28,7 @@ const {
   getMissingDependencies,
   areAllDependenciesInstalled,
   hasToolDependencies,
+  loadDependencies,
   toggleConfigPanel,
   isConfigExpanded,
   tools,
@@ -58,6 +63,11 @@ const {
   getCategoryEnabledTotal,
   getCategoryAutoExecCount,
 } = useToolsSettings()
+
+async function handleInstallMissingDependencies(toolName: string) {
+  await installMissingDependencies(toolName)
+  await dependencySettingsRef.value?.refreshDependencies()
+}
 </script>
 
 <template>
@@ -206,7 +216,7 @@ const {
               :installing="isInstallingDependencies(tool.name)"
               :failure-log="getDependencyInstallFailureLog(tool.name)"
               class="tool-dependency-warning"
-              @install="installMissingDependencies(tool.name)"
+              @install="handleInstallMissingDependencies(tool.name)"
               @copy-failure-log="copyDependencyInstallFailureLog(tool.name)" />
 
             <!-- 配置面板 -->
@@ -226,6 +236,8 @@ const {
         </div>
       </SettingsGroup>
     </div>
+
+    <DependencySettings ref="dependencySettingsRef" @dependency-changed="loadDependencies" />
 
     <!-- 危险工具开启自动执行二次确认 -->
     <ConfirmDialog

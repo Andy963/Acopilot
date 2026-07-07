@@ -127,6 +127,9 @@ import { TOOL_DEPENDENCIES, getToolsForDependency } from '../../composables/useD
 import { useI18n } from '@/i18n';
 
 const { t } = useI18n();
+const emit = defineEmits<{
+  dependencyChanged: [];
+}>();
 
 interface DependencyInfo {
   name: string;
@@ -309,6 +312,10 @@ async function getInstallPath() {
   }
 }
 
+async function refreshDependencies() {
+  await loadDependencies();
+}
+
 // 安装依赖
 async function installDependency(name: string) {
   installing.value = name;
@@ -322,6 +329,7 @@ async function installDependency(name: string) {
       progressType.value = 'success';
       progressMessage.value = t('components.settings.dependencySettings.progress.installSuccess', { name });
       await loadDependencies();
+      emit('dependencyChanged');
     } else {
       progressType.value = 'error';
       progressMessage.value = t('components.settings.dependencySettings.progress.installFailed', { name });
@@ -369,6 +377,7 @@ async function uninstallDependency(name: string) {
       progressType.value = 'success';
       progressMessage.value = t('components.settings.dependencySettings.progress.uninstallSuccess', { name });
       await loadDependencies();
+      emit('dependencyChanged');
     } else {
       progressType.value = 'error';
       progressMessage.value = t('components.settings.dependencySettings.progress.uninstallFailed', { name });
@@ -436,6 +445,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('message', handleMessage);
+});
+
+defineExpose({
+  refreshDependencies
 });
 </script>
 

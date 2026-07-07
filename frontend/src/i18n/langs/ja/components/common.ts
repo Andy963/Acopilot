@@ -48,7 +48,7 @@ export const jaComponentsCommon = {
         title: '依存関係が必要です',
         defaultMessage: 'この機能には以下の依存関係が必要です：',
         hint: '移動先：',
-        linkText: '拡張機能の依存関係',
+        linkText: 'ツール設定',
         installMissing: '不足分をインストール',
         installing: 'インストール中...',
         copyFailureLog: '失敗ログをコピー'

@@ -23,10 +23,37 @@ describe('dependency settings enhancements', () => {
     const warning = readProjectFile('frontend/src/components/common/DependencyWarning.vue');
 
     expect(toolsSettings).toContain(':show-install-action="true"');
-    expect(toolsSettings).toContain('@install="installMissingDependencies(tool.name)"');
+    expect(toolsSettings).toContain('@install="handleInstallMissingDependencies(tool.name)"');
     expect(toolsSettings).toContain('@copy-failure-log="copyDependencyInstallFailureLog(tool.name)"');
     expect(warning).toContain('installMissing');
     expect(warning).toContain('copyFailureLog');
+    expect(warning).toContain("settingsStore.showSettings('tools')");
+  });
+
+  it('keeps dependency management inside Tools instead of a standalone settings tab', () => {
+    const settingsStore = readProjectFile('frontend/src/stores/settingsStore.ts');
+    const settingsPanel = readProjectFile('frontend/src/components/settings/SettingsPanel.vue');
+    const settingsPanelComposable = readProjectFile('frontend/src/components/settings/useSettingsPanel.ts');
+    const toolsSettings = readProjectFile('frontend/src/components/settings/ToolsSettings.vue');
+
+    expect(settingsStore).not.toContain("'dependencies'");
+    expect(settingsPanelComposable).not.toContain("id: 'dependencies'");
+    expect(settingsPanel).not.toContain("activeTab === 'dependencies'");
+    expect(settingsPanel).not.toContain("import DependencySettings");
+    expect(toolsSettings).toContain("import DependencySettings from './DependencySettings.vue'");
+    expect(toolsSettings).toContain('@dependency-changed="loadDependencies"');
+  });
+
+  it('refreshes Tools dependency state after embedded dependency changes', () => {
+    const toolsSettings = readProjectFile('frontend/src/components/settings/ToolsSettings.vue');
+    const dependencySettings = readProjectFile('frontend/src/components/settings/DependencySettings.vue');
+
+    expect(toolsSettings).toContain('@dependency-changed="loadDependencies"');
+    expect(toolsSettings).toContain('ref="dependencySettingsRef"');
+    expect(dependencySettings).toContain('dependencyChanged');
+    expect(dependencySettings).toContain("emit('dependencyChanged')");
+    expect(dependencySettings).toContain('defineExpose');
+    expect(dependencySettings).toContain('refreshDependencies');
   });
 
   it('guards shared dependency installs from concurrent tool actions', () => {

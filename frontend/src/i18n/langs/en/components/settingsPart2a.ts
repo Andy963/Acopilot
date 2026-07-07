@@ -62,8 +62,8 @@ export const enComponentsSettingsPart2a = {
         saveFailed: 'Save failed'
     },
     dependencySettings: {
-        title: 'Extension Dependency Management',
-        description: 'Manage dependencies required for optional extension features. These dependencies will be installed to the local file system and not packaged into the plugin.',
+        title: 'Tool Dependencies',
+        description: 'Manage dependencies required by tools. These dependencies will be installed to the local file system and not packaged into the plugin.',
         installPath: 'Install Path:',
         pathRelation: 'Dependency packages are installed under the effective General storage path, in its managed dependencies directory. If you migrate the storage path, this location follows the completed migration; it is not the storage root itself.',
         installed: 'Installed',

@@ -48,7 +48,7 @@ export const zhCNComponentsCommon = {
         title: '需要安装依赖',
         defaultMessage: '此功能需要安装以下依赖：',
         hint: '请前往',
-        linkText: '扩展依赖',
+        linkText: '工具设置',
         installMissing: '安装缺失依赖',
         installing: '安装中...',
         copyFailureLog: '复制失败日志'

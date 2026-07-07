@@ -62,8 +62,8 @@ export const zhCNComponentsSettingsPart2a = {
         saveFailed: '保存失败'
     },
     dependencySettings: {
-        title: '扩展依赖管理',
-        description: '管理可选的扩展功能所需的依赖。这些依赖将安装到本地文件系统，不会打包进插件。',
+        title: '工具依赖',
+        description: '管理工具所需的依赖。这些依赖将安装到本地文件系统，不会打包进插件。',
         installPath: '安装路径：',
         pathRelation: '依赖包安装在 General 存储路径下的 dependencies 托管目录中。完成存储路径迁移后，此位置会跟随新的存储路径；它不是存储根目录本身。',
         installed: '已安装',

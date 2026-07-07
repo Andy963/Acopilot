@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.0.62-pre.9] - 2026-07-07
+
+### Improved
+  - Tools Settings: move dependency management into the Tools page and remove the standalone Dependencies settings entry.
+  - Tools Settings: dependency warnings now link back to Tools Settings and keep the embedded dependency panel in sync after inline installs.
+  - Dependencies: rename the embedded management section to Tool Dependencies to reflect that dependencies are only used by tools.
+
 ## [1.0.62-pre.8] - 2026-07-07
 
 ### Improved

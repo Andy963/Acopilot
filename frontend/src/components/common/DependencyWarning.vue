@@ -39,7 +39,7 @@ const emit = defineEmits<{
 const settingsStore = useSettingsStore()
 
 function goToDependencySettings() {
-  settingsStore.showSettings('dependencies')
+  settingsStore.showSettings('tools')
 }
 </script>
 
