@@ -2,6 +2,25 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1] - 2026-07-07
+
+### Added
+  - Channel Settings: add connection testing and model capability summaries for configured chat channels.
+  - Prompt Settings: add prompt template history, validation, variable autocomplete, and clearer Prompt Skill lifecycle guidance.
+  - History: add richer search, sorting, grouping, and multi-select cleanup actions.
+
+### Improved
+  - Context Settings: preview workspace file tree, diagnostics, ignore-pattern matches, and estimated token or character costs.
+  - Context Inspector: add bidirectional navigation with Context Settings and richer request context breakdowns.
+  - Tools Settings: embed dependency management and add inline missing-dependency installation flows.
+  - Summary Settings: improve summarization retention, visibility, regeneration, and continuation-state handling.
+  - Pinned Context: clarify pinned files, prompts, and skills, and persist reusable prompt selections.
+
+### Fixed
+  - Chat: keep the latest user request authoritative over older history and summaries.
+  - Chat: improve context token accounting, context snapshot preservation, and summary rendering stability.
+  - UI: improve welcome, composer, history, prompt, dependency, and context settings workflows.
+
 ## [1.0.62-pre.10] - 2026-07-07
 
 ### Improved
