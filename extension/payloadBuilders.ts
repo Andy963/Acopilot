@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 export const MAX_REFERENCE_PAYLOAD_CHARS = 12000;
 
 export type ChatReferencePayload = {
+    source: 'selection' | 'file';
     uri: string;
     path: string;
     startLine: number;
@@ -12,6 +13,8 @@ export type ChatReferencePayload = {
     originalCharCount: number;
     truncated: boolean;
 };
+
+type BaseReferencePayload = Omit<ChatReferencePayload, 'source'>;
 
 export function buildSelectionReferencePayload(
     editor: vscode.TextEditor,
@@ -42,6 +45,7 @@ export function buildSelectionReferencePayload(
 
     return {
         ...basePayload,
+        source: 'selection',
         startLine: selection.start.line + 1,
         endLine
     };
@@ -51,7 +55,7 @@ export function buildFileReferencePayload(
     document: vscode.TextDocument,
     maxChars: number = MAX_REFERENCE_PAYLOAD_CHARS
 ): ChatReferencePayload | null {
-    return buildBaseReferencePayload(
+    const basePayload = buildBaseReferencePayload(
         document,
         document.getText(),
         new vscode.Position(0, 0),
@@ -59,6 +63,13 @@ export function buildFileReferencePayload(
         maxChars,
         Math.max(1, document.lineCount)
     );
+
+    return basePayload
+        ? {
+            ...basePayload,
+            source: 'file'
+        }
+        : null;
 }
 
 function buildBaseReferencePayload(
@@ -68,7 +79,7 @@ function buildBaseReferencePayload(
     _end: vscode.Position,
     maxChars: number,
     explicitEndLine?: number
-): ChatReferencePayload | null {
+): BaseReferencePayload | null {
     const normalizedText = originalText.replace(/\r\n/g, '\n');
     const originalCharCount = normalizedText.length;
     const truncated = originalCharCount > maxChars;

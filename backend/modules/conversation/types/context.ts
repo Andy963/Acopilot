@@ -121,6 +121,7 @@ export interface ContextSnapshot {
  */
 export interface SelectionReference {
     id?: string;
+    source?: 'selection' | 'file';
     uri?: string;
     path: string;
     startLine?: number;

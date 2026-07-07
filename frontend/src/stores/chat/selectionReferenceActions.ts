@@ -34,11 +34,13 @@ export async function addSelectionReference(state: ChatStoreState, input: Partia
   const text = normalizeString(input.text)
   const startLine = normalizePositiveInt(input.startLine, 1)
   const endLine = normalizePositiveInt(input.endLine, startLine)
+  const source = input.source === 'file' ? 'file' : 'selection'
 
   if (!path || !uri || !text.trim()) return
 
   const item: SelectionReference = {
     id: input.id?.trim() || generateId(),
+    source,
     uri,
     path,
     startLine,

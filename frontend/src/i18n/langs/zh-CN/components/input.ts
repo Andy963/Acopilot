@@ -34,6 +34,10 @@ export const zhCNComponentsInput = {
         truncated: '发送前可能被截断',
         truncatedShort: '截断'
     },
+    referenceSources: {
+        selection: '选区',
+        file: '文件'
+    },
     channelSelector: {
         placeholder: '选择配置',
         searchPlaceholder: '搜索渠道...',
@@ -124,6 +128,8 @@ export const zhCNComponentsInput = {
         fileNotInAnyWorkspace: '文件不在任何打开的工作区内',
         fileInOtherWorkspace: '文件属于其他工作区: {workspaceName}',
         fileAdded: '已添加固定文件: {path}',
+        selectionReferenceAdded: '已添加选区引用到对话',
+        fileReferenceAdded: '已添加文件引用到对话',
         addFailed: '添加失败: {error}',
         loadPinnedPromptPresetsFailed: '加载已保存提示词失败: {error}',
         cannotGetFilePath: '无法获取文件路径，请从 VSCode 资源管理器或标签页拖拽',

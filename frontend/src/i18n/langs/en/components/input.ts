@@ -34,6 +34,10 @@ export const enComponentsInput = {
         truncated: 'May be truncated before sending',
         truncatedShort: 'truncated'
     },
+    referenceSources: {
+        selection: 'Selection',
+        file: 'File'
+    },
     channelSelector: {
         placeholder: 'Select config',
         searchPlaceholder: 'Search channels...',
@@ -124,6 +128,8 @@ export const enComponentsInput = {
         fileNotInAnyWorkspace: 'File is not in any open workspace',
         fileInOtherWorkspace: 'File belongs to another workspace: {workspaceName}',
         fileAdded: 'Added pinned file: {path}',
+        selectionReferenceAdded: 'Added selection reference to chat',
+        fileReferenceAdded: 'Added file reference to chat',
         addFailed: 'Add failed: {error}',
         loadPinnedPromptPresetsFailed: 'Load saved prompts failed: {error}',
         cannotGetFilePath: 'Cannot get file path, please drag from VSCode Explorer or tab',

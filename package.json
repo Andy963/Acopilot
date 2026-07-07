@@ -24,29 +24,29 @@
     "commands": [
       {
         "command": "acopilot.openChat",
-        "title": "Acopilot: 打开聊天面板"
+        "title": "Acopilot: Open Chat"
       },
       {
         "command": "acopilot.addSelectionToChat",
-        "title": "Add Selection to Acopilot Chat"
+        "title": "Acopilot: Add Selection to Chat"
       },
       {
         "command": "acopilot.addFileToChat",
-        "title": "Add File to Acopilot Chat"
+        "title": "Acopilot: Add File to Chat"
       },
       {
         "command": "acopilot.newChat",
-        "title": "新建对话",
+        "title": "Acopilot: New Chat",
         "icon": "$(add)"
       },
       {
         "command": "acopilot.showHistory",
-        "title": "对话历史",
+        "title": "Acopilot: Show History",
         "icon": "$(arrow-left)"
       },
       {
         "command": "acopilot.showSettings",
-        "title": "设置",
+        "title": "Acopilot: Show Settings",
         "icon": "$(settings-gear)"
       }
     ],
@@ -76,9 +76,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "acopilot.showSettings",
+          "command": "acopilot.showHistory",
           "when": "view == acopilot.chatView",
           "group": "navigation@2"
+        },
+        {
+          "command": "acopilot.showSettings",
+          "when": "view == acopilot.chatView",
+          "group": "navigation@3"
         }
       ]
     },

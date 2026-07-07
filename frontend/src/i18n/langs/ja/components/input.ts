@@ -34,6 +34,10 @@ export const jaComponentsInput = {
         truncated: '送信前に切り詰められる可能性があります',
         truncatedShort: '切り詰め'
     },
+    referenceSources: {
+        selection: '選択範囲',
+        file: 'ファイル'
+    },
     channelSelector: {
         placeholder: '設定を選択',
         searchPlaceholder: 'チャンネルを検索...',
@@ -124,6 +128,8 @@ export const jaComponentsInput = {
         fileNotInAnyWorkspace: 'ファイルが開いているワークスペースにありません',
         fileInOtherWorkspace: 'ファイルは別のワークスペースに属しています: {workspaceName}',
         fileAdded: 'ピン留めファイルを追加しました: {path}',
+        selectionReferenceAdded: '選択範囲の参照をチャットに追加しました',
+        fileReferenceAdded: 'ファイル参照をチャットに追加しました',
         addFailed: '追加に失敗しました: {error}',
         loadPinnedPromptPresetsFailed: '保存済みプロンプトの読み込みに失敗しました: {error}',
         cannotGetFilePath: 'ファイルパスを取得できません。VSCode エクスプローラーまたはタブからドラッグしてください',

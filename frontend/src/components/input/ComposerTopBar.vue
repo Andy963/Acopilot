@@ -162,6 +162,21 @@ async function removeSelectionReference(id: string) {
   emit('removeSelectionReference', id)
 }
 
+function getSelectionReferenceSource(selection: SelectionReference): 'selection' | 'file' {
+  return selection.source === 'file' ? 'file' : 'selection'
+}
+
+function getSelectionReferenceIconClass(selection: SelectionReference): string {
+  return getSelectionReferenceSource(selection) === 'file' ? 'codicon-file' : 'codicon-symbol-field'
+}
+
+function getSelectionReferenceTitle(selection: SelectionReference): string {
+  const labelKey = getSelectionReferenceSource(selection) === 'file'
+    ? 'components.input.referenceSources.file'
+    : 'components.input.referenceSources.selection'
+  return `${t(labelKey)} · ${selection.path}#L${selection.startLine}-L${selection.endLine}`
+}
+
 function getAttachmentIconClass(type: string): string {
   if (type === 'image') return 'codicon-file-media'
   if (type === 'video') return 'codicon-device-camera-video'
@@ -235,10 +250,11 @@ async function previewAttachment(attachment: Attachment) {
         v-for="r in selectionReferences"
         :key="r.id"
         class="attachment-item reference-chip"
-        :title="`${r.path}#L${r.startLine}-L${r.endLine}`"
+        :title="getSelectionReferenceTitle(r)"
         @click="openSelectionReference(r)"
       >
-        <i class="codicon codicon-references attachment-icon reference-chip-icon"></i>
+        <i :class="['codicon', getSelectionReferenceIconClass(r), 'attachment-icon', 'reference-chip-icon']"></i>
+        <span class="reference-source">{{ t(`components.input.referenceSources.${getSelectionReferenceSource(r)}`) }}</span>
         <code class="reference-chip-text">{{ getBasenameFromPath(r.path) }}#L{{ r.startLine }}-L{{ r.endLine }}</code>
         <span v-if="r.truncated" class="reference-truncated">{{ t('components.input.pinnedFilesPanel.refs.truncated') }}</span>
         <IconButton
@@ -366,6 +382,16 @@ async function previewAttachment(attachment: Attachment) {
 .attachment-icon.reference-chip-icon {
   font-size: 12px;
   opacity: 0.7;
+}
+
+.reference-source {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
 }
 
 .reference-chip-text {
