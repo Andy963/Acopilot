@@ -18,18 +18,40 @@ export function shouldIgnorePath(relativePath: string, ignorePatterns: string[])
   return false;
 }
 
+function escapeRegexChar(char: string): string {
+  return /[|\\{}()[\]^$+?.]/.test(char) ? `\\${char}` : char;
+}
+
+function globToRegexPattern(pattern: string): string {
+  const normalizedPattern = pattern.replace(/\\/g, '/').trim();
+  let regexPattern = '';
+
+  for (let i = 0; i < normalizedPattern.length; i++) {
+    const char = normalizedPattern[i];
+
+    if (char === '*') {
+      if (normalizedPattern[i + 1] === '*') {
+        regexPattern += '.*';
+        i++;
+      } else {
+        regexPattern += '[^/]*';
+      }
+      continue;
+    }
+
+    regexPattern += char === '/' ? '[/\\\\]' : escapeRegexChar(char);
+  }
+
+  return regexPattern;
+}
+
 /**
  * 简单的 glob 模式匹配
  * 支持 * 和 ** 通配符
  */
 export function matchGlobPattern(filePath: string, pattern: string): boolean {
-  const regexPattern = pattern
-    .replace(/\\/g, '/')
-    .replace(/\./g, '\\.')
-    .replace(/\*\*/g, '<<<GLOBSTAR>>>')
-    .replace(/\*/g, '[^/]*')
-    .replace(/<<<GLOBSTAR>>>/g, '.*')
-    .replace(/\//g, '[/\\\\]');
+  const regexPattern = globToRegexPattern(pattern);
+  if (!regexPattern) return false;
   
   const regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i');
   return regex.test(filePath.replace(/\\/g, '/'));
