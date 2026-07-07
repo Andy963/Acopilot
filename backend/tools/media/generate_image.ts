@@ -107,9 +107,13 @@ export function createGenerateImageTool(
 ): Tool {
     // 默认配置
     const config: ToolParamsConfig = paramsConfig || {
+        provider: 'gemini',
         enableAspectRatio: false,
         enableImageSize: false
     };
+    const provider = config.provider || 'gemini';
+    const supportsReferenceImages = provider !== 'together';
+    const supportsImageParameters = provider !== 'together';
     
     // 获取工作区信息
     const workspaces = getAllWorkspaces();
@@ -117,9 +121,12 @@ export function createGenerateImageTool(
     
     // 构建参数说明
     const paramNotes: string[] = [];
+    if (provider === 'together') {
+        paramNotes.push('- **Provider**: Together AI text-to-image only. Do not use reference_images, aspect_ratio, or image_size.');
+    }
     
     // 宽高比说明
-    if (config.enableAspectRatio) {
+    if (supportsImageParameters && config.enableAspectRatio) {
         if (config.forcedAspectRatio) {
             paramNotes.push(`- **Aspect Ratio**: User set to ${config.forcedAspectRatio} (cannot be changed)`);
         } else {
@@ -128,7 +135,7 @@ export function createGenerateImageTool(
     }
     
     // 图片尺寸说明
-    if (config.enableImageSize) {
+    if (supportsImageParameters && config.enableImageSize) {
         if (config.forcedImageSize) {
             paramNotes.push(`- **Image Size**: User set to ${config.forcedImageSize} (cannot be changed)`);
         } else {
@@ -159,9 +166,7 @@ export function createGenerateImageTool(
 
 Features:
 - Text-to-image: Generate images from prompts
-- Image editing: Modify based on reference images
-- Multi-image composition: Create new scenes using multiple reference images
-- Batch generation: Generate multiple different images in one request
+${supportsReferenceImages ? '- Image editing: Modify based on reference images\n- Multi-image composition: Create new scenes using multiple reference images\n' : ''}- Batch generation: Generate multiple different images in one request
 
 Generated images will be saved to the specified path and returned for viewing.`;
     
@@ -176,19 +181,22 @@ Generated images will be saved to the specified path and returned for viewing.`;
             type: 'string',
             description: 'Image generation prompt. Supports natural language, tags, or mixed.'
         },
-        reference_images: {
-            type: 'array',
-            description: 'Reference image paths array (optional). Maximum 14 images. MUST be an array even for single image, e.g., ["image.png"]',
-            items: { type: 'string' }
-        },
         output_path: {
             type: 'string',
             description: 'Output file path (required)'
         }
     };
 
+    if (supportsReferenceImages) {
+        batchItemProperties.reference_images = {
+            type: 'array',
+            description: 'Reference image paths array (optional). Maximum 14 images. MUST be an array even for single image, e.g., ["image.png"]',
+            items: { type: 'string' }
+        };
+    }
+
     // 仅当启用宽高比且没有强制值时，才包含 aspect_ratio 参数
-    if (config.enableAspectRatio && !config.forcedAspectRatio) {
+    if (supportsImageParameters && config.enableAspectRatio && !config.forcedAspectRatio) {
         batchItemProperties.aspect_ratio = {
             type: 'string',
             description: 'Image aspect ratio (optional)',
@@ -197,7 +205,7 @@ Generated images will be saved to the specified path and returned for viewing.`;
     }
     
     // 仅当启用图片尺寸且没有强制值时，才包含 image_size 参数
-    if (config.enableImageSize && !config.forcedImageSize) {
+    if (supportsImageParameters && config.enableImageSize && !config.forcedImageSize) {
         batchItemProperties.image_size = {
             type: 'string',
             description: 'Image resolution (optional)',
@@ -211,7 +219,16 @@ Generated images will be saved to the specified path and returned for viewing.`;
             type: 'string',
             description: 'Single mode: Image generation prompt. Supports: 1) Natural language description; 2) Comma-separated tags/keywords; 3) Mixed style.'
         },
-        reference_images: {
+        output_path: {
+            type: 'string',
+            description: isMultiRoot
+                ? `Single mode: Output file path (required). Use "workspace_name/path" format.`
+                : 'Single mode: Output file path (required). Relative to workspace directory.'
+        }
+    };
+
+    if (supportsReferenceImages) {
+        singleModeProperties.reference_images = {
             type: 'array',
             description: isMultiRoot
                 ? `Single mode: Reference image paths array (optional). Maximum 14 images. Use "workspace_name/path" format. MUST be an array even for single image.`
@@ -222,17 +239,11 @@ Generated images will be saved to the specified path and returned for viewing.`;
                     ? 'Reference image file path, use "workspace_name/path" format'
                     : 'Reference image file path (relative to workspace)'
             }
-        },
-        output_path: {
-            type: 'string',
-            description: isMultiRoot
-                ? `Single mode: Output file path (required). Use "workspace_name/path" format.`
-                : 'Single mode: Output file path (required). Relative to workspace directory.'
-        }
-    };
+        };
+    }
 
     // 仅当启用宽高比且没有强制值时，才包含 aspect_ratio 参数
-    if (config.enableAspectRatio && !config.forcedAspectRatio) {
+    if (supportsImageParameters && config.enableAspectRatio && !config.forcedAspectRatio) {
         singleModeProperties.aspect_ratio = {
             type: 'string',
             description: 'Single mode: Image aspect ratio (optional). Supported: 1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9',
@@ -241,7 +252,7 @@ Generated images will be saved to the specified path and returned for viewing.`;
     }
     
     // 仅当启用图片尺寸且没有强制值时，才包含 image_size 参数
-    if (config.enableImageSize && !config.forcedImageSize) {
+    if (supportsImageParameters && config.enableImageSize && !config.forcedImageSize) {
         singleModeProperties.image_size = {
             type: 'string',
             description: 'Single mode: Image resolution (optional). 1K=1024px, 2K=2048px, 4K=4096px.',

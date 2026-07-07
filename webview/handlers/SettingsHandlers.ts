@@ -5,6 +5,7 @@
 import * as vscode from 'vscode';
 import { t } from '../../backend/i18n';
 import type { PinnedPromptPreset } from '../../backend/modules/settings/types';
+import { testGenerateImageConnection as runGenerateImageConnectionTest } from '../../backend/tools/media/generateImageHelpers';
 import type { HandlerContext, MessageHandler } from '../types';
 import { installCodexSkillsFromGitHubUrl } from './codexSkillInstaller';
 
@@ -119,6 +120,24 @@ export const updateGenerateImageConfig: MessageHandler = async (data, requestId,
     ctx.sendResponse(requestId, { success: true });
   } catch (error: any) {
     ctx.sendError(requestId, 'UPDATE_GENERATE_IMAGE_CONFIG_ERROR', error.message || t('webview.errors.updateGenerateImageConfigFailed'));
+  }
+};
+
+export const testGenerateImageConnection: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const currentConfig = ctx.settingsManager.getGenerateImageConfig();
+    const incomingConfig = isRecord(data) && isRecord(data.config) ? data.config : {};
+    const result = await runGenerateImageConnectionTest({
+      ...currentConfig,
+      ...incomingConfig,
+      proxyUrl: ctx.settingsManager.getEffectiveProxyUrl()
+    } as any);
+    ctx.sendResponse(requestId, result);
+  } catch (error: any) {
+    ctx.sendResponse(requestId, {
+      success: false,
+      error: error.message || t('webview.errors.getGenerateImageConfigFailed')
+    });
   }
 };
 
@@ -339,6 +358,7 @@ export function registerSettingsHandlers(registry: Map<string, MessageHandler>):
   registry.set('updateSummarizeConfig', updateSummarizeConfig);
   registry.set('getGenerateImageConfig', getGenerateImageConfig);
   registry.set('updateGenerateImageConfig', updateGenerateImageConfig);
+  registry.set('testGenerateImageConnection', testGenerateImageConnection);
   registry.set('getSystemPromptConfig', getSystemPromptConfig);
   registry.set('updateSystemPromptConfig', updateSystemPromptConfig);
   registry.set('countSystemPromptTokens', countSystemPromptTokens);

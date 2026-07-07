@@ -21,6 +21,7 @@ const TOGETHER_DEFAULT_MODEL = 'google/flash-image-2.5'
 
 // 图像生成配置
 const imageConfig = reactive({
+  provider: 'gemini' as ImageProvider,
   url: GEMINI_DEFAULT_URL,
   apiKey: '',
   model: GEMINI_DEFAULT_MODEL,
@@ -34,6 +35,8 @@ const imageConfig = reactive({
 
 // API Key 显示状态
 const showApiKey = ref(false)
+const isTestingConnection = ref(false)
+const testConnectionResult = ref<{ success: boolean; message: string } | null>(null)
 
 function detectProvider(url: string, model: string): ImageProvider {
   const u = String(url || '').toLowerCase()
@@ -42,7 +45,8 @@ function detectProvider(url: string, model: string): ImageProvider {
   return 'gemini'
 }
 
-const currentProvider = computed<ImageProvider>(() => detectProvider(imageConfig.url, imageConfig.model))
+const currentProvider = computed<ImageProvider>(() => imageConfig.provider || detectProvider(imageConfig.url, imageConfig.model))
+const isTogetherProvider = computed(() => currentProvider.value === 'together')
 
 const providerOptions = computed<SelectOption[]>(() => [
   {
@@ -120,6 +124,7 @@ async function loadConfig() {
 
 async function updateConfig(patch: Record<string, any>) {
   Object.assign(imageConfig as any, patch)
+  testConnectionResult.value = null
   try {
     await sendToExtension('updateGenerateImageConfig', {
       config: { ...imageConfig }
@@ -133,6 +138,7 @@ async function updateConfig(patch: Record<string, any>) {
 async function updateConfigField(field: string, value: any) {
   // 先更新本地值
   (imageConfig as any)[field] = value
+  testConnectionResult.value = null
   
   // 保存到后端
   try {
@@ -148,7 +154,13 @@ async function handleProviderChange(provider: ImageProvider) {
   if (provider === currentProvider.value) return
 
   if (provider === 'together') {
-    const patch: Record<string, any> = {}
+    const patch: Record<string, any> = {
+      provider,
+      enableAspectRatio: false,
+      defaultAspectRatio: undefined,
+      enableImageSize: false,
+      defaultImageSize: undefined,
+    }
     if (!imageConfig.url || String(imageConfig.url).toLowerCase().includes('generativelanguage.googleapis.com')) {
       patch.url = TOGETHER_DEFAULT_URL
     }
@@ -159,7 +171,7 @@ async function handleProviderChange(provider: ImageProvider) {
     return
   }
 
-  const patch: Record<string, any> = {}
+  const patch: Record<string, any> = { provider }
   if (!imageConfig.url || String(imageConfig.url).toLowerCase().includes('together') || String(imageConfig.url).includes('/images/generations')) {
     patch.url = GEMINI_DEFAULT_URL
   }
@@ -181,6 +193,36 @@ async function handleModelPresetChange(model: string) {
   }
 
   await updateConfig(patch)
+}
+
+function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt(String(value), 10)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(max, Math.max(min, parsed))
+}
+
+async function updateBoundedNumber(field: 'maxBatchTasks' | 'maxImagesPerTask', value: unknown, fallback: number, min: number, max: number) {
+  await updateConfigField(field, clampNumber(value, fallback, min, max))
+}
+
+async function testConnection() {
+  isTestingConnection.value = true
+  testConnectionResult.value = null
+  try {
+    const result = await sendToExtension<{ success: boolean; provider?: string; model?: string; error?: string }>('testGenerateImageConnection', {
+      config: { ...imageConfig }
+    })
+    testConnectionResult.value = result.success
+      ? { success: true, message: t('components.settings.generateImageSettings.api.testSuccess', { provider: result.provider || currentProvider.value, model: result.model || imageConfig.model }) }
+      : { success: false, message: result.error || t('components.settings.generateImageSettings.api.testFailed') }
+  } catch (error) {
+    testConnectionResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : String(error)
+    }
+  } finally {
+    isTestingConnection.value = false
+  }
 }
 
 // 初始化
@@ -266,10 +308,28 @@ onMounted(async () => {
         />
         <p class="field-hint">{{ t('components.settings.generateImageSettings.api.modelPresetHint') }}</p>
       </div>
+
+      <div class="connection-test">
+        <button
+          class="test-connection-btn"
+          :disabled="isTestingConnection || !imageConfig.apiKey || !imageConfig.model || !imageConfig.url"
+          @click="testConnection"
+        >
+          <i :class="['codicon', isTestingConnection ? 'codicon-loading codicon-modifier-spin' : 'codicon-debug-start']"></i>
+          {{ t('components.settings.generateImageSettings.api.testConnection') }}
+        </button>
+        <span
+          v-if="testConnectionResult"
+          :class="['connection-result', testConnectionResult.success ? 'success' : 'error']"
+        >
+          <i :class="['codicon', testConnectionResult.success ? 'codicon-check' : 'codicon-error']"></i>
+          {{ testConnectionResult.message }}
+        </span>
+      </div>
     </div>
     
     <!-- 宽高比参数 -->
-    <div class="section">
+    <div class="section" :class="{ 'provider-disabled': isTogetherProvider }">
       <h5 class="section-title">
         <i class="codicon codicon-symbol-ruler"></i>
         {{ t('components.settings.generateImageSettings.aspectRatio.title') }}
@@ -278,20 +338,24 @@ onMounted(async () => {
       <CustomCheckbox
         :model-value="imageConfig.enableAspectRatio"
         :label="t('components.settings.generateImageSettings.aspectRatio.enable')"
+        :disabled="isTogetherProvider"
         @update:model-value="(v: boolean) => updateConfigField('enableAspectRatio', v)"
       />
       
-      <div class="form-group" :class="{ disabled: !imageConfig.enableAspectRatio }">
+      <div class="form-group" :class="{ disabled: isTogetherProvider || !imageConfig.enableAspectRatio }">
         <label>{{ t('components.settings.generateImageSettings.aspectRatio.fixedRatio') }}</label>
         <CustomSelect
           :model-value="imageConfig.defaultAspectRatio || ''"
           :options="aspectRatioOptions"
           :placeholder="t('components.settings.generateImageSettings.aspectRatio.placeholder')"
-          :disabled="!imageConfig.enableAspectRatio"
+          :disabled="isTogetherProvider || !imageConfig.enableAspectRatio"
           @update:model-value="(v: string) => updateConfigField('defaultAspectRatio', v || undefined)"
         />
         <p class="field-hint">
-          <template v-if="!imageConfig.enableAspectRatio">
+          <template v-if="isTogetherProvider">
+            {{ t('components.settings.generateImageSettings.aspectRatio.hints.together') }}
+          </template>
+          <template v-else-if="!imageConfig.enableAspectRatio">
             {{ t('components.settings.generateImageSettings.aspectRatio.hints.disabled') }}
           </template>
           <template v-else-if="imageConfig.defaultAspectRatio">
@@ -305,7 +369,7 @@ onMounted(async () => {
     </div>
     
     <!-- 图片尺寸参数 -->
-    <div class="section">
+    <div class="section" :class="{ 'provider-disabled': isTogetherProvider }">
       <h5 class="section-title">
         <i class="codicon codicon-screen-full"></i>
         {{ t('components.settings.generateImageSettings.imageSize.title') }}
@@ -314,20 +378,24 @@ onMounted(async () => {
       <CustomCheckbox
         :model-value="imageConfig.enableImageSize"
         :label="t('components.settings.generateImageSettings.imageSize.enable')"
+        :disabled="isTogetherProvider"
         @update:model-value="(v: boolean) => updateConfigField('enableImageSize', v)"
       />
       
-      <div class="form-group" :class="{ disabled: !imageConfig.enableImageSize }">
+      <div class="form-group" :class="{ disabled: isTogetherProvider || !imageConfig.enableImageSize }">
         <label>{{ t('components.settings.generateImageSettings.imageSize.fixedSize') }}</label>
         <CustomSelect
           :model-value="imageConfig.defaultImageSize || ''"
           :options="imageSizeOptions"
           :placeholder="t('components.settings.generateImageSettings.imageSize.placeholder')"
-          :disabled="!imageConfig.enableImageSize"
+          :disabled="isTogetherProvider || !imageConfig.enableImageSize"
           @update:model-value="(v: string) => updateConfigField('defaultImageSize', v || undefined)"
         />
         <p class="field-hint">
-          <template v-if="!imageConfig.enableImageSize">
+          <template v-if="isTogetherProvider">
+            {{ t('components.settings.generateImageSettings.imageSize.hints.together') }}
+          </template>
+          <template v-else-if="!imageConfig.enableImageSize">
             {{ t('components.settings.generateImageSettings.imageSize.hints.disabled') }}
           </template>
           <template v-else-if="imageConfig.defaultImageSize">
@@ -354,7 +422,7 @@ onMounted(async () => {
           :value="imageConfig.maxBatchTasks"
           min="1"
           max="20"
-          @input="(e: any) => updateConfigField('maxBatchTasks', parseInt(e.target.value) || 5)"
+          @input="(e: any) => updateBoundedNumber('maxBatchTasks', e.target.value, 5, 1, 20)"
         />
         <p class="field-hint">{{ t('components.settings.generateImageSettings.batch.maxTasksHint') }}</p>
       </div>
@@ -366,7 +434,7 @@ onMounted(async () => {
           :value="imageConfig.maxImagesPerTask"
           min="1"
           max="10"
-          @input="(e: any) => updateConfigField('maxImagesPerTask', parseInt(e.target.value) || 1)"
+          @input="(e: any) => updateBoundedNumber('maxImagesPerTask', e.target.value, 1, 1, 10)"
         />
         <p class="field-hint">{{ t('components.settings.generateImageSettings.batch.maxImagesPerTaskHint') }}</p>
       </div>

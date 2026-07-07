@@ -24,6 +24,7 @@ export interface ImageTask {
 }
 
 export interface GenerateImageConfig {
+    provider?: ImageProvider;
     url?: string;
     apiKey?: string;
     model?: string;
@@ -39,6 +40,7 @@ export interface GenerateImageConfig {
 }
 
 export interface ToolParamsConfig {
+    provider?: ImageProvider;
     enableAspectRatio: boolean;
     forcedAspectRatio?: string;
     enableImageSize: boolean;
