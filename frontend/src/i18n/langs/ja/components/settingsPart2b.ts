@@ -152,6 +152,13 @@ export const jaComponentsSettingsPart2b = {
                 inputPlaceholder: '除外するファイルまたはディレクトリパターンを入力...',
                 deleteTooltip: '削除',
                 addButton: '追加'
+            },
+            replaceInFiles: {
+                excludeList: '置換除外パターン',
+                excludeListHint: '（glob 形式、例: **/node_modules/**）',
+                inputPlaceholder: '置換から除外するファイルまたはディレクトリパターンを入力...',
+                deleteTooltip: '削除',
+                addButton: '追加'
             }
         },
         lsp: {
@@ -287,7 +294,7 @@ export const jaComponentsSettingsPart2b = {
         },
         enableAllDangerous: {
             title: '自動実行を有効化',
-            message: '危険なツール（delete_file / execute_command）が検出されました。これらも自動実行にしますか？',
+            message: '危険なツール（delete_file / execute_command / replace_in_files）が検出されました。これらも自動実行にしますか？',
             confirm: '危険なツールも含める',
             cancel: '危険なツールを除外'
         },

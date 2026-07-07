@@ -50,6 +50,7 @@ export function useToolsSettings() {
       'execute_command',
       'find_files',
       'search_in_files',
+      'replace_in_files',
       'locate',
       'generate_image',
       'remove_background',
@@ -118,7 +119,7 @@ export function useToolsSettings() {
   }
 
   function isDangerousTool(toolName: string): boolean {
-    return ['delete_file', 'execute_command'].includes(toolName)
+    return ['delete_file', 'execute_command', 'replace_in_files'].includes(toolName)
   }
 
   function isAutoExec(toolName: string): boolean {
@@ -300,7 +301,7 @@ export function useToolsSettings() {
   async function toggleTool(toolName: string, enabled: boolean) {
     savingTools.value.add(toolName)
     try {
-      await sendToExtension('tools.toggleTool', { name: toolName, enabled })
+      await sendToExtension('tools.setToolEnabled', { toolName, enabled })
       const tool = tools.value.find(t => t.name === toolName)
       if (tool) tool.enabled = enabled
     } catch (error) {
@@ -313,7 +314,7 @@ export function useToolsSettings() {
   async function toggleAutoExec(toolName: string, enabled: boolean) {
     savingAutoExecTools.value.add(toolName)
     try {
-      await sendToExtension('tools.updateAutoExecConfig', { name: toolName, enabled })
+      await sendToExtension('tools.setToolAutoExec', { toolName, autoExec: enabled })
       autoExecConfig.value = { ...autoExecConfig.value, [toolName]: enabled }
     } catch (error) {
       console.error('Failed to update auto exec config:', error)

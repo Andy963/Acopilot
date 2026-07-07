@@ -226,6 +226,8 @@ async function handleInstallMissingDependencies(toolName: string) {
               :tool-name="tool.name" />
             <FindFilesConfig v-if="tool.name === 'find_files' && isConfigExpanded(tool.name)" />
             <SearchInFilesConfig v-if="tool.name === 'search_in_files' && isConfigExpanded(tool.name)" />
+            <SearchInFilesConfig v-if="tool.name === 'replace_in_files' && isConfigExpanded(tool.name)"
+              tool-name="replace_in_files" i18n-section="replaceInFiles" />
             <LocateConfig v-if="tool.name === 'locate' && isConfigExpanded(tool.name)" />
             <GenerateImageConfig v-if="tool.name === 'generate_image' && isConfigExpanded(tool.name)" />
             <RemoveBackgroundConfig v-if="tool.name === 'remove_background' && isConfigExpanded(tool.name)" />

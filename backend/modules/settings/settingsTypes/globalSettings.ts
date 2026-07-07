@@ -5,6 +5,7 @@ import {
     DEFAULT_FIND_FILES_CONFIG,
     DEFAULT_LIST_FILES_CONFIG,
     DEFAULT_LOCATE_CONFIG,
+    DEFAULT_REPLACE_IN_FILES_CONFIG,
     DEFAULT_SEARCH_IN_FILES_CONFIG,
     getDefaultExecuteCommandConfig
 } from './toolConfigs';
@@ -64,7 +65,8 @@ export type SettingsChangeListener = (event: SettingsChangeEvent) => void | Prom
 
 export const DEFAULT_TOOL_AUTO_EXEC_CONFIG: ToolAutoExecConfig = {
     delete_file: false,
-    execute_command: false
+    execute_command: false,
+    replace_in_files: false
 };
 
 export const DEFAULT_MAX_TOOL_ITERATIONS = 50;
@@ -77,6 +79,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
         list_files: DEFAULT_LIST_FILES_CONFIG,
         find_files: DEFAULT_FIND_FILES_CONFIG,
         search_in_files: DEFAULT_SEARCH_IN_FILES_CONFIG,
+        replace_in_files: DEFAULT_REPLACE_IN_FILES_CONFIG,
         locate: DEFAULT_LOCATE_CONFIG,
         apply_diff: DEFAULT_APPLY_DIFF_CONFIG,
         delete_file: DEFAULT_DELETE_FILE_CONFIG,

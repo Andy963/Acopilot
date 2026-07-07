@@ -15,6 +15,11 @@ export interface SearchInFilesToolConfig {
     [key: string]: unknown;
 }
 
+export interface ReplaceInFilesToolConfig {
+    excludePatterns: string[];
+    [key: string]: unknown;
+}
+
 export interface ApplyDiffToolConfig {
     autoSave: boolean;
     autoSaveDelay: number;
@@ -154,6 +159,10 @@ export const DEFAULT_SEARCH_IN_FILES_CONFIG: SearchInFilesToolConfig = {
         '**/coverage/**',
         '**/.nyc_output/**'
     ]
+};
+
+export const DEFAULT_REPLACE_IN_FILES_CONFIG: ReplaceInFilesToolConfig = {
+    excludePatterns: [...DEFAULT_SEARCH_IN_FILES_CONFIG.excludePatterns]
 };
 
 export const DEFAULT_APPLY_DIFF_CONFIG: ApplyDiffToolConfig = {

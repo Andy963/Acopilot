@@ -152,6 +152,13 @@ export const enComponentsSettingsPart2b = {
                 inputPlaceholder: 'Enter file or directory pattern to exclude...',
                 deleteTooltip: 'Delete',
                 addButton: 'Add'
+            },
+            replaceInFiles: {
+                excludeList: 'Replace Exclude Patterns',
+                excludeListHint: '(glob format, e.g. **/node_modules/**)',
+                inputPlaceholder: 'Enter file or directory pattern to exclude from replace...',
+                deleteTooltip: 'Delete',
+                addButton: 'Add'
             }
         },
         lsp: {
@@ -287,7 +294,7 @@ export const enComponentsSettingsPart2b = {
         },
         enableAllDangerous: {
             title: 'Enable Auto Execute',
-            message: 'Dangerous tools detected (delete_file / execute_command). Also enable auto execution for them?',
+            message: 'Dangerous tools detected (delete_file / execute_command / replace_in_files). Also enable auto execution for them?',
             confirm: 'Include dangerous tools',
             cancel: 'Skip dangerous tools'
         },

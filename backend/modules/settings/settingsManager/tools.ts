@@ -6,6 +6,7 @@ import type {
   FindFilesToolConfig,
   ListFilesToolConfig,
   LocateToolConfig,
+  ReplaceInFilesToolConfig,
   ShellConfig,
   SearchInFilesToolConfig,
   ToolAutoExecConfig,
@@ -19,6 +20,7 @@ import {
   DEFAULT_FIND_FILES_CONFIG,
   DEFAULT_LIST_FILES_CONFIG,
   DEFAULT_LOCATE_CONFIG,
+  DEFAULT_REPLACE_IN_FILES_CONFIG,
   DEFAULT_TOOL_AUTO_EXEC_CONFIG,
   DEFAULT_SEARCH_IN_FILES_CONFIG,
   getDefaultExecuteCommandConfig,
@@ -91,11 +93,14 @@ export class SettingsManagerTools extends SettingsManagerBase {
   }
 
   getToolAutoExecConfig(): Readonly<ToolAutoExecConfig> {
-    return this.settings.toolAutoExec || DEFAULT_TOOL_AUTO_EXEC_CONFIG;
+    return {
+      ...DEFAULT_TOOL_AUTO_EXEC_CONFIG,
+      ...this.settings.toolAutoExec,
+    };
   }
 
   isToolAutoExec(toolName: string): boolean {
-    const config = this.settings.toolAutoExec || DEFAULT_TOOL_AUTO_EXEC_CONFIG;
+    const config = this.getToolAutoExecConfig();
     if (config[toolName] === undefined) {
       return true;
     }
@@ -163,6 +168,14 @@ export class SettingsManagerTools extends SettingsManagerBase {
 
   async updateSearchInFilesConfig(config: Partial<SearchInFilesToolConfig>): Promise<void> {
     await this.updateToolsConfigEntry('search_in_files', this.getSearchInFilesConfig(), config);
+  }
+
+  getReplaceInFilesConfig(): Readonly<ReplaceInFilesToolConfig> {
+    return this.settings.toolsConfig?.replace_in_files || DEFAULT_REPLACE_IN_FILES_CONFIG;
+  }
+
+  async updateReplaceInFilesConfig(config: Partial<ReplaceInFilesToolConfig>): Promise<void> {
+    await this.updateToolsConfigEntry('replace_in_files', this.getReplaceInFilesConfig(), config);
   }
 
   getLocateConfig(): Readonly<LocateToolConfig> {

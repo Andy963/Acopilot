@@ -20,10 +20,12 @@ const DEFAULT_EXCLUDE = '**/node_modules/**';
  *
  * Multiple patterns are merged using `{...}` glob syntax.
  */
-export function getExcludePattern(): string {
+export function getExcludePattern(toolName: 'search_in_files' | 'replace_in_files' = 'search_in_files'): string {
     const settingsManager = getGlobalSettingsManager();
     if (settingsManager) {
-        const config = settingsManager.getSearchInFilesConfig();
+        const config = toolName === 'replace_in_files'
+            ? settingsManager.getReplaceInFilesConfig()
+            : settingsManager.getSearchInFilesConfig();
         if (config.excludePatterns && config.excludePatterns.length > 0) {
             if (config.excludePatterns.length === 1) {
                 return config.excludePatterns[0];

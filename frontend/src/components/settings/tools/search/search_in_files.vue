@@ -6,9 +6,19 @@
  * 1. 配置排除模式列表（glob 格式）
  */
 
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { sendToExtension } from '@/utils/vscode'
 import { t } from '@/i18n'
+
+const props = withDefaults(defineProps<{
+  toolName?: 'search_in_files' | 'replace_in_files'
+  i18nSection?: 'searchInFiles' | 'replaceInFiles'
+}>(), {
+  toolName: 'search_in_files',
+  i18nSection: 'searchInFiles',
+})
+
+const i18nPrefix = computed(() => `components.settings.toolSettings.search.${props.i18nSection}`)
 
 // 排除模式列表
 const excludePatterns = ref<string[]>([])
@@ -26,12 +36,14 @@ const isLoading = ref(false)
 async function loadConfig() {
   isLoading.value = true
   try {
-    const response = await sendToExtension<{ config: { excludePatterns: string[] } }>('tools.getSearchInFilesConfig', {})
+    const response = await sendToExtension<{ config: { excludePatterns: string[] } }>('tools.getToolConfig', {
+      toolName: props.toolName,
+    })
     if (response?.config?.excludePatterns) {
       excludePatterns.value = response.config.excludePatterns
     }
   } catch (error) {
-    console.error('Failed to load search_in_files config:', error)
+    console.error(`Failed to load ${props.toolName} config:`, error)
   } finally {
     isLoading.value = false
   }
@@ -41,13 +53,14 @@ async function loadConfig() {
 async function saveConfig() {
   isSaving.value = true
   try {
-    await sendToExtension('tools.updateSearchInFilesConfig', {
+    await sendToExtension('tools.updateToolConfig', {
+      toolName: props.toolName,
       config: {
         excludePatterns: [...excludePatterns.value]
       }
     })
   } catch (error) {
-    console.error('Failed to save search_in_files config:', error)
+    console.error(`Failed to save ${props.toolName} config:`, error)
   } finally {
     isSaving.value = false
   }
@@ -80,8 +93,8 @@ onMounted(() => {
     <div class="config-section">
       <div class="section-header">
         <i class="codicon codicon-exclude"></i>
-        <span>{{ t('components.settings.toolSettings.search.searchInFiles.excludeList') }}</span>
-        <span class="hint">{{ t('components.settings.toolSettings.search.searchInFiles.excludeListHint') }}</span>
+        <span>{{ t(`${i18nPrefix}.excludeList`) }}</span>
+        <span class="hint">{{ t(`${i18nPrefix}.excludeListHint`) }}</span>
       </div>
       
       <div class="section-content">
@@ -102,7 +115,7 @@ onMounted(() => {
             <button
               class="remove-btn"
               @click="removePattern(index)"
-              :title="t('components.settings.toolSettings.search.searchInFiles.deleteTooltip')"
+              :title="t(`${i18nPrefix}.deleteTooltip`)"
             >
               <i class="codicon codicon-close"></i>
             </button>
@@ -115,7 +128,7 @@ onMounted(() => {
             v-model="newPattern"
             type="text"
             class="pattern-input"
-            :placeholder="t('components.settings.toolSettings.search.searchInFiles.inputPlaceholder')"
+            :placeholder="t(`${i18nPrefix}.inputPlaceholder`)"
             @keyup.enter="addPattern"
           />
           <button
@@ -124,7 +137,7 @@ onMounted(() => {
             :disabled="!newPattern.trim()"
           >
             <i class="codicon codicon-add"></i>
-            {{ t('components.settings.toolSettings.search.searchInFiles.addButton') }}
+            {{ t(`${i18nPrefix}.addButton`) }}
           </button>
         </div>
         

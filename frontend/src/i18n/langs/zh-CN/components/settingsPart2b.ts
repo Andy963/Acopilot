@@ -152,6 +152,13 @@ export const zhCNComponentsSettingsPart2b = {
                 inputPlaceholder: '输入要排除的文件或目录模式...',
                 deleteTooltip: '删除',
                 addButton: '添加'
+            },
+            replaceInFiles: {
+                excludeList: '替换排除模式',
+                excludeListHint: '（glob 格式，如 **/node_modules/**）',
+                inputPlaceholder: '输入替换时要排除的文件或目录模式...',
+                deleteTooltip: '删除',
+                addButton: '添加'
             }
         },
         lsp: {
@@ -287,7 +294,7 @@ export const zhCNComponentsSettingsPart2b = {
         },
         enableAllDangerous: {
             title: '批量开启自动执行',
-            message: '检测到危险工具（delete_file / execute_command）。是否也将它们设为自动执行？',
+            message: '检测到危险工具（delete_file / execute_command / replace_in_files）。是否也将它们设为自动执行？',
             confirm: '包含危险工具',
             cancel: '跳过危险工具'
         },

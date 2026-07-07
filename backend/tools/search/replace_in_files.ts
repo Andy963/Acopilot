@@ -100,7 +100,7 @@ export function createReplaceInFilesTool(): Tool {
         const flags = 'g';
         const searchRegex = isRegex ? new RegExp(query, flags) : new RegExp(escapeRegex(query), flags);
 
-        const excludePattern = getExcludePattern();
+        const excludePattern = getExcludePattern('replace_in_files');
         const { workspace: targetWorkspace, relativePath, isExplicit } = parseWorkspacePath(replacePath);
 
         let allMatches: SearchMatch[] = [];
