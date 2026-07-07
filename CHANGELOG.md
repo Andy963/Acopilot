@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.2] - 2026-07-08
+
+### Improved
+  - VS Code entry menus: add History to the Acopilot view title actions and standardize command titles under the `Acopilot:` namespace.
+  - Chat references: distinguish file and selection injections in payload metadata, composer chips, and user notifications.
+
 ## [1.1.1] - 2026-07-08
 
 ### Improved
