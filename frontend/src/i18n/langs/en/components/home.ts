@@ -5,5 +5,7 @@ export const enComponentsHome = {
     quickStart: 'Quick Start',
     recentChats: 'Recent Chats',
     noRecentChats: 'No conversation history',
-    viewAll: 'View All'
+    viewAll: 'View All',
+    configureModel: 'Configure Model',
+    searchHistory: 'Search History'
 };

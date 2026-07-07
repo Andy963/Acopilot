@@ -18,7 +18,10 @@ export const zhCNComponentsMessage = {
     summary: {
         title: '上下文总结',
         compressed: '已压缩 {count} 条消息',
-        deleteTitle: '删除总结'
+        keptRounds: '保留最近 {count} 轮',
+        generatedAt: '生成于 {time}',
+        deleteTitle: '撤销总结',
+        resummarizeTitle: '重新总结'
     },
     checkpoint: {
         userMessageBefore: '用户消息前存档',

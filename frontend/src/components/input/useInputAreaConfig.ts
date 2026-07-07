@@ -1,5 +1,5 @@
 import { computed, onMounted, ref, watch } from 'vue'
-import { useChatStore } from '../../stores'
+import { useChatStore, useSettingsStore } from '../../stores'
 import { sendToExtension } from '../../utils/vscode'
 import { formatModelName } from '../../utils/format'
 import {
@@ -13,8 +13,31 @@ import type { SelectOption } from '../common'
 
 export function useInputAreaConfig() {
   const chatStore = useChatStore()
+  const settingsStore = useSettingsStore()
   const configs = ref<any[]>([])
   const isLoadingConfigs = ref(false)
+  const summarizeKeepRecentRounds = ref<number | null>(null)
+  const summarizeAutoSummarize = ref(false)
+  const summarizeAutoSummarizeThreshold = ref<number | null>(null)
+
+  async function loadSummarizeConfig() {
+    try {
+      const config = await sendToExtension<{
+        keepRecentRounds?: number
+        autoSummarize?: boolean
+        autoSummarizeThreshold?: number
+      }>('getSummarizeConfig', {})
+      summarizeKeepRecentRounds.value = typeof config?.keepRecentRounds === 'number'
+        ? config.keepRecentRounds
+        : null
+      summarizeAutoSummarize.value = config?.autoSummarize === true
+      summarizeAutoSummarizeThreshold.value = typeof config?.autoSummarizeThreshold === 'number'
+        ? config.autoSummarizeThreshold
+        : null
+    } catch (error) {
+      console.error('Failed to load summarize config:', error)
+    }
+  }
 
   async function loadConfigs() {
     isLoadingConfigs.value = true
@@ -240,6 +263,7 @@ export function useInputAreaConfig() {
 
   onMounted(() => {
     loadConfigs()
+    loadSummarizeConfig()
   })
 
   watch(() => chatStore.configId, () => {
@@ -251,6 +275,14 @@ export function useInputAreaConfig() {
   watch(() => chatStore.currentConfig, () => {
     loadConfigs()
   }, { deep: true })
+
+  // InputArea stays mounted via v-show, so leaving the settings panel never re-fires
+  // onMounted; reload the summarize config explicitly to avoid a stale keepRecentRounds.
+  watch(() => settingsStore.currentView, (view, previousView) => {
+    if (previousView === 'settings' && view !== 'settings') {
+      return loadSummarizeConfig()
+    }
+  })
 
   return {
     configs,
@@ -264,6 +296,10 @@ export function useInputAreaConfig() {
     unifiedModelOptions,
     unifiedModelValue,
     handleThinkingEffortChange,
-    handleUnifiedModelChange
+    handleUnifiedModelChange,
+    summarizeKeepRecentRounds,
+    summarizeAutoSummarize,
+    summarizeAutoSummarizeThreshold,
+    loadSummarizeConfig
   }
 }

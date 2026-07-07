@@ -187,3 +187,17 @@
   color: var(--vscode-list-warningForeground);
 }
 
+.text-link-button {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+
+.text-link-button:hover {
+  text-decoration: underline;
+}
+

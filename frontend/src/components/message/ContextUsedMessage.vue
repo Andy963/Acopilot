@@ -26,17 +26,19 @@ const pinnedFiles = computed(() => injected.value?.pinnedFiles)
 const pinnedPrompt = computed(() => injected.value?.pinnedPrompt)
 const pinnedSelections = computed(() => injected.value?.pinnedSelections)
 const attachments = computed(() => injected.value?.attachments)
+const summary = computed(() => props.snapshot?.trim?.summary)
 const shouldRenderCard = computed(() => shouldRenderContextUsedCard(props.snapshot, props.loading))
 
 const hasInjected = computed(() => {
   if (props.loading) return true
   const i = injected.value
-  if (!i) return false
+  if (!i) return Boolean(summary.value)
   return Boolean(
     i.pinnedFiles ||
     i.pinnedSelections ||
     i.attachments ||
-    (i.pinnedPrompt && i.pinnedPrompt.mode !== 'none')
+    (i.pinnedPrompt && i.pinnedPrompt.mode !== 'none') ||
+    summary.value
   )
 })
 
@@ -89,8 +91,9 @@ const pinnedSelectionsCount = computed(() => {
 })
 
 const pinnedPromptCount = computed(() => (pinnedPromptSummary.value ? 1 : 0))
+const summaryCount = computed(() => summary.value ? 1 : 0)
 
-const referenceCount = computed(() => pinnedFilesUsedCount.value + pinnedSelectionsCount.value + attachmentsCount.value + pinnedPromptCount.value)
+const referenceCount = computed(() => pinnedFilesUsedCount.value + pinnedSelectionsCount.value + attachmentsCount.value + pinnedPromptCount.value + summaryCount.value)
 
 const headerMeta = computed(() => {
   if (props.loading) return t('common.loading')
@@ -104,6 +107,10 @@ const headerMeta = computed(() => {
 
   if (pinnedPromptSummary.value) {
     parts.push(`${t('components.common.contextInspectorModal.injected.pinnedPrompt')} ${pinnedPromptSummary.value}`)
+  }
+
+  if (summary.value) {
+    parts.push(`${t('components.common.contextInspectorModal.trim.summaryPreview')} 1`)
   }
 
   const s = pinnedSelections.value
@@ -191,6 +198,19 @@ function formatPinnedSelectionMeta(item: ContextInjectedPinnedSelection): string
         <div class="section-title">{{ t('components.common.contextInspectorModal.injected.pinnedPrompt') }}</div>
         <div class="section-kv"><code>{{ pinnedPromptSummary }}</code></div>
         <pre v-if="pinnedPromptModulePreview" class="pre">{{ pinnedPromptModulePreview.contentPreview }}</pre>
+      </div>
+
+      <div v-if="summary?.preview" class="section">
+        <div class="section-title">{{ t('components.common.contextInspectorModal.trim.summaryPreview') }}</div>
+        <div class="section-kv">
+          <code v-if="summary.summarizedMessageCount !== undefined">
+            {{ t('components.common.contextInspectorModal.trim.summarizedMessages') }}: {{ summary.summarizedMessageCount }}
+          </code>
+          <code v-if="summary.keptRecentRounds !== undefined">
+            {{ t('components.common.contextInspectorModal.trim.keptRounds') }}: {{ summary.keptRecentRounds }}
+          </code>
+        </div>
+        <pre class="pre">{{ summary.preview }}</pre>
       </div>
 
       <div v-if="pinnedFiles?.files && pinnedFiles.files.length > 0" class="section">

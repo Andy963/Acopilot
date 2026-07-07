@@ -24,6 +24,14 @@ export interface ContextInspectorTrim {
   trimStartIndex: number
   lastSummaryIndex: number
   effectiveStartIndex: number
+  summary?: {
+    preview: string
+    charCount: number
+    truncated: boolean
+    summarizedMessageCount?: number
+    keptRecentRounds?: number
+    generatedAt?: number
+  }
 }
 
 export interface ContextInjectedPinnedFile {

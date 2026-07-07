@@ -34,7 +34,9 @@ export const jaComponentsSettingsPart2b = {
             selectModel: 'モデルを選択',
             selectModelPlaceholder: '要約用のモデルを選択',
             selectModelHint: 'このチャンネルの設定に追加されたモデルのみ表示されます。\nモデルを追加するには、チャンネル設定に移動して設定してください。',
-            warningHint: 'チャンネルとモデルを選択してください。そうしないと、会話モデルが要約に使用されます'
+            warningHint: 'チャンネルとモデルを選択してください。そうしないと、会話モデルが要約に使用されます',
+            invalidSelectionHint: '選択した要約チャンネルまたはモデルが存在しません。チャンネル設定で更新してください。',
+            openChannelSettings: 'チャンネル設定を開く'
         }
     },
     settingsPanel: {
@@ -303,7 +305,10 @@ export const jaComponentsSettingsPart2b = {
         dependency: {
             required: '依存関係が必要',
             requiredTooltip: 'このツールを使用するには依存関係のインストールが必要です',
-            disabledTooltip: 'ツールが無効か、依存関係が不足しています'
+            disabledTooltip: 'ツールが無効か、依存関係が不足しています',
+            installSuccess: '依存関係をインストールしました: {dependencies}',
+            copyLogSuccess: '依存関係の失敗ログをコピーしました',
+            copyLogFailed: '依存関係の失敗ログのコピーに失敗しました'
         },
         config: {
             tooltip: 'ツールを設定'

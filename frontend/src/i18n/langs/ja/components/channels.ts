@@ -135,12 +135,23 @@ export const jaComponentsChannels = {
         valuePlaceholder: '値（JSON をサポート、例: {"key": "value"}）',
         empty: 'カスタム Body アイテムがありません',
         addItem: 'アイテムを追加',
+        clearItems: 'アイテムをクリア',
+        insertExample: '例を挿入',
+        resetDefault: 'デフォルトに戻す',
         jsonError: 'JSON 形式エラー',
         jsonHint: '完全な JSON 形式、ネストされたオーバーライドをサポート',
         jsonPlaceholder: '{\n  "extra_body": {\n    "google": {\n      "thinking_config": {\n        "include_thoughts": false\n      }\n    }\n  }\n}',
         enabled: '有効',
         disabled: '無効',
-        deleteTooltip: '削除'
+        deleteTooltip: '削除',
+        validation: {
+            invalidJson: 'JSON 形式エラー',
+            rootMustBeObject: 'JSON ルートはオブジェクトである必要があります',
+            emptyKey: '有効なキーは空にできません',
+            emptyPathSegment: 'ドットパスに空のセグメントは使用できません',
+            duplicateKey: 'キーが重複しています',
+            location: '（行 {line}、列 {column}）'
+        }
     },
     customHeaders: {
         hint: 'カスタム HTTP リクエストヘッダーを追加、順番に API に送信',
@@ -149,9 +160,15 @@ export const jaComponentsChannels = {
         keyDuplicate: 'キー名が重複しています',
         empty: 'カスタムヘッダーがありません',
         addHeader: 'ヘッダーを追加',
+        clearHeaders: 'ヘッダーをクリア',
         enabled: '有効',
         disabled: '無効',
-        deleteTooltip: '削除'
+        deleteTooltip: '削除',
+        validation: {
+            emptyKey: '有効なヘッダー名は空にできません',
+            invalidHeaderName: 'HTTP ヘッダー名が不正です',
+            duplicateKey: 'ヘッダー名が重複しています'
+        }
     },
     toolOptions: {
         cropImage: {

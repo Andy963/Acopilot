@@ -107,6 +107,13 @@ export function buildMessageListRenderItems(options: {
   const startIndex = Math.max(0, total - visibleCount)
 
   const visibleSlice = messages.slice(startIndex)
+  const lastSummaryBeforeVisibleRange = messages
+    .slice(0, startIndex)
+    .reverse()
+    .find((message) => message.isSummary === true)
+  const renderSlice = lastSummaryBeforeVisibleRange
+    ? [...visibleSlice, lastSummaryBeforeVisibleRange]
+    : visibleSlice
 
   const idToActualIndex = new Map<string, number>()
   allMessages.forEach((m, idx) => {
@@ -123,7 +130,7 @@ export function buildMessageListRenderItems(options: {
     else group.after.push(cp)
   })
 
-  const enhanced: EnhancedMessage[] = visibleSlice.map((message) => {
+  const enhanced: EnhancedMessage[] = renderSlice.map((message) => {
     const actualIndex = idToActualIndex.get(message.id) ?? -1
     const cpGroup = actualIndex !== -1 ? checkpointsByMsgIndex.get(actualIndex) : null
 

@@ -5,7 +5,6 @@ import McpSettings from './McpSettings.vue'
 import CheckpointSettings from './CheckpointSettings.vue'
 import SummarizeSettings from './SummarizeSettings.vue'
 import GenerateImageSettings from './GenerateImageSettings.vue'
-import DependencySettings from './DependencySettings.vue'
 import ContextSettings from './ContextSettings.vue'
 import PromptSettings from './PromptSettings.vue'
 import { CustomCheckbox, CustomScrollbar, CustomSelect, Modal } from '../common'
@@ -114,11 +113,6 @@ const {
             <p class="settings-description">{{ t('components.settings.settingsPanel.sections.imageGen.description') }}</p>
             
             <GenerateImageSettings />
-          </div>
-          
-          <!-- 扩展依赖设置 -->
-          <div v-if="settingsStore.activeTab === 'dependencies'" class="settings-section">
-            <DependencySettings />
           </div>
           
           <!-- 上下文感知设置 -->

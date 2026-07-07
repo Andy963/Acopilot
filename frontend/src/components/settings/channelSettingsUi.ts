@@ -29,6 +29,12 @@ export interface ToolOptions {
   cropImage?: CropImageToolOptions
 }
 
+export interface CapabilitySummaryItem {
+  label: string
+  value: string
+  status: 'success' | 'warning' | 'info'
+}
+
 export function useChannelSettingsUi(params: {
   configs: Ref<any[]>
   currentConfig: ComputedRef<any | undefined>
@@ -248,6 +254,64 @@ export function useChannelSettingsUi(params: {
     return getTypeName(type || '')
   })
 
+  const capabilitySummaryItems = computed<CapabilitySummaryItem[]>(() => {
+    const config = currentConfig.value
+    if (!config) return []
+
+    const selectedModel = (config.models || []).find((model: any) => model.id === config.model)
+    const toolMode = config.toolMode || 'function_call'
+    const hasReasoning = Boolean(
+      config.options?.thinkingConfig ||
+      config.options?.thinking ||
+      config.options?.reasoning
+    )
+    const supportsPromptCache = config.type === 'openai-responses'
+    const multimodalEnabled = config.multimodalToolsEnabled === true
+
+    return [
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.model'),
+        value: selectedModel?.name || config.model || t('components.settings.channelSettings.form.capabilitySummary.notSelected'),
+        status: config.model ? 'success' : 'warning',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.contextWindow'),
+        value: String(selectedModel?.contextWindow || config.maxContextTokens || t('components.settings.channelSettings.form.capabilitySummary.unknown')),
+        status: selectedModel?.contextWindow || config.maxContextTokens ? 'info' : 'warning',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.maxOutput'),
+        value: String(selectedModel?.maxOutputTokens || config.options?.maxTokens || config.options?.maxOutputTokens || t('components.settings.channelSettings.form.capabilitySummary.unknown')),
+        status: selectedModel?.maxOutputTokens || config.options?.maxTokens || config.options?.maxOutputTokens ? 'info' : 'warning',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.toolProtocol'),
+        value: t(`components.settings.channelSettings.form.toolMode.${toolMode === 'function_call' ? 'functionCall' : toolMode}.label`),
+        status: 'success',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.multimodal'),
+        value: multimodalEnabled ? multimodalSummaryText.value : t('common.disabled'),
+        status: multimodalEnabled ? 'success' : 'info',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.reasoning'),
+        value: hasReasoning ? t('common.enabled') : t('components.settings.channelSettings.form.capabilitySummary.providerDefault'),
+        status: hasReasoning ? 'success' : 'info',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.promptCache'),
+        value: supportsPromptCache ? t('common.enabled') : t('components.settings.channelSettings.form.capabilitySummary.providerDefault'),
+        status: supportsPromptCache ? 'success' : 'info',
+      },
+      {
+        label: t('components.settings.channelSettings.form.capabilitySummary.stream'),
+        value: (config.options?.stream ?? true) ? t('common.enabled') : t('common.disabled'),
+        status: (config.options?.stream ?? true) ? 'success' : 'info',
+      },
+    ]
+  })
+
   async function updateContextThresholdEnabled(enabled: boolean) {
     await updateConfigField('contextThresholdEnabled', enabled)
   }
@@ -319,6 +383,7 @@ export function useChannelSettingsUi(params: {
     customHeadersSummary,
     autoRetrySummary,
     advancedOptionsSummary,
+    capabilitySummaryItems,
     updateContextThresholdEnabled,
     updateContextThreshold,
     updateContextTrimExtraCut

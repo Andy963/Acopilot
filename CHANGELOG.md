@@ -2,22 +2,111 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
-## [1.0.61] - 2026-07-05
+## [1.1] - 2026-07-07
 
 ### Added
-  - Pinned Context: add reusable prompt presets, workspace-default prompt restoration, and a custom prompt reuse flow.
-  - Prompting: add prompt-context priority semantics so the latest user request reliably outranks older conversation history and summaries.
-  - Context: add richer context inspection, context snapshot preservation, and improved prompt/context module visibility.
+  - Channel Settings: add connection testing and model capability summaries for configured chat channels.
+  - Prompt Settings: add prompt template history, validation, variable autocomplete, and clearer Prompt Skill lifecycle guidance.
+  - History: add richer search, sorting, grouping, and multi-select cleanup actions.
 
 ### Improved
-  - Chat: restore manual context summarization from the composer and keep OpenAI Responses continuation state aligned after summarization.
-  - Chat: improve token accounting for CJK text, assistant/tool content, streaming usage metadata, cached prompt tokens, and context trimming decisions.
-  - Build/Release: strengthen validation, packaging, and VSIX release workflows for prerelease and stable release cuts.
+  - Context Settings: preview workspace file tree, diagnostics, ignore-pattern matches, and estimated token or character costs.
+  - Context Inspector: add bidirectional navigation with Context Settings and richer request context breakdowns.
+  - Tools Settings: embed dependency management and add inline missing-dependency installation flows.
+  - Summary Settings: improve summarization retention, visibility, regeneration, and continuation-state handling.
+  - Pinned Context: clarify pinned files, prompts, and skills, and persist reusable prompt selections.
 
 ### Fixed
-  - Pinned Context: preserve custom prompt editor usability and avoid losing selected presets across conversations in the same workspace.
-  - Chat: prevent stale summaries, old user instructions, or continuation state from overriding the latest user request.
-  - UI: stabilize context-used rendering, streaming scroll behavior, token-ring context usage, and summary message handling.
+  - Chat: keep the latest user request authoritative over older history and summaries.
+  - Chat: improve context token accounting, context snapshot preservation, and summary rendering stability.
+  - UI: improve welcome, composer, history, prompt, dependency, and context settings workflows.
+
+## [1.0.62-pre.10] - 2026-07-07
+
+### Improved
+  - Context Settings: preview workspace file tree, diagnostics, and ignore-pattern matches alongside active editor and open tabs.
+  - Context Settings: show estimated token and character cost per context module and for the total configured context.
+  - Context Settings: add a “View current context” bridge to Context Inspector and a return action from Context Inspector back to Context Settings.
+  - Context Settings: validate ignore patterns with matched file counts and sample files.
+  - Context Settings: add diagnostics presets for errors only, open files first, and current workspace.
+  - Tools Settings: keep tool dependencies as an embedded Tools accordion instead of a visually separate settings page.
+
+## [1.0.62-pre.9] - 2026-07-07
+
+### Improved
+  - Tools Settings: move dependency management into the Tools page and remove the standalone Dependencies settings entry.
+  - Tools Settings: dependency warnings now link back to Tools Settings and keep the embedded dependency panel in sync after inline installs.
+  - Dependencies: rename the embedded management section to Tool Dependencies to reflect that dependencies are only used by tools.
+
+## [1.0.62-pre.8] - 2026-07-07
+
+### Improved
+  - Prompt Settings: add local prompt version history with restore support before saving or resetting templates.
+  - Prompt Settings: validate empty, unknown, and duplicated template variables before saving.
+  - Prompt Settings: add variable autocomplete while editing system prompt templates.
+  - Prompt Settings: clarify Prompt Skills versus pinned skill selection lifecycle.
+  - Prompt Settings: mark template token counts as estimates before dynamic variable expansion.
+
+## [1.0.62-pre.7] - 2026-07-06
+
+### Improved
+  - Dependencies: Tools Settings now offers one-click installation for missing dependencies directly from each affected tool.
+  - Dependencies: uninstall confirmation now lists tools that will be affected before removing a shared dependency.
+  - Dependencies: installation and uninstall failures now expose copyable diagnostic logs with redaction applied to backend logs.
+  - Dependencies: the settings page now explains how dependency install paths relate to the General storage path.
+
+## [1.0.62-pre.6] - 2026-07-06
+
+### Fixed
+  - Summary messages: keep the latest context summary visible in the chat message list even when it falls outside the currently loaded/visible message window.
+  - Context Inspector and the in-chat "Context Used" card now surface a summary preview (summarized message count, kept rounds, and cleaned preview text) so a completed summarization is actually visible after it succeeds.
+  - Summary messages: strip the internal authority notice and title prefix consistently so only the real summary text is shown.
+  - Composer footer: the "Summarize context" button now shows a loading state and is disabled while summarizing, instead of appearing unresponsive on click.
+
+## [1.0.62-pre.5] - 2026-07-06
+
+### Improved
+  - Summary Settings: default context summarization retention now keeps the latest 10 rounds.
+  - Composer footer: show the auto-summarize threshold in the token usage tooltip when enabled.
+  - Summary messages: display the retained round count and generation time, and add regenerate/undo actions.
+  - Summary Settings: warn when the dedicated summarization channel or model is missing and link back to Channel Settings.
+
+### Fixed
+  - Summary messages: regenerate summaries in place only after a replacement is successfully generated, so failures keep the existing summary.
+
+## [1.0.62-pre.4] - 2026-07-05
+
+### Added
+  - Channel Settings: add a "Test Connection" action that validates the active URL, API key, and model with a minimal no-tools, no-retry request and redacts sensitive data from errors.
+  - Channel Settings: show a model capability summary covering model metadata, context/output limits, tool protocol, multimodal, reasoning, prompt cache, and streaming state.
+
+### Improved
+  - Composer footer: make the context token ring visibly interactive, keyboard accessible, and clearer about opening the Context Inspector.
+  - Composer footer: show the current summarization retention strategy in the manual summarize tooltip and refresh it after returning from settings.
+  - Composer footer: replace the dead disabled model selector with a direct "Configure model" link when no model is configured.
+  - Channel Settings: clarify that tool mode controls channel request protocol while tool enablement and auto-execution live in Tools settings.
+  - Channel Settings: strengthen custom body and header validation with JSON object-root checks, error locations, duplicate/empty-key warnings, examples, reset, and clear actions.
+  - Tests: add Vue aliasing for Vitest so frontend composable mocks resolve consistently.
+
+## [1.0.62-pre.2] - 2026-07-05
+
+### Improved
+  - Pinned Context: rename "Pinned Files" to "Pinned Context" across the composer entry point and panel title, since the panel also manages skill and custom prompt selection, not just files.
+  - Pinned Context: reorder the panel tabs to custom prompt, files, skill, and default to the custom prompt tab when no skill is actively pinned.
+  - Composer: fix a misleading CSS class name on the "Plan & Run" button that still referenced the removed "create task" flow.
+
+### Removed
+  - Composer: remove the orphaned "Create Task" (GitHub issue → task) modal and its dead event wiring; it had no reachable UI entry point and no backend support.
+
+## [1.0.62-pre.1] - 2026-07-05
+
+### Improved
+  - Welcome: show a primary "Configure Model" call-to-action when no channel/model is configured yet, so first-time users can reach setup immediately.
+  - Welcome: display workspace info on recent conversations and add a more prominent history search entry.
+  - History: extend search to match preview text, workspace, message count, and dates instead of title only.
+  - History: add sort (updated/created/title/messages) and grouping (by date/workspace) controls.
+  - History: add multi-select bulk management with delete-selected, delete-visible, and delete-by-group actions.
+  - History: route all conversation deletion (welcome and history page) through a shared confirmation dialog showing the affected title or count.
 
 ## [1.0.61-pre.13] - 2026-07-05
 

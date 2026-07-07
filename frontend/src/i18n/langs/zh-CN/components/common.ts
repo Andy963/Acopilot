@@ -48,7 +48,10 @@ export const zhCNComponentsCommon = {
         title: '需要安装依赖',
         defaultMessage: '此功能需要安装以下依赖：',
         hint: '请前往',
-        linkText: '扩展依赖'
+        linkText: '工具设置',
+        installMissing: '安装缺失依赖',
+        installing: '安装中...',
+        copyFailureLog: '复制失败日志'
     },
     emptyState: {
         noData: '暂无数据',
@@ -71,6 +74,7 @@ export const zhCNComponentsCommon = {
         titleUsed: '本条回复使用的上下文',
         noData: '暂无上下文数据',
         copyDebug: '复制调试信息',
+        openContextSettings: '上下文设置',
         summary: {
             config: '配置',
             toolMode: '工具模式',
@@ -93,7 +97,10 @@ export const zhCNComponentsCommon = {
             fullHistory: '历史消息数',
             trimmedHistory: '发送消息数',
             trimStartIndex: '裁剪起点索引',
-            lastSummaryIndex: '最后总结索引'
+            lastSummaryIndex: '最后总结索引',
+            summaryPreview: '上下文总结',
+            summarizedMessages: '已总结消息数',
+            keptRounds: '保留轮数'
         },
         tools: {
             title: '工具定义预览'

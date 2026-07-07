@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from '@/i18n'
-import { CHANNEL_OPTIONS } from './types'
+import { AVAILABLE_PROMPT_MODULES, CHANNEL_OPTIONS } from './types'
 import type { ChannelType } from './types'
 
 const { t } = useI18n()
@@ -15,6 +15,8 @@ const props = defineProps<{
   isCountingTokens: boolean
   tokenCount: number | null
   tokenCountError: string
+  validationIssues: Array<{ type: 'error' | 'warning'; message: string }>
+  hasBlockingValidationIssues: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,11 +28,55 @@ const emit = defineEmits<{
 }>()
 
 const saveSucceeded = computed(() => props.saveMessage === t('components.settings.promptSettings.saveSuccess'))
+const textareaRef = ref<HTMLTextAreaElement>()
+const cursorPosition = ref(0)
+const autocompleteQuery = computed(() => {
+  const beforeCursor = props.template.slice(0, cursorPosition.value)
+  const start = beforeCursor.lastIndexOf('{{$')
+  if (start < 0) return null
+  const value = beforeCursor.slice(start + 3)
+  if (value.includes('}') || /\s/.test(value)) return null
+  return { start, value: value.toUpperCase() }
+})
+const variableSuggestions = computed(() => {
+  const query = autocompleteQuery.value
+  if (!query) return []
+  return AVAILABLE_PROMPT_MODULES
+    .filter(module => module.id.includes(query.value))
+    .slice(0, 6)
+})
 
 function formatTokenCount(count: number): string {
   if (count >= 1_000_000) return `${Math.round(count / 1_000_000)}m`
   if (count >= 1_000) return `${Math.round(count / 1_000)}k`
   return String(count)
+}
+
+function formatModulePlaceholder(moduleId: string): string {
+  return `{{$${moduleId}}}`
+}
+
+function handleTemplateInput(event: Event) {
+  const target = event.target as HTMLTextAreaElement
+  cursorPosition.value = target.selectionStart
+  emit('update:template', target.value)
+}
+
+function updateCursorPosition() {
+  cursorPosition.value = textareaRef.value?.selectionStart || 0
+}
+
+async function insertVariable(moduleId: string) {
+  const query = autocompleteQuery.value
+  if (!query || !textareaRef.value) return
+
+  const nextTemplate = `${props.template.slice(0, query.start)}{{$${moduleId}}}${props.template.slice(cursorPosition.value)}`
+  const nextCursor = query.start + moduleId.length + 5
+  emit('update:template', nextTemplate)
+  await nextTick()
+  textareaRef.value.focus()
+  textareaRef.value.setSelectionRange(nextCursor, nextCursor)
+  cursorPosition.value = nextCursor
 }
 </script>
 
@@ -53,19 +99,35 @@ function formatTokenCount(count: number): string {
       </p>
 
       <textarea
+        ref="textareaRef"
         :value="template"
         class="template-textarea"
         :placeholder="t('components.settings.promptSettings.templateSection.placeholder')"
         rows="16"
-        @input="emit('update:template', ($event.target as HTMLTextAreaElement).value)"
+        @input="handleTemplateInput"
+        @keyup="updateCursorPosition"
+        @click="updateCursorPosition"
       ></textarea>
+
+      <div v-if="variableSuggestions.length > 0" class="variable-autocomplete">
+        <button
+          v-for="module in variableSuggestions"
+          :key="module.id"
+          class="variable-suggestion"
+          type="button"
+          @mousedown.prevent="insertVariable(module.id)"
+        >
+          <span class="suggestion-id">{{ formatModulePlaceholder(module.id) }}</span>
+          <span class="suggestion-name">{{ t(`components.settings.promptSettings.modules.${module.id}.name`) }}</span>
+        </button>
+      </div>
     </div>
 
     <div class="save-section">
       <div class="save-row">
         <button
           class="save-btn"
-          :disabled="isSaving || !hasChanges"
+          :disabled="isSaving || !hasChanges || hasBlockingValidationIssues"
           @click="emit('save')"
         >
           <i v-if="isSaving" class="codicon codicon-loading codicon-modifier-spin"></i>
@@ -126,6 +188,18 @@ function formatTokenCount(count: number): string {
         <p class="token-hint">
           {{ t('components.settings.promptSettings.tokenCount.hint') }}
         </p>
+
+        <div v-if="validationIssues.length > 0" class="validation-panel">
+          <div
+            v-for="(issue, index) in validationIssues"
+            :key="index"
+            class="validation-item"
+            :class="`validation-${issue.type}`"
+          >
+            <i :class="['codicon', issue.type === 'error' ? 'codicon-error' : 'codicon-warning']"></i>
+            <span>{{ issue.message }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -184,6 +258,43 @@ function formatTokenCount(count: number): string {
 
 .template-textarea:focus {
   border-color: var(--vscode-focusBorder);
+}
+
+.variable-autocomplete {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  margin-top: -8px;
+  background: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+
+.variable-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.variable-suggestion:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.suggestion-id {
+  font-family: var(--vscode-editor-font-family), monospace;
+}
+
+.suggestion-name {
+  color: var(--vscode-descriptionForeground);
 }
 
 .save-section {
@@ -331,6 +442,28 @@ function formatTokenCount(count: number): string {
   margin: 0;
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
+}
+
+.validation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.validation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.validation-error {
+  color: var(--vscode-errorForeground);
+}
+
+.validation-warning {
+  color: var(--vscode-editorWarning-foreground);
 }
 
 .reset-btn {

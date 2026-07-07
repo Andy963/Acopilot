@@ -16,6 +16,7 @@ import {
 import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
 import { getSelectionReferencesInjectedInfo } from '../selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from '../contextInjectionInfo';
+import { buildSummaryPreview } from '../../summaryPreview';
 
 export async function buildPromptAndSnapshot(params: {
     deps: ToolIterationLoopDeps;
@@ -123,6 +124,9 @@ export async function buildPromptAndSnapshot(params: {
         }
     }
     const effectiveStartIndex = lastSummaryIndex >= 0 ? lastSummaryIndex : 0;
+    const summary = lastSummaryIndex >= 0
+        ? buildSummaryPreview(fullHistory[lastSummaryIndex])
+        : undefined;
 
     const injected = {
         pinnedFiles: contextOverrides?.includePinnedFiles === false
@@ -168,6 +172,7 @@ export async function buildPromptAndSnapshot(params: {
             trimStartIndex,
             lastSummaryIndex,
             effectiveStartIndex,
+            summary,
         } as ContextSnapshotTrim,
     };
 

@@ -9,7 +9,7 @@ import type { SupportedLanguage } from '@/i18n/types'
 import { normalizeSupportedLanguage } from '@/i18n/language'
 import { loadState, saveState } from '@/utils/vscode'
 
-export type SettingsTab = 'channel' | 'tools' | 'mcp' | 'checkpoint' | 'summarize' | 'imageGen' | 'dependencies' | 'context' | 'prompt' | 'general'
+export type SettingsTab = 'channel' | 'tools' | 'mcp' | 'checkpoint' | 'summarize' | 'imageGen' | 'context' | 'prompt' | 'general'
 
 /** 应用页面视图类型 */
 export type AppView = 'chat' | 'history' | 'settings'

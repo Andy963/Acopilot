@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { CustomScrollbar } from '../../common'
 import { useI18n } from '../../../i18n'
+import { validateCustomHeaders, type ValidationIssue } from './customPayloadValidation'
 
 const { t } = useI18n()
 
@@ -21,29 +23,14 @@ const emit = defineEmits<{
   (e: 'update:headers', headers: CustomHeader[]): void
 }>()
 
-// 检查重复键名
-function getDuplicateKeys(): Set<string> {
-  const keys = props.headers.map(h => h.key.trim().toLowerCase())
-  const duplicates = new Set<string>()
-  const seen = new Set<string>()
-  
-  for (const key of keys) {
-    if (key && seen.has(key)) {
-      duplicates.add(key)
-    }
-    seen.add(key)
-  }
-  
-  return duplicates
+const headerIssues = computed(() => validateCustomHeaders(props.headers))
+
+function getHeaderIssue(index: number): ValidationIssue | undefined {
+  return headerIssues.value.find(issue => issue.index === index)
 }
 
-// 检查指定索引的键是否重复
-function isKeyDuplicate(index: number): boolean {
-  const key = props.headers[index]?.key?.trim().toLowerCase()
-  if (!key) return false
-  
-  const duplicates = getDuplicateKeys()
-  return duplicates.has(key)
+function formatHeaderIssue(issue: ValidationIssue): string {
+  return t(`components.channels.customHeaders.validation.${issue.code}`)
 }
 
 // 添加新标头
@@ -65,6 +52,10 @@ function updateHeader(index: number, field: 'key' | 'value' | 'enabled', value: 
     headers[index] = { ...headers[index], [field]: value }
     emit('update:headers', headers)
   }
+}
+
+function clearHeaders() {
+  emit('update:headers', [])
 }
 </script>
 
@@ -98,13 +89,13 @@ function updateHeader(index: number, field: 'key' | 'value' | 'enabled', value: 
             <input
               type="text"
               class="header-key"
-              :class="{ 'has-error': isKeyDuplicate(index) }"
+              :class="{ 'has-error': getHeaderIssue(index) }"
               :value="header.key"
               :placeholder="t('components.channels.customHeaders.keyPlaceholder')"
               :disabled="!enabled"
               @input="(e: any) => updateHeader(index, 'key', e.target.value)"
             />
-            <span v-if="isKeyDuplicate(index)" class="key-error">{{ t('components.channels.customHeaders.keyDuplicate') }}</span>
+            <span v-if="getHeaderIssue(index)" class="key-error">{{ formatHeaderIssue(getHeaderIssue(index)!) }}</span>
           </div>
           <input
             type="text"
@@ -142,6 +133,14 @@ function updateHeader(index: number, field: 'key' | 'value' | 'enabled', value: 
     >
       <i class="codicon codicon-add"></i>
       {{ t('components.channels.customHeaders.addHeader') }}
+    </button>
+    <button
+      class="clear-headers-btn"
+      :disabled="!enabled || headers.length === 0"
+      @click="clearHeaders"
+    >
+      <i class="codicon codicon-clear-all"></i>
+      {{ t('components.channels.customHeaders.clearHeaders') }}
     </button>
   </div>
 </template>
@@ -328,7 +327,33 @@ function updateHeader(index: number, field: 'key' | 'value' | 'enabled', value: 
   cursor: not-allowed;
 }
 
-.add-header-btn .codicon {
+.add-header-btn .codicon,
+.clear-headers-btn .codicon {
   font-size: 12px;
+}
+
+.clear-headers-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  border-radius: 2px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.clear-headers-btn:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.clear-headers-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

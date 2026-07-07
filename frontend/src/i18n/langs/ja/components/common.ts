@@ -48,7 +48,10 @@ export const jaComponentsCommon = {
         title: '依存関係が必要です',
         defaultMessage: 'この機能には以下の依存関係が必要です：',
         hint: '移動先：',
-        linkText: '拡張機能の依存関係'
+        linkText: 'ツール設定',
+        installMissing: '不足分をインストール',
+        installing: 'インストール中...',
+        copyFailureLog: '失敗ログをコピー'
     },
     emptyState: {
         noData: 'データがありません',
@@ -71,6 +74,7 @@ export const jaComponentsCommon = {
         titleUsed: '使用されたコンテキスト',
         noData: 'コンテキストデータがありません',
         copyDebug: 'デバッグ情報をコピー',
+        openContextSettings: 'コンテキスト設定',
         summary: {
             config: '設定',
             toolMode: 'ツールモード',
@@ -93,7 +97,10 @@ export const jaComponentsCommon = {
             fullHistory: '履歴メッセージ数',
             trimmedHistory: '送信メッセージ数',
             trimStartIndex: 'トリム開始インデックス',
-            lastSummaryIndex: '最後の要約インデックス'
+            lastSummaryIndex: '最後の要約インデックス',
+            summaryPreview: 'コンテキスト要約',
+            summarizedMessages: '要約済みメッセージ数',
+            keptRounds: '保持ラウンド数'
         },
         tools: {
             title: 'ツール定義'

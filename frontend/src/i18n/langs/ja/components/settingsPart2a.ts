@@ -33,7 +33,12 @@ export const jaComponentsSettingsPart2a = {
             workspaceOnly: 'ワークスペース内のファイルのみ',
             openFilesOnly: '開いているファイルのみ',
             maxPerFile: 'ファイルあたりの最大数',
-            maxFiles: '最大ファイル数'
+            maxFiles: '最大ファイル数',
+            presets: {
+                errorsOnly: 'エラーのみ',
+                openFilesFirst: '開いているファイル優先',
+                workspace: '現在のワークスペース'
+            }
         },
         ignorePatterns: {
             title: '無視パターン',
@@ -42,6 +47,8 @@ export const jaComponentsSettingsPart2a = {
             emptyHint: 'カスタム無視パターンがありません',
             inputPlaceholder: 'パターンを入力、例: **/node_modules, *.log',
             addButton: '追加',
+            matchedSummary: '現在の無視パターンに一致: {matched}/{scanned} ファイル',
+            patternMatchCount: '{count} 件一致',
             helpTitle: 'ワイルドカードのヘルプ:',
             helpItems: {
                 wildcard: '* - 任意の文字に一致（パス区切りを除く）',
@@ -53,25 +60,43 @@ export const jaComponentsSettingsPart2a = {
             title: '現在の状態プレビュー',
             autoRefreshBadge: 'リアルタイム更新',
             description: 'AI に送信されるコンテキスト情報のプレビュー（2 秒ごとに自動更新）',
+            openInspector: '現在のコンテキストを表示',
+            workspaceFilesLabel: 'ワークスペースファイルツリー（{count} 行）：',
             activeEditorLabel: '現在のアクティブエディター：',
             openTabsLabel: '開いているタブ（{count} 個）：',
+            diagnosticsLabel: '診断情報（{files} ファイル、{count} 件）：',
+            ignoreMatchesLabel: '無視されたファイル（{count} 件）：',
             noValue: 'なし',
             moreItems: '... さらに {count} 個'
+        },
+        cost: {
+            badge: '~{tokens} tok · {chars} ch'
         },
         saveSuccess: '保存しました',
         saveFailed: '保存に失敗しました'
     },
     dependencySettings: {
-        title: '拡張機能の依存関係管理',
-        description: 'オプションの拡張機能に必要な依存関係を管理します。これらの依存関係はローカルファイルシステムにインストールされ、プラグインにはパッケージ化されません。',
+        title: 'ツールの依存関係',
+        description: 'ツールに必要な依存関係を管理します。これらの依存関係はローカルファイルシステムにインストールされ、プラグインにはパッケージ化されません。',
         installPath: 'インストールパス：',
+        pathRelation: '依存パッケージは General の有効なストレージパス配下の管理用 dependencies ディレクトリにインストールされます。ストレージパス移行が完了すると、この場所も新しいストレージパスに追従します。ストレージルートそのものではありません。',
         installed: 'インストール済み',
         installing: 'インストール中...',
         uninstalling: 'アンインストール中...',
         install: 'インストール',
         uninstall: 'アンインストール',
+        copyFailureLog: '失敗ログをコピー',
+        copyFailureLogSuccess: '失敗ログをコピーしました',
+        copyFailureLogFailed: '失敗ログのコピーに失敗しました',
         estimatedSize: '約 {size}MB',
         empty: '依存関係を必要とするツールがありません',
+        uninstallConfirm: {
+            title: '依存関係をアンインストールしますか？',
+            message: '{name} をアンインストールしますか？次のツールが利用できなくなる可能性があります: {tools}',
+            confirm: 'アンインストール',
+            cancel: 'キャンセル',
+            none: '既知のツールはありません'
+        },
         progress: {
             processing: '{dependency} を処理中...',
             complete: '{dependency} の処理が完了しました',
@@ -295,11 +320,24 @@ export const jaComponentsSettingsPart2a = {
         saveSuccess: '保存しました',
         saveFailed: '保存に失敗しました',
         tokenCount: {
-            label: 'トークン数',
+            label: '推定トークン数',
             channelTooltip: 'トークン計算に使用するチャンネルを選択',
             refreshTooltip: 'トークン数を更新',
             failed: 'カウント失敗',
-            hint: 'テンプレートのみのトークン数を表示、実際のシステムプロンプトには動的に入力される変数コンテンツが含まれます'
+            hint: '推定値です。変数展開前のテンプレートのトークン数のみを表示し、実際のシステムプロンプトには動的に入力される変数コンテンツが含まれます。'
+        },
+        validation: {
+            emptyTemplate: 'テンプレートを空にすることはできません。',
+            unknownVariables: '不明な変数：{variables}。リファレンス一覧の変数を使用してください。',
+            duplicateVariables: '重複した変数：{variables}。最終プロンプトで同じコンテキストが重複します。',
+            fixBeforeSave: '保存する前にテンプレートの検証エラーを修正してください。'
+        },
+        history: {
+            title: 'Prompt バージョン履歴',
+            hint: '保存/リセット前のローカル版を最新 10 件保持します。',
+            empty: '以前の Prompt バージョンはまだありません。',
+            restore: '復元',
+            restored: '履歴から復元しました。適用するには保存してください。'
         },
         modulesReference: {
             title: '利用可能な変数リファレンス',
@@ -348,10 +386,11 @@ export const jaComponentsSettingsPart2a = {
         exampleOutput: '出力例：',
         requiresConfigLabel: '必要な設定：',
         skills: {
-            title: 'Skills',
-            add: 'Skill を追加',
-            description: '再利用可能なプロンプト（Skill）を管理します。入力ボックス横のピン留めパネルから選択して使用できます。',
-            empty: 'Skill がありません',
+            title: 'Prompt Skills',
+            add: 'Prompt Skill を追加',
+            description: '再利用可能な Prompt Skill を管理します。ここではライブラリとして保存され、すべての会話へ自動注入されるわけではありません。',
+            lifecycleNote: 'ピン留め Skill の選択は別の流れです。入力ボックス横のピン留めパネルで Prompt Skill を選択すると、特定の会話またはワークスペース既定に添付されます。',
+            empty: 'Prompt Skill がありません',
             saveSuccess: '保存しました',
             saveFailed: '保存に失敗しました',
             installFromUrl: {

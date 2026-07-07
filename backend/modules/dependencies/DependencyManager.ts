@@ -15,6 +15,7 @@ import * as childProcess from 'child_process';
 import { promisify } from 'util';
 import { t } from '../../i18n';
 import { debugLog } from '../../core/logger';
+import { redactSensitiveText } from '../../core/redaction';
 
 const exec = promisify(childProcess.exec);
 const mkdir = promisify(fs.mkdir);
@@ -51,6 +52,7 @@ export interface InstallProgressEvent {
     dependency: string;
     message?: string;
     error?: string;
+    log?: string;
 }
 
 /**
@@ -73,6 +75,12 @@ export class DependencyManager {
     
     /** 依赖安装状态缓存（用于同步检查） */
     private installedCache: Map<string, boolean> = new Map();
+
+    /** 最近一次失败日志 */
+    private lastFailureLogs: Map<string, string> = new Map();
+
+    /** Install locks keyed by dependency name to protect the shared temp directory */
+    private installLocks: Map<string, Promise<boolean>> = new Map();
     
     /** 支持的可选依赖配置 */
     private readonly optionalDependencies: Record<string, { version: string; descriptionKey: string; estimatedSize: number }> = {
@@ -111,6 +119,10 @@ export class DependencyManager {
      */
     getInstallPath(): string {
         return this.acopilotDir;
+    }
+
+    getLastFailureLog(name: string): string | undefined {
+        return this.lastFailureLogs.get(name);
     }
     
     /**
@@ -206,12 +218,30 @@ export class DependencyManager {
      * 安装依赖
      */
     async install(name: string): Promise<boolean> {
+        const existingInstall = this.installLocks.get(name);
+        if (existingInstall) {
+            return existingInstall;
+        }
+
+        const installOperation = this.installUnlocked(name)
+            .finally(() => {
+                this.installLocks.delete(name);
+            });
+
+        this.installLocks.set(name, installOperation);
+        return installOperation;
+    }
+
+    private async installUnlocked(name: string): Promise<boolean> {
         const config = this.optionalDependencies[name];
         if (!config) {
+            const log = this.buildFailureLog(name, t('modules.dependencies.errors.unknownDependency', { name }));
+            this.lastFailureLogs.set(name, log);
             this.emitProgress({
                 type: 'error',
                 dependency: name,
-                error: t('modules.dependencies.errors.unknownDependency', { name })
+                error: t('modules.dependencies.errors.unknownDependency', { name }),
+                log
             });
             return false;
         }
@@ -322,11 +352,14 @@ export class DependencyManager {
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
+            const log = this.buildFailureLog(name, errorMessage, error);
+            this.lastFailureLogs.set(name, log);
             
             this.emitProgress({
                 type: 'error',
                 dependency: name,
-                error: t('modules.dependencies.errors.installFailed', { error: errorMessage })
+                error: t('modules.dependencies.errors.installFailed', { error: errorMessage }),
+                log
             });
             
             return false;
@@ -347,9 +380,30 @@ export class DependencyManager {
             
             return true;
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const log = this.buildFailureLog(name, errorMessage, error);
+            this.lastFailureLogs.set(name, log);
             console.error(t('modules.dependencies.errors.uninstallFailed', { name }), error);
             return false;
         }
+    }
+
+    private buildFailureLog(name: string, message: string, error?: unknown): string {
+        const maybeExecError = error as { stdout?: unknown; stderr?: unknown; code?: unknown; signal?: unknown } | undefined;
+        const lines = [
+            `Dependency operation failed`,
+            `Time: ${new Date().toISOString()}`,
+            `Dependency: ${name}`,
+            `Install root: ${this.acopilotDir}`,
+            `Node modules: ${this.depsDir}`,
+            maybeExecError?.code !== undefined ? `Exit code: ${String(maybeExecError.code)}` : '',
+            maybeExecError?.signal !== undefined ? `Signal: ${String(maybeExecError.signal)}` : '',
+            `Error: ${message}`,
+            maybeExecError?.stdout ? `stdout:\n${String(maybeExecError.stdout)}` : '',
+            maybeExecError?.stderr ? `stderr:\n${String(maybeExecError.stderr)}` : ''
+        ].filter(Boolean).join('\n');
+
+        return redactSensitiveText(lines).slice(0, 12000);
     }
     
     /**

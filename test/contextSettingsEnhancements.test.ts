@@ -1,0 +1,52 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+function readProjectFile(path: string): string {
+  return readFileSync(resolve(__dirname, '..', path), 'utf8');
+}
+
+describe('context settings enhancements', () => {
+  it('loads extended preview stats for workspace files, diagnostics, and ignore matches', () => {
+    const handlers = readProjectFile('webview/handlers/ContextHandlers.ts');
+    const composable = readProjectFile('frontend/src/components/settings/useContextSettings.ts');
+
+    expect(handlers).toContain('getContextSettingsPreview');
+    expect(handlers).toContain('getWorkspaceFileTree');
+    expect(handlers).toContain('ignorePatterns');
+    expect(handlers).toContain('diagnosticsToText');
+    expect(composable).toContain("sendToExtension<ContextSettingsPreview>('getContextSettingsPreview'");
+    expect(composable).toContain('previewStats');
+  });
+
+  it('shows token cost estimates and expanded context previews', () => {
+    const settings = readProjectFile('frontend/src/components/settings/ContextSettings.vue');
+    const composable = readProjectFile('frontend/src/components/settings/useContextSettings.ts');
+
+    expect(composable).toContain('estimateTokensFromChars');
+    expect(composable).toContain('totalEstimatedCost');
+    expect(settings).toContain('workspaceFilesCost');
+    expect(settings).toContain('openTabsCost');
+    expect(settings).toContain('activeEditorCost');
+    expect(settings).toContain('diagnosticsCost');
+    expect(settings).toContain('workspaceFilesLabel');
+    expect(settings).toContain('diagnosticsLabel');
+    expect(settings).toContain('ignoreMatchesLabel');
+  });
+
+  it('adds diagnostics presets and bidirectional Context Inspector navigation', () => {
+    const settings = readProjectFile('frontend/src/components/settings/ContextSettings.vue');
+    const composable = readProjectFile('frontend/src/components/settings/useContextSettings.ts');
+    const inspector = readProjectFile('frontend/src/components/common/ContextInspectorModal.vue');
+    const appChatView = readProjectFile('frontend/src/components/shell/AppChatView.vue');
+
+    expect(composable).toContain('diagnosticsPresets');
+    expect(composable).toContain('applyDiagnosticsPreset');
+    expect(composable).toContain('openCurrentContextInspector');
+    expect(settings).toContain('applyDiagnosticsPreset(preset.id)');
+    expect(settings).toContain('openCurrentContextInspector');
+    expect(inspector).toContain('openSettings');
+    expect(inspector).toContain('openContextSettings');
+    expect(appChatView).toContain("settingsStore.showSettings('context')");
+  });
+});

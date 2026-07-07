@@ -4,7 +4,7 @@ import ContextInspectorModal from '../common/ContextInspectorModal.vue'
 import { WelcomePanel } from '../home'
 import { InputArea } from '../input'
 import { MessageList } from '../message'
-import { useChatStore } from '../../stores'
+import { useChatStore, useSettingsStore } from '../../stores'
 import { useI18n } from '../../i18n'
 import type { Attachment } from '../../types'
 import RetryStatusPanel from './RetryStatusPanel.vue'
@@ -30,6 +30,12 @@ defineEmits<{
 
 const { t } = useI18n()
 const chatStore = useChatStore()
+const settingsStore = useSettingsStore()
+
+function openContextSettings() {
+  chatStore.closeContextInspector()
+  settingsStore.showSettings('context')
+}
 </script>
 
 <template>
@@ -74,6 +80,7 @@ const chatStore = useChatStore()
       :source="chatStore.contextInspectorSource"
       @update:model-value="(visible) => { if (!visible) chatStore.closeContextInspector() }"
       @refresh="chatStore.openContextInspectorPreview"
+      @open-settings="openContextSettings"
     />
   </div>
 </template>

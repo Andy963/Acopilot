@@ -33,7 +33,12 @@ export const enComponentsSettingsPart2a = {
             workspaceOnly: 'Workspace files only',
             openFilesOnly: 'Open files only',
             maxPerFile: 'Max per file',
-            maxFiles: 'Max files'
+            maxFiles: 'Max files',
+            presets: {
+                errorsOnly: 'Errors only',
+                openFilesFirst: 'Open files first',
+                workspace: 'Current workspace'
+            }
         },
         ignorePatterns: {
             title: 'Ignore Patterns',
@@ -42,6 +47,8 @@ export const enComponentsSettingsPart2a = {
             emptyHint: 'No custom ignore patterns',
             inputPlaceholder: 'Enter pattern, e.g.: **/node_modules, *.log',
             addButton: 'Add',
+            matchedSummary: '{matched}/{scanned} files matched current ignore patterns',
+            patternMatchCount: '{count} matches',
             helpTitle: 'Wildcard Help:',
             helpItems: {
                 wildcard: '* - Matches any character (excludes path separator)',
@@ -53,25 +60,43 @@ export const enComponentsSettingsPart2a = {
             title: 'Current Status Preview',
             autoRefreshBadge: 'Live Update',
             description: 'Preview context information to be sent to AI (auto-refresh every 2 seconds)',
+            openInspector: 'View current context',
+            workspaceFilesLabel: 'Workspace file tree ({count} lines):',
             activeEditorLabel: 'Current Active Editor:',
             openTabsLabel: 'Open Tabs ({count}):',
+            diagnosticsLabel: 'Diagnostics ({files} files, {count} items):',
+            ignoreMatchesLabel: 'Ignored files ({count}):',
             noValue: 'None',
             moreItems: '... {count} more'
+        },
+        cost: {
+            badge: '~{tokens} tok · {chars} ch'
         },
         saveSuccess: 'Saved successfully',
         saveFailed: 'Save failed'
     },
     dependencySettings: {
-        title: 'Extension Dependency Management',
-        description: 'Manage dependencies required for optional extension features. These dependencies will be installed to the local file system and not packaged into the plugin.',
+        title: 'Tool Dependencies',
+        description: 'Manage dependencies required by tools. These dependencies will be installed to the local file system and not packaged into the plugin.',
         installPath: 'Install Path:',
+        pathRelation: 'Dependency packages are installed under the effective General storage path, in its managed dependencies directory. If you migrate the storage path, this location follows the completed migration; it is not the storage root itself.',
         installed: 'Installed',
         installing: 'Installing...',
         uninstalling: 'Uninstalling...',
         install: 'Install',
         uninstall: 'Uninstall',
+        copyFailureLog: 'Copy failure log',
+        copyFailureLogSuccess: 'Failure log copied',
+        copyFailureLogFailed: 'Failed to copy failure log',
         estimatedSize: 'About {size}MB',
         empty: 'No tools requiring dependencies',
+        uninstallConfirm: {
+            title: 'Uninstall dependency?',
+            message: 'Uninstall {name}? This can make these tools unavailable: {tools}',
+            confirm: 'Uninstall',
+            cancel: 'Cancel',
+            none: 'No known tools'
+        },
         progress: {
             processing: 'Processing {dependency}...',
             complete: '{dependency} processing complete',
@@ -295,11 +320,24 @@ export const enComponentsSettingsPart2a = {
         saveSuccess: 'Saved successfully',
         saveFailed: 'Save failed',
         tokenCount: {
-            label: 'Token Count',
+            label: 'Estimated Token Count',
             channelTooltip: 'Select channel for token calculation',
             refreshTooltip: 'Refresh token count',
             failed: 'Count failed',
-            hint: 'Shows token count for template only, actual system prompt includes dynamically filled variable content'
+            hint: 'Estimate only. Shows template tokens before variable expansion; the actual system prompt includes dynamically filled variable content.'
+        },
+        validation: {
+            emptyTemplate: 'Template cannot be empty.',
+            unknownVariables: 'Unknown variable(s): {variables}. Use variables from the reference list.',
+            duplicateVariables: 'Duplicate variable(s): {variables}. They will duplicate context in the final prompt.',
+            fixBeforeSave: 'Fix template validation errors before saving.'
+        },
+        history: {
+            title: 'Prompt Version History',
+            hint: 'Keeps the last 10 local versions before save/reset.',
+            empty: 'No previous prompt versions yet.',
+            restore: 'Restore',
+            restored: 'Restored from history. Save to apply it.'
         },
         modulesReference: {
             title: 'Available Variables Reference',
@@ -348,10 +386,11 @@ export const enComponentsSettingsPart2a = {
         exampleOutput: 'Example Output:',
         requiresConfigLabel: 'Requires Config:',
         skills: {
-            title: 'Skills',
-            add: 'Add Skill',
-            description: 'Manage reusable prompts (skills). You can select them from the pinned panel next to the input box.',
-            empty: 'No skills',
+            title: 'Prompt Skills',
+            add: 'Add Prompt Skill',
+            description: 'Manage reusable Prompt Skills. They are saved here as a library and are not automatically injected into every conversation.',
+            lifecycleNote: 'Pinned skill selection is separate: choose Prompt Skills from the pinned panel beside the input box to attach them to a specific conversation or workspace default.',
+            empty: 'No Prompt Skills',
             saveSuccess: 'Saved successfully',
             saveFailed: 'Save failed',
             installFromUrl: {

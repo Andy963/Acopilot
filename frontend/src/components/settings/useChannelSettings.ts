@@ -1,7 +1,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useChannelSettingsUi } from './channelSettingsUi'
 import { sendToExtension } from '@/utils/vscode'
-import { useChatStore } from '@/stores'
+import { useChatStore, useSettingsStore } from '@/stores'
 import type { ModelInfo } from '@/types'
 import { t, useI18n } from '@/i18n'
 
@@ -9,6 +9,7 @@ type ChannelConfigType = 'gemini' | 'openai' | 'openai-responses' | 'anthropic'
 
 export function useChannelSettings() {
   const chatStore = useChatStore()
+  const settingsStore = useSettingsStore()
   const { actualLanguage } = useI18n()
 
   const configs = ref<any[]>([])
@@ -32,6 +33,8 @@ export function useChannelSettings() {
   const showToolOptions = ref(false)
   const showTokenCountMethod = ref(false)
   const showMultimodalDetails = ref(false)
+  const isTestingConnection = ref(false)
+  const connectionTestResult = ref<{ ok: boolean; message: string; latencyMs?: number } | null>(null)
 
   const showConfirmDialog = ref(false)
   const confirmDialogTitle = ref('')
@@ -42,6 +45,7 @@ export function useChannelSettings() {
 
   async function updateConfigFields(updates: Record<string, any>) {
     if (!currentConfig.value) return
+    connectionTestResult.value = null
 
     try {
       const serializableUpdates: Record<string, any> = {}
@@ -69,6 +73,7 @@ export function useChannelSettings() {
 
   async function updateConfigField(field: string, value: any) {
     if (!currentConfig.value) return
+    connectionTestResult.value = null
 
     try {
       let serializableValue = JSON.parse(JSON.stringify(value))
@@ -155,6 +160,7 @@ export function useChannelSettings() {
     customHeadersSummary,
     autoRetrySummary,
     advancedOptionsSummary,
+    capabilitySummaryItems,
     updateContextThresholdEnabled,
     updateContextThreshold,
     updateContextTrimExtraCut,
@@ -172,6 +178,30 @@ export function useChannelSettings() {
 
   function copyToClipboard(text: string) {
     void navigator.clipboard.writeText(text)
+  }
+
+  function openToolsSettings() {
+    settingsStore.setActiveTab('tools')
+  }
+
+  async function testConnection() {
+    if (!currentConfig.value || isTestingConnection.value) return
+
+    isTestingConnection.value = true
+    connectionTestResult.value = null
+    try {
+      const result = await sendToExtension<{ ok: boolean; message: string; latencyMs?: number }>('config.testConnection', {
+        configId: currentConfig.value.id,
+      })
+      connectionTestResult.value = result
+    } catch (error) {
+      connectionTestResult.value = {
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      }
+    } finally {
+      isTestingConnection.value = false
+    }
   }
 
   async function loadConfigs() {
@@ -352,6 +382,7 @@ export function useChannelSettings() {
   watch(currentConfigId, (newId) => {
     showApiKey.value = false
     showMultimodalDetails.value = false
+    connectionTestResult.value = null
     if (isInitialized.value && newId && newId !== chatStore.configId) {
       void chatStore.setConfigId(newId)
     }
@@ -439,11 +470,14 @@ export function useChannelSettings() {
     customHeadersSummary,
     autoRetrySummary,
     advancedOptionsSummary,
+    capabilitySummaryItems,
     updateContextThresholdEnabled,
     updateContextThreshold,
     updateContextTrimExtraCut,
     toggleMultimodalDetails,
     copyToClipboard,
+    openToolsSettings,
+    testConnection,
     loadConfigs,
     createConfig,
     showConfirm,
@@ -462,6 +496,8 @@ export function useChannelSettings() {
     handleUpdateModels,
     handleUpdateSelectedModel,
     isInitialized,
+    isTestingConnection,
+    connectionTestResult,
   }
 }
 

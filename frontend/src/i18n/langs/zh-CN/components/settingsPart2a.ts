@@ -33,7 +33,12 @@ export const zhCNComponentsSettingsPart2a = {
             workspaceOnly: '仅工作区内文件',
             openFilesOnly: '仅打开的文件',
             maxPerFile: '每文件最大数量',
-            maxFiles: '最大文件数'
+            maxFiles: '最大文件数',
+            presets: {
+                errorsOnly: '仅错误',
+                openFilesFirst: '打开文件优先',
+                workspace: '当前工作区'
+            }
         },
         ignorePatterns: {
             title: '忽略模式',
@@ -42,6 +47,8 @@ export const zhCNComponentsSettingsPart2a = {
             emptyHint: '暂无自定义忽略模式',
             inputPlaceholder: '输入模式，如：**/node_modules, *.log',
             addButton: '添加',
+            matchedSummary: '当前忽略规则命中 {matched}/{scanned} 个文件',
+            patternMatchCount: '命中 {count} 个',
             helpTitle: '通配符说明:',
             helpItems: {
                 wildcard: '* - 匹配任意字符（不包含路径分隔符）',
@@ -53,25 +60,43 @@ export const zhCNComponentsSettingsPart2a = {
             title: '当前状态预览',
             autoRefreshBadge: '实时更新',
             description: '预览当前会发送给 AI 的上下文信息（每 2 秒自动刷新）',
+            openInspector: '查看当前上下文',
+            workspaceFilesLabel: '工作区文件树（{count} 行）：',
             activeEditorLabel: '当前活动编辑器：',
             openTabsLabel: '打开的标签页（{count} 个）：',
+            diagnosticsLabel: '诊断信息（{files} 个文件，{count} 条）：',
+            ignoreMatchesLabel: '被忽略的文件（{count} 个）：',
             noValue: '无',
             moreItems: '... 还有 {count} 个'
+        },
+        cost: {
+            badge: '~{tokens} tok · {chars} ch'
         },
         saveSuccess: '保存成功',
         saveFailed: '保存失败'
     },
     dependencySettings: {
-        title: '扩展依赖管理',
-        description: '管理可选的扩展功能所需的依赖。这些依赖将安装到本地文件系统，不会打包进插件。',
+        title: '工具依赖',
+        description: '管理工具所需的依赖。这些依赖将安装到本地文件系统，不会打包进插件。',
         installPath: '安装路径：',
+        pathRelation: '依赖包安装在 General 存储路径下的 dependencies 托管目录中。完成存储路径迁移后，此位置会跟随新的存储路径；它不是存储根目录本身。',
         installed: '已安装',
         installing: '安装中...',
         uninstalling: '卸载中...',
         install: '安装',
         uninstall: '卸载',
+        copyFailureLog: '复制失败日志',
+        copyFailureLogSuccess: '失败日志已复制',
+        copyFailureLogFailed: '复制失败日志失败',
         estimatedSize: '约 {size}MB',
         empty: '暂无需要依赖的工具',
+        uninstallConfirm: {
+            title: '卸载依赖？',
+            message: '确定卸载 {name} 吗？以下工具可能变为不可用：{tools}',
+            confirm: '卸载',
+            cancel: '取消',
+            none: '暂无已知工具'
+        },
         progress: {
             processing: '正在处理 {dependency}...',
             complete: '{dependency} 处理完成',
@@ -294,16 +319,29 @@ export const zhCNComponentsSettingsPart2a = {
         saveButton: '保存配置',
         saveSuccess: '保存成功',
         saveFailed: '保存失败',
+        validation: {
+            emptyTemplate: '模板不能为空。',
+            unknownVariables: '未知变量：{variables}。请使用参考列表中的变量。',
+            duplicateVariables: '重复变量：{variables}。最终提示词中会重复注入对应上下文。',
+            fixBeforeSave: '请先修复模板校验错误再保存。'
+        },
+        history: {
+            title: 'Prompt 版本历史',
+            hint: '本地保留最近 10 次保存/重置前的版本。',
+            empty: '暂无历史版本。',
+            restore: '恢复',
+            restored: '已从历史恢复，请保存后生效。'
+        },
         modulesReference: {
             title: '可用变量参考',
             insertTooltip: '插入到模板末尾'
         },
         tokenCount: {
-            label: 'Token 数量',
+            label: '预估 Token 数量',
             channelTooltip: '选择用于计算 token 的渠道',
             refreshTooltip: '刷新 token 计数',
             failed: '计数失败',
-            hint: '显示的是仅模板本身的 token 数，实际系统提示词还包含动态填充的变量内容'
+            hint: '仅为估算值，显示变量展开前的模板 token 数；实际系统提示词还包含动态填充的变量内容。'
         },
         modules: {
             ENVIRONMENT: {
@@ -348,10 +386,11 @@ export const zhCNComponentsSettingsPart2a = {
         exampleOutput: '示例输出：',
         requiresConfigLabel: '依赖配置：',
         skills: {
-            title: 'Skills',
-            add: '添加 Skill',
-            description: '管理可复用的提示词（Skill）。可在对话输入框旁的固定内容面板中选择使用。',
-            empty: '暂无 Skill',
+            title: 'Prompt Skills',
+            add: '添加 Prompt Skill',
+            description: '管理可复用的 Prompt Skills。它们会作为素材库保存，不会自动注入每次对话。',
+            lifecycleNote: '固定 Skill 选择是独立流程：在输入框旁的固定内容面板中选择 Prompt Skill，才会附加到某个对话或工作区默认选择。',
+            empty: '暂无 Prompt Skill',
             saveSuccess: '保存成功',
             saveFailed: '保存失败',
             installFromUrl: {

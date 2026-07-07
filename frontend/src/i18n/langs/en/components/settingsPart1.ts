@@ -57,6 +57,11 @@ export const enComponentsSettingsPart1 = {
                 useAuthorizationHintGemini: 'Convert x-goog-api-key to Authorization: Bearer format',
                 useAuthorizationHintAnthropic: 'Convert x-api-key to Authorization: Bearer format'
             },
+            connectionTest: {
+                button: 'Test Connection',
+                testing: 'Testing...',
+                hint: 'Checks API key, URL, and selected model with a minimal request'
+            },
             stream: {
                 label: 'Stream Output'
             },
@@ -82,6 +87,8 @@ export const enComponentsSettingsPart1 = {
                     label: 'JSON Boundary Markers',
                     description: 'Use JSON format + boundary markers (recommended)'
                 },
+                boundaryHint: 'This controls request protocol capability for this channel. Use Tools settings to enable tools and auto execution.',
+                openToolsSettings: 'Open Tools settings',
                 hint: {
                     functionCall: 'Function Calling: Use API native function calling feature',
                     xml: 'XML Prompt: Convert tools to XML format in system prompt',
@@ -193,6 +200,20 @@ export const enComponentsSettingsPart1 = {
                 headersConfigured: '{count} Header(s)',
                 maxRetries: 'Max {count} times',
                 thresholdValue: 'threshold'
+            },
+            capabilitySummary: {
+                title: 'Model Capability Summary',
+                model: 'Model',
+                contextWindow: 'Context',
+                maxOutput: 'Output',
+                toolProtocol: 'Tools',
+                multimodal: 'Multimodal',
+                reasoning: 'Reasoning',
+                promptCache: 'Prompt Cache',
+                stream: 'Stream',
+                notSelected: 'Not selected',
+                unknown: 'Unknown',
+                providerDefault: 'Provider default'
             },
             multimodalSummary: 'Images (PNG/JPG), PDF.',
             viewCompatibility: 'View compatibility matrix'

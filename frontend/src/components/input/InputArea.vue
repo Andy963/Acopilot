@@ -10,10 +10,9 @@ import FilePickerPanel from './FilePickerPanel.vue'
 import ComposerTopBar from './ComposerTopBar.vue'
 import InputAreaFooter from './InputAreaFooter.vue'
 import PinnedFilesPanel from './PinnedFilesPanel.vue'
-import CreateTaskModal from '../task/CreateTaskModal.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
 import { IconButton } from '../common'
-import { useChatStore } from '../../stores'
+import { useChatStore, useSettingsStore } from '../../stores'
 import type { Attachment } from '../../types'
 import { useInputAreaConfig } from './useInputAreaConfig'
 import { useInputAreaInput } from './useInputAreaInput'
@@ -30,6 +29,7 @@ const props = defineProps<{
 
 // 从 store 读取等待状态
 const chatStore = useChatStore()
+const settingsStore = useSettingsStore()
 const { t } = useI18n()
 
 const {
@@ -40,8 +40,15 @@ const {
   unifiedModelOptions,
   unifiedModelValue,
   handleThinkingEffortChange,
-  handleUnifiedModelChange
+  handleUnifiedModelChange,
+  summarizeKeepRecentRounds,
+  summarizeAutoSummarize,
+  summarizeAutoSummarizeThreshold
 } = useInputAreaConfig()
+
+function handleOpenChannelSettings() {
+  settingsStore.showSettings('channel')
+}
 
 const emit = defineEmits<{
   send: [content: string, attachments: Attachment[]]
@@ -106,9 +113,6 @@ function handlePasteFiles(files: File[]) {
   emit('pasteFiles', files)
 }
 
-// Create Task Modal
-const showCreateTaskModal = ref(false)
-
 // Create Plan Modal
 const showCreatePlanModal = ref(false)
 
@@ -117,6 +121,7 @@ const showPinnedFilesPanel = ref(false)
 
 const enabledPinnedFilesCount = ref(0)
 const hasPinnedPrompt = computed(() => Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none'))
+const isSummarizing = ref(false)
 
 function handlePinnedPanelStats(count: number) {
   enabledPinnedFilesCount.value = count
@@ -128,6 +133,9 @@ function openPinnedFilesPanel() {
 }
 
 async function handleSummarize() {
+  if (isSummarizing.value) return
+
+  isSummarizing.value = true
   try {
     const result = await chatStore.summarizeContext()
 
@@ -150,6 +158,8 @@ async function handleSummarize() {
       t('components.input.notifications.summarizeError', { error: error.message || t('common.unknownError') }),
       'error'
     )
+  } finally {
+    isSummarizing.value = false
   }
 }
 
@@ -157,7 +167,6 @@ async function handleSummarize() {
 
 <template>
   <div class="input-area">
-    <CreateTaskModal v-model="showCreateTaskModal" />
     <CreatePlanModal v-model="showCreatePlanModal" />
 
     <PinnedFilesPanel
@@ -191,7 +200,6 @@ async function handleSummarize() {
         @remove-attachment="handleRemoveAttachment"
         @remove-selection-reference="chatStore.removeSelectionReference"
         @open-pinned-panel="openPinnedFilesPanel"
-        @open-task-modal="showCreateTaskModal = true"
         @open-plan-modal="showCreatePlanModal = true"
       />
 
@@ -243,12 +251,17 @@ async function handleSummarize() {
         :used-tokens="chatStore.usedTokens"
         :max-context-tokens="chatStore.maxContextTokens"
         :is-waiting-for-response="chatStore.isWaitingForResponse"
+        :is-summarizing="isSummarizing"
         :can-send="canSend"
         :attachments="attachments"
+        :summarize-keep-recent-rounds="summarizeKeepRecentRounds"
+        :summarize-auto-summarize="summarizeAutoSummarize"
+        :summarize-auto-summarize-threshold="summarizeAutoSummarizeThreshold"
         @update-unified-model="handleUnifiedModelChange"
         @update-thinking-effort="handleThinkingEffortChange"
         @update-chat-mode="(value) => chatStore.setChatMode(value as any)"
         @open-context-inspector="(atts) => chatStore.openContextInspectorPreview(atts)"
+        @open-channel-settings="handleOpenChannelSettings"
         @summarize="handleSummarize"
         @send="handleSend"
         @cancel="handleCancel"

@@ -50,7 +50,6 @@ export function useSettingsPanel() {
     { id: 'checkpoint', label: t('components.settings.tabs.checkpoint'), icon: 'codicon-history' },
     { id: 'summarize', label: t('components.settings.tabs.summarize'), icon: 'codicon-fold' },
     { id: 'imageGen', label: t('components.settings.tabs.imageGen'), icon: 'codicon-symbol-color' },
-    { id: 'dependencies', label: t('components.settings.tabs.dependencies'), icon: 'codicon-package' },
     { id: 'context', label: t('components.settings.tabs.context'), icon: 'codicon-symbol-namespace' },
     { id: 'prompt', label: t('components.settings.tabs.prompt'), icon: 'codicon-note' },
     { id: 'general', label: t('components.settings.tabs.general'), icon: 'codicon-settings-gear' },

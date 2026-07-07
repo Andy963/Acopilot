@@ -4,7 +4,7 @@ import ModelManager from './ModelManager.vue'
 import { AnthropicOptions, CustomBodySettings, CustomHeadersSettings, GeminiOptions, OpenAIOptions, OpenAIResponsesOptions, TokenCountMethodSettings, ToolOptionsSettings } from './channels'
 import { useChannelSettings } from './useChannelSettings'
 
-const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewDialog, newConfigName, newConfigType, showAdvancedOptions, showCustomHeaders, showCustomBody, showApiKey, showRetryOptions, showContextThreshold, showToolOptions, showTokenCountMethod, showMultimodalDetails, showConfirmDialog, confirmDialogTitle, confirmDialogMessage, currentConfig, updateOption, updateOptionEnabled, multimodalSummaryText, providerIcon, toolModeDisplayName, configOptions, typeOptions, toolModeOptions, customHeaders, customHeadersEnabled, updateCustomHeadersEnabled, updateCustomHeaders, customBody, customBodyEnabled, updateCustomBodyEnabled, updateCustomBodyConfig, retryEnabled, retryCount, retryInterval, updateRetryEnabled, updateRetryCount, updateRetryInterval, toolOptions, updateToolOptions, contextThresholdEnabled, contextThreshold, contextTrimExtraCut, contextManagementSummary, toolOptionsSummary, tokenCountMethodSummary, customBodySummary, customHeadersSummary, autoRetrySummary, advancedOptionsSummary, updateContextThresholdEnabled, updateContextThreshold, updateContextTrimExtraCut, toggleMultimodalDetails, copyToClipboard, createConfig, onConfirmDialogConfirm, isConfigDisabled, toggleConfigEnabledById, deleteConfigById, startEditing, saveEditing, cancelEditing, handleEditKeydown, cancelNew, updateConfigField, handleUpdateModels, handleUpdateSelectedModel } = useChannelSettings()
+const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewDialog, newConfigName, newConfigType, showAdvancedOptions, showCustomHeaders, showCustomBody, showApiKey, showRetryOptions, showContextThreshold, showToolOptions, showTokenCountMethod, showMultimodalDetails, showConfirmDialog, confirmDialogTitle, confirmDialogMessage, currentConfig, updateOption, updateOptionEnabled, multimodalSummaryText, providerIcon, toolModeDisplayName, configOptions, typeOptions, toolModeOptions, customHeaders, customHeadersEnabled, updateCustomHeadersEnabled, updateCustomHeaders, customBody, customBodyEnabled, updateCustomBodyEnabled, updateCustomBodyConfig, retryEnabled, retryCount, retryInterval, updateRetryEnabled, updateRetryCount, updateRetryInterval, toolOptions, updateToolOptions, contextThresholdEnabled, contextThreshold, contextTrimExtraCut, contextManagementSummary, toolOptionsSummary, tokenCountMethodSummary, customBodySummary, customHeadersSummary, autoRetrySummary, advancedOptionsSummary, capabilitySummaryItems, updateContextThresholdEnabled, updateContextThreshold, updateContextTrimExtraCut, toggleMultimodalDetails, copyToClipboard, openToolsSettings, testConnection, isTestingConnection, connectionTestResult, createConfig, onConfirmDialogConfirm, isConfigDisabled, toggleConfigEnabledById, deleteConfigById, startEditing, saveEditing, cancelEditing, handleEditKeydown, cancelNew, updateConfigField, handleUpdateModels, handleUpdateSelectedModel } = useChannelSettings()
 </script>
 
 <template>
@@ -132,6 +132,30 @@ const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewD
               <i :class="['codicon', showApiKey ? 'codicon-eye-closed' : 'codicon-eye']"></i>
             </button>
           </div>
+          <div class="connection-test-row">
+            <button
+              type="button"
+              class="test-connection-btn"
+              :disabled="isTestingConnection || !currentConfig.url || !currentConfig.apiKey || !currentConfig.model"
+              @click="testConnection"
+            >
+              <i :class="['codicon', isTestingConnection ? 'codicon-loading spin' : 'codicon-debug-start']"></i>
+              {{ isTestingConnection
+                ? t('components.settings.channelSettings.form.connectionTest.testing')
+                : t('components.settings.channelSettings.form.connectionTest.button') }}
+            </button>
+            <span
+              v-if="connectionTestResult"
+              :class="['connection-test-result', connectionTestResult.ok ? 'success' : 'error']"
+            >
+              <i :class="['codicon', connectionTestResult.ok ? 'codicon-check' : 'codicon-error']"></i>
+              {{ connectionTestResult.message }}
+              <template v-if="connectionTestResult.latencyMs"> · {{ connectionTestResult.latencyMs }}ms</template>
+            </span>
+            <span v-else class="connection-test-hint">
+              {{ t('components.settings.channelSettings.form.connectionTest.hint') }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -188,6 +212,30 @@ const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewD
             <CustomSelect :model-value="currentConfig.toolMode || 'function_call'" :options="toolModeOptions"
               :placeholder="t('components.settings.channelSettings.form.toolMode.placeholder')"
               class="capability-select" @update:model-value="(v: string) => updateConfigField('toolMode', v)" />
+            <div class="tool-boundary-note">
+              <i class="codicon codicon-info"></i>
+              <span>{{ t('components.settings.channelSettings.form.toolMode.boundaryHint') }}</span>
+              <button type="button" class="inline-link" @click="openToolsSettings">
+                {{ t('components.settings.channelSettings.form.toolMode.openToolsSettings') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="capability-summary-panel">
+          <div class="capability-summary-title">
+            <i class="codicon codicon-dashboard"></i>
+            <span>{{ t('components.settings.channelSettings.form.capabilitySummary.title') }}</span>
+          </div>
+          <div class="capability-summary-grid">
+            <div
+              v-for="item in capabilitySummaryItems"
+              :key="item.label"
+              :class="['capability-summary-item', item.status]"
+            >
+              <span class="summary-label">{{ item.label }}</span>
+              <span class="summary-value">{{ item.value }}</span>
+            </div>
           </div>
         </div>
 

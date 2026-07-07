@@ -12,6 +12,15 @@ const {
   newIgnorePattern,
   openTabs,
   activeEditor,
+  previewStats,
+  diagnosticsPresets,
+  activeEditorCost,
+  openTabsCost,
+  workspaceFilesCost,
+  diagnosticsCost,
+  totalEstimatedCost,
+  formatCost,
+  loadPreview,
   updateConfig,
   addIgnorePattern,
   removeIgnorePattern,
@@ -19,6 +28,8 @@ const {
   updateDiagnosticsConfig,
   toggleSeverity,
   isSeveritySelected,
+  applyDiagnosticsPreset,
+  openCurrentContextInspector,
 } = useContextSettings()
 </script>
 
@@ -35,6 +46,7 @@ const {
         <label class="group-label">
           <i class="codicon codicon-list-tree"></i>
           {{ t('components.settings.contextSettings.workspaceFiles.title') }}
+          <span class="cost-badge">{{ formatCost(workspaceFilesCost) }}</span>
         </label>
         <p class="field-description">{{ t('components.settings.contextSettings.workspaceFiles.description') }}</p>
         
@@ -72,6 +84,7 @@ const {
         <label class="group-label">
           <i class="codicon codicon-files"></i>
           {{ t('components.settings.contextSettings.openTabs.title') }}
+          <span class="cost-badge">{{ formatCost(openTabsCost) }}</span>
         </label>
         <p class="field-description">{{ t('components.settings.contextSettings.openTabs.description') }}</p>
         
@@ -109,6 +122,7 @@ const {
         <label class="group-label">
           <i class="codicon codicon-file-code"></i>
           {{ t('components.settings.contextSettings.activeEditor.title') }}
+          <span class="cost-badge">{{ formatCost(activeEditorCost) }}</span>
         </label>
         <p class="field-description">{{ t('components.settings.contextSettings.activeEditor.description') }}</p>
         
@@ -130,6 +144,7 @@ const {
         <label class="group-label">
           <i class="codicon codicon-warning"></i>
           {{ t('components.settings.contextSettings.diagnostics.title') }}
+          <span class="cost-badge">{{ formatCost(diagnosticsCost) }}</span>
         </label>
         <p class="field-description">{{ t('components.settings.contextSettings.diagnostics.description') }}</p>
         
@@ -140,6 +155,18 @@ const {
               :label="t('components.settings.contextSettings.diagnostics.enableDiagnostics')"
               @update:model-value="(v: boolean) => updateDiagnosticsConfig('enabled', v)"
             />
+          </div>
+
+          <div class="diagnostics-presets">
+            <button
+              v-for="preset in diagnosticsPresets"
+              :key="preset.id"
+              class="preset-btn"
+              @click="applyDiagnosticsPreset(preset.id)"
+            >
+              <i :class="['codicon', preset.icon]"></i>
+              {{ t(`components.settings.contextSettings.diagnostics.presets.${preset.id}`) }}
+            </button>
           </div>
           
           <!-- 严重程度选择 -->
@@ -264,6 +291,25 @@ const {
                 {{ t('components.settings.contextSettings.ignorePatterns.addButton') }}
               </button>
             </div>
+
+            <div class="ignore-validation" v-if="previewStats">
+              <div class="preview-meta-row">
+                <span>{{ t('components.settings.contextSettings.ignorePatterns.matchedSummary', { matched: previewStats.ignorePatterns.matchedFiles, scanned: previewStats.ignorePatterns.scannedFiles }) }}</span>
+              </div>
+              <div v-if="previewStats.ignorePatterns.samples.length > 0" class="tabs-list">
+                <code v-for="sample in previewStats.ignorePatterns.samples" :key="sample">{{ sample }}</code>
+              </div>
+              <div v-if="previewStats.ignorePatterns.byPattern.length > 0" class="pattern-matches">
+                <div
+                  v-for="entry in previewStats.ignorePatterns.byPattern"
+                  :key="entry.pattern"
+                  class="pattern-match-row"
+                >
+                  <code>{{ entry.pattern }}</code>
+                  <span>{{ t('components.settings.contextSettings.ignorePatterns.patternMatchCount', { count: entry.count }) }}</span>
+                </div>
+              </div>
+            </div>
             
             <!-- 通配符说明 -->
             <div class="pattern-help">
@@ -286,18 +332,42 @@ const {
           <label class="group-label">
             <i class="codicon codicon-eye"></i>
             {{ t('components.settings.contextSettings.preview.title') }}
+            <span class="cost-badge primary">{{ formatCost(totalEstimatedCost) }}</span>
             <span class="auto-refresh-badge">
               <i class="codicon codicon-sync codicon-modifier-spin"></i>
               {{ t('components.settings.contextSettings.preview.autoRefreshBadge') }}
             </span>
           </label>
+          <div class="preview-actions">
+            <button class="action-btn" @click="loadPreview(true)">
+              <i class="codicon codicon-refresh"></i>
+              {{ t('common.refresh') }}
+            </button>
+            <button class="action-btn primary" @click="openCurrentContextInspector">
+              <i class="codicon codicon-open-preview"></i>
+              {{ t('components.settings.contextSettings.preview.openInspector') }}
+            </button>
+          </div>
         </div>
         <p class="field-description">{{ t('components.settings.contextSettings.preview.description') }}</p>
         
         <div class="preview-block">
+          <!-- 文件树预览 -->
+          <div class="preview-section" v-if="config.includeWorkspaceFiles">
+            <div class="preview-label">
+              {{ t('components.settings.contextSettings.preview.workspaceFilesLabel', { count: previewStats?.workspaceFiles.lineCount ?? 0 }) }}
+              <span class="inline-cost">{{ formatCost(workspaceFilesCost) }}</span>
+            </div>
+            <pre v-if="previewStats?.workspaceFiles.preview" class="preview-pre">{{ previewStats.workspaceFiles.preview }}</pre>
+            <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>
+          </div>
+
           <!-- 活动编辑器预览 -->
           <div class="preview-section" v-if="config.includeActiveEditor">
-            <div class="preview-label">{{ t('components.settings.contextSettings.preview.activeEditorLabel') }}</div>
+            <div class="preview-label">
+              {{ t('components.settings.contextSettings.preview.activeEditorLabel') }}
+              <span class="inline-cost">{{ formatCost(activeEditorCost) }}</span>
+            </div>
             <div class="preview-content">
               <code v-if="activeEditor">{{ activeEditor }}</code>
               <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>
@@ -306,7 +376,10 @@ const {
           
           <!-- 打开标签页预览 -->
           <div class="preview-section" v-if="config.includeOpenTabs">
-            <div class="preview-label">{{ t('components.settings.contextSettings.preview.openTabsLabel', { count: openTabs.length }) }}</div>
+            <div class="preview-label">
+              {{ t('components.settings.contextSettings.preview.openTabsLabel', { count: openTabs.length }) }}
+              <span class="inline-cost">{{ formatCost(openTabsCost) }}</span>
+            </div>
             <div class="preview-content">
               <div v-if="openTabs.length > 0" class="tabs-list">
                 <code v-for="(tab, index) in openTabs.slice(0, config.maxOpenTabs === -1 ? undefined : config.maxOpenTabs)" :key="index">
@@ -315,6 +388,29 @@ const {
                 <span v-if="config.maxOpenTabs !== -1 && openTabs.length > config.maxOpenTabs" class="truncated">
                   {{ t('components.settings.contextSettings.preview.moreItems', { count: openTabs.length - config.maxOpenTabs }) }}
                 </span>
+              </div>
+              <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>
+            </div>
+          </div>
+
+          <!-- 诊断预览 -->
+          <div class="preview-section" v-if="config.diagnostics?.enabled">
+            <div class="preview-label">
+              {{ t('components.settings.contextSettings.preview.diagnosticsLabel', { files: previewStats?.diagnostics.files ?? 0, count: previewStats?.diagnostics.items ?? 0 }) }}
+              <span class="inline-cost">{{ formatCost(diagnosticsCost) }}</span>
+            </div>
+            <pre v-if="previewStats?.diagnostics.preview" class="preview-pre">{{ previewStats.diagnostics.preview }}</pre>
+            <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>
+          </div>
+
+          <!-- Ignore pattern 命中预览 -->
+          <div class="preview-section">
+            <div class="preview-label">
+              {{ t('components.settings.contextSettings.preview.ignoreMatchesLabel', { count: previewStats?.ignorePatterns.matchedFiles ?? 0 }) }}
+            </div>
+            <div class="preview-content">
+              <div v-if="previewStats?.ignorePatterns.samples.length" class="tabs-list">
+                <code v-for="sample in previewStats.ignorePatterns.samples" :key="sample">{{ sample }}</code>
               </div>
               <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>
             </div>

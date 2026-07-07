@@ -20,6 +20,14 @@ export interface ContextSnapshotTrim {
     trimStartIndex: number;
     lastSummaryIndex: number;
     effectiveStartIndex: number;
+    summary?: {
+        preview: string;
+        charCount: number;
+        truncated: boolean;
+        summarizedMessageCount?: number;
+        keptRecentRounds?: number;
+        generatedAt?: number;
+    };
 }
 
 /**

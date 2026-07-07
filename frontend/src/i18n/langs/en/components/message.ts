@@ -18,7 +18,10 @@ export const enComponentsMessage = {
     summary: {
         title: 'Context Summary',
         compressed: 'Compressed {count} messages',
-        deleteTitle: 'Delete Summary'
+        keptRounds: 'Kept last {count} rounds',
+        generatedAt: 'Generated at {time}',
+        deleteTitle: 'Undo summary',
+        resummarizeTitle: 'Regenerate summary'
     },
     checkpoint: {
         userMessageBefore: 'Before User Message',

@@ -3,7 +3,14 @@
  */
 
 import { t } from '../../backend/i18n';
+import { redactSensitiveText } from '../../backend/core/redaction';
+import type { StreamChunk } from '../../backend/modules/channel/types';
+import type { Content } from '../../backend/modules/conversation/types';
 import type { HandlerContext, MessageHandler } from '../types';
+
+function isAsyncIterable(value: unknown): value is AsyncGenerator<StreamChunk> {
+  return !!value && typeof (value as any)[Symbol.asyncIterator] === 'function';
+}
 
 /**
  * 列出所有配置
@@ -97,6 +104,60 @@ export const setActiveModel: MessageHandler = async (data, requestId, ctx) => {
   }
 };
 
+export const testConnection: MessageHandler = async (data, requestId, ctx) => {
+  const { configId } = data;
+  const startedAt = Date.now();
+
+  try {
+    const config = await ctx.configManager.getConfig(configId);
+    if (!config) {
+      ctx.sendError(requestId, 'TEST_CONNECTION_ERROR', `Config not found: ${configId}`);
+      return;
+    }
+
+    const validation = await ctx.configManager.validateConfig(config);
+    if (!validation.valid) {
+      ctx.sendResponse(requestId, {
+        ok: false,
+        message: (validation.errors || []).join('; ') || 'Invalid configuration',
+        warnings: validation.warnings || [],
+      });
+      return;
+    }
+
+    const history: Content[] = [{
+      role: 'user',
+      parts: [{ text: 'Reply with exactly: OK' }],
+    }];
+
+    const response = await ctx.channelManager.generate({
+      configId,
+      history,
+      skipTools: true,
+      skipRetry: true,
+    });
+
+    if (isAsyncIterable(response)) {
+      for await (const chunk of response) {
+        if (chunk.done) break;
+      }
+    }
+
+    ctx.sendResponse(requestId, {
+      ok: true,
+      message: 'Connection test succeeded',
+      latencyMs: Date.now() - startedAt,
+      warnings: validation.warnings || [],
+    });
+  } catch (error) {
+    ctx.sendResponse(requestId, {
+      ok: false,
+      message: redactSensitiveText(error instanceof Error ? error.message : String(error)),
+      latencyMs: Date.now() - startedAt,
+    });
+  }
+};
+
 /**
  * 注册配置管理处理器
  */
@@ -106,6 +167,7 @@ export function registerConfigHandlers(registry: Map<string, MessageHandler>): v
   registry.set('config.createConfig', createConfig);
   registry.set('config.updateConfig', updateConfig);
   registry.set('config.deleteConfig', deleteConfig);
+  registry.set('config.testConnection', testConnection);
   registry.set('models.getModels', getModels);
   registry.set('models.addModels', addModels);
   registry.set('models.removeModel', removeModel);

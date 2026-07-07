@@ -48,7 +48,10 @@ export const enComponentsCommon = {
         title: 'Dependencies Required',
         defaultMessage: 'This feature requires the following dependencies:',
         hint: 'Please go to',
-        linkText: 'Extension Dependencies'
+        linkText: 'Tools Settings',
+        installMissing: 'Install missing',
+        installing: 'Installing...',
+        copyFailureLog: 'Copy failure log'
     },
     emptyState: {
         noData: 'No data',
@@ -71,6 +74,7 @@ export const enComponentsCommon = {
         titleUsed: 'Context Used',
         noData: 'No context data',
         copyDebug: 'Copy debug info',
+        openContextSettings: 'Context settings',
         summary: {
             config: 'Config',
             toolMode: 'Tool mode',
@@ -93,7 +97,10 @@ export const enComponentsCommon = {
             fullHistory: 'History messages',
             trimmedHistory: 'Sent messages',
             trimStartIndex: 'Trim start index',
-            lastSummaryIndex: 'Last summary index'
+            lastSummaryIndex: 'Last summary index',
+            summaryPreview: 'Context Summary',
+            summarizedMessages: 'Summarized messages',
+            keptRounds: 'Kept rounds'
         },
         tools: {
             title: 'Tool Definitions'

@@ -4,23 +4,33 @@
  * 扁平化设计，显示所有对话记录
  */
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { IconButton } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension } from '../../utils/vscode'
 import type { Conversation } from '../../stores'
 import { t } from '../../i18n'
+import { getWorkspaceLabel } from './historyUtils'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   conversations: Conversation[]
   currentId: string | null
   loading?: boolean
   formatTime: (timestamp: number) => string
-}>()
+  showWorkspace?: boolean
+  selectable?: boolean
+  selectedIds?: string[]
+}>(), {
+  loading: false,
+  showWorkspace: false,
+  selectable: false,
+  selectedIds: () => []
+})
 
 const emit = defineEmits<{
   select: [id: string]
   delete: [id: string]
+  toggleSelect: [id: string]
 }>()
 
 // 使用 chatStore 检查删除状态
@@ -28,6 +38,7 @@ const chatStore = useChatStore()
 
 // 悬停状态
 const hoverItemId = ref<string | null>(null)
+const selectedIdSet = computed(() => new Set(props.selectedIds))
 
 // 处理删除
 function handleDelete(id: string) {
@@ -36,6 +47,10 @@ function handleDelete(id: string) {
     return
   }
   emit('delete', id)
+}
+
+function handleToggleSelect(id: string) {
+  emit('toggleSelect', id)
 }
 
 // 处理在文件管理器中显示
@@ -65,17 +80,30 @@ async function handleRevealInExplorer(id: string) {
       <div
         v-for="conversation in conversations"
         :key="conversation.id"
-        :class="['conversation-item', { active: conversation.id === currentId }]"
+        :class="['conversation-item', { active: conversation.id === currentId, selected: selectedIdSet.has(conversation.id) }]"
         @click="emit('select', conversation.id)"
         @mouseenter="hoverItemId = conversation.id"
         @mouseleave="hoverItemId = null"
       >
+        <label v-if="selectable" class="item-checkbox" @click.stop>
+          <input
+            type="checkbox"
+            :checked="selectedIdSet.has(conversation.id)"
+            @change="handleToggleSelect(conversation.id)"
+          />
+        </label>
+
         <div class="item-content">
           <div class="item-title">{{ conversation.title }}</div>
+          <div v-if="conversation.preview" class="item-preview">{{ conversation.preview }}</div>
           <div class="item-meta">
             <span class="item-time">{{ formatTime(conversation.updatedAt) }}</span>
+            <span v-if="showWorkspace" class="item-workspace" :title="conversation.workspaceUri || ''">
+              <i class="codicon codicon-root-folder"></i>
+              {{ getWorkspaceLabel(conversation.workspaceUri) }}
+            </span>
             <span v-if="conversation.messageCount > 0" class="item-count">
-              {{ conversation.messageCount }} messages
+              {{ conversation.messageCount }} {{ t('components.history.messages') }}
             </span>
           </div>
         </div>
@@ -177,6 +205,23 @@ async function handleRevealInExplorer(id: string) {
   background: var(--vscode-list-activeSelectionBackground);
 }
 
+.conversation-item.selected:not(.active) {
+  background: var(--vscode-list-inactiveSelectionBackground);
+}
+
+.item-checkbox {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 1px;
+  margin-right: var(--spacing-sm, 8px);
+  cursor: pointer;
+}
+
+.item-checkbox input {
+  margin: 0;
+  accent-color: var(--vscode-button-background);
+}
+
 .item-content {
   flex: 1;
   min-width: 0;
@@ -197,6 +242,7 @@ async function handleRevealInExplorer(id: string) {
 .item-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--spacing-sm, 8px);
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
@@ -210,13 +256,28 @@ async function handleRevealInExplorer(id: string) {
   opacity: 0.6;
 }
 
+.item-workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 180px;
+  min-width: 0;
+  opacity: 0.75;
+}
+
+.item-workspace .codicon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
 .item-preview {
   font-size: 12px;
   color: var(--vscode-descriptionForeground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 240px;
+  max-width: 100%;
+  opacity: 0.82;
 }
 
 .item-actions {

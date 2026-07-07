@@ -131,7 +131,7 @@ async function previewAttachment(attachment: Attachment) {
       <IconButton
         icon="codicon-list-ordered"
         size="small"
-        class="create-task-button"
+        class="create-plan-button"
         :aria-label="t('components.input.createPlan')"
         @click="emitOpenPlanModal"
       />
@@ -373,12 +373,12 @@ async function previewAttachment(attachment: Attachment) {
   font-size: 17px !important;
 }
 
-.create-task-button {
+.create-plan-button {
   color: var(--vscode-textLink-foreground);
   opacity: 1;
 }
 
-.create-task-button:hover:not(:disabled) {
+.create-plan-button:hover:not(:disabled) {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
