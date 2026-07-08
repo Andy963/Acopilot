@@ -200,13 +200,13 @@ const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewD
         </div>
 
         <!-- 工具调用格式 -->
-        <div class="capability-row">
-          <div class="capability-icon">
-            <i class="codicon codicon-symbol-method"></i>
-          </div>
+        <div class="capability-row tool-mode-row">
           <div class="capability-content">
             <div class="capability-header">
-              <span class="capability-label">{{ t('components.settings.channelSettings.form.toolMode.label') }}</span>
+              <span class="capability-label">
+                <i class="codicon codicon-symbol-method"></i>
+                {{ t('components.settings.channelSettings.form.toolMode.label') }}
+              </span>
               <span class="capability-value">{{ toolModeDisplayName }}</span>
             </div>
             <CustomSelect :model-value="currentConfig.toolMode || 'function_call'" :options="toolModeOptions"
@@ -241,16 +241,17 @@ const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewD
 
         <!-- 多模态工具配置 -->
         <div class="capability-row multimodal-row">
-          <div class="capability-icon">
-            <i class="codicon codicon-file"></i>
-          </div>
           <div class="capability-content">
-            <div class="capability-header">
-              <label class="custom-checkbox compact">
+            <div class="capability-header multimodal-header">
+              <span class="capability-label">
+                <i class="codicon codicon-file"></i>
+                {{ t('components.settings.channelSettings.form.multimodalSummary') }}
+              </span>
+              <label class="custom-checkbox compact multimodal-toggle">
                 <input type="checkbox" :checked="currentConfig.multimodalToolsEnabled ?? false"
+                  :aria-label="t('components.settings.channelSettings.form.multimodalSummary')"
                   @change="(e: any) => updateConfigField('multimodalToolsEnabled', e.target.checked)" />
                 <span class="checkmark"></span>
-                <span class="checkbox-text">{{ t('components.settings.channelSettings.form.multimodalSummary') }}</span>
               </label>
             </div>
             <div class="multimodal-inline">

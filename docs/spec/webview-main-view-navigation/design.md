@@ -45,6 +45,16 @@ The implementation keeps these paths explicit and routes them through `settingsS
 
 External settings navigation also uses the same rule: if no current channel or model config is available, `Show Settings` opens Channel settings instead of restoring an unrelated tab.
 
+## History Back Affordance
+
+The history page uses a local header affordance for returning to chat:
+
+- Place the control in the left header group before the history title.
+- Render the control with `codicon-arrow-left` to communicate backward navigation.
+- Keep the action routed through `settingsStore.showChat()`.
+- Keep the accessible label/title backed by `components.history.backToChat`.
+- Keep the right header group focused on history actions such as workspace filtering and selection management.
+
 ## Risks
 
 - Persisted state can contain stale values from older builds. Runtime validation must reject invalid tab IDs.

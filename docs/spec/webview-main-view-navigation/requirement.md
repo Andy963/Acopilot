@@ -15,6 +15,9 @@ Webview navigation currently uses `settingsStore.currentView` for the main view 
 - The supported main views remain `chat`, `history`, and `settings`.
 - Main view metadata must be available from a single source of truth.
 - Commands and UI handlers must continue to switch to chat, history, and settings through the settings store.
+- The history view must expose a left-side back navigation control that returns to the chat view.
+- The history-to-chat navigation control must use a directional back arrow icon instead of a close icon.
+- The history-to-chat navigation control must keep an accessible label or title based on the existing history `backToChat` localization key.
 - Opening settings without an explicit tab must keep the current or restored settings tab instead of forcing `channel`.
 - Opening settings with an explicit tab must switch to that tab and persist it.
 - Invalid persisted settings tab values must fall back to `channel`.
@@ -30,5 +33,6 @@ Webview navigation currently uses `settingsStore.currentView` for the main view 
 ## Validation
 
 - Unit tests cover settings tab persistence and invalid persisted tab fallback.
+- Static frontend tests cover the history view back navigation affordance.
 - Type checking must pass for backend and frontend.
 - The frontend build must pass.

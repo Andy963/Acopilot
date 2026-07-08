@@ -58,6 +58,32 @@ describe('VS Code outer menu enhancements', () => {
     expect(app).toContain('@click="handleShowSettings"');
   });
 
+  it('renders history return as a left-side back navigation control', () => {
+    const historyPage = readProjectFile('frontend/src/components/history/HistoryPage.vue');
+
+    expect(historyPage).toContain('class="page-header-left"');
+    expect(historyPage).toContain('class="history-back-btn"');
+    expect(historyPage).toContain(':title="t(\'components.history.backToChat\')"');
+    expect(historyPage).toContain(':aria-label="t(\'components.history.backToChat\')"');
+    expect(historyPage).toContain('@click="settingsStore.showChat"');
+    expect(historyPage).toContain('codicon-arrow-left');
+    expect(historyPage).not.toContain('class="close-btn"');
+  });
+
+  it('keeps channel capability controls compact and scan-friendly', () => {
+    const channelSettings = readProjectFile('frontend/src/components/settings/ChannelSettings.vue');
+    const channelSettingsCss = readProjectFile('frontend/src/components/settings/ChannelSettings.part1.css');
+
+    expect(channelSettings).toContain('class="capability-row tool-mode-row"');
+    expect(channelSettings).toContain('<i class="codicon codicon-symbol-method"></i>');
+    expect(channelSettings).not.toContain('<div class="capability-icon">\n            <i class="codicon codicon-symbol-method"></i>');
+    expect(channelSettings).toContain('class="capability-header multimodal-header"');
+    expect(channelSettings).toContain('class="custom-checkbox compact multimodal-toggle"');
+    expect(channelSettings).toContain(':aria-label="t(\'components.settings.channelSettings.form.multimodalSummary\')"');
+    expect(channelSettingsCss).toContain('.tool-mode-row');
+    expect(channelSettingsCss).toContain('.multimodal-toggle');
+  });
+
   it('keeps file and selection reference feedback distinguishable', () => {
     const payloadBuilders = readProjectFile('extension/payloadBuilders.ts');
     const bridge = readProjectFile('frontend/src/composables/useAppBridge.ts');
