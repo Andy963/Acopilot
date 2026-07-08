@@ -28,18 +28,34 @@ describe('VS Code outer menu enhancements', () => {
     expect(commands.every((entry) => entry.title.startsWith('Acopilot: '))).toBe(true);
   });
 
-  it('exposes new chat, history, and settings from the view title menu with separated action ranks', () => {
-    const viewTitle = readPackageJson().contributes.menus['view/title'] as Array<{
+  it('keeps webview navigation actions out of the native view title menu', () => {
+    const viewTitle = (readPackageJson().contributes.menus['view/title'] ?? []) as Array<{
       command: string;
       when: string;
       group: string;
     }>;
-
-    expect(viewTitle).toEqual([
-      { command: 'acopilot.newChat', when: 'view == acopilot.chatView', group: 'navigation@1' },
-      { command: 'acopilot.showHistory', when: 'view == acopilot.chatView', group: 'navigation@10' },
-      { command: 'acopilot.showSettings', when: 'view == acopilot.chatView', group: 'navigation@20' },
+    const webviewNavigationCommands = new Set([
+      'acopilot.newChat',
+      'acopilot.showHistory',
+      'acopilot.showSettings',
     ]);
+
+    expect(viewTitle.filter((entry) => webviewNavigationCommands.has(entry.command))).toEqual([]);
+  });
+
+  it('renders spaced webview toolbar actions for new chat, history, and settings', () => {
+    const app = readProjectFile('frontend/src/App.vue');
+
+    expect(app).toContain('class="app-toolbar"');
+    expect(app).toContain('class="app-toolbar-actions"');
+    expect(app).toContain('class="app-view"');
+    expect(app).toContain('gap: 12px');
+    expect(app).toContain('icon="codicon-add"');
+    expect(app).toContain('@click="handleNewChat"');
+    expect(app).toContain('icon="codicon-history"');
+    expect(app).toContain('@click="handleShowHistory"');
+    expect(app).toContain('icon="codicon-settings-gear"');
+    expect(app).toContain('@click="handleShowSettings"');
   });
 
   it('keeps file and selection reference feedback distinguishable', () => {

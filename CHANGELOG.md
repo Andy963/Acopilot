@@ -5,7 +5,7 @@ All notable changes to the "Acopilot" extension will be documented in this file.
 ## [1.1.6] - 2026-07-08
 
 ### Improved
-  - View title actions: increase menu rank spacing between New Chat, Show History, and Show Settings to reduce misclicks.
+  - Webview navigation: move New Chat, History, and Settings into a spaced Acopilot toolbar instead of relying on native view title action ranks.
 
 ## [1.1.5] - 2026-07-08
 

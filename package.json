@@ -68,23 +68,6 @@
           "command": "acopilot.addFileToChat",
           "group": "navigation@9"
         }
-      ],
-      "view/title": [
-        {
-          "command": "acopilot.newChat",
-          "when": "view == acopilot.chatView",
-          "group": "navigation@1"
-        },
-        {
-          "command": "acopilot.showHistory",
-          "when": "view == acopilot.chatView",
-          "group": "navigation@10"
-        },
-        {
-          "command": "acopilot.showSettings",
-          "when": "view == acopilot.chatView",
-          "group": "navigation@20"
-        }
       ]
     },
     "viewsContainers": {

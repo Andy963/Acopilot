@@ -1,28 +1,30 @@
 # View Title Action Spacing Requirement
 
-## Background
+## 背景
 
-The Acopilot view title exposes three primary actions: New Chat, Show History, and Show Settings. Their menu ranks were consecutive, which made the top action row feel too dense and easier to misclick.
+Acopilot 需要在主视图中提供三个高频入口：新建对话、历史记录和设置。此前的 `v1.1.6` 尝试通过拉开 VS Code `view/title` menu rank 来制造按钮间距，但 VS Code 原生 title action 只保证排序，不提供可控的像素间距，因此这个方案无法稳定解决视觉过密问题。
 
-## Goal
+## 目标
 
-Increase the separation between the three Acopilot view title actions while keeping all three actions available from the Acopilot view title.
+把三个入口放入 Acopilot webview 内部的固定 toolbar，由前端 DOM 和 CSS 控制按钮间距；不要再依赖 VS Code 原生 `view/title` action 的 rank 来表达间距。
 
-## Requirements
+## 需求
 
-- Keep New Chat, Show History, and Show Settings visible in the Acopilot view title menu.
-- Preserve the existing command IDs, command titles, icons, and command behavior.
-- Increase the menu rank spacing between the three view title actions.
-- Add a static test assertion that prevents the actions from returning to consecutive ranks.
+- 新建对话、历史记录和设置三个入口必须在 Acopilot webview 顶部可见。
+- 三个入口必须继续复用现有 command 行为和前端导航行为。
+- 三个入口之间的间距必须由 webview CSS 控制，不能依赖 VS Code 原生 title action rank。
+- `package.json` 不应继续把这三个入口贡献到 `view/title`，避免原生标题区继续显示紧密按钮组。
+- 保留 command 注册、command ID、command title 和 icon，确保命令面板、快捷键或宿主侧发送命令仍可使用。
+- 增加静态测试，防止再次把此问题退回到 `view/title` rank spacing。
 
-## Non-Goals
+## 非目标
 
-- Do not redesign the Webview UI.
-- Do not remove any of the three title actions.
-- Do not change activity bar view registration.
+- 不改变 Acopilot activity bar view 注册。
+- 不改变 conversation、history 或 settings 的业务逻辑。
+- 不引入新的后端协议。
 
-## Validation
+## 验证
 
-- The VS Code menu enhancement test must pass.
-- Project validators must pass.
-- Extension build must pass.
+- VS Code 菜单增强测试必须覆盖 `view/title` 移除和 webview toolbar 存在。
+- 项目 validators 必须通过。
+- 前端和扩展构建必须通过。
