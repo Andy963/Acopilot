@@ -28,7 +28,7 @@ describe('VS Code outer menu enhancements', () => {
     expect(commands.every((entry) => entry.title.startsWith('Acopilot: '))).toBe(true);
   });
 
-  it('exposes new chat, history, and settings from the view title menu', () => {
+  it('exposes new chat, history, and settings from the view title menu with separated action ranks', () => {
     const viewTitle = readPackageJson().contributes.menus['view/title'] as Array<{
       command: string;
       when: string;
@@ -37,8 +37,8 @@ describe('VS Code outer menu enhancements', () => {
 
     expect(viewTitle).toEqual([
       { command: 'acopilot.newChat', when: 'view == acopilot.chatView', group: 'navigation@1' },
-      { command: 'acopilot.showHistory', when: 'view == acopilot.chatView', group: 'navigation@2' },
-      { command: 'acopilot.showSettings', when: 'view == acopilot.chatView', group: 'navigation@3' },
+      { command: 'acopilot.showHistory', when: 'view == acopilot.chatView', group: 'navigation@10' },
+      { command: 'acopilot.showSettings', when: 'view == acopilot.chatView', group: 'navigation@20' },
     ]);
   });
 

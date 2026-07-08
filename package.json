@@ -78,12 +78,12 @@
         {
           "command": "acopilot.showHistory",
           "when": "view == acopilot.chatView",
-          "group": "navigation@2"
+          "group": "navigation@10"
         },
         {
           "command": "acopilot.showSettings",
           "when": "view == acopilot.chatView",
-          "group": "navigation@3"
+          "group": "navigation@20"
         }
       ]
     },
