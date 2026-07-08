@@ -272,6 +272,7 @@ export class SettingsManagerTools extends SettingsManagerBase {
 
     const retentionDaysRaw = (config as any).expiredConversationRetentionDays;
     const retentionDays = Number.isFinite(retentionDaysRaw) ? Number(retentionDaysRaw) : 30;
+    const cleanupOnStartupRaw = (config as any).cleanupExpiredConversationsOnStartup;
 
     return {
       ...config,
@@ -279,7 +280,7 @@ export class SettingsManagerTools extends SettingsManagerBase {
       afterTools: normalizeList(config.afterTools),
       messageCheckpoint: config.messageCheckpoint ? { ...config.messageCheckpoint } : undefined,
       customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : [],
-      cleanupExpiredConversationsOnStartup: !!(config as any).cleanupExpiredConversationsOnStartup,
+      cleanupExpiredConversationsOnStartup: cleanupOnStartupRaw == null ? true : !!cleanupOnStartupRaw,
       expiredConversationRetentionDays: Math.max(1, Math.floor(retentionDays)),
     };
   }

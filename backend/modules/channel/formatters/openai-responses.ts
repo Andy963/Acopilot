@@ -89,8 +89,8 @@ export class OpenAIResponsesFormatter extends BaseFormatter {
         const genConfig = this.buildGenerationConfig(config);
         Object.assign(body, genConfig);
 
-        // 决定是否使用流式（可由 request.streamOverride 强制覆写）
-        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
+        // Decide whether to use streaming; request.streamOverride has the highest priority.
+        const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? true;
         
         // 始终将 stream 添加到请求体
         body.stream = useStream;

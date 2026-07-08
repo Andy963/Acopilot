@@ -40,6 +40,7 @@ describe('default config bootstrap', () => {
     expect(configs[0]?.name).toBe('Gemini(Default)');
     expect(configs[0]?.type).toBe('gemini');
     expect(configs[0]?.apiKey).toBe('bootstrap-secret');
+    expect((configs[0] as any)?.options?.stream).toBe(true);
     expect(settingsManager.getActiveChannelId()).toBe(configs[0]?.id);
 
     const persisted = await configStorage.load(configs[0]!.id);

@@ -56,7 +56,7 @@ export function useCheckpointSettingsConfig() {
     afterTools: [],
     messageCheckpoint: createDefaultMessageCheckpoint(),
     maxCheckpoints: -1,
-    cleanupExpiredConversationsOnStartup: false,
+    cleanupExpiredConversationsOnStartup: true,
     expiredConversationRetentionDays: 30,
   })
 
@@ -107,7 +107,7 @@ export function useCheckpointSettingsConfig() {
           afterTools: [...config.afterTools],
           messageCheckpoint: normalizeMessageCheckpoint(config.messageCheckpoint),
           maxCheckpoints: config.maxCheckpoints,
-          cleanupExpiredConversationsOnStartup: config.cleanupExpiredConversationsOnStartup ?? false,
+          cleanupExpiredConversationsOnStartup: config.cleanupExpiredConversationsOnStartup ?? true,
           expiredConversationRetentionDays: config.expiredConversationRetentionDays ?? 30,
           customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : [],
         },

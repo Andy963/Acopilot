@@ -44,7 +44,7 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     ],
     messageCheckpoint: DEFAULT_MESSAGE_CHECKPOINT_CONFIG,
     maxCheckpoints: -1,
-    cleanupExpiredConversationsOnStartup: false,
+    cleanupExpiredConversationsOnStartup: true,
     expiredConversationRetentionDays: 30,
     customIgnorePatterns: []
 };

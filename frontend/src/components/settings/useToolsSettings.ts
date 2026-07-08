@@ -154,6 +154,14 @@ export function useToolsSettings() {
     return name.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase())
   }
 
+  function getToolDescription(tool: ToolInfo): string {
+    if (isMcpTool(tool)) return tool.description
+
+    const key = `components.settings.toolsSettings.descriptions.${tool.name}`
+    const translated = t(key)
+    return translated === key ? tool.description : translated
+  }
+
   function getCategoryDisplayName(category: string): string {
     return t(getCategoryNameKey(category))
   }
@@ -464,6 +472,7 @@ export function useToolsSettings() {
     confirmEnableAllAutoExec,
     disableAllAutoExec,
     getToolDisplayName,
+    getToolDescription,
     getCategoryDisplayName,
     getCategoryIcon,
     getCategoryEnabledCount,

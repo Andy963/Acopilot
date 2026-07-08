@@ -152,7 +152,7 @@ for await (const chunk of result as AsyncGenerator<StreamChunk>) {
 
 ```typescript
 // 决策逻辑（两级配置）
-const useStream = config.options?.stream ?? config.preferStream ?? false;
+const useStream = config.options?.stream ?? config.preferStream ?? true;
 ```
 
 - ✅ **配置完全控制**：所有生成参数都在配置中设置

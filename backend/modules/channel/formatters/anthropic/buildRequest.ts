@@ -63,7 +63,7 @@ export function buildAnthropicRequest(
   const genConfig = buildAnthropicGenerationConfig(config);
   Object.assign(body, genConfig);
 
-  const useStream = request.streamOverride ?? (config.options as any)?.stream ?? (config as any).preferStream ?? false;
+  const useStream = request.streamOverride ?? (config.options as any)?.stream ?? (config as any).preferStream ?? true;
   body.stream = useStream;
 
   let baseUrl = config.url.replace(/\/+$/, '');

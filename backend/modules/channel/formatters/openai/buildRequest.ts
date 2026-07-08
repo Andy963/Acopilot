@@ -78,7 +78,7 @@ export function buildOpenAIRequest(
   const genConfig = buildOpenAIGenerationConfig(config);
   Object.assign(body, genConfig);
 
-  const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
+  const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? true;
   body.stream = useStream;
 
   if (useStream) {

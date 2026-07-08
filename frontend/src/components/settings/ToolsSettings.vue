@@ -57,6 +57,7 @@ const {
   confirmEnableAllAutoExec,
   disableAllAutoExec,
   getToolDisplayName,
+  getToolDescription,
   getCategoryDisplayName,
   getCategoryIcon,
   getCategoryEnabledCount,
@@ -167,7 +168,7 @@ async function handleInstallMissingDependencies(toolName: string) {
                     {{ t('components.settings.toolsSettings.dependency.required') }}
                   </span> -->
                 </div>
-                <div class="tool-description" :title="tool.description">{{ tool.description }}</div>
+                <div class="tool-description" :title="getToolDescription(tool)">{{ getToolDescription(tool) }}</div>
               </div>
 
               <!-- 启用列 -->

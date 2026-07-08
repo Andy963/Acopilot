@@ -238,7 +238,7 @@ onMounted(() => {
       <div class="divider"></div>
 
       <CheckpointCleanupSection
-        :auto-cleanup="config.cleanupExpiredConversationsOnStartup ?? false"
+        :auto-cleanup="config.cleanupExpiredConversationsOnStartup ?? true"
         :search-query="searchQuery"
         :conversations="conversationsWithCheckpoints"
         :is-cleanup-loading="isCleanupLoading"

@@ -20,7 +20,7 @@ export class ChannelManager extends ChannelManagerHttp {
     }
 
     const optionsStream = (config as any).options?.stream;
-    const useStream = request.streamOverride ?? optionsStream ?? config.preferStream ?? false;
+    const useStream = request.streamOverride ?? optionsStream ?? config.preferStream ?? true;
 
     if (useStream) {
       return this.generateStream({ ...request, streamOverride: true });
