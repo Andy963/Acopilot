@@ -1,70 +1,82 @@
-/**
- * 设置 Store
- * 管理应用设置、配置和页面视图
- */
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { SupportedLanguage } from '@/i18n/types'
 import { normalizeSupportedLanguage } from '@/i18n/language'
+import { MAIN_VIEW_REGISTRY, MAIN_VIEWS, isAppView, type AppView } from '@/navigation/mainViews'
 import { loadState, saveState } from '@/utils/vscode'
 
-export type SettingsTab = 'channel' | 'tools' | 'mcp' | 'checkpoint' | 'summarize' | 'imageGen' | 'context' | 'prompt' | 'general'
+export type { AppView } from '@/navigation/mainViews'
 
-/** 应用页面视图类型 */
-export type AppView = 'chat' | 'history' | 'settings'
-
-/** 支持的语言 */
 export type Language = SupportedLanguage
 
+export const SETTINGS_TAB_IDS = [
+  'channel',
+  'tools',
+  'mcp',
+  'checkpoint',
+  'summarize',
+  'imageGen',
+  'context',
+  'prompt',
+  'general',
+] as const
+
+export type SettingsTab = (typeof SETTINGS_TAB_IDS)[number]
+
 const LANGUAGE_STATE_KEY = 'ui.language'
+const SETTINGS_ACTIVE_TAB_STATE_KEY = 'ui.settings.activeTab'
+
+export function isSettingsTab(value: unknown): value is SettingsTab {
+  return typeof value === 'string' && SETTINGS_TAB_IDS.includes(value as SettingsTab)
+}
 
 function loadInitialLanguage(): Language {
   return normalizeSupportedLanguage(loadState(LANGUAGE_STATE_KEY, 'auto'))
 }
 
+function loadInitialActiveTab(): SettingsTab {
+  const storedTab = loadState<unknown>(SETTINGS_ACTIVE_TAB_STATE_KEY, 'channel')
+  return isSettingsTab(storedTab) ? storedTab : 'channel'
+}
+
 export const useSettingsStore = defineStore('settings', () => {
-  // 当前视图（默认为聊天）
   const currentView = ref<AppView>('chat')
-  
-  // 设置面板的标签页
-  const activeTab = ref<SettingsTab>('channel')
-  
-  // 当前语言（默认跟随系统）
+  const activeTab = ref<SettingsTab>(loadInitialActiveTab())
   const language = ref<Language>(loadInitialLanguage())
 
-  // 计算属性：是否显示设置面板（向后兼容）
   const isVisible = computed(() => currentView.value === 'settings')
+  const currentViewDefinition = computed(() => MAIN_VIEW_REGISTRY[currentView.value])
 
-  // 切换到聊天视图
+  function showView(view: AppView) {
+    if (!isAppView(view)) return
+    currentView.value = view
+  }
+
   function showChat() {
-    currentView.value = 'chat'
-  }
-  
-  // 切换到历史视图
-  function showHistory() {
-    currentView.value = 'history'
+    showView('chat')
   }
 
-  // 显示设置面板
+  function showHistory() {
+    showView('history')
+  }
+
   function showSettings(tab?: SettingsTab) {
-    currentView.value = 'settings'
+    showView('settings')
     if (tab) {
-      activeTab.value = tab
+      setActiveTab(tab)
     }
   }
 
-  // 隐藏设置面板（回到聊天）
   function hideSettings() {
-    currentView.value = 'chat'
+    showChat()
   }
 
-  // 设置当前标签
   function setActiveTab(tab: SettingsTab) {
+    if (!isSettingsTab(tab)) return
     activeTab.value = tab
+    saveState(SETTINGS_ACTIVE_TAB_STATE_KEY, tab)
   }
-  
-  // 设置语言
+
   function setLanguage(lang: Language) {
     const nextLanguage = normalizeSupportedLanguage(lang)
     language.value = nextLanguage
@@ -72,13 +84,14 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    // 状态
     currentView,
+    currentViewDefinition,
+    mainViews: MAIN_VIEWS,
     isVisible,
     activeTab,
     language,
 
-    // 方法
+    showView,
     showChat,
     showHistory,
     showSettings,

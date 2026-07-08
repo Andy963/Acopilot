@@ -71,4 +71,64 @@ describe('frontend i18n language unification and persistence', () => {
     settingsStore = settingsStoreModule.useSettingsStore()
     expect(settingsStore.language).toBe('en')
   }, 15000)
+
+  it('persists the last explicit settings tab across store reloads', async () => {
+    const { createPinia, setActivePinia } = await import('pinia')
+    let settingsStoreModule = await import('../frontend/src/stores/settingsStore')
+
+    setActivePinia(createPinia())
+
+    let settingsStore = settingsStoreModule.useSettingsStore()
+    settingsStore.showSettings('tools')
+
+    expect(settingsStore.currentView).toBe('settings')
+    expect(settingsStore.activeTab).toBe('tools')
+    expect(webviewState['ui.settings.activeTab']).toBe('tools')
+
+    vi.resetModules()
+
+    ;(globalThis as any).acquireVsCodeApi = () => ({
+      postMessage: vi.fn(),
+      getState: () => webviewState,
+      setState: (state: Record<string, unknown>) => {
+        webviewState = { ...state }
+      },
+    })
+
+    const { createPinia: createPiniaReloaded, setActivePinia: setActivePiniaReloaded } = await import('pinia')
+    settingsStoreModule = await import('../frontend/src/stores/settingsStore')
+
+    setActivePiniaReloaded(createPiniaReloaded())
+
+    settingsStore = settingsStoreModule.useSettingsStore()
+    expect(settingsStore.activeTab).toBe('tools')
+
+    settingsStore.showSettings()
+    expect(settingsStore.activeTab).toBe('tools')
+  }, 15000)
+
+  it('falls back to channel for invalid persisted settings tabs', async () => {
+    webviewState['ui.settings.activeTab'] = 'missing'
+
+    const { createPinia, setActivePinia } = await import('pinia')
+    const settingsStoreModule = await import('../frontend/src/stores/settingsStore')
+
+    setActivePinia(createPinia())
+
+    const settingsStore = settingsStoreModule.useSettingsStore()
+    expect(settingsStore.activeTab).toBe('channel')
+  }, 15000)
+
+  it('exposes main view registry metadata from the settings store', async () => {
+    const { createPinia, setActivePinia } = await import('pinia')
+    const settingsStoreModule = await import('../frontend/src/stores/settingsStore')
+
+    setActivePinia(createPinia())
+
+    const settingsStore = settingsStoreModule.useSettingsStore()
+    expect(settingsStore.mainViews.map(view => view.id)).toEqual(['chat', 'history', 'settings'])
+
+    settingsStore.showHistory()
+    expect(settingsStore.currentViewDefinition.title).toBe('History')
+  }, 15000)
 })
