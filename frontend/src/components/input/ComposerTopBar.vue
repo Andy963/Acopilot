@@ -31,11 +31,6 @@ const selectionReferences = computed((): SelectionReference[] => {
 
 const selectionReferencesCount = computed(() => selectionReferences.value.length)
 const hasAttachments = computed(() => props.attachments && props.attachments.length > 0)
-const contextLifecycleTooltip = computed(() => [
-  t('components.input.contextLifecycle.atFile'),
-  t('components.input.contextLifecycle.attachment'),
-  t('components.input.contextLifecycle.pinned')
-].join('\n'))
 
 function isTextMimeType(mimeType: string): boolean {
   const mt = String(mimeType || '').toLowerCase()
@@ -213,12 +208,6 @@ async function previewAttachment(attachment: Attachment) {
         @click="emitAttachFile"
       />
     </Tooltip>
-    <Tooltip :content="contextLifecycleTooltip" placement="top">
-      <span class="context-lifecycle-chip">
-        <i class="codicon codicon-info"></i>
-        <span>{{ t('components.input.contextLifecycle.label') }}</span>
-      </span>
-    </Tooltip>
     <Tooltip :content="t('components.input.pinnedFiles')" placement="top">
       <div class="pinned-files-button-wrapper">
         <IconButton
@@ -349,23 +338,6 @@ async function previewAttachment(attachment: Attachment) {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
-}
-
-.context-lifecycle-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  color: var(--vscode-descriptionForeground);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 999px;
-  font-size: 11px;
-  white-space: nowrap;
-  cursor: help;
-}
-
-.context-lifecycle-chip .codicon {
-  font-size: 12px;
 }
 
 .reference-truncated {

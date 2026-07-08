@@ -19,12 +19,6 @@ export const enComponentsInput = {
     autoSummarizeThreshold: 'Auto summarize at',
     openContextInspectorHint: 'Click for a full context breakdown',
     fileNotExists: 'File does not exist',
-    contextLifecycle: {
-        label: 'Context guide',
-        atFile: '@file inserts a path for this request; the model may read it with tools.',
-        attachment: 'Attachments are sent with the current message only.',
-        pinned: 'Pinned Context is injected across conversation turns until removed.'
-    },
     attachmentSupport: {
         supported: 'supported',
         converted: 'text',

@@ -7,11 +7,12 @@ function readProjectFile(path: string): string {
 }
 
 describe('attachment context enhancements', () => {
-  it('shows lifecycle guidance, model support, and token cost on attachment chips', () => {
+  it('shows model support and token cost on attachment chips without the composer context guide', () => {
     const topBar = readProjectFile('frontend/src/components/input/ComposerTopBar.vue');
     const inputI18n = readProjectFile('frontend/src/i18n/langs/en/components/input.ts');
 
-    expect(topBar).toContain('contextLifecycleTooltip');
+    expect(topBar).not.toContain('contextLifecycleTooltip');
+    expect(topBar).not.toContain('context-lifecycle-chip');
     expect(topBar).toContain('getAttachmentSupport');
     expect(topBar).toContain('getTextAttachmentCharCount');
     expect(topBar).toContain('isGeminiInlineSupportedMime');
@@ -19,7 +20,7 @@ describe('attachment context enhancements', () => {
     expect(topBar).toContain('isAttachmentTruncated');
     expect(topBar).toContain('attachment-token-cost');
     expect(topBar).toContain('attachment-support');
-    expect(inputI18n).toContain('contextLifecycle');
+    expect(inputI18n).not.toContain('contextLifecycle');
     expect(inputI18n).toContain('attachmentSupport');
   });
 

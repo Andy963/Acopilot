@@ -19,12 +19,6 @@ export const jaComponentsInput = {
     autoSummarizeThreshold: '自動要約しきい値',
     openContextInspectorHint: 'クリックして詳細な内訳を表示',
     fileNotExists: 'ファイルが存在しません',
-    contextLifecycle: {
-        label: 'コンテキスト案内',
-        atFile: '@file は今回のリクエストにパスを挿入し、モデルはツールで読み取れます。',
-        attachment: '添付ファイルは現在のメッセージにのみ送信されます。',
-        pinned: 'ピン留めコンテキストは削除するまで会話ターンをまたいで注入されます。'
-    },
     attachmentSupport: {
         supported: '対応',
         converted: 'テキスト',
