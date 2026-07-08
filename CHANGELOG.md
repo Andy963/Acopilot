@@ -2,6 +2,14 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.8] - 2026-07-08
+
+### Improved
+  - Tools Settings: show localized built-in tool descriptions while preserving model-facing tool declarations.
+  - Checkpoint Settings: keep cleanup records inside a bounded scroll list and enable startup cleanup by default.
+  - Prompt Settings: default prompt token estimation to OpenAI.
+  - Channel Settings: default provider streaming to enabled for configs without an explicit stream preference.
+
 ## [1.1.7] - 2026-07-08
 
 ### Improved
