@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.3] - 2026-07-08
+
+### Improved
+  - Webview navigation: add a main view registry for chat, history, and settings metadata.
+  - Settings navigation: remember the last opened settings tab across Webview reloads.
+  - First-run setup: route settings entry to Channel settings when no model configuration is available.
+
 ## [1.1.2] - 2026-07-08
 
 ### Improved
