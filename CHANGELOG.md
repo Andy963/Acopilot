@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.5] - 2026-07-08
+
+### Removed
+  - Composer: remove the Context guide chip and info icon from the input toolbar.
+
 ## [1.1.4] - 2026-07-08
 
 ### Improved
