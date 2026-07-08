@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.4] - 2026-07-08
+
+### Improved
+  - Channel Settings: add vertical spacing between the model filter, model list, and manual model ID input.
+
 ## [1.1.3] - 2026-07-08
 
 ### Improved
