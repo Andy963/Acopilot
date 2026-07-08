@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.7] - 2026-07-08
+
+### Improved
+  - History: replace the right-side close affordance with a left-side back arrow for returning to chat.
+  - Channel Settings: reduce tool protocol indentation and move the multimodal support checkbox to the right of its label.
+
 ## [1.1.6] - 2026-07-08
 
 ### Improved
