@@ -2,7 +2,7 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
-## [1.1.11] - 2026-07-10
+## [1.2.0] - 2026-07-10
 
 ### Added
   - Pinned Context: support multiple active pinned prompts per conversation, including skill, preset, and custom prompt blocks.
