@@ -13,6 +13,7 @@ import { CustomCheckbox } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { t } from '@/i18n'
 import SettingsGroup from './common/SettingsGroup.vue'
+import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from './toolDisplay'
 
 // 工具信息接口
 interface ToolInfo {
@@ -155,15 +156,8 @@ async function disableAllAutoExec() {
   }
 }
 
-// 获取工具显示名称
-function getToolDisplayName(tool: ToolInfo): string {
-  // 如果是 MCP 工具，提取原始工具名
-  if (tool.category === 'mcp' && tool.name.startsWith('mcp__')) {
-    const parts = tool.name.split('__')
-    const originalName = parts[2] || tool.name
-    return originalName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-  }
-  return tool.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+function getToolDescription(tool: ToolInfo): string {
+  return getLocalizedToolDescription(tool, t)
 }
 
 // 获取分类图标
@@ -179,11 +173,6 @@ function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
 function isDangerousTool(toolName: string): boolean {
   const dangerousTools = ['apply_diff', 'delete_file', 'execute_command', 'replace_in_files']
   return dangerousTools.includes(toolName)
-}
-
-// 检查工具是否是 MCP 工具
-function isMcpTool(tool: ToolInfo): boolean {
-  return tool.category === 'mcp'
 }
 
 // 组件挂载
@@ -264,7 +253,7 @@ onMounted(() => {
                     {{ tool.serverName }}
                   </span>
                 </div>
-                <div class="tool-description">{{ tool.description }}</div>
+                <div class="tool-description">{{ getToolDescription(tool) }}</div>
               </div>
 
               <div class="tool-actions">

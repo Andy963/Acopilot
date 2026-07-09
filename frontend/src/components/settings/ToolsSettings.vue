@@ -152,7 +152,7 @@ async function handleInstallMissingDependencies(toolName: string) {
               :class="{ 'tool-disabled': hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) }">
               <div class="tool-info">
                 <div class="tool-name-row">
-                  <span class="tool-name">{{ getToolDisplayName(tool.name) }}</span>
+                  <span class="tool-name">{{ getToolDisplayName(tool) }}</span>
                   <span v-if="isDangerousTool(tool.name)" class="danger-badge">
                     <i class="codicon codicon-warning"></i>
                     {{ t('components.settings.autoExec.badges.dangerous') }}

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from '@/i18n'
 import { CustomCheckbox } from '@/components/common'
+import { getLocalizedToolDescription, getToolDisplayName } from '../toolDisplay'
 import type { ToolInfo } from './types'
 
 const { t } = useI18n()
@@ -36,8 +37,8 @@ function isToolInAfter(toolName: string): boolean {
   return props.afterTools.includes(toolName)
 }
 
-function getToolDisplayName(name: string): string {
-  return name.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
+function getToolDescription(tool: ToolInfo): string {
+  return getLocalizedToolDescription(tool, t)
 }
 </script>
 
@@ -78,8 +79,8 @@ function getToolDisplayName(name: string): string {
         class="table-row"
       >
         <div class="col-tool">
-          <span class="tool-name">{{ getToolDisplayName(tool.name) }}</span>
-          <span class="tool-desc">{{ tool.description }}</span>
+          <span class="tool-name">{{ getToolDisplayName(tool) }}</span>
+          <span class="tool-desc">{{ getToolDescription(tool) }}</span>
         </div>
         <div class="col-before">
           <CustomCheckbox

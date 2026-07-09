@@ -2,6 +2,7 @@ import { computed, onMounted, ref } from 'vue'
 import { sendToExtension, showNotification } from '@/utils/vscode'
 import { getToolDependencies, hasToolDependencies, TOOL_DEPENDENCIES, useDependency } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
+import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from './toolDisplay'
 
 export interface ToolInfo {
   name: string
@@ -125,10 +126,6 @@ export function useToolsSettings() {
       .map(([category, categoryTools]) => ({ category, tools: categoryTools }))
   })
 
-  function isMcpTool(tool: ToolInfo): boolean {
-    return tool.category === 'mcp'
-  }
-
   function isDangerousTool(toolName: string): boolean {
     return AUTO_EXEC_CHECKPOINT_PROTECTED_TOOLS.includes(toolName)
   }
@@ -161,16 +158,8 @@ export function useToolsSettings() {
     other: 'codicon-extensions',
   }
 
-  function getToolDisplayName(name: string): string {
-    return name.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase())
-  }
-
   function getToolDescription(tool: ToolInfo): string {
-    if (isMcpTool(tool)) return tool.description
-
-    const key = `components.settings.toolsSettings.descriptions.${tool.name}`
-    const translated = t(key)
-    return translated === key ? tool.description : translated
+    return getLocalizedToolDescription(tool, t)
   }
 
   function getCategoryDisplayName(category: string): string {

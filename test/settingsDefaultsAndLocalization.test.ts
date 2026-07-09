@@ -6,6 +6,8 @@ import { buildOpenAIRequest } from '../backend/modules/channel/formatters/openai
 import { MemorySettingsStorage } from '../backend/modules/settings/storage';
 import { SettingsManager } from '../backend/modules/settings/SettingsManager';
 import { DEFAULT_CHECKPOINT_CONFIG, DEFAULT_GLOBAL_SETTINGS } from '../backend/modules/settings/types';
+import { translate } from '../frontend/src/i18n';
+import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from '../frontend/src/components/settings/toolDisplay';
 
 function readProjectFile(path: string): string {
   return readFileSync(resolve(__dirname, '..', path), 'utf8');
@@ -27,15 +29,84 @@ describe('settings defaults and localization', () => {
   it('uses localized built-in tool descriptions without changing MCP descriptions', () => {
     const settings = readProjectFile('frontend/src/components/settings/ToolsSettings.vue');
     const composable = readProjectFile('frontend/src/components/settings/useToolsSettings.ts');
+    const helper = readProjectFile('frontend/src/components/settings/toolDisplay.ts');
+    const autoExecSettings = readProjectFile('frontend/src/components/settings/AutoExecSettings.vue');
+    const checkpointToolSection = readProjectFile('frontend/src/components/settings/checkpoint/CheckpointToolSettingsSection.vue');
     const zhCN = readProjectFile('frontend/src/i18n/langs/zh-CN/components/settingsPart2b.ts');
 
     expect(settings).toContain('getToolDescription(tool)');
-    expect(composable).toContain('function getToolDescription(tool: ToolInfo): string');
-    expect(composable).toContain('if (isMcpTool(tool)) return tool.description');
-    expect(composable).toContain('components.settings.toolsSettings.descriptions.${tool.name}');
+    expect(settings).toContain('getToolDisplayName(tool)');
+    expect(composable).toContain("from './toolDisplay'");
+    expect(composable).toContain('getLocalizedToolDescription(tool, t)');
+    expect(helper).toContain('export function getLocalizedToolDescription');
+    expect(helper).toContain('if (isMcpTool(tool)) return tool.description');
+    expect(helper).toContain('getToolDescriptionKey(tool.name)');
+    expect(autoExecSettings).toContain("from './toolDisplay'");
+    expect(autoExecSettings).toContain('getToolDescription(tool)');
+    expect(autoExecSettings).not.toContain('{{ tool.description }}');
+    expect(checkpointToolSection).toContain("from '../toolDisplay'");
+    expect(checkpointToolSection).toContain('getToolDescription(tool)');
+    expect(checkpointToolSection).toContain('getToolDisplayName(tool)');
+    expect(checkpointToolSection).not.toContain('{{ tool.description }}');
     expect(zhCN).toContain('descriptions: {');
     expect(zhCN).toContain("execute_command: '执行 Shell 命令并返回输出。'");
     expect(zhCN).toContain("replace_in_files: '在多个文件中搜索并替换文本，支持预览模式。'");
+  });
+
+  it('resolves tool display metadata from localized UI copy', () => {
+    const translate = (key: string) => {
+      if (key === 'components.settings.toolsSettings.descriptions.execute_command') {
+        return 'Localized shell execution description';
+      }
+      return key;
+    };
+
+    expect(getLocalizedToolDescription({
+      name: 'execute_command',
+      description: 'Execute shell commands and return output.',
+      category: 'terminal',
+    }, translate)).toBe('Localized shell execution description');
+    expect(getLocalizedToolDescription({
+      name: 'unknown_tool',
+      description: 'Backend fallback description.',
+      category: 'other',
+    }, translate)).toBe('Backend fallback description.');
+    expect(getLocalizedToolDescription({
+      name: 'mcp__server__custom_tool',
+      description: 'MCP provided description.',
+      category: 'mcp',
+    }, translate)).toBe('MCP provided description.');
+    expect(getToolDisplayName({ name: 'mcp__server__custom_tool', description: '', category: 'mcp' })).toBe('Custom Tool');
+    expect(getToolDisplayName('mcp__server__custom_tool')).toBe('Custom Tool');
+    expect(isMcpTool({ name: 'mcp__server__custom_tool', description: '' })).toBe(true);
+  });
+
+  it('resolves built-in tool descriptions through the active language pack', () => {
+    const zhTranslate = (key: string) => translate('zh-CN', key);
+
+    expect(getLocalizedToolDescription({
+      name: 'execute_command',
+      description: 'Execute shell commands and return output.',
+      category: 'terminal',
+    }, zhTranslate)).toBe('执行 Shell 命令并返回输出。');
+
+    expect(getLocalizedToolDescription({
+      name: 'replace_in_files',
+      description: 'Search and replace text across files.',
+      category: 'search',
+    }, zhTranslate)).toBe('在多个文件中搜索并替换文本，支持预览模式。');
+  });
+
+  it('keeps summarize numeric fields inline with their labels', () => {
+    const summarizeSettings = readProjectFile('frontend/src/components/settings/SummarizeSettings.vue');
+    const summarizeStyles = readProjectFile('frontend/src/components/settings/SummarizeSettings.css');
+
+    expect(summarizeSettings).toContain('autoSummarizeThreshold');
+    expect(summarizeSettings).toContain('keepRecentRounds');
+    expect(summarizeSettings).toContain('class="field-row"');
+    expect(summarizeStyles).toContain('grid-template-columns: max-content max-content;');
+    expect(summarizeStyles).toContain('white-space: nowrap;');
+    expect(summarizeStyles).toContain('width: 112px;');
   });
 
   it('bounds the checkpoint cleanup list inside a custom scrollbar', () => {

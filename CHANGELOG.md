@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.10] - 2026-07-09
+
+### Fixed
+  - 设置页：上下文总结的触发阈值和保留最近轮数输入现在与标签同行显示。
+  - 设置页：自动执行和存档点工具备份中的内置工具说明现在复用本地化 UI 文案，MCP 工具说明保持服务端原文。
+
 ## [1.1.9] - 2026-07-09
 
 ### Improved

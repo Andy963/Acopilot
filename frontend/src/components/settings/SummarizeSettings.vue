@@ -226,17 +226,19 @@ onMounted(async () => {
       </div>
       
       <div class="form-group">
-        <label>{{ t('components.settings.summarizeSettings.autoSection.threshold') }}</label>
-        <div class="threshold-input">
-          <input
-            type="number"
-            :value="summarizeConfig.autoSummarizeThreshold"
-            min="50"
-            max="95"
-            :disabled="!summarizeConfig.autoSummarize"
-            @input="(e: any) => updateConfigField('autoSummarizeThreshold', Number(e.target.value))"
-          />
-          <span class="unit">{{ t('components.settings.summarizeSettings.autoSection.thresholdUnit') }}</span>
+        <div class="field-row">
+          <label>{{ t('components.settings.summarizeSettings.autoSection.threshold') }}</label>
+          <div class="threshold-input">
+            <input
+              type="number"
+              :value="summarizeConfig.autoSummarizeThreshold"
+              min="50"
+              max="95"
+              :disabled="!summarizeConfig.autoSummarize"
+              @input="(e: any) => updateConfigField('autoSummarizeThreshold', Number(e.target.value))"
+            />
+            <span class="unit">{{ t('components.settings.summarizeSettings.autoSection.thresholdUnit') }}</span>
+          </div>
         </div>
         <p class="field-hint">{{ t('components.settings.summarizeSettings.autoSection.thresholdHint') }}</p>
       </div>
@@ -250,16 +252,18 @@ onMounted(async () => {
       </h5>
       
       <div class="form-group">
-        <label>{{ t('components.settings.summarizeSettings.optionsSection.keepRounds') }}</label>
-        <div class="rounds-input">
-          <input
-            type="number"
-            :value="summarizeConfig.keepRecentRounds"
-            min="0"
-            max="10"
-            @input="(e: any) => updateConfigField('keepRecentRounds', Number(e.target.value))"
-          />
-          <span class="unit">{{ t('components.settings.summarizeSettings.optionsSection.keepRoundsUnit') }}</span>
+        <div class="field-row">
+          <label>{{ t('components.settings.summarizeSettings.optionsSection.keepRounds') }}</label>
+          <div class="rounds-input">
+            <input
+              type="number"
+              :value="summarizeConfig.keepRecentRounds"
+              min="0"
+              max="10"
+              @input="(e: any) => updateConfigField('keepRecentRounds', Number(e.target.value))"
+            />
+            <span class="unit">{{ t('components.settings.summarizeSettings.optionsSection.keepRoundsUnit') }}</span>
+          </div>
         </div>
         <p class="field-hint">{{ t('components.settings.summarizeSettings.optionsSection.keepRoundsHint') }}</p>
       </div>
