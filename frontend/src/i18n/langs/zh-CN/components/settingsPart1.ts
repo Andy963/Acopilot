@@ -287,6 +287,28 @@ export const zhCNComponentsSettingsPart1 = {
                 label: '启用存档点功能',
                 description: '在工具执行前后自动创建代码库快照，支持一键回退'
             },
+            presets: {
+                title: '场景预设',
+                description: '不用手动理解 before/after 开关，直接套用常见保护策略',
+                items: {
+                    safe: {
+                        title: '安全模式',
+                        description: '对会修改工作区的工具执行前后都创建存档，并启用用户消息前存档。'
+                    },
+                    light: {
+                        title: '轻量模式',
+                        description: '仅保留修改类工具执行前存档，减少执行后快照数量。'
+                    },
+                    dangerous: {
+                        title: '危险工具保护模式',
+                        description: '保护 apply_diff、delete_file、execute_command、replace_in_files 的执行前后状态。'
+                    },
+                    off: {
+                        title: '关闭模式',
+                        description: '关闭存档点创建，同时保留当前详细配置，便于之后恢复。'
+                    }
+                }
+            },
             messages: {
                 title: '消息类型存档点',
                 description: '选择是否为用户消息和模型消息创建存档点（独立于工具调用）',

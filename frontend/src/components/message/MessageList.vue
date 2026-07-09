@@ -50,6 +50,7 @@ const {
   handleContinue,
   handleErrorRetry,
   shouldMergeForTool,
+  recentCheckpoint,
   restoreCheckpoint,
   getCheckpointLabel,
   getMergedLabel,
@@ -146,6 +147,24 @@ const {
         </div>
 
         <PlanRunnerPanel />
+
+        <div v-if="recentCheckpoint" class="recent-checkpoint">
+          <div class="recent-checkpoint-icon">
+            <i class="codicon codicon-history"></i>
+          </div>
+          <div class="recent-checkpoint-content">
+            <div class="recent-checkpoint-title">{{ t('components.message.checkpoint.recentTitle') }}</div>
+            <div class="recent-checkpoint-meta">
+              <span>{{ getCheckpointLabel(recentCheckpoint, recentCheckpoint.phase) }}</span>
+              <span>{{ t('components.message.checkpoint.fileCount', { count: recentCheckpoint.fileCount }) }}</span>
+              <span>{{ formatCheckpointTime(recentCheckpoint.timestamp) }}</span>
+            </div>
+          </div>
+          <button class="recent-checkpoint-action" @click="restoreCheckpoint(recentCheckpoint)">
+            <i class="codicon codicon-discard"></i>
+            <span>{{ t('components.message.checkpoint.recentRestore') }}</span>
+          </button>
+        </div>
 
         <!-- 继续对话提示 - 当最后一条是工具响应时显示 -->
         <div v-if="chatStore.needsContinueButton" class="continue-message">

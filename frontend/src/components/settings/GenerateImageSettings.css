@@ -86,6 +86,50 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.connection-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.test-connection-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.test-connection-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.test-connection-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.connection-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.connection-result.success {
+  color: var(--vscode-testing-iconPassed);
+}
+
+.connection-result.error {
+  color: var(--vscode-testing-iconFailed);
+}
+
 /* 带操作按钮的输入框 */
 .input-with-action {
   display: flex;
@@ -215,4 +259,17 @@
 .form-group.disabled {
   opacity: 0.5;
   pointer-events: none;
+}
+
+.section.provider-disabled {
+  border-color: var(--vscode-panel-border);
+}
+
+.codicon-modifier-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }

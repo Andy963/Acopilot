@@ -2,6 +2,7 @@ import { computed, onMounted, ref } from 'vue'
 import { sendToExtension, showNotification } from '@/utils/vscode'
 import { getToolDependencies, hasToolDependencies, TOOL_DEPENDENCIES, useDependency } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
+import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from './toolDisplay'
 
 export interface ToolInfo {
   name: string
@@ -16,7 +17,18 @@ export interface ToolAutoExecConfig {
   [toolName: string]: boolean
 }
 
+const AUTO_EXEC_CHECKPOINT_PROTECTED_TOOLS = [
+  'apply_diff',
+  'delete_file',
+  'execute_command',
+  'replace_in_files',
+]
+
 const uniqueDependencies = [...new Set(Object.values(TOOL_DEPENDENCIES).flat())]
+
+function uniqueNames(names: string[]): string[] {
+  return Array.from(new Set(names.filter(Boolean)))
+}
 
 export function useToolsSettings() {
   const { t } = useI18n()
@@ -50,6 +62,7 @@ export function useToolsSettings() {
       'execute_command',
       'find_files',
       'search_in_files',
+      'replace_in_files',
       'locate',
       'generate_image',
       'remove_background',
@@ -113,12 +126,8 @@ export function useToolsSettings() {
       .map(([category, categoryTools]) => ({ category, tools: categoryTools }))
   })
 
-  function isMcpTool(tool: ToolInfo): boolean {
-    return tool.category === 'mcp'
-  }
-
   function isDangerousTool(toolName: string): boolean {
-    return ['delete_file', 'execute_command'].includes(toolName)
+    return AUTO_EXEC_CHECKPOINT_PROTECTED_TOOLS.includes(toolName)
   }
 
   function isAutoExec(toolName: string): boolean {
@@ -149,8 +158,8 @@ export function useToolsSettings() {
     other: 'codicon-extensions',
   }
 
-  function getToolDisplayName(name: string): string {
-    return name.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase())
+  function getToolDescription(tool: ToolInfo): string {
+    return getLocalizedToolDescription(tool, t)
   }
 
   function getCategoryDisplayName(category: string): string {
@@ -300,7 +309,7 @@ export function useToolsSettings() {
   async function toggleTool(toolName: string, enabled: boolean) {
     savingTools.value.add(toolName)
     try {
-      await sendToExtension('tools.toggleTool', { name: toolName, enabled })
+      await sendToExtension('tools.setToolEnabled', { toolName, enabled })
       const tool = tools.value.find(t => t.name === toolName)
       if (tool) tool.enabled = enabled
     } catch (error) {
@@ -310,10 +319,49 @@ export function useToolsSettings() {
     }
   }
 
+  async function ensureCheckpointProtectionForAutoExec(toolName: string): Promise<boolean> {
+    if (!isDangerousTool(toolName)) return true
+
+    try {
+      const response = await sendToExtension<{ config: any }>('checkpoint.getConfig', {})
+      const checkpointConfig = response?.config || {}
+      const beforeTools = uniqueNames([...(checkpointConfig.beforeTools || []), toolName])
+      const afterTools = uniqueNames([...(checkpointConfig.afterTools || []), toolName])
+      const alreadyProtected =
+        checkpointConfig.enabled === true &&
+        Array.isArray(checkpointConfig.beforeTools) &&
+        Array.isArray(checkpointConfig.afterTools) &&
+        checkpointConfig.beforeTools.includes(toolName) &&
+        checkpointConfig.afterTools.includes(toolName)
+
+      if (alreadyProtected) return true
+
+      await sendToExtension('checkpoint.updateConfig', {
+        config: {
+          ...checkpointConfig,
+          enabled: true,
+          beforeTools,
+          afterTools,
+        },
+      })
+
+      return true
+    } catch (error) {
+      console.error('Failed to enable checkpoint protection for auto execution:', error)
+      await showNotification(t('components.settings.toolsSettings.dangerConfirm.checkpointFailed'), 'error')
+      return false
+    }
+  }
+
   async function toggleAutoExec(toolName: string, enabled: boolean) {
     savingAutoExecTools.value.add(toolName)
     try {
-      await sendToExtension('tools.updateAutoExecConfig', { name: toolName, enabled })
+      if (enabled) {
+        const checkpointProtected = await ensureCheckpointProtectionForAutoExec(toolName)
+        if (!checkpointProtected) return
+      }
+
+      await sendToExtension('tools.setToolAutoExec', { toolName, autoExec: enabled })
       autoExecConfig.value = { ...autoExecConfig.value, [toolName]: enabled }
     } catch (error) {
       console.error('Failed to update auto exec config:', error)
@@ -463,6 +511,7 @@ export function useToolsSettings() {
     confirmEnableAllAutoExec,
     disableAllAutoExec,
     getToolDisplayName,
+    getToolDescription,
     getCategoryDisplayName,
     getCategoryIcon,
     getCategoryEnabledCount,

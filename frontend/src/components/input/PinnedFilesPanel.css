@@ -72,6 +72,78 @@
   color: var(--vscode-button-foreground);
 }
 
+.pinned-prompt-active {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pinned-prompt-active-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.pinned-prompt-active-clear {
+  border: none;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.pinned-prompt-active-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pinned-prompt-active-empty {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.pinned-prompt-active-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pinned-prompt-active-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.pinned-prompt-active-order {
+  flex: 0 0 20px;
+  color: var(--vscode-descriptionForeground);
+  text-align: right;
+}
+
+.pinned-prompt-active-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-prompt-active-mode {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+}
+
 .pinned-files-content {
   flex: 1;
   min-height: 0;

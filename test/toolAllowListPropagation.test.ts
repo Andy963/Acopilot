@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('vscode', () => ({}));
+
 import { handleToolConfirmation } from '../backend/modules/api/chat/services/chatFlow/handleToolConfirmation';
 import { OrphanedToolCallService } from '../backend/modules/api/chat/services/OrphanedToolCallService';
+import { ToolExecutionService } from '../backend/modules/api/chat/services/ToolExecutionService';
 
 describe('tool allowlist propagation', () => {
   it('passes last user toolAllowList when executing confirmed tool calls', async () => {
@@ -108,5 +111,21 @@ describe('tool allowlist propagation', () => {
     const args = executeFunctionCallsWithResults.mock.calls[0];
     expect(args[5]).toEqual(['read_file', 'open_file']);
   });
-});
 
+  it('does not ask for confirmation for tools outside the active allowlist', () => {
+    const service = new ToolExecutionService(
+      undefined,
+      undefined,
+      {
+        isToolAutoExec: vi.fn(() => false),
+      } as any
+    );
+
+    const calls: any[] = [
+      { id: 'call_1', name: 'write_file', args: { files: [] } },
+      { id: 'call_2', name: 'read_file', args: { files: [] } },
+    ];
+
+    expect(service.getToolsNeedingConfirmation(calls, ['read_file'])).toEqual([calls[1]]);
+  });
+});

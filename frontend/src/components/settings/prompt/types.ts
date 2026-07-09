@@ -128,6 +128,17 @@ The following are pinned files...
     requiresConfig: '需要在输入框旁的固定文件按钮中添加文件'
   },
   {
+    id: 'PINNED_PROMPTS',
+    name: '固定提示词',
+    description: '显示当前对话启用的固定提示词块。可用 {{$PINNED_PROMPT:<id>}} 放置指定提示词',
+    example: `====
+
+PINNED PROMPT: Review
+
+Review code carefully.`,
+    requiresConfig: '需要在输入框旁的固定内容面板中添加提示词'
+  },
+  {
     id: 'TOOLS',
     name: '工具定义',
     description: '根据渠道配置生成 XML 或 Function Call 格式的工具定义（此变量由系统自动填充）',
@@ -168,6 +179,8 @@ export const DEFAULT_TEMPLATE = `You are a professional programming assistant, p
 {{$DIAGNOSTICS}}
 
 {{$PINNED_FILES}}
+
+{{$PINNED_PROMPTS}}
 
 {{$TOOLS}}
 

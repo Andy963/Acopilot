@@ -46,7 +46,7 @@ const skills = ref<SkillDefinition[]>([])
 const tokenCount = ref<number | null>(null)
 const isCountingTokens = ref(false)
 const tokenCountError = ref('')
-const selectedChannel = ref<ChannelType>('gemini')
+const selectedChannel = ref<ChannelType>('openai')
 const HISTORY_STORAGE_KEY = 'acopilot.prompt.templateHistory'
 const HISTORY_LIMIT = 10
 

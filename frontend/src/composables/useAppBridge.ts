@@ -1,5 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { setDetectedLanguage, setLanguage } from './useI18n'
+import { setDetectedLanguage, setLanguage, t } from './useI18n'
 import { useChatStore, useSettingsStore, useTerminalStore } from '../stores'
 import { onMessageFromExtension, sendToExtension } from '../utils/vscode'
 
@@ -59,7 +59,12 @@ export function useAppBridge(options: UseAppBridgeOptions) {
       case 'addSelectionToChat':
         options.settingsStore.showChat()
         options.chatStore.addSelectionReference(message.data).catch(() => {})
-        sendToExtension('showNotification', { message: '已添加到引用', type: 'info' }).catch(() => {})
+        sendToExtension('showNotification', {
+          message: message.data?.source === 'file'
+            ? t('components.input.notifications.fileReferenceAdded')
+            : t('components.input.notifications.selectionReferenceAdded'),
+          type: 'info'
+        }).catch(() => {})
         break
       case 'showHistory':
         options.handleShowHistory()

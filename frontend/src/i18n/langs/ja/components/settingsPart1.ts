@@ -287,6 +287,28 @@ export const jaComponentsSettingsPart1 = {
                 label: 'チェックポイント機能を有効化',
                 description: 'ツール実行前後にコードベースのスナップショットを自動作成し、ワンクリックでロールバックをサポート'
             },
+            presets: {
+                title: 'シナリオプリセット',
+                description: 'before/after の詳細スイッチを手動調整せずに保護戦略を適用',
+                items: {
+                    safe: {
+                        title: '安全モード',
+                        description: '変更系ツールの実行前後を保護し、ユーザーメッセージ前のチェックポイントも有効にします。'
+                    },
+                    light: {
+                        title: '軽量モード',
+                        description: '変更系ツールの実行前バックアップを維持し、実行後スナップショットを減らします。'
+                    },
+                    dangerous: {
+                        title: '危険ツール保護モード',
+                        description: 'apply_diff、delete_file、execute_command、replace_in_files の実行前後を保護します。'
+                    },
+                    off: {
+                        title: 'オフモード',
+                        description: '現在の詳細設定を保持したまま、チェックポイント作成を無効化します。'
+                    }
+                }
+            },
             messages: {
                 title: 'メッセージタイプのチェックポイント',
                 description: 'ユーザーメッセージとモデルメッセージのチェックポイントを作成するかどうかを選択（ツール呼び出しとは独立）',

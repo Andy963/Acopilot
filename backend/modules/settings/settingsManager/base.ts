@@ -67,6 +67,10 @@ export class SettingsManagerBase {
           ...DEFAULT_GLOBAL_SETTINGS.toolsEnabled,
           ...stored.toolsEnabled,
         },
+        toolAutoExec: {
+          ...DEFAULT_GLOBAL_SETTINGS.toolAutoExec,
+          ...stored.toolAutoExec,
+        },
         toolsConfig: {
           ...DEFAULT_GLOBAL_SETTINGS.toolsConfig,
           ...stored.toolsConfig,

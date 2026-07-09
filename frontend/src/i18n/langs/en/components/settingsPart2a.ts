@@ -133,6 +133,9 @@ export const enComponentsSettingsPart2a = {
             modelPreset: 'Recommended models',
             modelPresetPlaceholder: 'Custom (type manually)',
             modelPresetHint: 'Selecting a preset will fill the model name automatically. You can also type above.',
+            testConnection: 'Test Connection',
+            testSuccess: '{provider} connection OK ({model})',
+            testFailed: 'Connection test failed',
             show: 'Show',
             hide: 'Hide'
         },
@@ -151,6 +154,7 @@ export const enComponentsSettingsPart2a = {
                 ultrawide: 'Ultra-wide'
             },
             hints: {
+                together: 'Together AI does not support this parameter in the image generation endpoint.',
                 disabled: 'When disabled: AI cannot configure this parameter, API call will not include this parameter',
                 fixed: 'Fixed: AI will be told to fix at {ratio}, cannot change',
                 flexible: 'Not fixed: AI can choose using aspect_ratio parameter'
@@ -165,6 +169,7 @@ export const enComponentsSettingsPart2a = {
                 auto: 'Auto'
             },
             hints: {
+                together: 'Together AI does not support this parameter in the image generation endpoint.',
                 disabled: 'When disabled: AI cannot configure this parameter, API call will not include this parameter',
                 fixed: 'Fixed: AI will be told to fix at {size}, cannot change',
                 flexible: 'Not fixed: AI can choose using image_size parameter'
@@ -372,6 +377,10 @@ export const enComponentsSettingsPart2a = {
                 name: 'Pinned Files Content',
                 description: 'Shows complete content of user-pinned files',
                 requiresConfig: 'Need to add files in the pinned files button next to input box'
+            },
+            PINNED_PROMPTS: {
+                name: 'Pinned Prompts',
+                description: 'Shows active pinned prompt blocks for the conversation'
             },
             TOOLS: {
                 name: 'Tool Definitions',

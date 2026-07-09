@@ -28,6 +28,10 @@ export async function getToolConfigImpl(
     return { success: true, config: settingsManager.getLocateConfig() };
   }
 
+  if (toolName === 'replace_in_files') {
+    return { success: true, config: settingsManager.getReplaceInFilesConfig() };
+  }
+
   if (toolName === 'generate_image') {
     return { success: true, config: settingsManager.getGenerateImageConfig() };
   }
@@ -64,6 +68,8 @@ export async function updateToolConfigImpl(
     await settingsManager.updateFindFilesConfig(config);
   } else if (toolName === 'search_in_files') {
     await settingsManager.updateSearchInFilesConfig(config);
+  } else if (toolName === 'replace_in_files') {
+    await settingsManager.updateReplaceInFilesConfig(config);
   } else if (toolName === 'apply_diff') {
     await settingsManager.updateApplyDiffConfig(config);
   } else if (toolName === 'delete_file') {

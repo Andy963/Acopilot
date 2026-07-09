@@ -131,18 +131,32 @@
   color: var(--vscode-descriptionForeground);
 }
 
+/* Keep compact numeric controls on the same row as their labels. */
+.field-row {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.field-row label {
+  min-width: 0;
+  white-space: nowrap;
+}
+
 /* 阈值输入 */
 .threshold-input,
 .rounds-input {
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 120px;
+  width: 112px;
+  max-width: 112px;
 }
 
 .threshold-input input,
 .rounds-input input {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -200,4 +214,3 @@
 .text-link-button:hover {
   text-decoration: underline;
 }
-

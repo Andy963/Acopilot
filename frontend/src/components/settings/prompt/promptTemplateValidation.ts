@@ -10,6 +10,11 @@ export interface PromptValidationIssue {
 
 const availableModuleIds = new Set(AVAILABLE_PROMPT_MODULES.map(module => module.id))
 
+function isKnownPromptVariable(moduleId: string): boolean {
+  if (availableModuleIds.has(moduleId)) return true
+  return moduleId.startsWith('PINNED_PROMPT:') && moduleId.slice('PINNED_PROMPT:'.length).trim().length > 0
+}
+
 export function extractPromptVariables(template: string): string[] {
   return [...template.matchAll(/\{\{\$([^}]+)\}\}/g)].map(match => match[1])
 }
@@ -20,7 +25,7 @@ export function validatePromptTemplate(template: string): PromptValidationIssue[
   }
 
   const variables = extractPromptVariables(template)
-  const unknownVariables = [...new Set(variables.filter(moduleId => !availableModuleIds.has(moduleId)))]
+  const unknownVariables = [...new Set(variables.filter(moduleId => !isKnownPromptVariable(moduleId)))]
   const duplicateVariables = [...new Set(variables.filter((moduleId, index) => variables.indexOf(moduleId) !== index))]
   const issues: PromptValidationIssue[] = []
 

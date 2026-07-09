@@ -39,6 +39,7 @@ function createState(overrides: Partial<ChatStoreState>): ChatStoreState {
     workspaceFilter: ref('all'),
     chatMode: ref('agent'),
     pinnedPrompt: ref({ mode: 'none' }),
+    pinnedPrompts: ref([]),
     selectionReferences: ref([]),
     planRunner: ref(null),
     postEditValidationPending: ref(false),

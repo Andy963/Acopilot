@@ -411,7 +411,7 @@ export async function* runToolLoop(
             return;
         }
 
-        const toolsNeedingConfirmation = deps.toolExecutionService.getToolsNeedingConfirmation(functionCalls);
+        const toolsNeedingConfirmation = deps.toolExecutionService.getToolsNeedingConfirmation(functionCalls, toolAllowList);
 
         if (toolsNeedingConfirmation.length > 0) {
             const pendingToolCalls: PendingToolCall[] = toolsNeedingConfirmation.map(call => ({

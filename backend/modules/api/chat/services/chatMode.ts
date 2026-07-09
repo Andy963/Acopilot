@@ -18,6 +18,7 @@ export const CHAT_MODE_TASK_CONTEXT = [
   '- Answer the user directly.',
   '- Use tools only when necessary.',
   '- Prefer minimal reads; do not explore the codebase unless required.',
+  '- Do not modify files or call write_file, apply_diff, delete_file, replace_in_files, or execute_command.',
 ].join('\n');
 
 export const PLAN_MODE_TASK_CONTEXT = [
@@ -25,6 +26,7 @@ export const PLAN_MODE_TASK_CONTEXT = [
   '- Produce a concrete, step-by-step plan with clear checkpoints.',
   '- Do not propose patches or code changes yet; wait for confirmation.',
   '- You may use read-only tools if needed to understand the codebase.',
+  '- Do not modify files or call write_file, apply_diff, delete_file, replace_in_files, or execute_command.',
 ].join('\n');
 
 function normalizeTaskContext(value: string | undefined): string {

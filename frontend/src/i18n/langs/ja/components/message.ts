@@ -35,6 +35,8 @@ export const jaComponentsMessage = {
         toolBatchUnchanged: 'バッチツール実行完了 · 変更なし',
         toolExecutionUnchanged: 'ツール実行完了 · 変更なし',
         restoreTooltip: 'ワークスペースをこのチェックポイントに復元',
+        recentTitle: '最近のチェックポイントを復元できます',
+        recentRestore: '復元',
         fileCount: '{count} 個のファイル',
         yesterday: '昨日',
         daysAgo: '{days} 日前',

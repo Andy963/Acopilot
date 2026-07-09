@@ -19,6 +19,19 @@ export const zhCNComponentsInput = {
     autoSummarizeThreshold: '自动总结阈值',
     openContextInspectorHint: '点击查看完整上下文明细',
     fileNotExists: '文件不存在',
+    attachmentSupport: {
+        supported: '支持',
+        converted: '文本',
+        unsupported: '不支持',
+        unknown: '未知',
+        tokenEstimate: '约 {tokens} tokens',
+        truncated: '发送前可能被截断',
+        truncatedShort: '截断'
+    },
+    referenceSources: {
+        selection: '选区',
+        file: '文件'
+    },
     channelSelector: {
         placeholder: '选择配置',
         searchPlaceholder: '搜索渠道...',
@@ -50,11 +63,19 @@ export const zhCNComponentsInput = {
             clear: '清空引用',
             truncated: '已截断'
         },
+        active: {
+            title: '当前固定提示词',
+            empty: '暂无固定提示词',
+            customTitle: '自定义（{count} 字符）',
+            moveUp: '上移',
+            moveDown: '下移'
+        },
         skill: {
             selectLabel: '选择 Skill',
             loading: '加载中...',
             empty: '暂无 Skill',
             pickOne: '请选择一个 Skill',
+            add: '添加到当前对话',
             manageHint: '在 设置 > 系统提示词 中管理 Skills'
         },
         custom: {
@@ -109,6 +130,8 @@ export const zhCNComponentsInput = {
         fileNotInAnyWorkspace: '文件不在任何打开的工作区内',
         fileInOtherWorkspace: '文件属于其他工作区: {workspaceName}',
         fileAdded: '已添加固定文件: {path}',
+        selectionReferenceAdded: '已添加选区引用到对话',
+        fileReferenceAdded: '已添加文件引用到对话',
         addFailed: '添加失败: {error}',
         loadPinnedPromptPresetsFailed: '加载已保存提示词失败: {error}',
         cannotGetFilePath: '无法获取文件路径，请从 VSCode 资源管理器或标签页拖拽',

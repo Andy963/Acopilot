@@ -421,6 +421,10 @@
   gap: 6px;
 }
 
+.tool-mode-row {
+  gap: 0;
+}
+
 .capability-header {
   display: flex;
   align-items: center;
@@ -429,9 +433,19 @@
 }
 
 .capability-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 12px;
   font-weight: 500;
   color: var(--vscode-foreground);
+}
+
+.capability-label .codicon {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .capability-value {
@@ -528,6 +542,18 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.multimodal-header {
+  align-items: center;
+}
+
+.multimodal-toggle {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  padding-left: 14px;
+  flex-shrink: 0;
 }
 
 .multimodal-types {

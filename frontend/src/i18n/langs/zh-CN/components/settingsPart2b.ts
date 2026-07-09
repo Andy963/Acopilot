@@ -152,6 +152,13 @@ export const zhCNComponentsSettingsPart2b = {
                 inputPlaceholder: '输入要排除的文件或目录模式...',
                 deleteTooltip: '删除',
                 addButton: '添加'
+            },
+            replaceInFiles: {
+                excludeList: '替换排除模式',
+                excludeListHint: '（glob 格式，如 **/node_modules/**）',
+                inputPlaceholder: '输入替换时要排除的文件或目录模式...',
+                deleteTooltip: '删除',
+                addButton: '添加'
             }
         },
         lsp: {
@@ -281,13 +288,14 @@ export const zhCNComponentsSettingsPart2b = {
         },
         dangerConfirm: {
             title: '确认开启自动执行',
-            message: '你正在为危险工具 {tool} 开启自动执行，这可能导致不可恢复的修改。是否继续？',
+            message: '你正在为危险工具 {tool} 开启自动执行，这可能导致不可恢复的修改。继续前会先为该工具补齐执行前后存档点保护。是否继续？',
+            checkpointFailed: '为危险工具启用存档点保护失败，已取消开启自动执行。',
             confirm: '继续开启',
             cancel: '取消'
         },
         enableAllDangerous: {
             title: '批量开启自动执行',
-            message: '检测到危险工具（delete_file / execute_command）。是否也将它们设为自动执行？',
+            message: '检测到危险工具（apply_diff / delete_file / execute_command / replace_in_files）。是否也将它们设为自动执行，并确保开启存档点保护？',
             confirm: '包含危险工具',
             cancel: '跳过危险工具'
         },
@@ -301,6 +309,30 @@ export const zhCNComponentsSettingsPart2b = {
             media: '媒体处理',
             mcp: 'MCP',
             other: '其他'
+        },
+        descriptions: {
+            list_files: '列出工作区目录中的文件和子目录，可按需要递归展开。',
+            read_file: '读取一个或多个文件内容，支持指定起止行范围。',
+            write_file: '写入一个或多个文件，适用于创建或覆盖文件内容。',
+            apply_diff: '对文件应用精确的搜索替换补丁。',
+            delete_file: '删除一个或多个指定文件。',
+            create_directory: '创建一个或多个目录，缺失的父目录会一并创建。',
+            find_files: '按 glob 模式查找文件路径。',
+            search_in_files: '在文件内容中搜索关键字或正则表达式。',
+            replace_in_files: '在多个文件中搜索并替换文本，支持预览模式。',
+            execute_command: '执行 Shell 命令并返回输出。',
+            locate: '打开或定位到指定文件位置。',
+            open_file: '在编辑器中打开文件并可定位到指定范围。',
+            goto_definition: '跳转到符号定义位置。',
+            find_references: '查找指定符号的引用位置。',
+            get_usages: '查找符号使用位置并可返回上下文行。',
+            get_symbols: '列出文件或目录中的代码符号。',
+            get_errors: '读取工作区诊断信息，包括错误和警告。',
+            generate_image: '根据提示词和可选参考图生成图片。',
+            remove_background: '移除图片背景，并可保存透明结果或遮罩。',
+            crop_image: '裁切图片到指定区域。',
+            resize_image: '调整图片宽高。',
+            rotate_image: '按指定角度旋转图片。'
         },
         dependency: {
             required: '需要依赖',

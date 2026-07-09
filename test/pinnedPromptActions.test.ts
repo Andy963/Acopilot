@@ -10,13 +10,15 @@ vi.mock('../frontend/src/utils/vscode.ts', () => ({
 
 import {
   resolveDefaultPinnedPromptForNewConversation,
-  setPinnedPrompt
+  setPinnedPrompt,
+  setPinnedPrompts
 } from '../frontend/src/stores/chat/pinnedPromptActions'
 import type { ChatStoreState } from '../frontend/src/stores/chat/types'
 
 function createState(overrides: Partial<ChatStoreState> = {}): ChatStoreState {
   return {
     pinnedPrompt: { value: { mode: 'none' } },
+    pinnedPrompts: { value: [] },
     pinnedPromptFromWorkspaceDefault: { value: false },
     currentConversationId: { value: null },
     ...overrides
@@ -35,6 +37,7 @@ describe('resolveDefaultPinnedPromptForNewConversation', () => {
 
     expect(result).toEqual({
       pinnedPrompt: { mode: 'skill', skillId: 'skill.review' },
+      pinnedPrompts: [{ id: 'skill:skill.review', mode: 'skill', skillId: 'skill.review', order: 0, enabled: true, presetId: '', customPrompt: '', name: '' }],
       fromWorkspaceDefault: true
     })
   })
@@ -46,6 +49,7 @@ describe('resolveDefaultPinnedPromptForNewConversation', () => {
 
     expect(result).toEqual({
       pinnedPrompt: { mode: 'preset', presetId: 'prompt-review' },
+      pinnedPrompts: [{ id: 'preset:prompt-review', mode: 'preset', presetId: 'prompt-review', order: 0, enabled: true, skillId: '', customPrompt: '', name: '' }],
       fromWorkspaceDefault: true
     })
   })
@@ -57,6 +61,7 @@ describe('resolveDefaultPinnedPromptForNewConversation', () => {
 
     expect(result).toEqual({
       pinnedPrompt: { mode: 'none' },
+      pinnedPrompts: [],
       fromWorkspaceDefault: false
     })
   })
@@ -68,6 +73,7 @@ describe('resolveDefaultPinnedPromptForNewConversation', () => {
 
     expect(result).toEqual({
       pinnedPrompt: { mode: 'none' },
+      pinnedPrompts: [],
       fromWorkspaceDefault: false
     })
   })
@@ -117,5 +123,30 @@ describe('setPinnedPrompt workspace default sync', () => {
       'setPinnedPromptWorkspaceDefault',
       expect.anything()
     )
+  })
+
+  it('persists multiple pinned prompts with the new list key and legacy first prompt key', async () => {
+    const state = createState({ currentConversationId: { value: 'conversation-1' } as any })
+
+    await setPinnedPrompts(state, [
+      { id: 'skill:review', mode: 'skill', skillId: 'review', order: 1 },
+      { id: 'custom:extra', mode: 'custom', customPrompt: 'Extra rules', order: 2 }
+    ])
+
+    expect(state.pinnedPrompt.value).toEqual({ mode: 'skill', skillId: 'review', presetId: '', customPrompt: '' })
+    expect(state.pinnedPrompts.value.map(item => item.id)).toEqual(['skill:review', 'custom:extra'])
+    expect(mockSendToExtension).toHaveBeenCalledWith('conversation.setCustomMetadata', {
+      conversationId: 'conversation-1',
+      key: 'pinnedPrompts',
+      value: [
+        { id: 'skill:review', mode: 'skill', skillId: 'review', presetId: '', customPrompt: '', name: '', enabled: true, order: 0 },
+        { id: 'custom:extra', mode: 'custom', skillId: '', presetId: '', customPrompt: 'Extra rules', name: '', enabled: true, order: 1 }
+      ]
+    })
+    expect(mockSendToExtension).toHaveBeenCalledWith('conversation.setCustomMetadata', {
+      conversationId: 'conversation-1',
+      key: 'pinnedPrompt',
+      value: { mode: 'skill', skillId: 'review', presetId: '', customPrompt: '' }
+    })
   })
 })

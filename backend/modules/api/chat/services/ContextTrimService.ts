@@ -21,7 +21,7 @@ import type { ConversationRound, ContextTrimInfo } from '../utils';
 import type { TokenEstimationService } from './TokenEstimationService';
 import { estimateTextTokens } from './TokenEstimationService';
 import type { MessageBuilderService } from './MessageBuilderService';
-import { getPinnedPromptBlock } from './pinnedPrompt';
+import { applyPinnedPromptPlaceholders, getPinnedPromptBlocks } from './pinnedPrompt';
 import { getSelectionReferencesBlock } from './selectionReferences';
 import {
     calculateThreshold as calculateContextThreshold,
@@ -186,12 +186,10 @@ export class ContextTrimService {
         // 计算系统提示词的 token 数
         const baseSystemPrompt = this.promptManager.getSystemPrompt(false, contextOverrides);
         const pinnedPromptEnabled = contextOverrides?.includePinnedPrompt !== false;
-        const pinnedPromptBlock = pinnedPromptEnabled
-            ? await getPinnedPromptBlock(this.conversationManager, conversationId)
-            : '';
-        const systemPrompt = [pinnedPromptBlock, baseSystemPrompt]
-            .filter(Boolean)
-            .join('\n\n');
+        const pinnedPromptBlocks = pinnedPromptEnabled
+            ? await getPinnedPromptBlocks(this.conversationManager, conversationId)
+            : [];
+        const systemPrompt = applyPinnedPromptPlaceholders(baseSystemPrompt, pinnedPromptBlocks);
         let systemPromptTokens = 0;
         if (systemPrompt) {
             systemPromptTokens = await this.tokenEstimationService.countSystemPromptTokens(systemPrompt, channelType);

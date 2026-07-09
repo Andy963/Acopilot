@@ -32,4 +32,8 @@ describe('prompt template validation', () => {
       { type: 'warning', key: 'duplicateVariables', variables: ['ENVIRONMENT'] }
     ])
   })
+
+  it('accepts named pinned prompt variables', () => {
+    expect(validatePromptTemplate('{{$PINNED_PROMPTS}}\n{{$PINNED_PROMPT:review}}')).toEqual([])
+  })
 })

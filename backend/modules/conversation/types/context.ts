@@ -50,12 +50,23 @@ export interface ContextInjectedPinnedFiles {
 }
 
 export interface ContextInjectedPinnedPrompt {
-    mode: 'none' | 'skill' | 'custom' | 'preset';
+    mode: 'none' | 'skill' | 'custom' | 'preset' | 'multiple';
     skillId?: string;
     skillName?: string;
     presetId?: string;
     presetName?: string;
     customPromptCharCount?: number;
+    count?: number;
+    prompts?: Array<{
+        id: string;
+        mode: 'skill' | 'custom' | 'preset';
+        skillId?: string;
+        skillName?: string;
+        presetId?: string;
+        presetName?: string;
+        name?: string;
+        customPromptCharCount?: number;
+    }>;
 }
 
 export interface ContextInjectedAttachment {
@@ -65,6 +76,9 @@ export interface ContextInjectedAttachment {
     mimeType?: string;
     size?: number;
     url?: string;
+    estimatedTokens?: number;
+    truncated?: boolean;
+    inclusionMode?: 'inline' | 'text' | 'unsupported';
 }
 
 export interface ContextInjectedAttachments {
@@ -118,6 +132,7 @@ export interface ContextSnapshot {
  */
 export interface SelectionReference {
     id?: string;
+    source?: 'selection' | 'file';
     uri?: string;
     path: string;
     startLine?: number;

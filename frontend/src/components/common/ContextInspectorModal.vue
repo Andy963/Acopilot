@@ -152,6 +152,17 @@ const pinnedPromptSummary = computed(() => {
   const p = props.data?.injected?.pinnedPrompt
   if (!p || p.mode === 'none') return ''
 
+  if (p.mode === 'multiple') {
+    const count = typeof p.count === 'number' ? p.count : p.prompts?.length || 0
+    const names = Array.isArray(p.prompts)
+      ? p.prompts
+        .map(item => item.skillName || item.presetName || item.name || item.skillId || item.presetId || item.id)
+        .filter(Boolean)
+        .join(', ')
+      : ''
+    return names ? `${count}: ${names}` : String(count)
+  }
+
   if (p.mode === 'skill') {
     if (p.skillName && p.skillId) return `${p.skillName} (${p.skillId})`
     return p.skillName || p.skillId || 'skill'
@@ -186,6 +197,9 @@ const attachmentsListText = computed(() => {
       const meta: string[] = []
       if (item.mimeType) meta.push(item.mimeType)
       if (typeof item.size === 'number') meta.push(`${item.size}B`)
+      if (typeof item.estimatedTokens === 'number') meta.push(`~${item.estimatedTokens} tok`)
+      if (item.inclusionMode) meta.push(item.inclusionMode)
+      if (item.truncated) meta.push(t('common.truncated'))
       return meta.length > 0 ? `${item.name} (${meta.join(', ')})` : item.name
     })
     .join('\n')

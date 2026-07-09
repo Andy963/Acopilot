@@ -133,6 +133,9 @@ export const zhCNComponentsSettingsPart2a = {
             modelPreset: '推荐模型',
             modelPresetPlaceholder: '自定义（手动输入）',
             modelPresetHint: '选择后会自动填充模型名称；也可直接在上方手动输入。',
+            testConnection: '测试连接',
+            testSuccess: '{provider} 连接正常（{model}）',
+            testFailed: '连接测试失败',
             show: '显示',
             hide: '隐藏'
         },
@@ -151,6 +154,7 @@ export const zhCNComponentsSettingsPart2a = {
                 ultrawide: '超宽屏'
             },
             hints: {
+                together: 'Together AI 的图像生成接口不支持此参数。',
                 disabled: '禁用时：AI 不能配置此参数，API 调用不传入此参数',
                 fixed: '已固定：AI 将被告知固定为 {ratio}，不能更改',
                 flexible: '未固定：AI 可使用 aspect_ratio 参数自行选择'
@@ -165,6 +169,7 @@ export const zhCNComponentsSettingsPart2a = {
                 auto: '自动'
             },
             hints: {
+                together: 'Together AI 的图像生成接口不支持此参数。',
                 disabled: '禁用时：AI 不能配置此参数，API 调用不传入此参数',
                 fixed: '已固定：AI 将被告知固定为 {size}，不能更改',
                 flexible: '未固定：AI 可使用 image_size 参数自行选择'
@@ -372,6 +377,10 @@ export const zhCNComponentsSettingsPart2a = {
                 name: '固定文件内容',
                 description: '显示用户固定的文件的完整内容',
                 requiresConfig: '需要在输入框旁的固定文件按钮中添加文件'
+            },
+            PINNED_PROMPTS: {
+                name: '固定提示词',
+                description: '显示当前对话启用的固定提示词块'
             },
             TOOLS: {
                 name: '工具定义',

@@ -13,7 +13,7 @@ import {
     truncatePreview
 } from './helpers';
 
-import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
+import { applyPinnedPromptPlaceholders, getPinnedPromptBlocks, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
 import { getSelectionReferencesInjectedInfo } from '../selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from '../contextInjectionInfo';
 import { buildSummaryPreview } from '../../summaryPreview';
@@ -60,13 +60,11 @@ export async function buildPromptAndSnapshot(params: {
         ? deps.promptManager.refreshAndGetPrompt(contextOverrides)
         : deps.promptManager.getSystemPrompt(true, contextOverrides);
 
-    const pinnedPromptBlock = pinnedPromptEnabled
-        ? await getPinnedPromptBlock(deps.conversationManager, conversationId)
-        : '';
+    const pinnedPromptBlocks = pinnedPromptEnabled
+        ? await getPinnedPromptBlocks(deps.conversationManager, conversationId)
+        : [];
 
-    let dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
-        .filter(Boolean)
-        .join('\n\n');
+    let dynamicSystemPrompt = applyPinnedPromptPlaceholders(baseSystemPrompt, pinnedPromptBlocks);
 
     if (isFirstMessage && iteration === 1) {
         const startTime = await getOrInitConversationStartTime(deps.conversationManager, conversationId);
@@ -183,4 +181,3 @@ export async function buildPromptAndSnapshot(params: {
         contextSnapshot
     };
 }
-

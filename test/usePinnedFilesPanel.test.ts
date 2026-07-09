@@ -13,7 +13,9 @@ vi.mock('vue', () => ({
 const { mockChatStore, mockSendToExtension, mockShowNotification } = vi.hoisted(() => ({
   mockChatStore: {
     pinnedPrompt: { mode: 'none' as const },
+    pinnedPrompts: [] as any[],
     setPinnedPrompt: vi.fn().mockResolvedValue(undefined),
+    setPinnedPrompts: vi.fn().mockResolvedValue(undefined),
   },
   mockSendToExtension: vi.fn(),
   mockShowNotification: vi.fn().mockResolvedValue(undefined),
@@ -39,18 +41,23 @@ import { usePinnedFilesPanel } from '../frontend/src/components/input/usePinnedF
 describe('usePinnedFilesPanel pinned prompt flow', () => {
   beforeEach(() => {
     mockChatStore.pinnedPrompt = { mode: 'none' }
+    mockChatStore.pinnedPrompts = []
     mockChatStore.setPinnedPrompt.mockReset()
     mockChatStore.setPinnedPrompt.mockResolvedValue(undefined)
+    mockChatStore.setPinnedPrompts.mockReset()
+    mockChatStore.setPinnedPrompts.mockResolvedValue(undefined)
     mockSendToExtension.mockReset()
     mockShowNotification.mockReset()
     mockShowNotification.mockResolvedValue(undefined)
   })
 
   it('hydrates the custom prompt draft from the store metadata', async () => {
-    mockChatStore.pinnedPrompt = {
+    mockChatStore.pinnedPrompts = [{
+      id: 'custom:1',
       mode: 'custom',
       customPrompt: 'Remember the pinned prompt',
-    }
+      order: 0,
+    }]
     mockSendToExtension.mockImplementation(async (type: string) => {
       if (type === 'getPinnedFilesConfig') return { files: [] }
       if (type === 'skills.list') return { skills: [] }
@@ -83,7 +90,7 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
   })
 
   it('opens directly to the skill tab when a skill is pinned', async () => {
-    mockChatStore.pinnedPrompt = { mode: 'skill', skillId: 'skill.review' }
+    mockChatStore.pinnedPrompts = [{ id: 'skill:skill.review', mode: 'skill', skillId: 'skill.review', order: 0 }]
     mockSendToExtension.mockImplementation(async (type: string) => {
       if (type === 'getPinnedFilesConfig') return { files: [] }
       if (type === 'skills.list') return { skills: [] }
@@ -105,10 +112,14 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
 
     await panel.handleSavePinnedPrompt()
 
-    expect(mockChatStore.setPinnedPrompt).toHaveBeenCalledWith({
-      mode: 'custom',
-      customPrompt: 'Keep answers concise',
-    })
+    expect(mockChatStore.setPinnedPrompts).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: expect.any(String),
+        mode: 'custom',
+        customPrompt: 'Keep answers concise',
+        order: 0,
+      }),
+    ])
     expect(panel.customPromptDraft.value).toBe('Keep answers concise')
     expect(mockSendToExtension).not.toHaveBeenCalled()
     expect(mockShowNotification).toHaveBeenCalledWith(
@@ -131,10 +142,14 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
 
     await panel.handleSavePinnedPrompt()
 
-    expect(mockChatStore.setPinnedPrompt).toHaveBeenCalledWith({
-      mode: 'skill',
-      skillId: 'skill.review',
-    })
+    expect(mockChatStore.setPinnedPrompts).toHaveBeenCalledWith([
+      {
+        id: 'skill:skill.review',
+        mode: 'skill',
+        skillId: 'skill.review',
+        order: 0,
+      },
+    ])
     expect(mockSendToExtension).not.toHaveBeenCalled()
   })
 
@@ -173,10 +188,14 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
         prompt: 'Always write tests first',
       },
     })
-    expect(mockChatStore.setPinnedPrompt).toHaveBeenCalledWith({
-      mode: 'preset',
-      presetId: 'prompt-tdd-reminder',
-    })
+    expect(mockChatStore.setPinnedPrompts).toHaveBeenCalledWith([
+      {
+        id: 'preset:prompt-tdd-reminder',
+        mode: 'preset',
+        presetId: 'prompt-tdd-reminder',
+        order: 0,
+      },
+    ])
     expect(panel.selectedPresetId.value).toBe('prompt-tdd-reminder')
     expect(panel.pinPanelTab.value).toBe('custom')
     expect(panel.presetNameDraft.value).toBe('TDD Reminder')
@@ -196,10 +215,8 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
 
     expect(panel.customPromptDraft.value).toBe('Review code carefully.')
     expect(panel.presetNameDraft.value).toBe('Review')
-    expect(mockChatStore.setPinnedPrompt).toHaveBeenCalledWith({
-      mode: 'preset',
-      presetId: 'prompt-review',
-    })
+    expect(mockChatStore.setPinnedPrompt).not.toHaveBeenCalled()
+    expect(mockChatStore.setPinnedPrompts).not.toHaveBeenCalled()
   })
 
   it('clears the pinned prompt via chatStore', async () => {
@@ -208,7 +225,7 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
 
     await panel.handleClearPinnedPrompt()
 
-    expect(mockChatStore.setPinnedPrompt).toHaveBeenCalledWith({ mode: 'none' })
+    expect(mockChatStore.setPinnedPrompts).toHaveBeenCalledWith([])
     expect(panel.customPromptDraft.value).toBe('')
     expect(mockSendToExtension).not.toHaveBeenCalled()
     expect(mockShowNotification).toHaveBeenCalledWith(

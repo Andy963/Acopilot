@@ -88,6 +88,7 @@ export function getFilteredTools(
                     const maxImagesPerTask = imageConfig?.maxImagesPerTask || 1;
 
                     const paramsConfig = {
+                        provider: imageConfig?.provider,
                         enableAspectRatio: imageConfig?.enableAspectRatio ?? false,
                         forcedAspectRatio: imageConfig?.defaultAspectRatio || undefined,
                         enableImageSize: imageConfig?.enableImageSize ?? false,

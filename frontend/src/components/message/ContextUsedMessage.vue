@@ -46,6 +46,17 @@ const pinnedPromptSummary = computed(() => {
   const p = pinnedPrompt.value
   if (!p || p.mode === 'none') return ''
 
+  if (p.mode === 'multiple') {
+    const count = typeof p.count === 'number' ? p.count : p.prompts?.length || 0
+    const names = Array.isArray(p.prompts)
+      ? p.prompts
+        .map(item => item.skillName || item.presetName || item.name || item.skillId || item.presetId || item.id)
+        .filter(Boolean)
+        .join(', ')
+      : ''
+    return names ? `${count}: ${names}` : String(count)
+  }
+
   if (p.mode === 'skill') {
     if (p.skillName && p.skillId) return `${p.skillName} (${p.skillId})`
     return p.skillName || p.skillId || 'skill'
@@ -90,7 +101,11 @@ const pinnedSelectionsCount = computed(() => {
   return Array.isArray(s.items) ? s.items.length : 0
 })
 
-const pinnedPromptCount = computed(() => (pinnedPromptSummary.value ? 1 : 0))
+const pinnedPromptCount = computed(() => {
+  const p = pinnedPrompt.value
+  if (!p || p.mode === 'none') return 0
+  return typeof p.count === 'number' && p.count > 0 ? p.count : 1
+})
 const summaryCount = computed(() => summary.value ? 1 : 0)
 
 const referenceCount = computed(() => pinnedFilesUsedCount.value + pinnedSelectionsCount.value + attachmentsCount.value + pinnedPromptCount.value + summaryCount.value)

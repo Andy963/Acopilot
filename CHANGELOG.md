@@ -2,6 +2,79 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.11] - 2026-07-10
+
+### Added
+  - Pinned Context: support multiple active pinned prompts per conversation, including skill, preset, and custom prompt blocks.
+  - Prompt Settings: add `{{$PINNED_PROMPTS}}` and `{{$PINNED_PROMPT:<id>}}` placement variables for pinned prompt injection.
+
+### Fixed
+  - Chat and Plan modes: keep tool policy read-only unless the user enters an implementation-capable mode.
+  - Tool confirmation: honor the active tool allowlist when deciding which calls need confirmation.
+
+## [1.1.10] - 2026-07-09
+
+### Fixed
+  - 设置页：上下文总结的触发阈值和保留最近轮数输入现在与标签同行显示。
+  - 设置页：自动执行和存档点工具备份中的内置工具说明现在复用本地化 UI 文案，MCP 工具说明保持服务端原文。
+
+## [1.1.9] - 2026-07-09
+
+### Improved
+  - Checkpoint Settings: add scenario presets for safe, lightweight, dangerous-tool protection, and off modes.
+  - Tools Settings: require checkpoint protection before enabling auto execution for dangerous mutating tools.
+  - Chat: show a recent checkpoint restore affordance near the bottom of the message list.
+
+## [1.1.8] - 2026-07-08
+
+### Improved
+  - Tools Settings: show localized built-in tool descriptions while preserving model-facing tool declarations.
+  - Checkpoint Settings: keep cleanup records inside a bounded scroll list and enable startup cleanup by default.
+  - Prompt Settings: default prompt token estimation to OpenAI.
+  - Channel Settings: default provider streaming to enabled for configs without an explicit stream preference.
+
+## [1.1.7] - 2026-07-08
+
+### Improved
+  - History: replace the right-side close affordance with a left-side back arrow for returning to chat.
+  - Channel Settings: reduce tool protocol indentation and move the multimodal support checkbox to the right of its label.
+
+## [1.1.6] - 2026-07-08
+
+### Improved
+  - Webview navigation: move New Chat, History, and Settings into a spaced Acopilot toolbar instead of relying on native view title action ranks.
+
+## [1.1.5] - 2026-07-08
+
+### Removed
+  - Composer: remove the Context guide chip and info icon from the input toolbar.
+
+## [1.1.4] - 2026-07-08
+
+### Improved
+  - Channel Settings: add vertical spacing between the model filter, model list, and manual model ID input.
+
+## [1.1.3] - 2026-07-08
+
+### Improved
+  - Webview navigation: add a main view registry for chat, history, and settings metadata.
+  - Settings navigation: remember the last opened settings tab across Webview reloads.
+  - First-run setup: route settings entry to Channel settings when no model configuration is available.
+
+## [1.1.2] - 2026-07-08
+
+### Improved
+  - VS Code entry menus: add History to the Acopilot view title actions and standardize command titles under the `Acopilot:` namespace.
+  - Chat references: distinguish file and selection injections in payload metadata, composer chips, and user notifications.
+
+## [1.1.1] - 2026-07-08
+
+### Improved
+  - Input: clarify `@file`, attachments, and pinned context lifecycles, with attachment support, token, and truncation indicators.
+  - Context Settings: harden ignore glob previews against invalid pattern text.
+  - Tools Settings: fix tool enablement and auto-exec controls, add `replace_in_files` configuration, and require confirmation for replacement auto-exec by default.
+  - Image Generation Settings: add explicit provider selection, normalized limits, safe connection testing, and provider-specific tool schemas.
+
 ## [1.1] - 2026-07-07
 
 ### Added

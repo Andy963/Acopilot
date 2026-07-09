@@ -27,6 +27,7 @@ import {
   DEFAULT_SUMMARIZE_CONFIG,
   DEFAULT_SYSTEM_PROMPT_CONFIG,
   DEFAULT_TOKEN_COUNT_CONFIG,
+  normalizeGenerateImageConfig,
 } from '../types';
 import { SettingsManagerTools } from './tools';
 
@@ -75,11 +76,15 @@ export class SettingsManager extends SettingsManagerTools {
   }
 
   getGenerateImageConfig(): Readonly<GenerateImageToolConfig> {
-    return this.settings.toolsConfig?.generate_image || DEFAULT_GENERATE_IMAGE_CONFIG;
+    return normalizeGenerateImageConfig(this.settings.toolsConfig?.generate_image || DEFAULT_GENERATE_IMAGE_CONFIG);
   }
 
   async updateGenerateImageConfig(config: Partial<GenerateImageToolConfig>): Promise<void> {
-    await this.updateToolsConfigEntry('generate_image', this.getGenerateImageConfig(), config);
+    const newConfig = normalizeGenerateImageConfig({
+      ...this.getGenerateImageConfig(),
+      ...config,
+    });
+    await this.updateToolsConfigEntry('generate_image', this.getGenerateImageConfig(), newConfig);
   }
 
   getRemoveBackgroundConfig(): Readonly<RemoveBackgroundToolConfig> {

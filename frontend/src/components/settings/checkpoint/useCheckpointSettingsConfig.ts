@@ -9,6 +9,25 @@ import type {
   ToolInfo,
 } from './types'
 
+export type CheckpointPresetId = 'safe' | 'light' | 'off' | 'dangerous'
+
+const MUTATING_CHECKPOINT_TOOLS = [
+  'apply_diff',
+  'write_file',
+  'delete_file',
+  'create_directory',
+  'execute_command',
+  'replace_in_files',
+  'generate_image',
+]
+
+const DANGEROUS_CHECKPOINT_TOOLS = [
+  'apply_diff',
+  'delete_file',
+  'execute_command',
+  'replace_in_files',
+]
+
 function createDefaultMessageCheckpoint(): MessageCheckpointConfig {
   return {
     beforeMessages: [],
@@ -34,8 +53,44 @@ function toggleNameInList(items: string[], name: string, enabled: boolean): stri
   return items.filter(item => item !== name)
 }
 
+function uniqueToolNames(tools: string[]): string[] {
+  return Array.from(new Set(tools.filter(Boolean)))
+}
+
+function createUserBeforeMessageCheckpoint(): MessageCheckpointConfig {
+  return {
+    beforeMessages: ['user'],
+    afterMessages: [],
+    modelOuterLayerOnly: true,
+    mergeUnchangedCheckpoints: true,
+  }
+}
+
 export function useCheckpointSettingsConfig() {
   const chatStore = useChatStore()
+
+  const checkpointPresets = computed(() => [
+    {
+      id: 'safe' as const,
+      title: t('components.settings.checkpoint.sections.presets.items.safe.title'),
+      description: t('components.settings.checkpoint.sections.presets.items.safe.description'),
+    },
+    {
+      id: 'light' as const,
+      title: t('components.settings.checkpoint.sections.presets.items.light.title'),
+      description: t('components.settings.checkpoint.sections.presets.items.light.description'),
+    },
+    {
+      id: 'dangerous' as const,
+      title: t('components.settings.checkpoint.sections.presets.items.dangerous.title'),
+      description: t('components.settings.checkpoint.sections.presets.items.dangerous.description'),
+    },
+    {
+      id: 'off' as const,
+      title: t('components.settings.checkpoint.sections.presets.items.off.title'),
+      description: t('components.settings.checkpoint.sections.presets.items.off.description'),
+    },
+  ])
 
   const messageTypes = computed<CheckpointMessageType[]>(() => [
     {
@@ -56,7 +111,7 @@ export function useCheckpointSettingsConfig() {
     afterTools: [],
     messageCheckpoint: createDefaultMessageCheckpoint(),
     maxCheckpoints: -1,
-    cleanupExpiredConversationsOnStartup: false,
+    cleanupExpiredConversationsOnStartup: true,
     expiredConversationRetentionDays: 30,
   })
 
@@ -97,7 +152,11 @@ export function useCheckpointSettingsConfig() {
   }
 
   async function updateConfigField(field: keyof CheckpointConfig, value: any) {
-    ;(config as any)[field] = value
+    await updateConfig({ [field]: value } as Partial<CheckpointConfig>)
+  }
+
+  async function updateConfig(updates: Partial<CheckpointConfig>) {
+    Object.assign(config, updates)
 
     try {
       await sendToExtension('checkpoint.updateConfig', {
@@ -107,7 +166,7 @@ export function useCheckpointSettingsConfig() {
           afterTools: [...config.afterTools],
           messageCheckpoint: normalizeMessageCheckpoint(config.messageCheckpoint),
           maxCheckpoints: config.maxCheckpoints,
-          cleanupExpiredConversationsOnStartup: config.cleanupExpiredConversationsOnStartup ?? false,
+          cleanupExpiredConversationsOnStartup: config.cleanupExpiredConversationsOnStartup ?? true,
           expiredConversationRetentionDays: config.expiredConversationRetentionDays ?? 30,
           customIgnorePatterns: config.customIgnorePatterns ? [...config.customIgnorePatterns] : [],
         },
@@ -115,6 +174,43 @@ export function useCheckpointSettingsConfig() {
     } catch (error) {
       console.error('Failed to save checkpoint config:', error)
     }
+  }
+
+  async function applyCheckpointPreset(presetId: CheckpointPresetId) {
+    if (presetId === 'off') {
+      await updateConfig({ enabled: false })
+      return
+    }
+
+    const messageCheckpoint = createUserBeforeMessageCheckpoint()
+
+    if (presetId === 'safe') {
+      const tools = uniqueToolNames(MUTATING_CHECKPOINT_TOOLS)
+      await updateConfig({
+        enabled: true,
+        beforeTools: tools,
+        afterTools: tools,
+        messageCheckpoint,
+      })
+      return
+    }
+
+    if (presetId === 'light') {
+      await updateConfig({
+        enabled: true,
+        beforeTools: uniqueToolNames(MUTATING_CHECKPOINT_TOOLS),
+        afterTools: [],
+        messageCheckpoint,
+      })
+      return
+    }
+
+    await updateConfig({
+      enabled: true,
+      beforeTools: uniqueToolNames(DANGEROUS_CHECKPOINT_TOOLS),
+      afterTools: uniqueToolNames(DANGEROUS_CHECKPOINT_TOOLS),
+      messageCheckpoint,
+    })
   }
 
   async function toggleMessageBefore(messageType: string, enabled: boolean) {
@@ -187,12 +283,14 @@ export function useCheckpointSettingsConfig() {
   }
 
   return {
+    checkpointPresets,
     messageTypes,
     config,
     allTools,
     isLoading,
     loadConfig,
     updateConfigField,
+    applyCheckpointPreset,
     toggleMessageBefore,
     toggleMessageAfter,
     toggleModelOuterLayerOnly,

@@ -152,6 +152,13 @@ export const enComponentsSettingsPart2b = {
                 inputPlaceholder: 'Enter file or directory pattern to exclude...',
                 deleteTooltip: 'Delete',
                 addButton: 'Add'
+            },
+            replaceInFiles: {
+                excludeList: 'Replace Exclude Patterns',
+                excludeListHint: '(glob format, e.g. **/node_modules/**)',
+                inputPlaceholder: 'Enter file or directory pattern to exclude from replace...',
+                deleteTooltip: 'Delete',
+                addButton: 'Add'
             }
         },
         lsp: {
@@ -281,13 +288,14 @@ export const enComponentsSettingsPart2b = {
         },
         dangerConfirm: {
             title: 'Enable Auto Execute?',
-            message: 'You are enabling auto execution for a dangerous tool: {tool}. This may cause irreversible changes. Continue?',
+            message: 'You are enabling auto execution for a dangerous tool: {tool}. This may cause irreversible changes. Missing before/after checkpoints for this tool will be enabled first. Continue?',
+            checkpointFailed: 'Failed to enable checkpoint protection for this dangerous tool. Auto execution was not enabled.',
             confirm: 'Enable',
             cancel: 'Cancel'
         },
         enableAllDangerous: {
             title: 'Enable Auto Execute',
-            message: 'Dangerous tools detected (delete_file / execute_command). Also enable auto execution for them?',
+            message: 'Dangerous tools detected (apply_diff / delete_file / execute_command / replace_in_files). Also enable auto execution for them and ensure checkpoint protection?',
             confirm: 'Include dangerous tools',
             cancel: 'Skip dangerous tools'
         },
@@ -301,6 +309,30 @@ export const enComponentsSettingsPart2b = {
             media: 'Media Processing',
             mcp: 'MCP',
             other: 'Other'
+        },
+        descriptions: {
+            list_files: 'List files and subdirectories in workspace directories, optionally recursively.',
+            read_file: 'Read one or more files, with optional start and end line ranges.',
+            write_file: 'Write one or more files, useful for creating or replacing file content.',
+            apply_diff: 'Apply precise search-and-replace patches to files.',
+            delete_file: 'Delete one or more specified files.',
+            create_directory: 'Create one or more directories, including missing parent directories.',
+            find_files: 'Find file paths by glob patterns.',
+            search_in_files: 'Search file content using keywords or regular expressions.',
+            replace_in_files: 'Search and replace text across files, with preview support.',
+            execute_command: 'Execute a shell command and return its output.',
+            locate: 'Open or reveal a specified file location.',
+            open_file: 'Open a file in the editor and optionally reveal a range.',
+            goto_definition: 'Jump to a symbol definition location.',
+            find_references: 'Find reference locations for a specified symbol.',
+            get_usages: 'Find symbol usages and optionally include context lines.',
+            get_symbols: 'List code symbols from files or directories.',
+            get_errors: 'Read workspace diagnostics, including errors and warnings.',
+            generate_image: 'Generate images from a prompt and optional reference images.',
+            remove_background: 'Remove an image background and optionally save a transparent result or mask.',
+            crop_image: 'Crop an image to a specified region.',
+            resize_image: 'Resize an image to target dimensions.',
+            rotate_image: 'Rotate an image by a specified angle.'
         },
         dependency: {
             required: 'Dependencies Required',

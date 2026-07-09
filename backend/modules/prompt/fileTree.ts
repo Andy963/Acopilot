@@ -40,6 +40,48 @@ function parseGitignore(gitignorePath: string): string[] {
     return patterns
 }
 
+function escapeRegexChar(char: string): string {
+    return /[|\\{}()[\]^$+?.]/.test(char) ? `\\${char}` : char
+}
+
+function globToRegexPattern(pattern: string, globstar: boolean = true): string {
+    const normalizedPattern = pattern.replace(/\\/g, '/').trim()
+    let regexPattern = ''
+
+    for (let i = 0; i < normalizedPattern.length; i++) {
+        const char = normalizedPattern[i]
+
+        if (char === '*') {
+            if (globstar && normalizedPattern[i + 1] === '*') {
+                regexPattern += '.*'
+                i++
+            } else {
+                regexPattern += '[^/]*'
+            }
+            continue
+        }
+
+        regexPattern += char === '/' ? '[/\\\\]' : escapeRegexChar(char)
+    }
+
+    return regexPattern
+}
+
+function matchIgnoreGlob(filePath: string, pattern: string): boolean {
+    const regexPattern = globToRegexPattern(pattern)
+    if (!regexPattern) return false
+
+    const regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i')
+    return regex.test(filePath.replace(/\\/g, '/'))
+}
+
+function matchGitignoreGlob(filePath: string, pattern: string): boolean {
+    const regexPattern = globToRegexPattern(pattern, false)
+    if (!regexPattern) return false
+
+    return new RegExp(`^${regexPattern}$`).test(filePath.replace(/\\/g, '/'))
+}
+
 /**
  * 检查文件/目录是否应该被忽略
  */
@@ -49,16 +91,7 @@ function shouldIgnore(relativePath: string, patterns: string[], isDirectory: boo
     // 检查是否在自定义忽略列表中（从配置中获取）
     for (const ignore of customIgnorePatterns) {
         if (ignore.includes('*')) {
-            // 通配符模式 - 支持 ** 匹配任意目录层级
-            let regexStr = ignore
-                .replace(/\\/g, '/')
-                .replace(/\./g, '\\.')
-                .replace(/\*\*/g, '<<<GLOBSTAR>>>')
-                .replace(/\*/g, '[^/]*')
-                .replace(/<<<GLOBSTAR>>>/g, '.*')
-            
-            const regex = new RegExp(`^${regexStr}$|[/\\\\]${regexStr}$|^${regexStr}[/\\\\]|[/\\\\]${regexStr}[/\\\\]`, 'i')
-            if (regex.test(relativePath.replace(/\\/g, '/')) || regex.test(baseName)) {
+            if (matchIgnoreGlob(relativePath, ignore) || matchIgnoreGlob(baseName, ignore)) {
                 return true
             }
         } else if (baseName === ignore || relativePath === ignore) {
@@ -87,9 +120,7 @@ function shouldIgnore(relativePath: string, patterns: string[], isDirectory: boo
         
         // 简单的模式匹配
         if (p.includes('*')) {
-            // 通配符模式
-            const regex = new RegExp('^' + p.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$')
-            if (regex.test(baseName) || regex.test(relativePath)) {
+            if (matchGitignoreGlob(baseName, p) || matchGitignoreGlob(relativePath, p)) {
                 return true
             }
         } else {

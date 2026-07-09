@@ -13,7 +13,6 @@ const emit = defineEmits<{
 
 const {
   t,
-  chatStore,
   pinnedFiles,
   showPinnedFilesPanel,
   isLoadingPinnedFiles,
@@ -27,6 +26,7 @@ const {
   isLoadingPresets,
   selectedPresetId,
   selectedPreset,
+  activePinnedPrompts,
   customPromptDraft,
   isSavingPinnedPrompt,
   presetNameDraft,
@@ -42,9 +42,13 @@ const {
   handleSavePinnedPrompt,
   handleSaveCustomPromptAsPreset,
   handleClearPinnedPrompt,
+  handleRemovePinnedPrompt,
+  handleMovePinnedPrompt,
   handleSelectSkill,
   handleSelectPreset,
   handleCustomPromptEdited,
+  formatPinnedPromptItemTitle,
+  isSkillPinned,
   handleDragEnter,
   handleDragOver,
   handleDragLeave,
@@ -105,6 +109,57 @@ defineExpose({
       >
         {{ t('components.input.pinnedFilesPanel.tabs.skill') }}
       </button>
+    </div>
+
+    <div class="pinned-prompt-active">
+      <div class="pinned-prompt-active-header">
+        <span>{{ t('components.input.pinnedFilesPanel.active.title') }}</span>
+        <button
+          v-if="activePinnedPrompts.length > 0"
+          class="pinned-prompt-active-clear"
+          :disabled="isSavingPinnedPrompt"
+          @click="handleClearPinnedPrompt"
+        >
+          {{ t('components.input.pinnedFilesPanel.custom.clear') }}
+        </button>
+      </div>
+      <div v-if="activePinnedPrompts.length === 0" class="pinned-prompt-active-empty">
+        {{ t('components.input.pinnedFilesPanel.active.empty') }}
+      </div>
+      <div v-else class="pinned-prompt-active-list">
+        <div
+          v-for="(item, index) in activePinnedPrompts"
+          :key="item.id"
+          class="pinned-prompt-active-item"
+        >
+          <span class="pinned-prompt-active-order">{{ index + 1 }}</span>
+          <span class="pinned-prompt-active-name" :title="item.id">
+            {{ formatPinnedPromptItemTitle(item) }}
+          </span>
+          <span class="pinned-prompt-active-mode">{{ item.mode }}</span>
+          <IconButton
+            icon="codicon-arrow-up"
+            size="small"
+            :disabled="index === 0 || isSavingPinnedPrompt"
+            :title="t('components.input.pinnedFilesPanel.active.moveUp')"
+            @click="handleMovePinnedPrompt(item.id, -1)"
+          />
+          <IconButton
+            icon="codicon-arrow-down"
+            size="small"
+            :disabled="index === activePinnedPrompts.length - 1 || isSavingPinnedPrompt"
+            :title="t('components.input.pinnedFilesPanel.active.moveDown')"
+            @click="handleMovePinnedPrompt(item.id, 1)"
+          />
+          <IconButton
+            icon="codicon-close"
+            size="small"
+            :disabled="isSavingPinnedPrompt"
+            :title="t('components.input.remove')"
+            @click="handleRemovePinnedPrompt(item.id)"
+          />
+        </div>
+      </div>
     </div>
 
     <div v-if="pinPanelTab === 'custom'" class="pinned-custom-content">
@@ -247,7 +302,7 @@ defineExpose({
       <div v-else class="pinned-skill-preview">
         <div v-if="selectedSkill" class="pinned-skill-preview-inner">
           <div class="pinned-skill-preview-title">
-            <i v-if="chatStore.pinnedPrompt?.mode === 'skill' && chatStore.pinnedPrompt?.skillId === selectedSkill.id" class="codicon codicon-check"></i>
+            <i v-if="isSkillPinned(selectedSkill.id)" class="codicon codicon-check"></i>
             <span>{{ selectedSkill.name || selectedSkill.id }}</span>
           </div>
           <div v-if="selectedSkill.description" class="pinned-skill-preview-desc" :title="selectedSkill.description">
@@ -259,6 +314,13 @@ defineExpose({
           <i class="codicon codicon-info"></i>
           <span>{{ t('components.input.pinnedFilesPanel.skill.pickOne') }}</span>
         </div>
+      </div>
+
+      <div class="pinned-custom-actions">
+        <button class="pinned-custom-save" @click="handleSavePinnedPrompt" :disabled="isSavingPinnedPrompt || !selectedSkill">
+          <i v-if="isSavingPinnedPrompt" class="codicon codicon-loading codicon-modifier-spin"></i>
+          <span v-else>{{ t('components.input.pinnedFilesPanel.skill.add') }}</span>
+        </button>
       </div>
 
       <div class="pinned-skill-footer-hint">

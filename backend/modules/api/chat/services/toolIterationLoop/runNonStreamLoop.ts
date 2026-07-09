@@ -30,7 +30,7 @@ import {
 } from './helpers';
 import { loadOpenAIResponsesState } from './openaiResponsesState';
 
-import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
+import { applyPinnedPromptPlaceholders, getPinnedPromptBlocks, getPinnedPromptInjectedInfo } from '../pinnedPrompt';
 import { getSelectionReferencesInjectedInfo } from '../selectionReferences';
 import { buildLastMessageAttachmentsInjectedInfo, buildPinnedFilesInjectedInfo } from '../contextInjectionInfo';
 import { buildSummaryPreview } from '../../summaryPreview';
@@ -127,15 +127,13 @@ export async function runNonStreamLoop(
             ? deps.promptManager.refreshAndGetPrompt(contextOverrides)
             : deps.promptManager.getSystemPrompt(true, contextOverrides);
 
-        const pinnedPromptBlock = pinnedPromptEnabled
-            ? await getPinnedPromptBlock(deps.conversationManager, conversationId)
-            : '';
+        const pinnedPromptBlocks = pinnedPromptEnabled
+            ? await getPinnedPromptBlocks(deps.conversationManager, conversationId)
+            : [];
         const selectionReferences = getLastUserSelectionReferences(fullHistory);
         const taskContext = getLastUserTaskContext(fullHistory);
         const openFileContext = getLastUserOpenFileContext(fullHistory);
-        let dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt]
-            .filter(Boolean)
-            .join('\n\n');
+        let dynamicSystemPrompt = applyPinnedPromptPlaceholders(baseSystemPrompt, pinnedPromptBlocks);
 
         if (shouldRefreshPrompt) {
             const startTime = await getOrInitConversationStartTime(deps.conversationManager, conversationId);

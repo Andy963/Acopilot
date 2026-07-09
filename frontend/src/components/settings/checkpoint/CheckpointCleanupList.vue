@@ -71,7 +71,7 @@ function isConversationSelected(conversationId: string): boolean {
   </div>
 
   <div class="conversations-list-wrapper">
-    <CustomScrollbar>
+    <CustomScrollbar :max-height="360">
       <div class="conversations-list">
         <div v-if="isCleanupLoading" class="list-loading">
           <i class="codicon codicon-loading codicon-modifier-spin"></i>
@@ -227,6 +227,7 @@ function isConversationSelected(conversationId: string): boolean {
   background: var(--vscode-editor-background);
   min-height: 240px;
   max-height: 360px;
+  overflow: hidden;
 }
 
 .conversations-list {

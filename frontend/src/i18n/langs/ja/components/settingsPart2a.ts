@@ -133,6 +133,9 @@ export const jaComponentsSettingsPart2a = {
             modelPreset: '推奨モデル',
             modelPresetPlaceholder: 'カスタム（手入力）',
             modelPresetHint: 'プリセットを選ぶとモデル名が自動入力されます。上の欄で手入力もできます。',
+            testConnection: '接続をテスト',
+            testSuccess: '{provider} 接続は正常です（{model}）',
+            testFailed: '接続テストに失敗しました',
             show: '表示',
             hide: '非表示'
         },
@@ -151,6 +154,7 @@ export const jaComponentsSettingsPart2a = {
                 ultrawide: 'ウルトラワイド'
             },
             hints: {
+                together: 'Together AI の画像生成エンドポイントはこのパラメータをサポートしていません。',
                 disabled: '無効時：AI はこのパラメータを設定できず、API 呼び出しにこのパラメータは含まれません',
                 fixed: '固定：AI は {ratio} に固定されることが通知され、変更できません',
                 flexible: '固定しない：AI は aspect_ratio パラメータを使用して選択できます'
@@ -165,6 +169,7 @@ export const jaComponentsSettingsPart2a = {
                 auto: '自動'
             },
             hints: {
+                together: 'Together AI の画像生成エンドポイントはこのパラメータをサポートしていません。',
                 disabled: '無効時：AI はこのパラメータを設定できず、API 呼び出しにこのパラメータは含まれません',
                 fixed: '固定：AI は {size} に固定されることが通知され、変更できません',
                 flexible: '固定しない：AI は image_size パラメータを使用して選択できます'
@@ -372,6 +377,10 @@ export const jaComponentsSettingsPart2a = {
                 name: 'ピン留めファイルの内容',
                 description: 'ユーザーがピン留めしたファイルの完全な内容を表示します',
                 requiresConfig: '入力ボックス横のピン留めファイルボタンでファイルを追加する必要があります'
+            },
+            PINNED_PROMPTS: {
+                name: 'ピン留めプロンプト',
+                description: '現在の会話で有効なピン留めプロンプトブロックを表示します'
             },
             TOOLS: {
                 name: 'ツール定義',

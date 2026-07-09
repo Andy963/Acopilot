@@ -152,6 +152,13 @@ export const jaComponentsSettingsPart2b = {
                 inputPlaceholder: '除外するファイルまたはディレクトリパターンを入力...',
                 deleteTooltip: '削除',
                 addButton: '追加'
+            },
+            replaceInFiles: {
+                excludeList: '置換除外パターン',
+                excludeListHint: '（glob 形式、例: **/node_modules/**）',
+                inputPlaceholder: '置換から除外するファイルまたはディレクトリパターンを入力...',
+                deleteTooltip: '削除',
+                addButton: '追加'
             }
         },
         lsp: {
@@ -281,13 +288,14 @@ export const jaComponentsSettingsPart2b = {
         },
         dangerConfirm: {
             title: '自動実行を有効にしますか？',
-            message: '危険なツール {tool} に対して自動実行を有効にしようとしています。取り消せない変更が発生する可能性があります。続行しますか？',
+            message: '危険なツール {tool} に対して自動実行を有効にしようとしています。取り消せない変更が発生する可能性があります。不足している実行前後のチェックポイント保護を先に有効化します。続行しますか？',
+            checkpointFailed: '危険なツールのチェックポイント保護を有効化できませんでした。自動実行は有効化されていません。',
             confirm: '有効にする',
             cancel: 'キャンセル'
         },
         enableAllDangerous: {
             title: '自動実行を有効化',
-            message: '危険なツール（delete_file / execute_command）が検出されました。これらも自動実行にしますか？',
+            message: '危険なツール（apply_diff / delete_file / execute_command / replace_in_files）が検出されました。チェックポイント保護を確保したうえで、これらも自動実行にしますか？',
             confirm: '危険なツールも含める',
             cancel: '危険なツールを除外'
         },
@@ -301,6 +309,30 @@ export const jaComponentsSettingsPart2b = {
             media: 'メディア処理',
             mcp: 'MCP',
             other: 'その他'
+        },
+        descriptions: {
+            list_files: 'ワークスペース内のファイルとサブディレクトリを一覧表示します。必要に応じて再帰的に展開できます。',
+            read_file: '1 つ以上のファイルを読み取ります。開始行と終了行も指定できます。',
+            write_file: '1 つ以上のファイルを書き込みます。ファイル作成や内容の置き換えに使います。',
+            apply_diff: 'ファイルに精密な検索置換パッチを適用します。',
+            delete_file: '指定した 1 つ以上のファイルを削除します。',
+            create_directory: '1 つ以上のディレクトリを作成します。存在しない親ディレクトリも作成します。',
+            find_files: 'glob パターンでファイルパスを検索します。',
+            search_in_files: 'キーワードまたは正規表現でファイル内容を検索します。',
+            replace_in_files: '複数ファイルでテキストを検索・置換します。プレビューにも対応します。',
+            execute_command: 'Shell コマンドを実行し、その出力を返します。',
+            locate: '指定したファイル位置を開く、または表示します。',
+            open_file: 'エディタでファイルを開き、必要に応じて範囲を表示します。',
+            goto_definition: 'シンボルの定義位置へ移動します。',
+            find_references: '指定したシンボルの参照位置を検索します。',
+            get_usages: 'シンボルの使用箇所を検索し、必要に応じて前後の文脈行も返します。',
+            get_symbols: 'ファイルまたはディレクトリ内のコードシンボルを一覧表示します。',
+            get_errors: 'エラーや警告など、ワークスペースの診断情報を取得します。',
+            generate_image: 'プロンプトと任意の参照画像から画像を生成します。',
+            remove_background: '画像の背景を削除し、透明画像やマスクを保存できます。',
+            crop_image: '画像を指定範囲にトリミングします。',
+            resize_image: '画像を指定した幅と高さにリサイズします。',
+            rotate_image: '画像を指定角度で回転します。'
         },
         dependency: {
             required: '依存関係が必要',

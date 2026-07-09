@@ -3,6 +3,8 @@ import * as path from 'path';
 
 import { resolveUri } from '../utils';
 import { createProxyFetch } from '../../modules/channel/proxyFetch';
+import { redactSensitiveText } from '../../core/redaction';
+import { normalizeGenerateImageConfig, resolveGenerateImageProvider } from '../../modules/settings/types';
 
 import type {
     GenerateImageConfig,
@@ -14,13 +16,15 @@ import type {
 } from './generateImageTypes';
 
 export function detectImageProvider(config: GenerateImageConfig): ImageProvider {
-    const url = (config.url || '').toLowerCase();
-    const model = (config.model || '').toLowerCase();
+    return resolveGenerateImageProvider(config as any);
+}
 
-    if (url.includes('together.xyz') || model.includes('/')) {
-        return 'together';
+function redactImageConfigError(text: string, config: GenerateImageConfig): string {
+    let redacted = redactSensitiveText(text);
+    if (config.apiKey) {
+        redacted = redacted.split(config.apiKey).join('***REDACTED***');
     }
-    return 'gemini';
+    return redacted;
 }
 
 function getTogetherImagesEndpoint(configUrl?: string): string {
@@ -36,6 +40,80 @@ function getTogetherImagesEndpoint(configUrl?: string): string {
         return normalized;
     }
     return `${normalized}/images/generations`;
+}
+
+function getTogetherBaseEndpoint(configUrl?: string): string {
+    const defaultBase = 'https://api.together.xyz/v1';
+    const raw = (configUrl && configUrl.trim()) ? configUrl.trim() : '';
+    const normalized = (raw || defaultBase).replace(/\/+$/, '');
+
+    if (normalized.includes('generativelanguage.googleapis.com')) {
+        return defaultBase;
+    }
+    if (normalized.endsWith('/images/generations')) {
+        return normalized.replace(/\/images\/generations$/, '');
+    }
+    return normalized;
+}
+
+export interface GenerateImageConnectionTestResult {
+    success: boolean;
+    provider: ImageProvider;
+    model: string;
+    error?: string;
+}
+
+export async function testGenerateImageConnection(
+    config: GenerateImageConfig,
+    fetchOverride?: typeof fetch
+): Promise<GenerateImageConnectionTestResult> {
+    const normalized = normalizeGenerateImageConfig(config as any);
+    const provider = detectImageProvider(normalized);
+    const model = normalized.model || '';
+
+    if (!normalized.url) {
+        return { success: false, provider, model, error: 'API URL is required.' };
+    }
+    if (!normalized.apiKey) {
+        return { success: false, provider, model, error: 'API Key is required.' };
+    }
+    if (!model) {
+        return { success: false, provider, model, error: 'Model name is required.' };
+    }
+
+    try {
+        const proxyUrl = typeof (normalized as any).proxyUrl === 'string' ? (normalized as any).proxyUrl : undefined;
+        const fetchFn = fetchOverride || createProxyFetch(proxyUrl);
+        const url = provider === 'together'
+            ? `${getTogetherBaseEndpoint(normalized.url)}/models`
+            : `${normalized.url.replace(/\/+$/, '')}/models/${encodeURIComponent(model)}?key=${encodeURIComponent(normalized.apiKey)}`;
+
+        const response = await fetchFn(url, {
+            method: 'GET',
+            headers: provider === 'together'
+                ? { 'Authorization': `Bearer ${normalized.apiKey}` }
+                : undefined
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            return {
+                success: false,
+                provider,
+                model,
+                error: redactImageConfigError(`Connection test failed: ${response.status} ${errorText}`, normalized)
+            };
+        }
+
+        return { success: true, provider, model };
+    } catch (error) {
+        return {
+            success: false,
+            provider,
+            model,
+            error: redactImageConfigError(error instanceof Error ? error.message : String(error), normalized)
+        };
+    }
 }
 
 export async function readReferenceImage(imgPath: string): Promise<ReferenceImage | null> {

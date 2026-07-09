@@ -410,8 +410,16 @@ export class ToolExecutionService {
      * @param calls 函数调用列表
      * @returns 需要确认的函数调用列表
      */
-    getToolsNeedingConfirmation(calls: FunctionCallInfo[]): FunctionCallInfo[] {
+    getToolsNeedingConfirmation(calls: FunctionCallInfo[], toolAllowList?: string[]): FunctionCallInfo[] {
+        const allowSet = Array.isArray(toolAllowList) && toolAllowList.length > 0
+            ? new Set(toolAllowList.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim()))
+            : null;
+
         return calls.filter(call => {
+            if (allowSet && !allowSet.has(call.name)) {
+                return false;
+            }
+
             if (call.name === 'execute_command' && this.settingsManager) {
                 const command = (call.args?.command as string | undefined) || '';
                 const execConfig = this.settingsManager.getExecuteCommandConfig();

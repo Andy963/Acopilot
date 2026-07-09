@@ -78,7 +78,7 @@ export function buildGeminiRequest(
     };
   }
 
-  const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? false;
+  const useStream = request.streamOverride ?? config.options?.stream ?? config.preferStream ?? true;
   const url = buildGeminiGenerateContentUrl(config.url, config.model, useStream);
 
   const headers: Record<string, string> = {
@@ -154,4 +154,3 @@ export function buildGeminiRequest(
     stream: useStream,
   };
 }
-

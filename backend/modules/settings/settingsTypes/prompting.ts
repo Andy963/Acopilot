@@ -133,6 +133,17 @@ The following are pinned files...
         requiresConfig: 'Add files via the pinned files button next to input'
     },
     {
+        id: 'PINNED_PROMPTS',
+        name: 'Pinned Prompts',
+        description: 'Shows active pinned prompt blocks for the conversation. Use {{$PINNED_PROMPT:<id>}} to place one prompt by id.',
+        example: `====
+
+PINNED PROMPT: Review
+
+Review code carefully.`,
+        requiresConfig: 'Add prompts via the pinned context button next to input'
+    },
+    {
         id: 'TOOLS',
         name: 'Tools Definition',
         description: 'Generates tool definitions in XML or Function Call format based on channel config',
@@ -166,6 +177,8 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programmin
 
 {{$PINNED_FILES}}
 
+{{$PINNED_PROMPTS}}
+
 {{$TOOLS}}
 
 {{$MCP_TOOLS}}
@@ -198,4 +211,3 @@ export const DEFAULT_SYSTEM_PROMPT_CONFIG: SystemPromptConfig = {
     pinnedPromptPresets: [],
     pinnedPromptWorkspaceDefaults: {}
 };
-

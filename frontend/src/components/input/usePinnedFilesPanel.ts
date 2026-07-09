@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { useChatStore } from '../../stores'
 import { sendToExtension, showNotification } from '../../utils/vscode'
 import { useI18n } from '../../i18n'
+import type { PinnedPromptItem } from '../../stores/chat/types'
 
 interface PinnedFileItem {
   id: string
@@ -99,7 +100,8 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
   const selectedSkill = computed(() => skills.value.find(s => s.id === selectedSkillId.value) || null)
   const selectedPreset = computed(() => presets.value.find(preset => preset.id === selectedPresetId.value) || null)
 
-  const hasPinnedPrompt = computed(() => Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none'))
+  const activePinnedPrompts = computed(() => Array.isArray(chatStore.pinnedPrompts) ? chatStore.pinnedPrompts : [])
+  const hasPinnedPrompt = computed(() => activePinnedPrompts.value.length > 0)
 
   const enabledPinnedFilesCount = computed(() => pinnedFiles.value.filter(f => f.enabled).length)
 
@@ -161,8 +163,12 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     }
   }
 
+  function getPrimaryPinnedPrompt(): PinnedPromptItem | null {
+    return activePinnedPrompts.value[0] || null
+  }
+
   function syncPinnedPromptDraftFromStore() {
-    const pinned = chatStore.pinnedPrompt
+    const pinned = getPrimaryPinnedPrompt()
     if (pinned?.mode === 'custom' && typeof pinned.customPrompt === 'string') {
       customPromptDraft.value = pinned.customPrompt
       selectedPresetId.value = ''
@@ -182,6 +188,80 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
         presetNameDraft.value = selected.name
       }
     }
+  }
+
+  function createPinnedPromptItemFromSelection(): PinnedPromptItem | null {
+    const order = activePinnedPrompts.value.length
+
+    if (pinPanelTab.value === 'skill') {
+      const selected = selectedSkill.value
+      if (!selected) return null
+      return {
+        id: `skill:${selected.id}`,
+        mode: 'skill',
+        skillId: selected.id,
+        order
+      }
+    }
+
+    const customPrompt = customPromptDraft.value.trim()
+    if (!customPrompt) return null
+
+    const selected = selectedPreset.value
+    if (selected && selected.prompt.trim() === customPrompt) {
+      return {
+        id: `preset:${selected.id}`,
+        mode: 'preset',
+        presetId: selected.id,
+        order
+      }
+    }
+
+    return {
+      id: `custom:${Date.now().toString(36)}`,
+      mode: 'custom',
+      customPrompt,
+      name: presetNameDraft.value.trim() || undefined,
+      order
+    }
+  }
+
+  function normalizePromptOrders(items: PinnedPromptItem[]): PinnedPromptItem[] {
+    return items.map((item, index) => ({ ...item, order: index }))
+  }
+
+  async function savePinnedPromptItems(items: PinnedPromptItem[]): Promise<void> {
+    await chatStore.setPinnedPrompts(normalizePromptOrders(items))
+  }
+
+  function upsertPinnedPromptItem(item: PinnedPromptItem): PinnedPromptItem[] {
+    const existingIndex = activePinnedPrompts.value.findIndex(existing => existing.id === item.id)
+    if (existingIndex >= 0) {
+      return activePinnedPrompts.value.map((existing, index) => (
+        index === existingIndex ? { ...item, order: existing.order } : existing
+      ))
+    }
+    return [...activePinnedPrompts.value, item]
+  }
+
+  function formatPinnedPromptItemTitle(item: PinnedPromptItem): string {
+    if (item.mode === 'skill') {
+      const skill = skills.value.find(candidate => candidate.id === item.skillId)
+      return skill?.name || item.skillId || item.id
+    }
+
+    if (item.mode === 'preset') {
+      const preset = presets.value.find(candidate => candidate.id === item.presetId)
+      return preset?.name || item.presetId || item.id
+    }
+
+    if (item.name) return item.name
+    const count = typeof item.customPrompt === 'string' ? item.customPrompt.trim().length : 0
+    return t('components.input.pinnedFilesPanel.active.customTitle', { count })
+  }
+
+  function isSkillPinned(skillId: string): boolean {
+    return activePinnedPrompts.value.some(item => item.mode === 'skill' && item.skillId === skillId)
   }
 
   async function checkPinnedFilesExistence() {
@@ -259,32 +339,13 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
   async function handleSavePinnedPrompt() {
     isSavingPinnedPrompt.value = true
     try {
-      if (pinPanelTab.value === 'skill') {
-        const selected = selectedSkill.value
-        if (!selected) return
+      const item = createPinnedPromptItemFromSelection()
+      if (!item) return
 
-        await chatStore.setPinnedPrompt({
-          mode: 'skill',
-          skillId: selected.id,
-        })
-      } else if (pinPanelTab.value === 'custom') {
-        const customPrompt = customPromptDraft.value.trim()
-        if (!customPrompt) return
-
-        customPromptDraft.value = customPrompt
-        const selected = selectedPreset.value
-        if (selected && selected.prompt.trim() === customPrompt) {
-          await chatStore.setPinnedPrompt({
-            mode: 'preset',
-            presetId: selected.id,
-          })
-        } else {
-          await chatStore.setPinnedPrompt({
-            mode: 'custom',
-            customPrompt,
-          })
-        }
+      if (item.mode === 'custom' && item.customPrompt) {
+        customPromptDraft.value = item.customPrompt.trim()
       }
+      await savePinnedPromptItems(upsertPinnedPromptItem(item))
 
       await showNotification(t('components.input.notifications.pinnedPromptSaved'), 'info')
     } catch (error: any) {
@@ -322,7 +383,12 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
       selectedPresetId.value = savedPreset.id
       presetNameDraft.value = savedPreset.name
       customPromptDraft.value = savedPreset.prompt
-      await chatStore.setPinnedPrompt({ mode: 'preset', presetId: savedPreset.id })
+      await savePinnedPromptItems(upsertPinnedPromptItem({
+        id: `preset:${savedPreset.id}`,
+        mode: 'preset',
+        presetId: savedPreset.id,
+        order: activePinnedPrompts.value.length
+      }))
 
       await showNotification(t('components.input.notifications.pinnedPromptSaved'), 'info')
     } catch (error: any) {
@@ -339,7 +405,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
   async function handleClearPinnedPrompt() {
     isSavingPinnedPrompt.value = true
     try {
-      await chatStore.setPinnedPrompt({ mode: 'none' })
+      await chatStore.setPinnedPrompts([])
       customPromptDraft.value = ''
       selectedPresetId.value = ''
       presetNameDraft.value = ''
@@ -369,15 +435,44 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
 
     customPromptDraft.value = preset.prompt
     presetNameDraft.value = preset.name
+  }
 
+  async function handleRemovePinnedPrompt(id: string) {
+    isSavingPinnedPrompt.value = true
     try {
-      await chatStore.setPinnedPrompt({ mode: 'preset', presetId: preset.id })
+      await savePinnedPromptItems(activePinnedPrompts.value.filter(item => item.id !== id))
+      await showNotification(t('components.input.notifications.pinnedPromptSaved'), 'info')
     } catch (error: any) {
-      console.error('Failed to select pinned prompt preset:', error)
+      console.error('Failed to remove pinned prompt:', error)
       await showNotification(
         t('components.input.notifications.savePinnedPromptFailed', { error: error.message || t('common.unknownError') }),
         'error',
       )
+    } finally {
+      isSavingPinnedPrompt.value = false
+    }
+  }
+
+  async function handleMovePinnedPrompt(id: string, direction: -1 | 1) {
+    const index = activePinnedPrompts.value.findIndex(item => item.id === id)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= activePinnedPrompts.value.length) return
+
+    const next = [...activePinnedPrompts.value]
+    const [item] = next.splice(index, 1)
+    next.splice(target, 0, item)
+
+    isSavingPinnedPrompt.value = true
+    try {
+      await savePinnedPromptItems(next)
+    } catch (error: any) {
+      console.error('Failed to move pinned prompt:', error)
+      await showNotification(
+        t('components.input.notifications.savePinnedPromptFailed', { error: error.message || t('common.unknownError') }),
+        'error',
+      )
+    } finally {
+      isSavingPinnedPrompt.value = false
     }
   }
 
@@ -467,7 +562,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     syncPinnedPromptDraftFromStore()
     if (!selectedPresetId.value) presetNameDraft.value = ''
     pinPanelTab.value =
-      chatStore.pinnedPrompt?.mode === 'skill'
+      getPrimaryPinnedPrompt()?.mode === 'skill'
         ? 'skill'
         : 'custom'
 
@@ -507,6 +602,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     isLoadingPresets,
     selectedPresetId,
     selectedPreset,
+    activePinnedPrompts,
     customPromptDraft,
     isSavingPinnedPrompt,
     presetNameDraft,
@@ -525,9 +621,13 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     handleSavePinnedPrompt,
     handleSaveCustomPromptAsPreset,
     handleClearPinnedPrompt,
+    handleRemovePinnedPrompt,
+    handleMovePinnedPrompt,
     handleSelectSkill,
     handleSelectPreset,
     handleCustomPromptEdited,
+    formatPinnedPromptItemTitle,
+    isSkillPinned,
     handleDragEnter,
     handleDragOver,
     handleDragLeave,

@@ -186,6 +186,14 @@ function handleGroupChange(value: string) {
     <!-- 页面标题栏 -->
     <div class="page-header">
       <div class="page-header-left">
+        <button
+          class="history-back-btn"
+          :title="t('components.history.backToChat')"
+          :aria-label="t('components.history.backToChat')"
+          @click="settingsStore.showChat"
+        >
+          <i class="codicon codicon-arrow-left"></i>
+        </button>
         <h3>{{ t('components.history.title') }}</h3>
       </div>
 
@@ -209,10 +217,6 @@ function handleGroupChange(value: string) {
         >
           <i class="codicon codicon-checklist"></i>
           <span>{{ t('components.history.manage') }}</span>
-        </button>
-
-        <button class="close-btn" :title="t('components.history.backToChat')" @click="settingsStore.showChat">
-          <i class="codicon codicon-close"></i>
         </button>
       </div>
     </div>
@@ -358,6 +362,7 @@ function handleGroupChange(value: string) {
 .page-header-left {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-width: 0;
   flex: 0 1 auto;
 }
@@ -604,7 +609,7 @@ function handleGroupChange(value: string) {
   opacity: 0.5;
 }
 
-.close-btn {
+.history-back-btn {
   background: transparent;
   border: none;
   color: var(--vscode-foreground);
@@ -614,9 +619,10 @@ function handleGroupChange(value: string) {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
-.close-btn:hover {
+.history-back-btn:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
 

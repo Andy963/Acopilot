@@ -19,6 +19,19 @@ export const enComponentsInput = {
     autoSummarizeThreshold: 'Auto summarize at',
     openContextInspectorHint: 'Click for a full context breakdown',
     fileNotExists: 'File does not exist',
+    attachmentSupport: {
+        supported: 'supported',
+        converted: 'text',
+        unsupported: 'unsupported',
+        unknown: 'unknown',
+        tokenEstimate: '~{tokens} tokens',
+        truncated: 'May be truncated before sending',
+        truncatedShort: 'truncated'
+    },
+    referenceSources: {
+        selection: 'Selection',
+        file: 'File'
+    },
     channelSelector: {
         placeholder: 'Select config',
         searchPlaceholder: 'Search channels...',
@@ -50,11 +63,19 @@ export const enComponentsInput = {
             clear: 'Clear references',
             truncated: 'Truncated'
         },
+        active: {
+            title: 'Active pinned prompts',
+            empty: 'No pinned prompts',
+            customTitle: 'Custom ({count} chars)',
+            moveUp: 'Move up',
+            moveDown: 'Move down'
+        },
         skill: {
             selectLabel: 'Select Skill',
             loading: 'Loading...',
             empty: 'No skills',
             pickOne: 'Pick a skill',
+            add: 'Add to conversation',
             manageHint: 'Manage skills in Settings > System Prompt'
         },
         custom: {
@@ -109,6 +130,8 @@ export const enComponentsInput = {
         fileNotInAnyWorkspace: 'File is not in any open workspace',
         fileInOtherWorkspace: 'File belongs to another workspace: {workspaceName}',
         fileAdded: 'Added pinned file: {path}',
+        selectionReferenceAdded: 'Added selection reference to chat',
+        fileReferenceAdded: 'Added file reference to chat',
         addFailed: 'Add failed: {error}',
         loadPinnedPromptPresetsFailed: 'Load saved prompts failed: {error}',
         cannotGetFilePath: 'Cannot get file path, please drag from VSCode Explorer or tab',

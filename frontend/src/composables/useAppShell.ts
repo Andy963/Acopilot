@@ -136,6 +136,11 @@ export function useAppShell() {
   }
 
   function handleShowSettings() {
+    if (!chatStore.configId || !chatStore.currentConfig) {
+      settingsStore.showSettings('channel')
+      return
+    }
+
     settingsStore.showSettings()
   }
 

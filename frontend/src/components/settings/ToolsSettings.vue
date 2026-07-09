@@ -57,6 +57,7 @@ const {
   confirmEnableAllAutoExec,
   disableAllAutoExec,
   getToolDisplayName,
+  getToolDescription,
   getCategoryDisplayName,
   getCategoryIcon,
   getCategoryEnabledCount,
@@ -151,7 +152,7 @@ async function handleInstallMissingDependencies(toolName: string) {
               :class="{ 'tool-disabled': hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) }">
               <div class="tool-info">
                 <div class="tool-name-row">
-                  <span class="tool-name">{{ getToolDisplayName(tool.name) }}</span>
+                  <span class="tool-name">{{ getToolDisplayName(tool) }}</span>
                   <span v-if="isDangerousTool(tool.name)" class="danger-badge">
                     <i class="codicon codicon-warning"></i>
                     {{ t('components.settings.autoExec.badges.dangerous') }}
@@ -167,7 +168,7 @@ async function handleInstallMissingDependencies(toolName: string) {
                     {{ t('components.settings.toolsSettings.dependency.required') }}
                   </span> -->
                 </div>
-                <div class="tool-description" :title="tool.description">{{ tool.description }}</div>
+                <div class="tool-description" :title="getToolDescription(tool)">{{ getToolDescription(tool) }}</div>
               </div>
 
               <!-- 启用列 -->
@@ -226,6 +227,8 @@ async function handleInstallMissingDependencies(toolName: string) {
               :tool-name="tool.name" />
             <FindFilesConfig v-if="tool.name === 'find_files' && isConfigExpanded(tool.name)" />
             <SearchInFilesConfig v-if="tool.name === 'search_in_files' && isConfigExpanded(tool.name)" />
+            <SearchInFilesConfig v-if="tool.name === 'replace_in_files' && isConfigExpanded(tool.name)"
+              tool-name="replace_in_files" i18n-section="replaceInFiles" />
             <LocateConfig v-if="tool.name === 'locate' && isConfigExpanded(tool.name)" />
             <GenerateImageConfig v-if="tool.name === 'generate_image' && isConfigExpanded(tool.name)" />
             <RemoveBackgroundConfig v-if="tool.name === 'remove_background' && isConfigExpanded(tool.name)" />

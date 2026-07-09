@@ -19,6 +19,19 @@ export const jaComponentsInput = {
     autoSummarizeThreshold: '自動要約しきい値',
     openContextInspectorHint: 'クリックして詳細な内訳を表示',
     fileNotExists: 'ファイルが存在しません',
+    attachmentSupport: {
+        supported: '対応',
+        converted: 'テキスト',
+        unsupported: '非対応',
+        unknown: '不明',
+        tokenEstimate: '約 {tokens} tokens',
+        truncated: '送信前に切り詰められる可能性があります',
+        truncatedShort: '切り詰め'
+    },
+    referenceSources: {
+        selection: '選択範囲',
+        file: 'ファイル'
+    },
     channelSelector: {
         placeholder: '設定を選択',
         searchPlaceholder: 'チャンネルを検索...',
@@ -50,11 +63,19 @@ export const jaComponentsInput = {
             clear: '参照をクリア',
             truncated: '切り詰め'
         },
+        active: {
+            title: '有効なピン留めプロンプト',
+            empty: 'ピン留めプロンプトがありません',
+            customTitle: 'カスタム（{count} 文字）',
+            moveUp: '上へ移動',
+            moveDown: '下へ移動'
+        },
         skill: {
             selectLabel: 'Skill を選択',
             loading: '読み込み中...',
             empty: 'Skill がありません',
             pickOne: 'Skill を選択してください',
+            add: 'この会話に追加',
             manageHint: '設定 > システムプロンプト で Skills を管理'
         },
         custom: {
@@ -109,6 +130,8 @@ export const jaComponentsInput = {
         fileNotInAnyWorkspace: 'ファイルが開いているワークスペースにありません',
         fileInOtherWorkspace: 'ファイルは別のワークスペースに属しています: {workspaceName}',
         fileAdded: 'ピン留めファイルを追加しました: {path}',
+        selectionReferenceAdded: '選択範囲の参照をチャットに追加しました',
+        fileReferenceAdded: 'ファイル参照をチャットに追加しました',
         addFailed: '追加に失敗しました: {error}',
         loadPinnedPromptPresetsFailed: '保存済みプロンプトの読み込みに失敗しました: {error}',
         cannotGetFilePath: 'ファイルパスを取得できません。VSCode エクスプローラーまたはタブからドラッグしてください',
