@@ -378,6 +378,10 @@ export const enComponentsSettingsPart2a = {
                 description: 'Shows complete content of user-pinned files',
                 requiresConfig: 'Need to add files in the pinned files button next to input box'
             },
+            PINNED_PROMPTS: {
+                name: 'Pinned Prompts',
+                description: 'Shows active pinned prompt blocks for the conversation'
+            },
             TOOLS: {
                 name: 'Tool Definitions',
                 description: 'Generate tool definitions in XML or Function Call format based on channel configuration (this variable is automatically filled by the system)'

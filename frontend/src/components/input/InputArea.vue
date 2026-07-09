@@ -121,7 +121,7 @@ const showCreatePlanModal = ref(false)
 const showPinnedFilesPanel = ref(false)
 
 const enabledPinnedFilesCount = ref(0)
-const hasPinnedPrompt = computed(() => Boolean(chatStore.pinnedPrompt?.mode && chatStore.pinnedPrompt.mode !== 'none'))
+const hasPinnedPrompt = computed(() => Array.isArray(chatStore.pinnedPrompts) && chatStore.pinnedPrompts.length > 0)
 const isSummarizing = ref(false)
 
 function handlePinnedPanelStats(count: number) {

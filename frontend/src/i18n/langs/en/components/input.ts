@@ -63,11 +63,19 @@ export const enComponentsInput = {
             clear: 'Clear references',
             truncated: 'Truncated'
         },
+        active: {
+            title: 'Active pinned prompts',
+            empty: 'No pinned prompts',
+            customTitle: 'Custom ({count} chars)',
+            moveUp: 'Move up',
+            moveDown: 'Move down'
+        },
         skill: {
             selectLabel: 'Select Skill',
             loading: 'Loading...',
             empty: 'No skills',
             pickOne: 'Pick a skill',
+            add: 'Add to conversation',
             manageHint: 'Manage skills in Settings > System Prompt'
         },
         custom: {

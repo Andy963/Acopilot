@@ -63,11 +63,19 @@ export const jaComponentsInput = {
             clear: '参照をクリア',
             truncated: '切り詰め'
         },
+        active: {
+            title: '有効なピン留めプロンプト',
+            empty: 'ピン留めプロンプトがありません',
+            customTitle: 'カスタム（{count} 文字）',
+            moveUp: '上へ移動',
+            moveDown: '下へ移動'
+        },
         skill: {
             selectLabel: 'Skill を選択',
             loading: '読み込み中...',
             empty: 'Skill がありません',
             pickOne: 'Skill を選択してください',
+            add: 'この会話に追加',
             manageHint: '設定 > システムプロンプト で Skills を管理'
         },
         custom: {

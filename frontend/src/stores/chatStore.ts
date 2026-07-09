@@ -92,9 +92,10 @@ import {
 } from './chat/messageActions'
 import type { SendMessageOptions } from './chat/messageActions'
 
-import type { PinnedPromptState } from './chat/types'
+import type { PinnedPromptItem, PinnedPromptState } from './chat/types'
 import {
   setPinnedPrompt as setPinnedPromptFn,
+  setPinnedPrompts as setPinnedPromptsFn,
   dismissPinnedPromptWorkspaceDefaultNotice as dismissPinnedPromptWorkspaceDefaultNoticeFn,
   resolveDefaultPinnedPromptForNewConversation
 } from './chat/pinnedPromptActions'
@@ -187,6 +188,7 @@ export const useChatStore = defineStore('chat', () => {
   const setInputValue = (value: string) => setInputValueAction(state, value)
   const clearInputValue = () => clearInputValueAction(state)
   const setPinnedPrompt = (pinnedPrompt: PinnedPromptState) => setPinnedPromptFn(state, pinnedPrompt)
+  const setPinnedPrompts = (pinnedPrompts: PinnedPromptItem[]) => setPinnedPromptsFn(state, pinnedPrompts)
   const dismissPinnedPromptWorkspaceDefaultNotice = () => dismissPinnedPromptWorkspaceDefaultNoticeFn(state)
   const addSelectionReference = (selection: Partial<SelectionReference>) => addSelectionReferenceFn(state, selection)
   const removeSelectionReference = (id: string) => removeSelectionReferenceFn(state, id)
@@ -278,8 +280,9 @@ export const useChatStore = defineStore('chat', () => {
     state.currentConversationId.value = null
     state.allMessages.value = []
 
-    const { pinnedPrompt, fromWorkspaceDefault } = await resolveDefaultPinnedPromptForNewConversation()
+    const { pinnedPrompt, pinnedPrompts, fromWorkspaceDefault } = await resolveDefaultPinnedPromptForNewConversation()
     state.pinnedPrompt.value = pinnedPrompt
+    state.pinnedPrompts.value = pinnedPrompts
     state.pinnedPromptFromWorkspaceDefault.value = fromWorkspaceDefault
   }
 
@@ -406,8 +409,10 @@ export const useChatStore = defineStore('chat', () => {
 
     // 固定提示词/技能
     pinnedPrompt: state.pinnedPrompt,
+    pinnedPrompts: state.pinnedPrompts,
     pinnedPromptFromWorkspaceDefault: state.pinnedPromptFromWorkspaceDefault,
     setPinnedPrompt,
+    setPinnedPrompts,
     dismissPinnedPromptWorkspaceDefaultNotice,
 
     // 本条消息引用（选中代码片段）

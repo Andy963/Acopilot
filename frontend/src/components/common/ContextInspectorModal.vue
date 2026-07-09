@@ -152,6 +152,17 @@ const pinnedPromptSummary = computed(() => {
   const p = props.data?.injected?.pinnedPrompt
   if (!p || p.mode === 'none') return ''
 
+  if (p.mode === 'multiple') {
+    const count = typeof p.count === 'number' ? p.count : p.prompts?.length || 0
+    const names = Array.isArray(p.prompts)
+      ? p.prompts
+        .map(item => item.skillName || item.presetName || item.name || item.skillId || item.presetId || item.id)
+        .filter(Boolean)
+        .join(', ')
+      : ''
+    return names ? `${count}: ${names}` : String(count)
+  }
+
   if (p.mode === 'skill') {
     if (p.skillName && p.skillId) return `${p.skillName} (${p.skillId})`
     return p.skillName || p.skillId || 'skill'

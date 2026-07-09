@@ -378,6 +378,10 @@ export const jaComponentsSettingsPart2a = {
                 description: 'ユーザーがピン留めしたファイルの完全な内容を表示します',
                 requiresConfig: '入力ボックス横のピン留めファイルボタンでファイルを追加する必要があります'
             },
+            PINNED_PROMPTS: {
+                name: 'ピン留めプロンプト',
+                description: '現在の会話で有効なピン留めプロンプトブロックを表示します'
+            },
             TOOLS: {
                 name: 'ツール定義',
                 description: 'チャンネル設定に基づいて XML または Function Call 形式でツール定義を生成します（この変数はシステムによって自動的に入力されます）'

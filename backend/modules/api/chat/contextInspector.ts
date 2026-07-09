@@ -7,7 +7,7 @@ import type { SelectionReference, ContextInjectionOverrides } from '../../conver
 import type { ToolDeclaration } from '../../../tools/types';
 import { convertToolsToJSON } from '../../../tools/jsonFormatter';
 import { convertToolsToXML } from '../../../tools/xmlFormatter';
-import { getPinnedPromptBlock, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
+import { applyPinnedPromptPlaceholders, getPinnedPromptBlocks, getPinnedPromptInjectedInfo } from './services/pinnedPrompt';
 import { getSelectionReferencesInjectedInfo } from './services/selectionReferences';
 import { buildPinnedFilesInjectedInfo, buildPreviewAttachmentsInjectedInfo } from './services/contextInjectionInfo';
 import { resolveChatModePolicy } from './services/chatMode';
@@ -60,10 +60,10 @@ export async function buildContextInspectorData(params: {
   }
 
   const baseSystemPrompt = params.promptManager.getSystemPrompt(true, contextOverrides);
-  const pinnedPromptBlock = (conversationId && pinnedPromptEnabled)
-    ? await getPinnedPromptBlock(params.conversationManager, conversationId)
-    : '';
-  const dynamicSystemPrompt = [pinnedPromptBlock, baseSystemPrompt].filter(Boolean).join('\n\n');
+  const pinnedPromptBlocks = (conversationId && pinnedPromptEnabled)
+    ? await getPinnedPromptBlocks(params.conversationManager, conversationId)
+    : [];
+  const dynamicSystemPrompt = applyPinnedPromptPlaceholders(baseSystemPrompt, pinnedPromptBlocks);
 
   let systemInstruction = (config.systemInstruction as string | undefined) || '';
   if (dynamicSystemPrompt) {

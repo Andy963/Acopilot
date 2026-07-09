@@ -378,6 +378,10 @@ export const zhCNComponentsSettingsPart2a = {
                 description: '显示用户固定的文件的完整内容',
                 requiresConfig: '需要在输入框旁的固定文件按钮中添加文件'
             },
+            PINNED_PROMPTS: {
+                name: '固定提示词',
+                description: '显示当前对话启用的固定提示词块'
+            },
             TOOLS: {
                 name: '工具定义',
                 description: '根据渠道配置生成 XML 或 Function Call 格式的工具定义（此变量由系统自动填充）'

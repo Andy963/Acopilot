@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.11] - 2026-07-10
+
+### Added
+  - Pinned Context: support multiple active pinned prompts per conversation, including skill, preset, and custom prompt blocks.
+  - Prompt Settings: add `{{$PINNED_PROMPTS}}` and `{{$PINNED_PROMPT:<id>}}` placement variables for pinned prompt injection.
+
+### Fixed
+  - Chat and Plan modes: keep tool policy read-only unless the user enters an implementation-capable mode.
+  - Tool confirmation: honor the active tool allowlist when deciding which calls need confirmation.
+
 ## [1.1.10] - 2026-07-09
 
 ### Fixed

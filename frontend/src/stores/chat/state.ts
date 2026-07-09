@@ -13,7 +13,7 @@ import type {
   ChatStoreState,
   PlanRunnerData
 } from './types'
-import type { PinnedPromptState } from './types'
+import type { PinnedPromptItem, PinnedPromptState } from './types'
 import type { SelectionReference } from './types'
 
 /**
@@ -89,6 +89,7 @@ export function createChatState(): ChatStoreState {
 
   /** 当前对话的固定提示词/技能 */
   const pinnedPrompt = ref<PinnedPromptState>({ mode: 'none' })
+  const pinnedPrompts = ref<PinnedPromptItem[]>([])
 
   /** 当前 pinnedPrompt 是否是新建对话时从 workspace 记忆自动带入的 */
   const pinnedPromptFromWorkspaceDefault = ref(false)
@@ -132,6 +133,7 @@ export function createChatState(): ChatStoreState {
     workspaceFilter,
     chatMode,
     pinnedPrompt,
+    pinnedPrompts,
     pinnedPromptFromWorkspaceDefault,
     selectionReferences,
     planRunner,

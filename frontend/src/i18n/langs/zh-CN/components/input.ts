@@ -63,11 +63,19 @@ export const zhCNComponentsInput = {
             clear: '清空引用',
             truncated: '已截断'
         },
+        active: {
+            title: '当前固定提示词',
+            empty: '暂无固定提示词',
+            customTitle: '自定义（{count} 字符）',
+            moveUp: '上移',
+            moveDown: '下移'
+        },
         skill: {
             selectLabel: '选择 Skill',
             loading: '加载中...',
             empty: '暂无 Skill',
             pickOne: '请选择一个 Skill',
+            add: '添加到当前对话',
             manageHint: '在 设置 > 系统提示词 中管理 Skills'
         },
         custom: {
