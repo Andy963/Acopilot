@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.1.9] - 2026-07-09
+
+### Improved
+  - Checkpoint Settings: add scenario presets for safe, lightweight, dangerous-tool protection, and off modes.
+  - Tools Settings: require checkpoint protection before enabling auto execution for dangerous mutating tools.
+  - Chat: show a recent checkpoint restore affordance near the bottom of the message list.
+
 ## [1.1.8] - 2026-07-08
 
 ### Improved
