@@ -288,13 +288,14 @@ export const jaComponentsSettingsPart2b = {
         },
         dangerConfirm: {
             title: '自動実行を有効にしますか？',
-            message: '危険なツール {tool} に対して自動実行を有効にしようとしています。取り消せない変更が発生する可能性があります。続行しますか？',
+            message: '危険なツール {tool} に対して自動実行を有効にしようとしています。取り消せない変更が発生する可能性があります。不足している実行前後のチェックポイント保護を先に有効化します。続行しますか？',
+            checkpointFailed: '危険なツールのチェックポイント保護を有効化できませんでした。自動実行は有効化されていません。',
             confirm: '有効にする',
             cancel: 'キャンセル'
         },
         enableAllDangerous: {
             title: '自動実行を有効化',
-            message: '危険なツール（delete_file / execute_command / replace_in_files）が検出されました。これらも自動実行にしますか？',
+            message: '危険なツール（apply_diff / delete_file / execute_command / replace_in_files）が検出されました。チェックポイント保護を確保したうえで、これらも自動実行にしますか？',
             confirm: '危険なツールも含める',
             cancel: '危険なツールを除外'
         },

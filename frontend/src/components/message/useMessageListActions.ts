@@ -20,6 +20,11 @@ export function useMessageListActions(emit: (...args: any[]) => void) {
   const showRestoreConfirm = ref(false)
   const pendingCheckpoint = ref<CheckpointRecord | null>(null)
 
+  const recentCheckpoint = computed<CheckpointRecord | null>(() => {
+    if (chatStore.checkpoints.length === 0) return null
+    return [...chatStore.checkpoints].sort((a, b) => b.timestamp - a.timestamp)[0] || null
+  })
+
   function findMessageIndex(messageId: string | null): number {
     if (!messageId) return -1
     return chatStore.allMessages.findIndex((message) => message.id === messageId)
@@ -162,6 +167,7 @@ export function useMessageListActions(emit: (...args: any[]) => void) {
     handleRestoreAndDelete,
     cancelDelete,
     showRestoreConfirm,
+    recentCheckpoint,
     confirmRestore,
     handleEdit,
     handleDelete,

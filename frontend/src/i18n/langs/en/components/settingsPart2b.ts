@@ -288,13 +288,14 @@ export const enComponentsSettingsPart2b = {
         },
         dangerConfirm: {
             title: 'Enable Auto Execute?',
-            message: 'You are enabling auto execution for a dangerous tool: {tool}. This may cause irreversible changes. Continue?',
+            message: 'You are enabling auto execution for a dangerous tool: {tool}. This may cause irreversible changes. Missing before/after checkpoints for this tool will be enabled first. Continue?',
+            checkpointFailed: 'Failed to enable checkpoint protection for this dangerous tool. Auto execution was not enabled.',
             confirm: 'Enable',
             cancel: 'Cancel'
         },
         enableAllDangerous: {
             title: 'Enable Auto Execute',
-            message: 'Dangerous tools detected (delete_file / execute_command / replace_in_files). Also enable auto execution for them?',
+            message: 'Dangerous tools detected (apply_diff / delete_file / execute_command / replace_in_files). Also enable auto execution for them and ensure checkpoint protection?',
             confirm: 'Include dangerous tools',
             cancel: 'Skip dangerous tools'
         },

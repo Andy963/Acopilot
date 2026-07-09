@@ -50,6 +50,85 @@
   flex-shrink: 0;
 }
 
+.recent-checkpoint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 var(--spacing-md, 16px) var(--spacing-md, 16px);
+  padding: 10px 12px;
+  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.3));
+  border-left: 2px solid var(--vscode-charts-yellow, #ddb92f);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.recent-checkpoint-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--vscode-charts-yellow, #ddb92f);
+  flex-shrink: 0;
+}
+
+.recent-checkpoint-icon .codicon {
+  font-size: 16px;
+}
+
+.recent-checkpoint-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.recent-checkpoint-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.recent-checkpoint-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.recent-checkpoint-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-checkpoint-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.3));
+  border-radius: 4px;
+  background: var(--vscode-toolbar-activeBackground, rgba(127, 127, 127, 0.2));
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.recent-checkpoint-action:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.3));
+}
+
+.recent-checkpoint-action .codicon {
+  font-size: 13px;
+}
+
 /* Load more indicator */
 .load-more-container {
   display: flex;

@@ -35,6 +35,8 @@ export const zhCNComponentsMessage = {
         toolBatchUnchanged: '批量工具执行完成 · 内容未变化',
         toolExecutionUnchanged: '工具执行完成 · 内容未变化',
         restoreTooltip: '恢复工作区到此存档点',
+        recentTitle: '最近存档点可恢复',
+        recentRestore: '恢复',
         fileCount: '{count} 个文件',
         yesterday: '昨天',
         daysAgo: '{days}天前',

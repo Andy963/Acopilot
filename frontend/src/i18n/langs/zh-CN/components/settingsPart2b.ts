@@ -288,13 +288,14 @@ export const zhCNComponentsSettingsPart2b = {
         },
         dangerConfirm: {
             title: '确认开启自动执行',
-            message: '你正在为危险工具 {tool} 开启自动执行，这可能导致不可恢复的修改。是否继续？',
+            message: '你正在为危险工具 {tool} 开启自动执行，这可能导致不可恢复的修改。继续前会先为该工具补齐执行前后存档点保护。是否继续？',
+            checkpointFailed: '为危险工具启用存档点保护失败，已取消开启自动执行。',
             confirm: '继续开启',
             cancel: '取消'
         },
         enableAllDangerous: {
             title: '批量开启自动执行',
-            message: '检测到危险工具（delete_file / execute_command / replace_in_files）。是否也将它们设为自动执行？',
+            message: '检测到危险工具（apply_diff / delete_file / execute_command / replace_in_files）。是否也将它们设为自动执行，并确保开启存档点保护？',
             confirm: '包含危险工具',
             cancel: '跳过危险工具'
         },

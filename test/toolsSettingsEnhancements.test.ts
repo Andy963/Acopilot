@@ -22,9 +22,23 @@ describe('tools settings enhancements', () => {
 
     expect(composable).toContain("'tools.setToolEnabled'");
     expect(composable).toContain("'tools.setToolAutoExec'");
-    expect(composable).toContain("'delete_file', 'execute_command', 'replace_in_files'");
+    expect(composable).toContain("'apply_diff'");
+    expect(composable).toContain("'delete_file'");
+    expect(composable).toContain("'execute_command'");
+    expect(composable).toContain("'replace_in_files'");
     expect(composable).not.toContain("'tools.toggleTool'");
     expect(composable).not.toContain("'tools.updateAutoExecConfig'");
+  });
+
+  it('ensures checkpoint protection before dangerous auto execution', () => {
+    const composable = readProjectFile('frontend/src/components/settings/useToolsSettings.ts');
+
+    expect(composable).toContain('AUTO_EXEC_CHECKPOINT_PROTECTED_TOOLS');
+    expect(composable).toContain('ensureCheckpointProtectionForAutoExec');
+    expect(composable).toContain("'checkpoint.getConfig'");
+    expect(composable).toContain("'checkpoint.updateConfig'");
+    expect(composable).toContain('beforeTools');
+    expect(composable).toContain('afterTools');
   });
 
   it('adds replace_in_files settings and safe auto-exec defaults', async () => {
@@ -76,7 +90,8 @@ describe('tools settings enhancements', () => {
   it('warns about replace_in_files when enabling dangerous auto execution in bulk', () => {
     for (const locale of ['en', 'zh-CN', 'ja']) {
       const messages = readProjectFile(`frontend/src/i18n/langs/${locale}/components/settingsPart2b.ts`);
-      expect(messages).toContain('delete_file / execute_command / replace_in_files');
+      expect(messages).toContain('apply_diff / delete_file / execute_command / replace_in_files');
+      expect(messages).toContain('checkpointFailed');
     }
   });
 });

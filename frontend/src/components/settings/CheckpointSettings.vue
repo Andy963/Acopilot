@@ -15,12 +15,14 @@ import type {
 const chatStore = useChatStore()
 
 const {
+  checkpointPresets,
   messageTypes,
   config,
   allTools,
   isLoading,
   loadConfig,
   updateConfigField,
+  applyCheckpointPreset,
   toggleMessageBefore,
   toggleMessageAfter,
   toggleModelOuterLayerOnly,
@@ -184,6 +186,31 @@ onMounted(() => {
         <p class="setting-description">
           {{ t('components.settings.checkpoint.sections.enable.description') }}
         </p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="setting-group">
+        <h4 class="group-title">
+          <i class="codicon codicon-shield"></i>
+          {{ t('components.settings.checkpoint.sections.presets.title') }}
+        </h4>
+        <p class="setting-description">
+          {{ t('components.settings.checkpoint.sections.presets.description') }}
+        </p>
+
+        <div class="preset-grid">
+          <button
+            v-for="preset in checkpointPresets"
+            :key="preset.id"
+            type="button"
+            class="preset-option"
+            @click="applyCheckpointPreset(preset.id)"
+          >
+            <span class="preset-title">{{ preset.title }}</span>
+            <span class="preset-description">{{ preset.description }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -352,6 +379,43 @@ onMounted(() => {
 
 .hint {
   font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.preset-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 74px;
+  padding: 10px 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.preset-option:hover {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-hoverBackground);
+}
+
+.preset-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.preset-description {
+  font-size: 11px;
+  line-height: 1.35;
   color: var(--vscode-descriptionForeground);
 }
 

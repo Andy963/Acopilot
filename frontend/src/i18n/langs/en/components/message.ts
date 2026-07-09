@@ -35,6 +35,8 @@ export const enComponentsMessage = {
         toolBatchUnchanged: 'Tool Batch Completed · Unchanged',
         toolExecutionUnchanged: 'Tool Execution Completed · Unchanged',
         restoreTooltip: 'Restore workspace to this checkpoint',
+        recentTitle: 'Recent checkpoint available',
+        recentRestore: 'Restore',
         fileCount: '{count} files',
         yesterday: 'Yesterday',
         daysAgo: '{days} days ago',

@@ -46,6 +46,32 @@ describe('settings defaults and localization', () => {
     expect(cleanupList).toContain('overflow: hidden;');
   });
 
+  it('adds checkpoint scenario presets and a recent restore entry', () => {
+    const checkpointSettings = readProjectFile('frontend/src/components/settings/CheckpointSettings.vue');
+    const checkpointConfig = readProjectFile('frontend/src/components/settings/checkpoint/useCheckpointSettingsConfig.ts');
+    const messageList = readProjectFile('frontend/src/components/message/MessageList.vue');
+    const messageActions = readProjectFile('frontend/src/components/message/useMessageListActions.ts');
+
+    expect(checkpointSettings).toContain('checkpointPresets');
+    expect(checkpointSettings).toContain('applyCheckpointPreset(preset.id)');
+    expect(checkpointConfig).toContain("export type CheckpointPresetId = 'safe' | 'light' | 'off' | 'dangerous'");
+    expect(checkpointConfig).toContain('MUTATING_CHECKPOINT_TOOLS');
+    expect(checkpointConfig).toContain('DANGEROUS_CHECKPOINT_TOOLS');
+    expect(messageActions).toContain('recentCheckpoint');
+    expect(messageList).toContain('recent-checkpoint');
+    expect(messageList).toContain('components.message.checkpoint.recentTitle');
+
+    for (const locale of ['en', 'zh-CN', 'ja']) {
+      const settingsMessages = readProjectFile(`frontend/src/i18n/langs/${locale}/components/settingsPart1.ts`);
+      const chatMessages = readProjectFile(`frontend/src/i18n/langs/${locale}/components/message.ts`);
+
+      expect(settingsMessages).toContain('presets: {');
+      expect(settingsMessages).toContain('dangerous');
+      expect(chatMessages).toContain('recentTitle');
+      expect(chatMessages).toContain('recentRestore');
+    }
+  });
+
   it('defaults startup cleanup to enabled for new and legacy-missing checkpoint configs', async () => {
     expect(DEFAULT_CHECKPOINT_CONFIG.cleanupExpiredConversationsOnStartup).toBe(true);
 

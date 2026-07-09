@@ -287,6 +287,28 @@ export const enComponentsSettingsPart1 = {
                 label: 'Enable Checkpoint Feature',
                 description: 'Automatically create codebase snapshots before and after tool execution, supporting one-click rollback'
             },
+            presets: {
+                title: 'Scenario Presets',
+                description: 'Apply a checkpoint strategy without tuning before/after switches manually',
+                items: {
+                    safe: {
+                        title: 'Safe Mode',
+                        description: 'Protect mutating tools before and after execution, with user-message checkpoints enabled.'
+                    },
+                    light: {
+                        title: 'Lightweight Mode',
+                        description: 'Keep pre-execution backups for mutating tools while reducing after-execution snapshots.'
+                    },
+                    dangerous: {
+                        title: 'Dangerous Tool Protection',
+                        description: 'Protect apply_diff, delete_file, execute_command, and replace_in_files before and after execution.'
+                    },
+                    off: {
+                        title: 'Off Mode',
+                        description: 'Disable checkpoint creation while preserving the current detailed configuration.'
+                    }
+                }
+            },
             messages: {
                 title: 'Message Type Checkpoints',
                 description: 'Choose whether to create checkpoints for user and model messages (independent of tool calls)',

@@ -177,7 +177,7 @@ function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
 
 // 检查工具是否是危险工具（默认需要确认）
 function isDangerousTool(toolName: string): boolean {
-  const dangerousTools = ['delete_file', 'execute_command']
+  const dangerousTools = ['apply_diff', 'delete_file', 'execute_command', 'replace_in_files']
   return dangerousTools.includes(toolName)
 }
 
