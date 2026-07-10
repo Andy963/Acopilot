@@ -115,7 +115,6 @@ describe('tool allowlist propagation', () => {
   it('does not ask for confirmation for tools outside the active allowlist', () => {
     const service = new ToolExecutionService(
       undefined,
-      undefined,
       {
         isToolAutoExec: vi.fn(() => false),
       } as any

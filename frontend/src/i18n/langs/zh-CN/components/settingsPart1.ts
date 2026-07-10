@@ -4,9 +4,7 @@ export const zhCNComponentsSettingsPart1 = {
         channel: '渠道',
         tools: '工具',
         autoExec: '自动执行',
-        mcp: 'MCP',
         checkpoint: '存档点',
-        summarize: '总结',
         imageGen: '图像生成',
         dependencies: '扩展依赖',
         context: '上下文',
@@ -16,6 +14,7 @@ export const zhCNComponentsSettingsPart1 = {
     },
     channelSettings: {
         selector: {
+            label: '当前配置',
             placeholder: '选择配置',
             rename: '重命名',
             add: '新建配置',
@@ -251,7 +250,6 @@ export const zhCNComponentsSettingsPart1 = {
             terminal: '终端',
             lsp: '代码智能',
             media: '媒体处理',
-            mcp: 'MCP 工具',
             other: '其他'
         },
         badges: {
@@ -261,23 +259,8 @@ export const zhCNComponentsSettingsPart1 = {
             dangerousDefault: '• 标记为"危险"的工具默认需要用户确认后才能执行',
             deleteFileWarning: '• delete_file: 删除文件操作不可恢复，建议保持需确认',
             executeCommandWarning: '• execute_command: 执行终端命令可能对系统造成影响',
-            mcpToolsDefault: '• MCP 工具：来自已连接的 MCP 服务器，默认自动执行',
             useWithCheckpoint: '• 建议配合存档点功能使用，以便在误操作时恢复'
         }
-    },
-    mcp: {
-        title: 'MCP 设置',
-        description: '配置 Model Context Protocol 服务器',
-        addServer: '添加服务器',
-        serverName: '服务器名称',
-        serverCommand: '启动命令',
-        serverArgs: '命令参数',
-        serverEnv: '环境变量',
-        serverStatus: '服务器状态',
-        connecting: '连接中',
-        connected: '已连接',
-        disconnected: '已断开',
-        error: '错误'
     },
     checkpoint: {
         title: '存档点设置',

@@ -1,7 +1,6 @@
 import { t } from '../../../i18n';
 import type { ConfigManager } from '../../config/ConfigManager';
 import type { SettingsManager } from '../../settings/SettingsManager';
-import type { McpManager } from '../../mcp/McpManager';
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import type { ToolDeclaration } from '../../../tools/types';
 import { ChannelError, ErrorType } from '../types';
@@ -17,7 +16,6 @@ export type RetryStatusCallback = (status: {
 }) => void;
 
 export class ChannelManagerBase {
-  protected mcpManager?: McpManager;
   protected retryStatusCallback?: RetryStatusCallback;
 
   constructor(
@@ -30,10 +28,6 @@ export class ChannelManagerBase {
     this.retryStatusCallback = callback;
   }
 
-  setMcpManager(mcpManager: McpManager): void {
-    this.mcpManager = mcpManager;
-  }
-
   getToolDeclarationsForPreview(config: {
     type: string;
     toolMode?: 'function_call' | 'xml' | 'json';
@@ -42,7 +36,6 @@ export class ChannelManagerBase {
     const declarations = getFilteredTools(
       this.toolRegistry,
       this.settingsManager,
-      this.mcpManager,
       (config as any).multimodalToolsEnabled,
       config.type as any,
       (config as any).toolMode
@@ -181,4 +174,3 @@ export class ChannelManagerBase {
     );
   }
 }
-

@@ -55,27 +55,6 @@ const ja: BackendLanguageMessages = {
             }
         },
 
-        mcp: {
-            errors: {
-                connectionFailed: '接続に失敗しました: {serverName}',
-                serverNotFound: 'サーバーが見つかりません: {serverId}',
-                serverNotFoundWithAvailable: 'サーバーが見つかりません: {serverId}。利用可能なサーバー: {available}',
-                serverDisabled: 'サーバーが無効です: {serverId}',
-                serverNotConnected: 'サーバーが接続されていません: {serverName}',
-                clientNotConnected: 'クライアントが接続されていません',
-                toolCallFailed: 'ツール呼び出しに失敗しました',
-                requestTimeout: 'リクエストがタイムアウトしました ({timeout}ms)',
-                invalidServerId: 'ID には英数字、アンダースコア、ハイフンのみ使用できます',
-                serverIdExists: 'サーバー ID "{serverId}" は既に存在します'
-            },
-            status: {
-                connecting: '接続中...',
-                connected: '接続済み',
-                disconnected: '切断済み',
-                error: 'エラー'
-            }
-        },
-
         checkpoint: {
             description: {
                 before: '実行前',
@@ -229,19 +208,6 @@ const ja: BackendLanguageMessages = {
                     setActiveModelFailed: 'アクティブモデルの設定に失敗しました'
                 }
             },
-            mcp: {
-                errors: {
-                    listServersFailed: 'MCP サーバー一覧の取得に失敗しました',
-                    serverNotFound: 'MCP サーバーが見つかりません: {serverId}',
-                    getServerFailed: 'MCP サーバーの取得に失敗しました',
-                    createServerFailed: 'MCP サーバーの作成に失敗しました',
-                    updateServerFailed: 'MCP サーバーの更新に失敗しました',
-                    deleteServerFailed: 'MCP サーバーの削除に失敗しました',
-                    setServerStatusFailed: 'MCP サーバーステータスの設定に失敗しました',
-                    connectServerFailed: 'MCP サーバーへの接続に失敗しました',
-                    disconnectServerFailed: 'MCP サーバーの切断に失敗しました'
-                }
-            },
             chat: {
                 errors: {
                     configNotFound: '設定が見つかりません: {configId}',
@@ -250,8 +216,6 @@ const ja: BackendLanguageMessages = {
                     unknownError: '不明なエラー',
                     streamEndedUnexpectedly: 'ストリームが予期せず終了しました（完了マーカー未受信）。再試行してください',
                     toolExecutionSuccess: 'ツールの実行に成功しました',
-                    mcpToolCallFailed: 'MCP ツール呼び出しに失敗しました',
-                    invalidMcpToolName: '無効な MCP ツール名: {toolName}',
                     toolNotFound: 'ツールが見つかりません: {toolName}',
                     toolExecutionFailed: 'ツールの実行に失敗しました',
                     noHistory: '会話履歴が空です',
@@ -388,7 +352,6 @@ const ja: BackendLanguageMessages = {
             getToolConfigFailed: 'ツール設定の取得に失敗しました',
             updateToolConfigFailed: 'ツール設定の更新に失敗しました',
             getAutoExecConfigFailed: '自動実行設定の取得に失敗しました',
-            getMcpToolsFailed: 'MCP ツール一覧の取得に失敗しました',
             setToolAutoExecFailed: 'ツールの自動実行設定に失敗しました',
             updateListFilesConfigFailed: 'list_files 設定の更新に失敗しました',
             updateApplyDiffConfigFailed: 'apply_diff 設定の更新に失敗しました',
@@ -424,16 +387,6 @@ const ja: BackendLanguageMessages = {
             readImageFailed: '画像の読み取りに失敗しました',
             openFileFailed: 'ファイルを開くのに失敗しました',
             saveImageFailed: '画像の保存に失敗しました',
-            
-            openMcpConfigFailed: 'MCP 設定ファイルを開くのに失敗しました',
-            getMcpServersFailed: 'MCP サーバー一覧の取得に失敗しました',
-            validateMcpServerIdFailed: 'MCP サーバー ID の検証に失敗しました',
-            createMcpServerFailed: 'MCP サーバーの作成に失敗しました',
-            updateMcpServerFailed: 'MCP サーバーの更新に失敗しました',
-            deleteMcpServerFailed: 'MCP サーバーの削除に失敗しました',
-            connectMcpServerFailed: 'MCP サーバーへの接続に失敗しました',
-            disconnectMcpServerFailed: 'MCP サーバーの切断に失敗しました',
-            setMcpServerEnabledFailed: 'MCP サーバーステータスの設定に失敗しました',
             
             getSummarizeConfigFailed: '要約設定の取得に失敗しました',
             updateSummarizeConfigFailed: '要約設定の更新に失敗しました',

@@ -98,7 +98,6 @@ const MODULE_TITLE_KEYS: Record<string, string> = {
   'WORKSPACE FILES': 'components.common.contextInspectorModal.modules.labels.workspaceFiles',
   'PINNED FILES': 'components.common.contextInspectorModal.modules.labels.pinnedFiles',
   'TOOLS': 'components.common.contextInspectorModal.modules.labels.tools',
-  'MCP TOOLS': 'components.common.contextInspectorModal.modules.labels.mcpTools',
   'GUIDELINES': 'components.common.contextInspectorModal.modules.labels.guidelines',
   'OPEN TABS': 'components.common.contextInspectorModal.modules.labels.openTabs',
   'ACTIVE EDITOR': 'components.common.contextInspectorModal.modules.labels.activeEditor',
@@ -252,7 +251,6 @@ const pinnedSelectionsListText = computed(() => {
           <div class="summary-row">
             <span class="summary-muted">
               {{ t('components.common.contextInspectorModal.summary.tools') }}: <code>{{ data.tools.total }}</code>
-              <span v-if="data.tools.mcp"> · {{ t('components.common.contextInspectorModal.summary.mcp') }}: <code>{{ data.tools.mcp }}</code></span>
             </span>
             <span class="summary-muted">
               {{ t('components.common.contextInspectorModal.summary.systemInstruction') }}: <code>{{ estimatedSystemTokens }}</code> tok · <code>{{ data.systemInstructionCharCount }}</code> ch

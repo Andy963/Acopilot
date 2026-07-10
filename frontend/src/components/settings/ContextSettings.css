@@ -133,6 +133,10 @@
   margin: 4px 0;
 }
 
+.context-summarize-section {
+  min-width: 0;
+}
+
 /* 忽略模式样式 */
 .ignore-patterns {
   display: flex;

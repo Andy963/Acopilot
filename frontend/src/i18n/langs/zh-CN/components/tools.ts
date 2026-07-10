@@ -133,17 +133,6 @@ export const zhCNComponentsTools = {
             expandRemaining: '展开剩余 {count} 个'
         }
     },
-    mcp: {
-        mcpTool: 'MCP 工具',
-        serverName: '服务器名称',
-        toolName: '工具名称',
-        mcpToolPanel: {
-            requestParams: '请求参数',
-            errorInfo: '错误信息',
-            responseResult: '响应结果',
-            waitingResponse: '等待响应...'
-        }
-    },
     media: {
         generateImage: '生成图片',
         resizeImage: '缩放图片',

@@ -79,7 +79,6 @@ export const enComponentsCommon = {
             config: 'Config',
             toolMode: 'Tool mode',
             tools: 'Tools',
-            mcp: 'MCP',
             systemInstruction: 'System instruction',
             generatedAt: 'Generated at'
         },
@@ -113,7 +112,6 @@ export const enComponentsCommon = {
                 workspaceFiles: 'Workspace files',
                 pinnedFiles: 'Pinned files',
                 tools: 'Tools',
-                mcpTools: 'MCP tools',
                 guidelines: 'Guidelines',
                 openTabs: 'Open tabs',
                 activeEditor: 'Active editor',

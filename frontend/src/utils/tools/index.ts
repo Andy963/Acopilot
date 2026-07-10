@@ -36,10 +36,3 @@ import './lsp/open_file'
 
 // 导出工具注册表
 export { toolRegistry, registerTool, getToolConfig, type ToolConfig } from '../toolRegistry'
-
-// 导出 MCP 工具注册函数
-export {
-  createMcpToolConfig,
-  registerMcpTool,
-  ensureMcpToolRegistered
-} from './mcp/mcp_tool'

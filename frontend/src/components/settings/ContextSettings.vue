@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CustomCheckbox } from '../common'
+import SummarizeSettings from './SummarizeSettings.vue'
 import { useContextSettings } from './useContextSettings'
 
 const {
@@ -416,6 +417,20 @@ const {
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-group context-summarize-section">
+        <label class="group-label">
+          <i class="codicon codicon-fold"></i>
+          {{ t('components.settings.settingsPanel.sections.summarize.title') }}
+        </label>
+        <p class="field-description">
+          {{ t('components.settings.settingsPanel.sections.summarize.description') }}
+        </p>
+
+        <SummarizeSettings />
       </div>
       
       <!-- 保存状态 -->

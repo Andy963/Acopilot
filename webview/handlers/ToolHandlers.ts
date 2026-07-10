@@ -62,38 +62,6 @@ export const getAutoExecConfig: MessageHandler = async (data, requestId, ctx) =>
   }
 };
 
-export const getMcpTools: MessageHandler = async (data, requestId, ctx) => {
-  try {
-    const allMcpTools = ctx.mcpManager.getAllTools();
-    const mcpTools: Array<{
-      name: string;
-      description: string;
-      enabled: boolean;
-      category: string;
-      serverId: string;
-      serverName: string;
-    }> = [];
-    
-    for (const serverTools of allMcpTools) {
-      for (const tool of serverTools.tools) {
-        const fullToolName = `mcp__${serverTools.serverId}__${tool.name}`;
-        mcpTools.push({
-          name: fullToolName,
-          description: tool.description || '',
-          enabled: true,
-          category: 'mcp',
-          serverId: serverTools.serverId,
-          serverName: serverTools.serverName
-        });
-      }
-    }
-    
-    ctx.sendResponse(requestId, { tools: mcpTools });
-  } catch (error: any) {
-    ctx.sendError(requestId, 'GET_MCP_TOOLS_ERROR', error.message || t('webview.errors.getMcpToolsFailed'));
-  }
-};
-
 export const setToolAutoExec: MessageHandler = async (data, requestId, ctx) => {
   try {
     const { toolName, autoExec } = data;
@@ -371,7 +339,6 @@ export function registerToolHandlers(registry: Map<string, MessageHandler>): voi
   registry.set('tools.getToolConfig', getToolConfig);
   registry.set('tools.updateToolConfig', updateToolConfig);
   registry.set('tools.getAutoExecConfig', getAutoExecConfig);
-  registry.set('tools.getMcpTools', getMcpTools);
   registry.set('tools.setToolAutoExec', setToolAutoExec);
   registry.set('tools.getMaxToolIterations', getMaxToolIterations);
   registry.set('tools.updateMaxToolIterations', updateMaxToolIterations);

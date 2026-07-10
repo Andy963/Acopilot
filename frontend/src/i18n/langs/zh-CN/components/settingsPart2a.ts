@@ -192,83 +192,6 @@ export const zhCNComponentsSettingsPart2a = {
             warning: '请配置 API Key 后才能使用图像生成功能'
         }
     },
-    mcpSettings: {
-        toolbar: {
-            addServer: '添加服务器',
-            editJson: '编辑 JSON',
-            refresh: '刷新'
-        },
-        loading: '加载中...',
-        empty: {
-            title: '暂无 MCP 服务器',
-            description: '点击"添加服务器"按钮来配置您的第一个 MCP 服务器'
-        },
-        serverCard: {
-            connect: '连接',
-            disconnect: '断开',
-            connecting: '连接中...',
-            edit: '编辑',
-            delete: '删除',
-            tools: '工具',
-            resources: '资源',
-            prompts: '提示'
-        },
-        status: {
-            connected: '已连接',
-            connecting: '连接中...',
-            error: '连接错误',
-            disconnected: '未连接'
-        },
-        form: {
-            addTitle: '添加 MCP 服务器',
-            editTitle: '编辑 MCP 服务器',
-            serverId: '服务器 ID',
-            serverIdPlaceholder: '可选，留空则自动生成',
-            serverIdHint: '只能包含字母、数字、下划线和中划线，用于在 JSON 配置中标识服务器',
-            serverIdError: 'ID 只能包含字母、数字、下划线和中划线',
-            serverName: '服务器名称',
-            serverNamePlaceholder: '例如：My MCP Server',
-            description: '描述',
-            descriptionPlaceholder: '可选的描述信息',
-            required: '*',
-            transportType: '传输类型',
-            command: '命令',
-            commandPlaceholder: '例如：npx, python, node',
-            args: '参数',
-            argsPlaceholder: '空格分隔，例如：-m mcp_server',
-            env: '环境变量 (JSON)',
-            envPlaceholder: '{"KEY": "value"}',
-            url: 'URL',
-            urlPlaceholderSse: 'https://example.com/sse',
-            urlPlaceholderHttp: 'https://example.com/mcp',
-            headers: '请求头 (JSON)',
-            headersPlaceholder: '{"Authorization": "Bearer token"}',
-            options: '选项',
-            enabled: '启用',
-            autoConnect: '自动连接',
-            cleanSchema: '清理 Schema',
-            cleanSchemaHint: '移除 JSON Schema 中不兼容的字段（如 $schema, additionalProperties），某些 API（如 Gemini）需要启用此选项',
-            timeout: '连接超时 (毫秒)',
-            cancel: '取消',
-            create: '创建',
-            save: '保存'
-        },
-        validation: {
-            nameRequired: '请输入服务器名称',
-            idInvalid: 'ID 无效',
-            idChecking: '正在验证 ID，请稍候',
-            commandRequired: '请输入命令',
-            urlRequired: '请输入 URL',
-            createFailed: '创建失败',
-            updateFailed: '更新失败'
-        },
-        delete: {
-            title: '删除 MCP 服务器',
-            message: '确定要删除服务器 "{name}" 吗？此操作不可恢复。',
-            confirm: '删除',
-            cancel: '取消'
-        }
-    },
     modelManager: {
         title: '模型列表',
         fetchModels: '获取模型',
@@ -386,11 +309,6 @@ export const zhCNComponentsSettingsPart2a = {
                 name: '工具定义',
                 description: '根据渠道配置生成 XML 或 Function Call 格式的工具定义（此变量由系统自动填充）'
             },
-            MCP_TOOLS: {
-                name: 'MCP 工具',
-                description: '来自 MCP 服务器的额外工具定义（此变量由系统自动填充）',
-                requiresConfig: 'MCP 设置中需要配置并连接服务器'
-            }
         },
         exampleOutput: '示例输出：',
         requiresConfigLabel: '依赖配置：',

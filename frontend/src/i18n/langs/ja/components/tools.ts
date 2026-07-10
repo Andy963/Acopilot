@@ -225,17 +225,6 @@ export const jaComponentsTools = {
             expandRemaining: '残り {count} 個を展開'
         }
     },
-    mcp: {
-        mcpTool: 'MCP ツール',
-        serverName: 'サーバー名',
-        toolName: 'ツール名',
-        mcpToolPanel: {
-            requestParams: 'リクエストパラメータ',
-            errorInfo: 'エラー情報',
-            responseResult: 'レスポンス結果',
-            waitingResponse: 'レスポンスを待機中...'
-        }
-    },
     media: {
         generateImage: '画像を生成',
         resizeImage: '画像をリサイズ',

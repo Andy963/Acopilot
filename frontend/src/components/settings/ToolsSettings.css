@@ -156,22 +156,6 @@
   gap: 12px;
 }
 
-.mcp-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--vscode-textBlockQuote-background);
-  border-left: 3px solid var(--vscode-textLink-foreground);
-  border-radius: 0 4px 4px 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 12px;
-}
-
-.mcp-note .codicon {
-  color: var(--vscode-textLink-foreground);
-}
-
 .category-rows {
   border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
   border-radius: var(--lc-settings-radius-md, 6px);
@@ -271,23 +255,6 @@
 }
 
 .danger-badge .codicon {
-  font-size: 10px;
-}
-
-.mcp-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: rgba(var(--vscode-textLink-foreground), 0.1);
-  color: var(--vscode-textLink-foreground);
-  border: 1px solid var(--vscode-textLink-foreground);
-  border-radius: 4px;
-  font-size: 10px;
-  opacity: 0.8;
-}
-
-.mcp-badge .codicon {
   font-size: 10px;
 }
 
@@ -484,4 +451,3 @@
     transform: rotate(360deg);
   }
 }
-

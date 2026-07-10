@@ -1,6 +1,5 @@
 import type { ToolRegistry } from '../../tools/ToolRegistry';
 import type { SettingsManager } from '../settings/SettingsManager';
-import type { McpManager } from '../mcp/McpManager';
 import type { ToolDeclaration } from '../../tools/types';
 
 import { createReadFileTool } from '../../tools/file/read_file';
@@ -46,7 +45,6 @@ function cleanJsonSchema(schema: any): any {
 export function getFilteredTools(
     toolRegistry: ToolRegistry | undefined,
     settingsManager: SettingsManager | undefined,
-    mcpManager: McpManager | undefined,
     multimodalEnabled?: boolean,
     channelType?: ChannelType,
     toolMode?: ToolMode,
@@ -163,32 +161,5 @@ export function getFilteredTools(
         }
     }
 
-    if (mcpManager) {
-        const mcpTools = mcpManager.getAllTools() as Array<{
-            serverId: string;
-            cleanSchema?: boolean;
-            tools?: Array<{ name: string; description?: string; inputSchema?: any }>;
-        }>;
-
-        for (const serverTools of mcpTools) {
-            for (const tool of serverTools.tools || []) {
-                const toolName = `mcp__${serverTools.serverId}__${tool.name}`;
-                if (allowSet && !allowSet.has(toolName)) {
-                    continue;
-                }
-
-                const rawSchema = tool.inputSchema || { type: 'object', properties: {} };
-                const schema = serverTools.cleanSchema ? cleanJsonSchema(rawSchema) : rawSchema;
-
-                tools.push({
-                    name: toolName,
-                    description: tool.description || `MCP tool: ${tool.name}`,
-                    parameters: schema
-                } as ToolDeclaration);
-            }
-        }
-    }
-
     return tools.length > 0 ? tools : undefined;
 }
-

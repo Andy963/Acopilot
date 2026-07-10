@@ -87,7 +87,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             settingsManager: backend.settingsManager,
             settingsHandler: backend.settingsHandler,
             checkpointManager: backend.checkpointManager,
-            mcpManager: backend.mcpManager,
             dependencyManager: backend.dependencyManager,
             storagePathManager: backend.storagePathManager,
             diffStorageManager: backend.diffStorageManager,
@@ -191,7 +190,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.backend?.dependencyProgressUnsubscribe();
 
         TaskManager.cancelAllTasks();
-        this.backend?.mcpManager.dispose();
         this.diffPreviewProvider.dispose();
 
         debugLog('ChatViewProvider disposed');

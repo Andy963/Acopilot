@@ -4,9 +4,7 @@ export const jaComponentsSettingsPart1 = {
         channel: 'チャンネル',
         tools: 'ツール',
         autoExec: '自動実行',
-        mcp: 'MCP',
         checkpoint: 'チェックポイント',
-        summarize: '要約',
         imageGen: '画像生成',
         dependencies: '拡張機能の依存関係',
         context: 'コンテキスト',
@@ -16,6 +14,7 @@ export const jaComponentsSettingsPart1 = {
     },
     channelSettings: {
         selector: {
+            label: '現在の設定',
             placeholder: '設定を選択',
             rename: '名前を変更',
             add: '新規設定',
@@ -251,7 +250,6 @@ export const jaComponentsSettingsPart1 = {
             terminal: 'ターミナル',
             lsp: 'コードインテリジェンス',
             media: 'メディア処理',
-            mcp: 'MCP ツール',
             other: 'その他'
         },
         badges: {
@@ -261,23 +259,8 @@ export const jaComponentsSettingsPart1 = {
             dangerousDefault: '• 「危険」とマークされたツールは、デフォルトでユーザーの確認が必要です',
             deleteFileWarning: '• delete_file: ファイル削除は元に戻せないため、確認を有効にすることをお勧めします',
             executeCommandWarning: '• execute_command: ターミナルコマンドの実行はシステムに影響を与える可能性があります',
-            mcpToolsDefault: '• MCP ツール: 接続された MCP サーバーから提供され、デフォルトで自動実行されます',
             useWithCheckpoint: '• 誤操作時に復元できるよう、チェックポイント機能と併用することをお勧めします'
         }
-    },
-    mcp: {
-        title: 'MCP 設定',
-        description: 'Model Context Protocol サーバーを設定',
-        addServer: 'サーバーを追加',
-        serverName: 'サーバー名',
-        serverCommand: '起動コマンド',
-        serverArgs: 'コマンド引数',
-        serverEnv: '環境変数',
-        serverStatus: 'サーバーステータス',
-        connecting: '接続中',
-        connected: '接続済み',
-        disconnected: '切断済み',
-        error: 'エラー'
     },
     checkpoint: {
         title: 'チェックポイント設定',

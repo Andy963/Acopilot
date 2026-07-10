@@ -192,83 +192,6 @@ export const jaComponentsSettingsPart2a = {
             warning: '画像生成機能を使用する前に API Key を設定してください'
         }
     },
-    mcpSettings: {
-        toolbar: {
-            addServer: 'サーバーを追加',
-            editJson: 'JSON を編集',
-            refresh: '更新'
-        },
-        loading: '読み込み中...',
-        empty: {
-            title: 'MCP サーバーがありません',
-            description: '「サーバーを追加」ボタンをクリックして、最初の MCP サーバーを設定してください'
-        },
-        serverCard: {
-            connect: '接続',
-            disconnect: '切断',
-            connecting: '接続中...',
-            edit: '編集',
-            delete: '削除',
-            tools: 'ツール',
-            resources: 'リソース',
-            prompts: 'プロンプト'
-        },
-        status: {
-            connected: '接続済み',
-            connecting: '接続中...',
-            error: '接続エラー',
-            disconnected: '未接続'
-        },
-        form: {
-            addTitle: 'MCP サーバーを追加',
-            editTitle: 'MCP サーバーを編集',
-            serverId: 'サーバー ID',
-            serverIdPlaceholder: 'オプション、空白の場合は自動生成',
-            serverIdHint: '英数字、アンダースコア、ハイフンのみ使用可能、JSON 設定でサーバーを識別するために使用',
-            serverIdError: 'ID には英数字、アンダースコア、ハイフンのみ使用できます',
-            serverName: 'サーバー名',
-            serverNamePlaceholder: '例: マイ MCP サーバー',
-            description: '説明',
-            descriptionPlaceholder: 'オプションの説明',
-            required: '*',
-            transportType: 'トランスポートタイプ',
-            command: 'コマンド',
-            commandPlaceholder: '例: npx, python, node',
-            args: '引数',
-            argsPlaceholder: 'スペース区切り、例: -m mcp_server',
-            env: '環境変数 (JSON)',
-            envPlaceholder: '{"KEY": "value"}',
-            url: 'URL',
-            urlPlaceholderSse: 'https://example.com/sse',
-            urlPlaceholderHttp: 'https://example.com/mcp',
-            headers: 'ヘッダー (JSON)',
-            headersPlaceholder: '{"Authorization": "Bearer token"}',
-            options: 'オプション',
-            enabled: '有効',
-            autoConnect: '自動接続',
-            cleanSchema: 'スキーマをクリーンアップ',
-            cleanSchemaHint: 'JSON Schema から互換性のないフィールド（$schema、additionalProperties など）を削除します。一部の API（Gemini など）ではこのオプションを有効にする必要があります',
-            timeout: '接続タイムアウト (ms)',
-            cancel: 'キャンセル',
-            create: '作成',
-            save: '保存'
-        },
-        validation: {
-            nameRequired: 'サーバー名を入力してください',
-            idInvalid: 'ID が無効です',
-            idChecking: 'ID を検証中、お待ちください',
-            commandRequired: 'コマンドを入力してください',
-            urlRequired: 'URL を入力してください',
-            createFailed: '作成に失敗しました',
-            updateFailed: '更新に失敗しました'
-        },
-        delete: {
-            title: 'MCP サーバーを削除',
-            message: 'サーバー "{name}" を削除してもよろしいですか？この操作は元に戻せません。',
-            confirm: '削除',
-            cancel: 'キャンセル'
-        }
-    },
     modelManager: {
         title: 'モデルリスト',
         fetchModels: 'モデルを取得',
@@ -386,11 +309,6 @@ export const jaComponentsSettingsPart2a = {
                 name: 'ツール定義',
                 description: 'チャンネル設定に基づいて XML または Function Call 形式でツール定義を生成します（この変数はシステムによって自動的に入力されます）'
             },
-            MCP_TOOLS: {
-                name: 'MCP ツール',
-                description: 'MCP サーバーからの追加ツール定義（この変数はシステムによって自動的に入力されます）',
-                requiresConfig: 'MCP 設定でサーバーを設定して接続する必要があります'
-            }
         },
         exampleOutput: '出力例：',
         requiresConfigLabel: '必要な設定：',

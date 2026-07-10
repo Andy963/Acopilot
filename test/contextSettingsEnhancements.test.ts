@@ -49,4 +49,14 @@ describe('context settings enhancements', () => {
     expect(inspector).toContain('openContextSettings');
     expect(appChatView).toContain("settingsStore.showSettings('context')");
   });
+
+  it('embeds summarize configuration in the context settings page', () => {
+    const settings = readProjectFile('frontend/src/components/settings/ContextSettings.vue');
+    const summarizeStyles = readProjectFile('frontend/src/components/settings/SummarizeSettings.css');
+
+    expect(settings).toContain("import SummarizeSettings from './SummarizeSettings.vue'");
+    expect(settings).toContain('class="form-group context-summarize-section"');
+    expect(settings).toContain('<SummarizeSettings />');
+    expect(summarizeStyles).toContain('grid-template-columns: minmax(0, 1fr) minmax(70px, 112px);');
+  });
 });

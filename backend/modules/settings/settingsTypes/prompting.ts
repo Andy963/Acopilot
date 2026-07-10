@@ -156,18 +156,6 @@ You have access to these tools:
 ## read_file
 Description: Read file content
 ...`
-    },
-    {
-        id: 'MCP_TOOLS',
-        name: 'MCP Tools',
-        description: 'Additional tool definitions from MCP servers',
-        example: `====
-
-MCP TOOLS
-
-Additional tools from MCP servers:
-...`,
-        requiresConfig: 'Configure and connect servers in MCP Settings'
     }
 ];
 
@@ -180,8 +168,6 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `You are a professional programmin
 {{$PINNED_PROMPTS}}
 
 {{$TOOLS}}
-
-{{$MCP_TOOLS}}
 
 {{$ENVIRONMENT}}
 

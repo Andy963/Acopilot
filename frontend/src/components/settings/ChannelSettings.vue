@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ConfirmDialog, CustomSelect } from '../common'
 import ModelManager from './ModelManager.vue'
 import { AnthropicOptions, CustomBodySettings, CustomHeadersSettings, GeminiOptions, OpenAIOptions, OpenAIResponsesOptions, TokenCountMethodSettings, ToolOptionsSettings } from './channels'
 import { useChannelSettings } from './useChannelSettings'
 
 const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewDialog, newConfigName, newConfigType, showAdvancedOptions, showCustomHeaders, showCustomBody, showApiKey, showRetryOptions, showContextThreshold, showToolOptions, showTokenCountMethod, showMultimodalDetails, showConfirmDialog, confirmDialogTitle, confirmDialogMessage, currentConfig, updateOption, updateOptionEnabled, multimodalSummaryText, providerIcon, toolModeDisplayName, configOptions, typeOptions, toolModeOptions, customHeaders, customHeadersEnabled, updateCustomHeadersEnabled, updateCustomHeaders, customBody, customBodyEnabled, updateCustomBodyEnabled, updateCustomBodyConfig, retryEnabled, retryCount, retryInterval, updateRetryEnabled, updateRetryCount, updateRetryInterval, toolOptions, updateToolOptions, contextThresholdEnabled, contextThreshold, contextTrimExtraCut, contextManagementSummary, toolOptionsSummary, tokenCountMethodSummary, customBodySummary, customHeadersSummary, autoRetrySummary, advancedOptionsSummary, capabilitySummaryItems, updateContextThresholdEnabled, updateContextThreshold, updateContextTrimExtraCut, toggleMultimodalDetails, copyToClipboard, openToolsSettings, testConnection, isTestingConnection, connectionTestResult, createConfig, onConfirmDialogConfirm, isConfigDisabled, toggleConfigEnabledById, deleteConfigById, startEditing, saveEditing, cancelEditing, handleEditKeydown, cancelNew, updateConfigField, handleUpdateModels, handleUpdateSelectedModel } = useChannelSettings()
+
+const configSelectorAriaLabel = computed(() => {
+  const label = t('components.settings.channelSettings.selector.label')
+  const value = currentConfig.value?.name || t('components.settings.channelSettings.selector.placeholder')
+  return `${label}: ${value}`
+})
 </script>
 
 <template>
@@ -42,61 +49,70 @@ const { t, configs, currentConfigId, isEditing, editingName, editInput, showNewD
       </div>
     </div>
 
-    <!-- ==================== 1. 顶部：身份与凭据区 ==================== -->
-    <!-- 配置选择器 -->
-    <div class="config-selector">
-      <i :class="['provider-icon', 'codicon', providerIcon]"></i>
-      <!-- 编辑模式：输入框 + 确认/取消按钮 -->
-      <template v-if="isEditing">
-        <input ref="editInput" v-model="editingName" type="text" class="config-input"
-          :placeholder="t('components.settings.channelSettings.selector.inputPlaceholder')"
-          @keydown="handleEditKeydown" />
-        <button class="icon-btn confirm" :title="t('components.settings.channelSettings.selector.confirm')"
-          @click="saveEditing">
-          <i class="codicon codicon-check"></i>
+    <!-- ==================== 1. Identity and credentials ==================== -->
+    <div class="config-selector-block">
+      <div class="config-selector-header">
+        <span class="config-selector-label">
+          {{ t('components.settings.channelSettings.selector.label') }}
+        </span>
+        <button v-if="!isEditing && !showNewDialog" type="button" class="add-config-btn"
+          @click="showNewDialog = true">
+          <i class="codicon codicon-add"></i>
+          <span>{{ t('components.settings.channelSettings.selector.add') }}</span>
         </button>
-        <button class="icon-btn cancel" :title="t('components.settings.channelSettings.selector.cancel')"
-          @click="cancelEditing">
-          <i class="codicon codicon-close"></i>
-        </button>
-      </template>
-
-      <!-- 正常模式：自定义下拉框 -->
-      <div v-else class="config-select-wrapper">
-        <CustomSelect v-model="currentConfigId" :options="configOptions"
-          :placeholder="t('components.settings.channelSettings.selector.placeholder')">
-          <template #option-actions="{ option }">
-            <button
-              type="button"
-              class="icon-btn option-toggle-btn"
-              :title="isConfigDisabled(String(option.value)) ? t('common.enable') : t('common.disable')"
-              @click="toggleConfigEnabledById(String(option.value))"
-            >
-              <i
-                :class="[
-                  'codicon',
-                  isConfigDisabled(String(option.value)) ? 'codicon-eye-closed' : 'codicon-eye'
-                ]"
-              ></i>
-            </button>
-            <button type="button" class="icon-btn danger option-delete-btn"
-              :title="t('components.settings.channelSettings.selector.delete')" :disabled="configs.length <= 1"
-              @click="deleteConfigById(String(option.value))">
-              <i class="codicon codicon-trash"></i>
-            </button>
-          </template>
-        </CustomSelect>
       </div>
 
-      <button v-if="!isEditing" class="icon-btn" :title="t('components.settings.channelSettings.selector.rename')"
-        @click="startEditing">
-        <i class="codicon codicon-edit"></i>
-      </button>
+      <div class="config-selector">
+        <i :class="['provider-icon', 'codicon', providerIcon]"></i>
+        <template v-if="isEditing">
+          <input ref="editInput" v-model="editingName" type="text" class="config-input"
+            :placeholder="t('components.settings.channelSettings.selector.inputPlaceholder')"
+            @keydown="handleEditKeydown" />
+          <button type="button" class="icon-btn confirm"
+            :title="t('components.settings.channelSettings.selector.confirm')"
+            :aria-label="t('components.settings.channelSettings.selector.confirm')" @click="saveEditing">
+            <i class="codicon codicon-check"></i>
+          </button>
+          <button type="button" class="icon-btn cancel"
+            :title="t('components.settings.channelSettings.selector.cancel')"
+            :aria-label="t('components.settings.channelSettings.selector.cancel')" @click="cancelEditing">
+            <i class="codicon codicon-close"></i>
+          </button>
+        </template>
 
-      <button v-if="!isEditing" class="icon-btn" :title="t('components.settings.channelSettings.selector.add')"
-        @click="showNewDialog = true">
-        <i class="codicon codicon-add"></i>
-      </button>
+        <div v-else class="config-select-wrapper">
+          <CustomSelect v-model="currentConfigId" :options="configOptions"
+            :trigger-aria-label="configSelectorAriaLabel"
+            :placeholder="t('components.settings.channelSettings.selector.placeholder')">
+            <template #option-actions="{ option }">
+              <button
+                type="button"
+                class="icon-btn option-toggle-btn"
+                :title="isConfigDisabled(String(option.value)) ? t('common.enable') : t('common.disable')"
+                @click="toggleConfigEnabledById(String(option.value))"
+              >
+                <i
+                  :class="[
+                    'codicon',
+                    isConfigDisabled(String(option.value)) ? 'codicon-eye-closed' : 'codicon-eye'
+                  ]"
+                ></i>
+              </button>
+              <button type="button" class="icon-btn danger option-delete-btn"
+                :title="t('components.settings.channelSettings.selector.delete')" :disabled="configs.length <= 1"
+                @click="deleteConfigById(String(option.value))">
+                <i class="codicon codicon-trash"></i>
+              </button>
+            </template>
+          </CustomSelect>
+        </div>
+
+        <button v-if="!isEditing && !showNewDialog" type="button" class="icon-btn"
+          :title="t('components.settings.channelSettings.selector.rename')"
+          :aria-label="t('components.settings.channelSettings.selector.rename')" @click="startEditing">
+          <i class="codicon codicon-edit"></i>
+        </button>
+      </div>
     </div>
 
     <!-- 配置表单 -->

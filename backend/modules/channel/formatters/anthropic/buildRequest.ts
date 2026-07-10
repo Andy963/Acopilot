@@ -23,7 +23,6 @@ export function buildAnthropicRequest(
   }
 
   let toolsContent = '';
-  let mcpToolsContent = '';
 
   if (tools && tools.length > 0) {
     if (toolMode === 'xml') {
@@ -33,13 +32,9 @@ export function buildAnthropicRequest(
     }
   }
 
-  if (request.mcpToolsContent) {
-    mcpToolsContent = request.mcpToolsContent;
-  }
-
-  if (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}')) {
+  systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+  if (systemInstruction.includes('{{$TOOLS}}')) {
     systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsContent);
-    systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsContent);
   } else if (toolsContent) {
     systemInstruction = systemInstruction ? `${systemInstruction}\n\n${toolsContent}` : toolsContent;
   }

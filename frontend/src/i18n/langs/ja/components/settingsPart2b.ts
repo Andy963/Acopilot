@@ -55,10 +55,6 @@ export const jaComponentsSettingsPart2b = {
                 title: '自動実行',
                 description: 'ツール実行時の確認動作を設定'
             },
-            mcp: {
-                title: 'MCP 設定',
-                description: 'Model Context Protocol サーバーを設定'
-            },
             checkpoint: {
                 title: 'チェックポイント設定',
                 description: 'コードベースのスナップショットバックアップとロールバックを設定'
@@ -262,8 +258,6 @@ export const jaComponentsSettingsPart2b = {
         }
     },
     toolsSettings: {
-        mcpNote: 'MCP ツールは MCP サーバーから提供され、この画面では無効化できません',
-        mcpDisableTooltip: 'MCP サーバー提供のため無効化できません',
         maxIterations: {
             label: 'ターンあたりの最大ツール呼び出し回数',
             hint: 'AI の無限ツール呼び出しループを防止、-1 で無制限',
@@ -307,7 +301,6 @@ export const jaComponentsSettingsPart2b = {
             terminal: 'ターミナル',
             lsp: 'コードインテリジェンス',
             media: 'メディア処理',
-            mcp: 'MCP',
             other: 'その他'
         },
         descriptions: {

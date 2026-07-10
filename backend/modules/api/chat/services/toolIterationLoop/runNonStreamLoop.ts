@@ -14,7 +14,6 @@ import {
     appendConversationMessageSemantics,
     appendOpenAIResponsesStatefulMarker,
     buildSnapshotModules,
-    countMcpTools,
     getGeminiToolLoopDelayMs,
     getLastUserContextOverrides,
     getLastUserSelectionReferences,
@@ -150,8 +149,6 @@ export async function runNonStreamLoop(
             const allowSet = new Set(toolAllowList);
             declarations = declarations.filter((d) => allowSet.has(d.name));
         }
-        const mcpCount = countMcpTools(declarations);
-
         let toolsDefinition = '';
         if (toolMode === 'xml') {
             toolsDefinition = convertToolsToXML(declarations);
@@ -166,10 +163,9 @@ export async function runNonStreamLoop(
                 : dynamicSystemPrompt;
         }
 
-        const mcpToolsDefinition = '';
-        if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
+        systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+        if (systemInstruction && systemInstruction.includes('{{$TOOLS}}')) {
             systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
-            systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
         } else if (toolsDefinition) {
             systemInstruction = systemInstruction
                 ? `${systemInstruction}\n\n${toolsDefinition}`
@@ -223,7 +219,6 @@ export async function runNonStreamLoop(
             tools: {
                 toolMode,
                 total: declarations.length,
-                mcp: mcpCount,
                 definitionPreview: toolDefPreview?.preview,
                 definitionCharCount: toolDefPreview?.charCount,
                 definitionTruncated: toolDefPreview?.truncated,

@@ -79,7 +79,6 @@ export const jaComponentsCommon = {
             config: '設定',
             toolMode: 'ツールモード',
             tools: 'ツール',
-            mcp: 'MCP',
             systemInstruction: 'システム指示',
             generatedAt: '生成日時'
         },
@@ -113,7 +112,6 @@ export const jaComponentsCommon = {
                 workspaceFiles: 'ワークスペースファイル',
                 pinnedFiles: 'ピン留めファイル',
                 tools: 'ツール',
-                mcpTools: 'MCP ツール',
                 guidelines: 'ガイドライン',
                 openTabs: '開いているタブ',
                 activeEditor: 'アクティブエディタ',

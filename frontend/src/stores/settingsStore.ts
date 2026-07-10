@@ -12,9 +12,7 @@ export type Language = SupportedLanguage
 export const SETTINGS_TAB_IDS = [
   'channel',
   'tools',
-  'mcp',
   'checkpoint',
-  'summarize',
   'imageGen',
   'context',
   'prompt',
@@ -22,6 +20,11 @@ export const SETTINGS_TAB_IDS = [
 ] as const
 
 export type SettingsTab = (typeof SETTINGS_TAB_IDS)[number]
+
+const LEGACY_SETTINGS_TAB_MIGRATIONS: Record<string, SettingsTab> = {
+  mcp: 'tools',
+  summarize: 'context',
+}
 
 const LANGUAGE_STATE_KEY = 'ui.language'
 const SETTINGS_ACTIVE_TAB_STATE_KEY = 'ui.settings.activeTab'
@@ -36,6 +39,11 @@ function loadInitialLanguage(): Language {
 
 function loadInitialActiveTab(): SettingsTab {
   const storedTab = loadState<unknown>(SETTINGS_ACTIVE_TAB_STATE_KEY, 'channel')
+  if (typeof storedTab === 'string' && LEGACY_SETTINGS_TAB_MIGRATIONS[storedTab]) {
+    const migratedTab = LEGACY_SETTINGS_TAB_MIGRATIONS[storedTab]
+    saveState(SETTINGS_ACTIVE_TAB_STATE_KEY, migratedTab)
+    return migratedTab
+  }
   return isSettingsTab(storedTab) ? storedTab : 'channel'
 }
 

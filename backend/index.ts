@@ -71,8 +71,5 @@ export type {
 // 渠道管理模块
 export * from './modules/channel';
 
-// MCP模块
-export * from './modules/mcp';
-
 // API模块
 export * from './modules/api';

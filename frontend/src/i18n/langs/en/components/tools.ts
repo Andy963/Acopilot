@@ -225,17 +225,6 @@ export const enComponentsTools = {
             expandRemaining: 'Expand remaining {count}'
         }
     },
-    mcp: {
-        mcpTool: 'MCP Tool',
-        serverName: 'Server Name',
-        toolName: 'Tool Name',
-        mcpToolPanel: {
-            requestParams: 'Request Parameters',
-            errorInfo: 'Error Information',
-            responseResult: 'Response Result',
-            waitingResponse: 'Waiting for response...'
-        }
-    },
     media: {
         generateImage: 'Generate Image',
         resizeImage: 'Resize Image',

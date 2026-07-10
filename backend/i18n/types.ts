@@ -68,28 +68,6 @@ export interface BackendLanguageMessages {
             };
         };
 
-        /** MCP 模块 */
-        mcp: {
-            errors: {
-                connectionFailed: string;
-                serverNotFound: string;
-                serverNotFoundWithAvailable: string;
-                serverDisabled: string;
-                serverNotConnected: string;
-                clientNotConnected: string;
-                toolCallFailed: string;
-                requestTimeout: string;
-                invalidServerId: string;
-                serverIdExists: string;
-            };
-            status: {
-                connecting: string;
-                connected: string;
-                disconnected: string;
-                error: string;
-            };
-        };
-
         /** 检查点模块 */
         checkpoint: {
             description: {
@@ -248,19 +226,6 @@ export interface BackendLanguageMessages {
                     setActiveModelFailed: string;
                 };
             };
-            mcp: {
-                errors: {
-                    listServersFailed: string;
-                    serverNotFound: string;
-                    getServerFailed: string;
-                    createServerFailed: string;
-                    updateServerFailed: string;
-                    deleteServerFailed: string;
-                    setServerStatusFailed: string;
-                    connectServerFailed: string;
-                    disconnectServerFailed: string;
-                };
-            };
             chat: {
                 errors: {
                     configNotFound: string;
@@ -269,8 +234,6 @@ export interface BackendLanguageMessages {
                     unknownError: string;
                     streamEndedUnexpectedly: string;
                     toolExecutionSuccess: string;
-                    mcpToolCallFailed: string;
-                    invalidMcpToolName: string;
                     toolNotFound: string;
                     toolExecutionFailed: string;
                     noHistory: string;

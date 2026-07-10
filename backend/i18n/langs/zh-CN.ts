@@ -55,27 +55,6 @@ const zhCN: BackendLanguageMessages = {
             }
         },
 
-        mcp: {
-            errors: {
-                connectionFailed: '连接失败: {serverName}',
-                serverNotFound: '服务器不存在: {serverId}',
-                serverNotFoundWithAvailable: '服务器不存在: {serverId}。可用的服务器: {available}',
-                serverDisabled: '服务器未启用: {serverId}',
-                serverNotConnected: '服务器未连接: {serverName}',
-                clientNotConnected: '客户端未连接',
-                toolCallFailed: '工具调用失败',
-                requestTimeout: '请求超时 ({timeout}ms)',
-                invalidServerId: 'ID 只能包含字母、数字、下划线和中划线',
-                serverIdExists: '服务器 ID "{serverId}" 已存在'
-            },
-            status: {
-                connecting: '正在连接...',
-                connected: '已连接',
-                disconnected: '已断开',
-                error: '错误'
-            }
-        },
-
         checkpoint: {
             description: {
                 before: '执行前',
@@ -229,19 +208,6 @@ const zhCN: BackendLanguageMessages = {
                     setActiveModelFailed: '设置激活模型失败'
                 }
             },
-            mcp: {
-                errors: {
-                    listServersFailed: '获取 MCP 服务器列表失败',
-                    serverNotFound: 'MCP 服务器不存在: {serverId}',
-                    getServerFailed: '获取 MCP 服务器失败',
-                    createServerFailed: '创建 MCP 服务器失败',
-                    updateServerFailed: '更新 MCP 服务器失败',
-                    deleteServerFailed: '删除 MCP 服务器失败',
-                    setServerStatusFailed: '设置 MCP 服务器状态失败',
-                    connectServerFailed: '连接 MCP 服务器失败',
-                    disconnectServerFailed: '断开 MCP 服务器失败'
-                }
-            },
             chat: {
                 errors: {
                     configNotFound: '配置不存在: {configId}',
@@ -250,8 +216,6 @@ const zhCN: BackendLanguageMessages = {
                     unknownError: '未知错误',
                     streamEndedUnexpectedly: '流式响应异常结束（未收到完成标记），请重试',
                     toolExecutionSuccess: '工具执行成功',
-                    mcpToolCallFailed: 'MCP 工具调用失败',
-                    invalidMcpToolName: '无效的 MCP 工具名称: {toolName}',
                     toolNotFound: '工具不存在: {toolName}',
                     toolExecutionFailed: '工具执行失败',
                     noHistory: '对话历史为空',
@@ -388,7 +352,6 @@ const zhCN: BackendLanguageMessages = {
             getToolConfigFailed: '获取工具配置失败',
             updateToolConfigFailed: '更新工具配置失败',
             getAutoExecConfigFailed: '获取自动执行配置失败',
-            getMcpToolsFailed: '获取 MCP 工具列表失败',
             setToolAutoExecFailed: '设置工具自动执行失败',
             updateListFilesConfigFailed: '更新 list_files 配置失败',
             updateApplyDiffConfigFailed: '更新 apply_diff 配置失败',
@@ -424,16 +387,6 @@ const zhCN: BackendLanguageMessages = {
             readImageFailed: '读取图片失败',
             openFileFailed: '打开文件失败',
             saveImageFailed: '保存图片失败',
-            
-            openMcpConfigFailed: '打开 MCP 配置文件失败',
-            getMcpServersFailed: '获取 MCP 服务器列表失败',
-            validateMcpServerIdFailed: '验证 MCP 服务器 ID 失败',
-            createMcpServerFailed: '创建 MCP 服务器失败',
-            updateMcpServerFailed: '更新 MCP 服务器失败',
-            deleteMcpServerFailed: '删除 MCP 服务器失败',
-            connectMcpServerFailed: '连接 MCP 服务器失败',
-            disconnectMcpServerFailed: '断开 MCP 服务器失败',
-            setMcpServerEnabledFailed: '设置 MCP 服务器状态失败',
             
             getSummarizeConfigFailed: '获取总结配置失败',
             updateSummarizeConfigFailed: '更新总结配置失败',

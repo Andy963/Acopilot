@@ -249,16 +249,24 @@ onMounted(() => {
         </h4>
 
         <div class="form-row">
-          <label>{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.label') }}</label>
-          <input
-            type="text"
-            :value="config.maxCheckpoints"
-            :disabled="!config.enabled"
-            class="number-input"
-            placeholder="-1"
-            @input="(event: Event) => { const value = parseInt((event.target as HTMLInputElement).value); updateConfigField('maxCheckpoints', isNaN(value) ? -1 : value) }"
-          />
-          <span class="hint">{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.hint') }}</span>
+          <div class="checkpoint-limit-row">
+            <label for="max-checkpoints">
+              {{ t('components.settings.checkpoint.sections.other.maxCheckpoints.label') }}
+            </label>
+            <input
+              id="max-checkpoints"
+              type="text"
+              :value="config.maxCheckpoints"
+              :disabled="!config.enabled"
+              class="number-input"
+              placeholder="-1"
+              aria-describedby="max-checkpoints-hint"
+              @input="(event: Event) => { const value = parseInt((event.target as HTMLInputElement).value); updateConfigField('maxCheckpoints', isNaN(value) ? -1 : value) }"
+            />
+          </div>
+          <span id="max-checkpoints-hint" class="hint">
+            {{ t('components.settings.checkpoint.sections.other.maxCheckpoints.hint') }}
+          </span>
         </div>
       </div>
 
@@ -354,12 +362,21 @@ onMounted(() => {
 }
 
 .form-row label {
+  min-width: 0;
   font-size: 12px;
   font-weight: 500;
 }
 
+.checkpoint-limit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 100px);
+  align-items: center;
+  gap: 10px;
+}
+
 .number-input {
-  width: 100px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 6px 10px;
   font-size: 13px;
   background: var(--vscode-input-background);

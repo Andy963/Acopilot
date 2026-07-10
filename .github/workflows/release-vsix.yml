@@ -72,16 +72,21 @@ jobs:
         run: |
           set -euo pipefail
 
+          RELEASE_FLAGS=()
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+            RELEASE_FLAGS+=(--prerelease)
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$VSIX_PATH" --clobber
             gh release edit "$TAG" \
               --title "$TAG" \
               --notes-file RELEASE_NOTES.md \
-              $([[ "$TAG" == *-* ]] && printf '%s' '--prerelease')
+              "${RELEASE_FLAGS[@]}"
           else
             gh release create "$TAG" "$VSIX_PATH" \
               --title "$TAG" \
               --notes-file RELEASE_NOTES.md \
               --verify-tag \
-              $([[ "$TAG" == *-* ]] && printf '%s' '--prerelease')
+              "${RELEASE_FLAGS[@]}"
           fi

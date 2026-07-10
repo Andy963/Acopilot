@@ -55,27 +55,6 @@ const en: BackendLanguageMessages = {
             }
         },
 
-        mcp: {
-            errors: {
-                connectionFailed: 'Connection failed: {serverName}',
-                serverNotFound: 'Server not found: {serverId}',
-                serverNotFoundWithAvailable: 'Server not found: {serverId}. Available servers: {available}',
-                serverDisabled: 'Server is disabled: {serverId}',
-                serverNotConnected: 'Server not connected: {serverName}',
-                clientNotConnected: 'Client not connected',
-                toolCallFailed: 'Tool call failed',
-                requestTimeout: 'Request timeout ({timeout}ms)',
-                invalidServerId: 'ID can only contain letters, numbers, underscores and hyphens',
-                serverIdExists: 'Server ID "{serverId}" already exists'
-            },
-            status: {
-                connecting: 'Connecting...',
-                connected: 'Connected',
-                disconnected: 'Disconnected',
-                error: 'Error'
-            }
-        },
-
         checkpoint: {
             description: {
                 before: 'Before',
@@ -229,19 +208,6 @@ const en: BackendLanguageMessages = {
                     setActiveModelFailed: 'Failed to set active model'
                 }
             },
-            mcp: {
-                errors: {
-                    listServersFailed: 'Failed to get MCP server list',
-                    serverNotFound: 'MCP server not found: {serverId}',
-                    getServerFailed: 'Failed to get MCP server',
-                    createServerFailed: 'Failed to create MCP server',
-                    updateServerFailed: 'Failed to update MCP server',
-                    deleteServerFailed: 'Failed to delete MCP server',
-                    setServerStatusFailed: 'Failed to set MCP server status',
-                    connectServerFailed: 'Failed to connect MCP server',
-                    disconnectServerFailed: 'Failed to disconnect MCP server'
-                }
-            },
             chat: {
                 errors: {
                     configNotFound: 'Configuration not found: {configId}',
@@ -250,8 +216,6 @@ const en: BackendLanguageMessages = {
                     unknownError: 'Unknown error',
                     streamEndedUnexpectedly: 'Stream ended unexpectedly (no completion marker received), please retry',
                     toolExecutionSuccess: 'Tool execution successful',
-                    mcpToolCallFailed: 'MCP tool call failed',
-                    invalidMcpToolName: 'Invalid MCP tool name: {toolName}',
                     toolNotFound: 'Tool not found: {toolName}',
                     toolExecutionFailed: 'Tool execution failed',
                     noHistory: 'Conversation history is empty',
@@ -388,7 +352,6 @@ Requirements:
             getToolConfigFailed: 'Failed to get tool config',
             updateToolConfigFailed: 'Failed to update tool config',
             getAutoExecConfigFailed: 'Failed to get auto exec config',
-            getMcpToolsFailed: 'Failed to get MCP tools list',
             setToolAutoExecFailed: 'Failed to set tool auto exec',
             updateListFilesConfigFailed: 'Failed to update list_files config',
             updateApplyDiffConfigFailed: 'Failed to update apply_diff config',
@@ -424,16 +387,6 @@ Requirements:
             readImageFailed: 'Failed to read image',
             openFileFailed: 'Failed to open file',
             saveImageFailed: 'Failed to save image',
-            
-            openMcpConfigFailed: 'Failed to open MCP config file',
-            getMcpServersFailed: 'Failed to get MCP servers list',
-            validateMcpServerIdFailed: 'Failed to validate MCP server ID',
-            createMcpServerFailed: 'Failed to create MCP server',
-            updateMcpServerFailed: 'Failed to update MCP server',
-            deleteMcpServerFailed: 'Failed to delete MCP server',
-            connectMcpServerFailed: 'Failed to connect MCP server',
-            disconnectMcpServerFailed: 'Failed to disconnect MCP server',
-            setMcpServerEnabledFailed: 'Failed to set MCP server status',
             
             getSummarizeConfigFailed: 'Failed to get summarize config',
             updateSummarizeConfigFailed: 'Failed to update summarize config',

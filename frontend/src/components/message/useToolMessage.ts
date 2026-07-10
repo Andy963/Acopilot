@@ -1,9 +1,8 @@
-import { computed, h, ref, type Component, type ComputedRef, watchEffect } from 'vue'
+import { computed, h, ref, type Component, type ComputedRef } from 'vue'
 import type { Message, ToolUsage } from '../../types'
 import { useChatStore } from '../../stores'
 import { generateId } from '../../utils/format'
 import { getToolConfig } from '../../utils/toolRegistry'
-import { ensureMcpToolRegistered } from '../../utils/tools'
 import { sendToExtension } from '../../utils/vscode'
 import {
   getReadFileHeaderStats,
@@ -17,15 +16,29 @@ import {
 import { useApplyDiffUndo } from './useApplyDiffUndo'
 import { useReadFileCopy } from './useReadFileCopy'
 
+export function renderDefaultToolContent(tool: ToolUsage, t: Translator) {
+  return h('div', { class: 'tool-content-default' }, [
+    tool.args &&
+      h('div', { class: 'content-section' }, [
+        h('div', { class: 'section-label' }, t('components.message.tool.parameters') + ':'),
+        h('pre', { class: 'section-data' }, JSON.stringify(tool.args, null, 2))
+      ]),
+    tool.result &&
+      h('div', { class: 'content-section' }, [
+        h('div', { class: 'section-label' }, t('components.message.tool.result') + ':'),
+        h('pre', { class: 'section-data' }, JSON.stringify(tool.result, null, 2))
+      ]),
+    tool.error &&
+      h('div', { class: 'content-section error-section' }, [
+        h('div', { class: 'section-label' }, t('components.message.tool.error') + ':'),
+        h('div', { class: 'error-message' }, tool.error)
+      ])
+  ])
+}
+
 export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Translator }) {
   const { t } = options
   const chatStore = useChatStore()
-
-  watchEffect(() => {
-    for (const tool of tools.value) {
-      ensureMcpToolRegistered(tool.name)
-    }
-  })
 
   const processingToolIds = ref<Set<string>>(new Set())
 
@@ -326,23 +339,7 @@ export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Tr
       return h('div', { class: 'tool-content-text' }, content)
     }
 
-    return h('div', { class: 'tool-content-default' }, [
-      tool.args &&
-        h('div', { class: 'content-section' }, [
-          h('div', { class: 'section-label' }, t('components.message.tool.parameters') + ':'),
-          h('pre', { class: 'section-data' }, JSON.stringify(tool.args, null, 2))
-        ]),
-      tool.result &&
-        h('div', { class: 'content-section' }, [
-          h('div', { class: 'section-label' }, t('components.message.tool.result') + ':'),
-          h('pre', { class: 'section-data' }, JSON.stringify(tool.result, null, 2))
-        ]),
-      tool.error &&
-        h('div', { class: 'content-section error-section' }, [
-          h('div', { class: 'section-label' }, t('components.message.tool.error') + ':'),
-          h('div', { class: 'error-message' }, tool.error)
-        ])
-    ])
+    return renderDefaultToolContent(tool, t)
   }
 
   return {
@@ -371,4 +368,3 @@ export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Tr
     renderToolContent
   }
 }
-

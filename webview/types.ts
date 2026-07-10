@@ -11,7 +11,6 @@ import type { ModelsHandler } from '../backend/modules/api/models';
 import type { SettingsManager, StoragePathManager } from '../backend/modules/settings';
 import type { SettingsHandler } from '../backend/modules/api/settings';
 import type { CheckpointManager } from '../backend/modules/checkpoint';
-import type { McpManager } from '../backend/modules/mcp';
 import type { DependencyManager } from '../backend/modules/dependencies';
 import type { DiffStorageManager } from '../backend/modules/conversation';
 
@@ -33,7 +32,6 @@ export interface HandlerContext {
   settingsManager: SettingsManager;
   settingsHandler: SettingsHandler;
   checkpointManager: CheckpointManager;
-  mcpManager: McpManager;
   dependencyManager: DependencyManager;
   storagePathManager: StoragePathManager;
   diffStorageManager: DiffStorageManager;

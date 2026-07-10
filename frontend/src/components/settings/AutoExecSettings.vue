@@ -13,7 +13,7 @@ import { CustomCheckbox } from '../common'
 import { sendToExtension } from '@/utils/vscode'
 import { t } from '@/i18n'
 import SettingsGroup from './common/SettingsGroup.vue'
-import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from './toolDisplay'
+import { getLocalizedToolDescription, getToolDisplayName } from './toolDisplay'
 
 // 工具信息接口
 interface ToolInfo {
@@ -21,8 +21,6 @@ interface ToolInfo {
   description: string
   enabled: boolean
   category?: string
-  serverId?: string
-  serverName?: string
 }
 
 // 工具自动执行配置
@@ -70,7 +68,6 @@ const categoryIcons: Record<string, string> = {
   'terminal': 'codicon-terminal',
   'lsp': 'codicon-symbol-class',
   'media': 'codicon-file-media',
-  'mcp': 'codicon-plug',
   '其他': 'codicon-extensions'
 }
 
@@ -81,22 +78,7 @@ async function loadData() {
   try {
     // 获取内置工具列表
     const toolsResponse = await sendToExtension<{ tools: ToolInfo[] }>('tools.getTools', {})
-    let allTools: ToolInfo[] = []
-    if (toolsResponse?.tools) {
-      allTools = toolsResponse.tools
-    }
-    
-    // 获取 MCP 工具列表
-    try {
-      const mcpToolsResponse = await sendToExtension<{ tools: ToolInfo[] }>('tools.getMcpTools', {})
-      if (mcpToolsResponse?.tools) {
-        allTools = [...allTools, ...mcpToolsResponse.tools]
-      }
-    } catch (mcpError) {
-      console.warn('Failed to load MCP tools:', mcpError)
-    }
-    
-    tools.value = allTools
+    tools.value = toolsResponse?.tools || []
     
     // 获取自动执行配置
     const configResponse = await sendToExtension<{ config: ToolAutoExecConfig }>('tools.getAutoExecConfig', {})
@@ -239,7 +221,7 @@ onMounted(() => {
           >
             <div
               class="tool-item"
-              :class="{ dangerous: isDangerousTool(tool.name), 'mcp-tool': isMcpTool(tool) }"
+              :class="{ dangerous: isDangerousTool(tool.name) }"
             >
               <div class="tool-info">
                 <div class="tool-name-row">
@@ -247,10 +229,6 @@ onMounted(() => {
                   <span v-if="isDangerousTool(tool.name)" class="danger-badge">
                     <i class="codicon codicon-warning"></i>
                     {{ t('components.settings.autoExec.badges.dangerous') }}
-                  </span>
-                  <span v-if="isMcpTool(tool)" class="mcp-badge">
-                    <i class="codicon codicon-plug"></i>
-                    {{ tool.serverName }}
                   </span>
                 </div>
                 <div class="tool-description">{{ getToolDescription(tool) }}</div>
@@ -282,7 +260,6 @@ onMounted(() => {
         <p>{{ t('components.settings.autoExec.tips.dangerousDefault') }}</p>
         <p>{{ t('components.settings.autoExec.tips.deleteFileWarning') }}</p>
         <p>{{ t('components.settings.autoExec.tips.executeCommandWarning') }}</p>
-        <p>{{ t('components.settings.autoExec.tips.mcpToolsDefault') }}</p>
         <p>{{ t('components.settings.autoExec.tips.useWithCheckpoint') }}</p>
       </div>
     </div>

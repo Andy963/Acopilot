@@ -81,8 +81,6 @@ export async function buildContextInspectorData(params: {
     const allowSet = new Set(toolAllowList);
     declarations = declarations.filter((d) => allowSet.has(d.name));
   }
-  const mcpCount = countMcpTools(declarations);
-
   let toolsDefinition = '';
   if (toolMode === 'xml') {
     toolsDefinition = convertToolsToXML(declarations);
@@ -90,10 +88,9 @@ export async function buildContextInspectorData(params: {
     toolsDefinition = convertToolsToJSON(declarations);
   }
 
-  const mcpToolsDefinition = '';
-  if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
+  systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+  if (systemInstruction && systemInstruction.includes('{{$TOOLS}}')) {
     systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
-    systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
   } else if (toolsDefinition) {
     systemInstruction = systemInstruction ? `${systemInstruction}\n\n${toolsDefinition}` : toolsDefinition;
   }
@@ -109,7 +106,6 @@ export async function buildContextInspectorData(params: {
   const tools: ContextInspectorTools = {
     toolMode,
     total: declarations.length,
-    mcp: mcpCount,
     definitionPreview: toolDefPreview?.preview,
     definitionCharCount: toolDefPreview?.charCount,
     definitionTruncated: toolDefPreview?.truncated,
@@ -254,8 +250,4 @@ function buildModules(systemInstruction: string, maxCharsPerSection: number): Co
   }
 
   return out;
-}
-
-function countMcpTools(tools: Array<{ name: string }>): number {
-  return tools.filter(t => typeof t.name === 'string' && t.name.startsWith('mcp__')).length;
 }

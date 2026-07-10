@@ -151,18 +151,6 @@ You have access to these tools:
 ## read_file
 Description: Read file content
 ...`
-  },
-  {
-    id: 'MCP_TOOLS',
-    name: 'MCP 工具',
-    description: '来自 MCP 服务器的额外工具定义（此变量由系统自动填充）',
-    example: `====
-
-MCP TOOLS
-
-Additional tools from MCP servers:
-...`,
-    requiresConfig: 'MCP 设置中需要配置并连接服务器'
   }
 ]
 
@@ -183,8 +171,6 @@ export const DEFAULT_TEMPLATE = `You are a professional programming assistant, p
 {{$PINNED_PROMPTS}}
 
 {{$TOOLS}}
-
-{{$MCP_TOOLS}}
 
 ====
 

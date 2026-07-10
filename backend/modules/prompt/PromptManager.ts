@@ -125,7 +125,6 @@ export class PromptManager {
      * - {{$DIAGNOSTICS}} - VSCode 诊断信息（错误、警告等）
      * - {{$PINNED_FILES}} - 固定文件内容
      * - {{$TOOLS}} - 工具定义（由外部填充）
-     * - {{$MCP_TOOLS}} - MCP 工具定义（由外部填充）
      */
     private generateFromTemplate(
         template: string,
@@ -165,8 +164,7 @@ export class PromptManager {
                     this.generatePinnedFilesSection()
                 ),
             // 工具定义由外部在发送前填充，这里返回占位符
-            'TOOLS': '{{$TOOLS}}',
-            'MCP_TOOLS': '{{$MCP_TOOLS}}'
+            'TOOLS': '{{$TOOLS}}'
         }
         
         // 替换模板中的占位符（使用 {{$xxx}} 格式）
@@ -175,6 +173,9 @@ export class PromptManager {
             const regex = new RegExp(`\\{\\{\\$${key}\\}\\}`, 'g')
             result = result.replace(regex, value)
         }
+
+        // Legacy custom templates may still contain the removed MCP module.
+        result = result.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
         
         return [customPrefix, result, customSuffix]
             .map((part) => part.trim())

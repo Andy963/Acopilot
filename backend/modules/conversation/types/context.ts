@@ -8,7 +8,6 @@ export interface ContextSnapshotModule {
 export interface ContextSnapshotTools {
     toolMode: 'function_call' | 'xml' | 'json';
     total: number;
-    mcp: number;
     definitionPreview?: string;
     definitionCharCount?: number;
     definitionTruncated?: boolean;

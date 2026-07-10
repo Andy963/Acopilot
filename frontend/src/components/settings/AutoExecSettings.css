@@ -168,28 +168,6 @@
   font-size: 10px;
 }
 
-.mcp-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: var(--vscode-textLink-activeForeground);
-  background: rgba(var(--vscode-textLink-foreground), 0.1);
-  color: var(--vscode-textLink-foreground);
-  border: 1px solid var(--vscode-textLink-foreground);
-  border-radius: 4px;
-  font-size: 10px;
-  opacity: 0.8;
-}
-
-.mcp-badge .codicon {
-  font-size: 10px;
-}
-
-.tool-item.mcp-tool {
-  border-left-color: var(--vscode-textLink-foreground);
-}
-
 .tool-description {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);

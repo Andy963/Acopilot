@@ -192,83 +192,6 @@ export const enComponentsSettingsPart2a = {
             warning: 'Please configure API Key before using image generation feature'
         }
     },
-    mcpSettings: {
-        toolbar: {
-            addServer: 'Add Server',
-            editJson: 'Edit JSON',
-            refresh: 'Refresh'
-        },
-        loading: 'Loading...',
-        empty: {
-            title: 'No MCP Servers',
-            description: 'Click "Add Server" button to configure your first MCP server'
-        },
-        serverCard: {
-            connect: 'Connect',
-            disconnect: 'Disconnect',
-            connecting: 'Connecting...',
-            edit: 'Edit',
-            delete: 'Delete',
-            tools: 'Tools',
-            resources: 'Resources',
-            prompts: 'Prompts'
-        },
-        status: {
-            connected: 'Connected',
-            connecting: 'Connecting...',
-            error: 'Connection Error',
-            disconnected: 'Disconnected'
-        },
-        form: {
-            addTitle: 'Add MCP Server',
-            editTitle: 'Edit MCP Server',
-            serverId: 'Server ID',
-            serverIdPlaceholder: 'Optional, leave blank to auto-generate',
-            serverIdHint: 'Can only contain letters, numbers, underscores and hyphens, used to identify server in JSON config',
-            serverIdError: 'ID can only contain letters, numbers, underscores and hyphens',
-            serverName: 'Server Name',
-            serverNamePlaceholder: 'e.g.: My MCP Server',
-            description: 'Description',
-            descriptionPlaceholder: 'Optional description',
-            required: '*',
-            transportType: 'Transport Type',
-            command: 'Command',
-            commandPlaceholder: 'e.g.: npx, python, node',
-            args: 'Arguments',
-            argsPlaceholder: 'Space separated, e.g.: -m mcp_server',
-            env: 'Environment Variables (JSON)',
-            envPlaceholder: '{"KEY": "value"}',
-            url: 'URL',
-            urlPlaceholderSse: 'https://example.com/sse',
-            urlPlaceholderHttp: 'https://example.com/mcp',
-            headers: 'Headers (JSON)',
-            headersPlaceholder: '{"Authorization": "Bearer token"}',
-            options: 'Options',
-            enabled: 'Enabled',
-            autoConnect: 'Auto Connect',
-            cleanSchema: 'Clean Schema',
-            cleanSchemaHint: 'Remove incompatible fields from JSON Schema (e.g. $schema, additionalProperties), required for some APIs (e.g. Gemini)',
-            timeout: 'Connection Timeout (ms)',
-            cancel: 'Cancel',
-            create: 'Create',
-            save: 'Save'
-        },
-        validation: {
-            nameRequired: 'Please enter server name',
-            idInvalid: 'ID is invalid',
-            idChecking: 'Validating ID, please wait',
-            commandRequired: 'Please enter command',
-            urlRequired: 'Please enter URL',
-            createFailed: 'Create failed',
-            updateFailed: 'Update failed'
-        },
-        delete: {
-            title: 'Delete MCP Server',
-            message: 'Are you sure you want to delete server "{name}"? This action cannot be undone.',
-            confirm: 'Delete',
-            cancel: 'Cancel'
-        }
-    },
     modelManager: {
         title: 'Model List',
         fetchModels: 'Fetch Models',
@@ -386,11 +309,6 @@ export const enComponentsSettingsPart2a = {
                 name: 'Tool Definitions',
                 description: 'Generate tool definitions in XML or Function Call format based on channel configuration (this variable is automatically filled by the system)'
             },
-            MCP_TOOLS: {
-                name: 'MCP Tools',
-                description: 'Additional tool definitions from MCP servers (this variable is automatically filled by the system)',
-                requiresConfig: 'Need to configure and connect servers in MCP settings'
-            }
         },
         exampleOutput: 'Example Output:',
         requiresConfigLabel: 'Requires Config:',

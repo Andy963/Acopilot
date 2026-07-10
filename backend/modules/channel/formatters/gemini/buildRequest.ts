@@ -48,7 +48,6 @@ export function buildGeminiRequest(
   }
 
   let toolsContent = '';
-  let mcpToolsContent = '';
 
   if (tools && tools.length > 0) {
     if (toolMode === 'function_call') {
@@ -60,13 +59,9 @@ export function buildGeminiRequest(
     }
   }
 
-  if (request.mcpToolsContent) {
-    mcpToolsContent = request.mcpToolsContent;
-  }
-
-  if (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}')) {
+  systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+  if (systemInstruction.includes('{{$TOOLS}}')) {
     systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsContent);
-    systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsContent);
   } else if (toolsContent) {
     systemInstruction = systemInstruction ? `${systemInstruction}\n\n${toolsContent}` : toolsContent;
   }

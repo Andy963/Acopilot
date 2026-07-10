@@ -1,7 +1,7 @@
 /**
  * Acopilot - 工具执行服务
  *
- * 负责执行工具调用、处理 MCP 工具、管理工具确认逻辑
+ * 负责执行工具调用和管理工具确认逻辑
  */
 
 import { t } from '../../../../i18n';
@@ -9,7 +9,6 @@ import { redactSensitiveText } from '../../../../core/redaction';
 import type { ToolRegistry } from '../../../../tools/ToolRegistry';
 import type { CheckpointRecord } from '../../../checkpoint';
 import type { SettingsManager } from '../../../settings/SettingsManager';
-import type { McpManager } from '../../../mcp/McpManager';
 import type { ContentPart } from '../../../conversation/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import { getMultimodalCapability, type ChannelType as UtilChannelType, type ToolMode as UtilToolMode } from '../../../../tools/utils';
@@ -41,24 +40,21 @@ export interface ToolExecutionFullResult {
  * 工具执行服务
  *
  * 职责：
- * 1. 执行内置工具和 MCP 工具
+ * 1. 执行内置工具
  * 2. 处理工具确认逻辑
  * 3. 创建工具执行前后的检查点
  * 4. 处理多模态工具返回数据
  */
 export class ToolExecutionService {
     private settingsManager?: SettingsManager;
-    private mcpManager?: McpManager;
     private toolRegistry?: ToolRegistry;
 
     constructor(
         toolRegistry?: ToolRegistry,
-        mcpManager?: McpManager,
         settingsManager?: SettingsManager,
         private checkpointService?: CheckpointService
     ) {
         this.toolRegistry = toolRegistry;
-        this.mcpManager = mcpManager;
         this.settingsManager = settingsManager;
     }
 
@@ -67,13 +63,6 @@ export class ToolExecutionService {
      */
     setSettingsManager(settingsManager: SettingsManager): void {
         this.settingsManager = settingsManager;
-    }
-
-    /**
-     * 设置 MCP 管理器
-     */
-    setMcpManager(mcpManager: McpManager): void {
-        this.mcpManager = mcpManager;
     }
 
     /**
@@ -199,20 +188,10 @@ export class ToolExecutionService {
                             risk: assessment
                         };
                     } else {
-                        // 检查是否是 MCP 工具（格式：mcp__{serverId}__{toolName}）
-                        if (call.name.startsWith('mcp__') && this.mcpManager) {
-                            response = await this.executeMcpTool(call);
-                        } else {
-                            response = await this.executeBuiltinTool(call, config, abortSignal);
-                        }
+                        response = await this.executeBuiltinTool(call, config, abortSignal);
                     }
                 } else {
-                // 检查是否是 MCP 工具（格式：mcp__{serverId}__{toolName}）
-                if (call.name.startsWith('mcp__') && this.mcpManager) {
-                    response = await this.executeMcpTool(call);
-                } else {
                     response = await this.executeBuiltinTool(call, config, abortSignal);
-                }
                 }
             } catch (error) {
                 const err = error as Error;
@@ -286,46 +265,6 @@ export class ToolExecutionService {
             checkpoints,
             multimodalAttachments: multimodalAttachments.length > 0 ? multimodalAttachments : undefined
         };
-    }
-
-    /**
-     * 执行 MCP 工具
-     */
-    private async executeMcpTool(call: FunctionCallInfo): Promise<Record<string, unknown>> {
-        const parts = call.name.split('__');
-        if (parts.length >= 3) {
-            const serverId = parts[1];
-            const toolName = parts.slice(2).join('__');
-
-            const result = await this.mcpManager!.callTool({
-                serverId,
-                toolName,
-                arguments: call.args
-            });
-
-            if (result.success) {
-                // 将 MCP 响应转换为标准格式
-                const textContent = result.content
-                    ?.filter(c => c.type === 'text')
-                    .map(c => c.text)
-                    .join('\n') || '';
-
-                return {
-                    success: true,
-                    content: textContent || t('modules.api.chat.errors.toolExecutionSuccess')
-                };
-            } else {
-                return {
-                    success: false,
-                    error: result.error || t('modules.api.chat.errors.mcpToolCallFailed')
-                };
-            }
-        } else {
-            return {
-                success: false,
-                error: t('modules.api.chat.errors.invalidMcpToolName', { toolName: call.name })
-            };
-        }
     }
 
     /**

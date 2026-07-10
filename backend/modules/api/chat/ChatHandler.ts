@@ -14,7 +14,6 @@ import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import type { CheckpointManager, CheckpointRecord } from '../../checkpoint';
 import type { SettingsManager } from '../../settings/SettingsManager';
 import { DEFAULT_MAX_TOOL_ITERATIONS } from '../../settings/types';
-import type { McpManager } from '../../mcp/McpManager';
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
 import { TokenCountService, type TokenCountResult } from '../../channel/TokenCountService';
@@ -45,7 +44,6 @@ import { buildContextInspectorData } from './contextInspector';
 export class ChatHandler {
     private checkpointManager?: CheckpointManager;
     private settingsManager?: SettingsManager;
-    private mcpManager?: McpManager;
     private diffStorageManager?: DiffStorageManager;
     private promptManager: PromptManager;
     private tokenCountService: TokenCountService;
@@ -86,7 +84,6 @@ export class ChatHandler {
         );
         this.toolExecutionService = new ToolExecutionService(
             this.toolRegistry,
-            this.mcpManager,
             this.settingsManager,
             this.checkpointService
         );
@@ -169,14 +166,6 @@ export class ChatHandler {
             this.toolExecutionService,
             this.toolCallParserService
         );
-    }
-    
-    /**
-     * 设置 MCP 管理器（可选）
-     */
-    setMcpManager(mcpManager: McpManager): void {
-        this.mcpManager = mcpManager;
-        this.toolExecutionService.setMcpManager(mcpManager);
     }
     
     /**

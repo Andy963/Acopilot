@@ -28,7 +28,6 @@ export interface BackendWebviewMessages {
         getToolConfigFailed: string;
         updateToolConfigFailed: string;
         getAutoExecConfigFailed: string;
-        getMcpToolsFailed: string;
         setToolAutoExecFailed: string;
         updateListFilesConfigFailed: string;
         updateApplyDiffConfigFailed: string;
@@ -64,16 +63,6 @@ export interface BackendWebviewMessages {
         readImageFailed: string;
         openFileFailed: string;
         saveImageFailed: string;
-
-        openMcpConfigFailed: string;
-        getMcpServersFailed: string;
-        validateMcpServerIdFailed: string;
-        createMcpServerFailed: string;
-        updateMcpServerFailed: string;
-        deleteMcpServerFailed: string;
-        connectMcpServerFailed: string;
-        disconnectMcpServerFailed: string;
-        setMcpServerEnabledFailed: string;
 
         getSummarizeConfigFailed: string;
         updateSummarizeConfigFailed: string;
@@ -124,4 +113,3 @@ export interface BackendWebviewMessages {
         selectFolder: string;
     };
 }
-

@@ -4,9 +4,7 @@ export const enComponentsSettingsPart1 = {
         channel: 'Channel',
         tools: 'Tools',
         autoExec: 'Auto Execute',
-        mcp: 'MCP',
         checkpoint: 'Checkpoint',
-        summarize: 'Summarize',
         imageGen: 'Image Generation',
         dependencies: 'Dependencies',
         context: 'Context',
@@ -16,6 +14,7 @@ export const enComponentsSettingsPart1 = {
     },
     channelSettings: {
         selector: {
+            label: 'Current configuration',
             placeholder: 'Select Config',
             rename: 'Rename',
             add: 'New Config',
@@ -251,7 +250,6 @@ export const enComponentsSettingsPart1 = {
             terminal: 'Terminal',
             lsp: 'Code Intelligence',
             media: 'Media Processing',
-            mcp: 'MCP Tools',
             other: 'Other'
         },
         badges: {
@@ -261,23 +259,8 @@ export const enComponentsSettingsPart1 = {
             dangerousDefault: '• Tools marked as "Dangerous" require user confirmation by default before execution',
             deleteFileWarning: '• delete_file: File deletion is irreversible, recommend keeping confirmation enabled',
             executeCommandWarning: '• execute_command: Executing terminal commands may affect the system',
-            mcpToolsDefault: '• MCP Tools: From connected MCP servers, auto execute by default',
             useWithCheckpoint: '• Recommend using with checkpoint feature to restore in case of mistakes'
         }
-    },
-    mcp: {
-        title: 'MCP Settings',
-        description: 'Configure Model Context Protocol servers',
-        addServer: 'Add Server',
-        serverName: 'Server Name',
-        serverCommand: 'Command',
-        serverArgs: 'Arguments',
-        serverEnv: 'Environment Variables',
-        serverStatus: 'Server Status',
-        connecting: 'Connecting',
-        connected: 'Connected',
-        disconnected: 'Disconnected',
-        error: 'Error'
     },
     checkpoint: {
         title: 'Checkpoint Settings',

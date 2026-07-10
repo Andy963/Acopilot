@@ -16,7 +16,7 @@ import type { StorageStats } from './types';
  */
 export class StoragePathManager {
     private defaultDataPath: string;
-    private static readonly managedDataSubDirs = ['conversations', 'snapshots', 'checkpoints', 'mcp', 'dependencies', 'diffs'] as const;
+    private static readonly managedDataSubDirs = ['conversations', 'snapshots', 'checkpoints', 'dependencies', 'diffs'] as const;
     
     constructor(
         private settingsManager: SettingsManager,
@@ -64,13 +64,6 @@ export class StoragePathManager {
     }
     
     /**
-     * 获取 MCP 配置存储目录
-     */
-    getMcpPath(): string {
-        return path.join(this.getEffectiveDataPath(), 'mcp');
-    }
-    
-    /**
      * 获取依赖存储目录
      */
     getDependenciesPath(): string {
@@ -102,7 +95,6 @@ export class StoragePathManager {
             path.join(basePath, 'conversations'),
             path.join(basePath, 'snapshots'),
             path.join(basePath, 'checkpoints'),
-            path.join(basePath, 'mcp'),
             path.join(basePath, 'dependencies'),
             path.join(basePath, 'diffs')
         ];
@@ -210,16 +202,15 @@ export class StoragePathManager {
     async getStorageStats(targetPath?: string): Promise<StorageStats> {
         const basePath = targetPath || this.getEffectiveDataPath();
         
-        const [conversations, checkpoints, mcp, dependencies, diffs] = await Promise.all([
+        const [conversations, checkpoints, dependencies, diffs] = await Promise.all([
             this.getDirectorySize(path.join(basePath, 'conversations')),
             this.getDirectorySize(path.join(basePath, 'checkpoints')),
-            this.getDirectorySize(path.join(basePath, 'mcp')),
             this.getDirectorySize(path.join(basePath, 'dependencies')),
             this.getDirectorySize(path.join(basePath, 'diffs'))
         ]);
         
-        const totalSize = conversations.size + checkpoints.size + mcp.size + dependencies.size + diffs.size;
-        const fileCount = conversations.count + checkpoints.count + mcp.count + dependencies.count + diffs.count;
+        const totalSize = conversations.size + checkpoints.size + dependencies.size + diffs.size;
+        const fileCount = conversations.count + checkpoints.count + dependencies.count + diffs.count;
         
         return {
             path: basePath,
@@ -228,7 +219,6 @@ export class StoragePathManager {
             subDirs: {
                 conversations: conversations,
                 checkpoints: checkpoints,
-                mcp: mcp,
                 dependencies: dependencies,
                 diffs: diffs
             }

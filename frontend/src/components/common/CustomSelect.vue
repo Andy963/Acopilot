@@ -22,6 +22,8 @@ const props = withDefaults(defineProps<{
   searchable?: boolean
   dropUp?: boolean  // 向上展开
   compact?: boolean  // 紧凑模式
+  /** Accessible name for the select trigger. */
+  triggerAriaLabel?: string
 }>(), {
   placeholder: '请选择',
   disabled: false,
@@ -160,7 +162,8 @@ onUnmounted(() => {
 <template>
   <div ref="containerRef" :class="['custom-select', { open: isOpen, disabled, 'drop-up': dropUp, compact }]"
     @keydown="handleKeydown">
-    <button type="button" class="select-trigger" :disabled="disabled" @click="toggle">
+    <button type="button" class="select-trigger" :disabled="disabled"
+      :aria-label="triggerAriaLabel" @click="toggle">
       <span v-if="selectedOption" class="selected-value">
         <span class="selected-label">{{ selectedOption.label }}</span>
       </span>

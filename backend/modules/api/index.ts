@@ -93,26 +93,3 @@ export type {
     SetActiveModelRequest,
     SetActiveModelResponse
 } from './models';
-
-// MCP 模块
-export { McpHandler } from './mcp';
-export type {
-    GetAllMcpServersRequest,
-    GetAllMcpServersResponse,
-    GetMcpServerRequest,
-    GetMcpServerResponse,
-    CreateMcpServerRequest,
-    CreateMcpServerResponse,
-    UpdateMcpServerRequest,
-    UpdateMcpServerResponse,
-    DeleteMcpServerRequest,
-    DeleteMcpServerResponse,
-    SetMcpServerEnabledRequest,
-    ConnectMcpServerRequest,
-    DisconnectMcpServerRequest,
-    McpConnectionResponse,
-    OpenMcpConfigFileRequest,
-    OpenMcpConfigFileResponse,
-    McpServerChangeNotification,
-    McpApiError
-} from './mcp';

@@ -15,7 +15,6 @@ import { ModelsHandler } from '../backend/modules/api/models';
 import { SettingsManager, VSCodeSettingsStorage, StoragePathManager } from '../backend/modules/settings';
 import { SettingsHandler } from '../backend/modules/api/settings';
 import { CheckpointManager } from '../backend/modules/checkpoint';
-import { McpManager, VSCodeFileSystemMcpStorageAdapter } from '../backend/modules/mcp';
 import { DependencyManager, type InstallProgressEvent } from '../backend/modules/dependencies';
 import { toolRegistry, registerAllTools, onTerminalOutput, onImageGenOutput, TaskManager } from '../backend/tools';
 import type { TerminalOutputEvent, ImageGenOutputEvent, TaskEvent } from '../backend/tools';
@@ -47,7 +46,6 @@ export type ChatBackendInitializationResult = {
   settingsManager: SettingsManager;
   settingsHandler: SettingsHandler;
   checkpointManager: CheckpointManager;
-  mcpManager: McpManager;
   dependencyManager: DependencyManager;
   storagePathManager: StoragePathManager;
   diffStorageManager: DiffStorageManager;
@@ -160,20 +158,6 @@ export async function initializeChatBackend(params: {
   const imageGenOutputUnsubscribe = onImageGenOutput(params.onImageGenOutputEvent);
   const taskEventUnsubscribe = TaskManager.onTaskEvent(params.onTaskEvent);
 
-  const mcpConfigDir = vscode.Uri.file(storagePathManager.getMcpPath());
-  try {
-    await vscode.workspace.fs.stat(mcpConfigDir);
-  } catch {
-    await vscode.workspace.fs.createDirectory(mcpConfigDir);
-  }
-  const mcpConfigFile = vscode.Uri.joinPath(mcpConfigDir, 'servers.json');
-  const mcpStorage = new VSCodeFileSystemMcpStorageAdapter(mcpConfigFile, vscode.workspace.fs);
-  const mcpManager = new McpManager(mcpStorage, params.context.secrets);
-  await mcpManager.initialize();
-
-  channelManager.setMcpManager(mcpManager);
-  chatHandler.setMcpManager(mcpManager);
-
   const dependencyManager = DependencyManager.getInstance(params.context, storagePathManager.getDependenciesPath());
   await dependencyManager.initialize();
 
@@ -202,7 +186,6 @@ export async function initializeChatBackend(params: {
     settingsManager,
     settingsHandler,
     checkpointManager,
-    mcpManager,
     dependencyManager,
     storagePathManager,
     diffStorageManager,
