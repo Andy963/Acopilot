@@ -412,6 +412,14 @@
   min-width: 0;
 }
 
+.ignore-files-list {
+  max-height: 120px;
+  overflow-y: auto;
+  align-content: flex-start;
+  padding: 4px;
+  scrollbar-gutter: stable;
+}
+
 .preview-pre {
   max-height: 220px;
   overflow: auto;

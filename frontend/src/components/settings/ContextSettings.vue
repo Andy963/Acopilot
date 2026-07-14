@@ -297,7 +297,7 @@ const {
               <div class="preview-meta-row">
                 <span>{{ t('components.settings.contextSettings.ignorePatterns.matchedSummary', { matched: previewStats.ignorePatterns.matchedFiles, scanned: previewStats.ignorePatterns.scannedFiles }) }}</span>
               </div>
-              <div v-if="previewStats.ignorePatterns.samples.length > 0" class="tabs-list">
+              <div v-if="previewStats.ignorePatterns.samples.length > 0" class="tabs-list ignore-files-list">
                 <code v-for="sample in previewStats.ignorePatterns.samples" :key="sample">{{ sample }}</code>
               </div>
               <div v-if="previewStats.ignorePatterns.byPattern.length > 0" class="pattern-matches">
@@ -410,7 +410,7 @@ const {
               {{ t('components.settings.contextSettings.preview.ignoreMatchesLabel', { count: previewStats?.ignorePatterns.matchedFiles ?? 0 }) }}
             </div>
             <div class="preview-content">
-              <div v-if="previewStats?.ignorePatterns.samples.length" class="tabs-list">
+              <div v-if="previewStats?.ignorePatterns.samples.length" class="tabs-list ignore-files-list">
                 <code v-for="sample in previewStats.ignorePatterns.samples" :key="sample">{{ sample }}</code>
               </div>
               <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>

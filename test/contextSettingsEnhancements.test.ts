@@ -34,6 +34,16 @@ describe('context settings enhancements', () => {
     expect(settings).toContain('ignoreMatchesLabel');
   });
 
+  it('keeps ignored file previews inside a bounded scroll area', () => {
+    const settings = readProjectFile('frontend/src/components/settings/ContextSettings.vue');
+    const styles = readProjectFile('frontend/src/components/settings/ContextSettings.css');
+
+    expect(settings.match(/class="tabs-list ignore-files-list"/g)).toHaveLength(2);
+    expect(styles).toContain('.ignore-files-list {');
+    expect(styles).toContain('max-height: 120px;');
+    expect(styles).toContain('overflow-y: auto;');
+  });
+
   it('adds diagnostics presets and bidirectional Context Inspector navigation', () => {
     const settings = readProjectFile('frontend/src/components/settings/ContextSettings.vue');
     const composable = readProjectFile('frontend/src/components/settings/useContextSettings.ts');

@@ -2,6 +2,13 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.2.2] - 2026-07-14
+
+### Improved
+  - Pinned Prompts: remove the redundant workspace-default notice while preserving the active pin indicator.
+  - Checkpoint Settings: highlight the active scenario preset with a selected border and background.
+  - Context Settings: keep ignored-file previews compact with bounded internal scrolling.
+
 ## [1.2.1] - 2026-07-10
 
 ### Improved

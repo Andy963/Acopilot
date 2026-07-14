@@ -66,6 +66,42 @@ function createUserBeforeMessageCheckpoint(): MessageCheckpointConfig {
   }
 }
 
+function hasSameItems(actual: string[], expected: string[]): boolean {
+  return actual.length === expected.length && expected.every(item => actual.includes(item))
+}
+
+function hasPresetMessageCheckpoint(messageCheckpoint?: MessageCheckpointConfig): boolean {
+  return Boolean(
+    messageCheckpoint
+    && hasSameItems(messageCheckpoint.beforeMessages, ['user'])
+    && messageCheckpoint.afterMessages.length === 0
+    && messageCheckpoint.modelOuterLayerOnly === true
+    && messageCheckpoint.mergeUnchangedCheckpoints === true,
+  )
+}
+
+export function resolveCheckpointPreset(config: CheckpointConfig): CheckpointPresetId | null {
+  if (!config.enabled) return 'off'
+  if (!hasPresetMessageCheckpoint(config.messageCheckpoint)) return null
+
+  const beforeTools = config.beforeTools
+  const afterTools = config.afterTools
+  const mutatingTools = uniqueToolNames(MUTATING_CHECKPOINT_TOOLS)
+  const dangerousTools = uniqueToolNames(DANGEROUS_CHECKPOINT_TOOLS)
+
+  if (hasSameItems(beforeTools, mutatingTools) && hasSameItems(afterTools, mutatingTools)) {
+    return 'safe'
+  }
+  if (hasSameItems(beforeTools, mutatingTools) && afterTools.length === 0) {
+    return 'light'
+  }
+  if (hasSameItems(beforeTools, dangerousTools) && hasSameItems(afterTools, dangerousTools)) {
+    return 'dangerous'
+  }
+
+  return null
+}
+
 export function useCheckpointSettingsConfig() {
   const chatStore = useChatStore()
 
@@ -117,6 +153,7 @@ export function useCheckpointSettingsConfig() {
 
   const allTools = ref<ToolInfo[]>([])
   const isLoading = ref(false)
+  const currentCheckpointPresetId = computed(() => resolveCheckpointPreset(config))
 
   function ensureMessageCheckpoint(
     overrides: Partial<MessageCheckpointConfig> = {},
@@ -284,6 +321,7 @@ export function useCheckpointSettingsConfig() {
 
   return {
     checkpointPresets,
+    currentCheckpointPresetId,
     messageTypes,
     config,
     allTools,

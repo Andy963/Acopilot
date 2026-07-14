@@ -16,6 +16,7 @@ const chatStore = useChatStore()
 
 const {
   checkpointPresets,
+  currentCheckpointPresetId,
   messageTypes,
   config,
   allTools,
@@ -205,6 +206,8 @@ onMounted(() => {
             :key="preset.id"
             type="button"
             class="preset-option"
+            :class="{ selected: currentCheckpointPresetId === preset.id }"
+            :aria-pressed="currentCheckpointPresetId === preset.id"
             @click="applyCheckpointPreset(preset.id)"
           >
             <span class="preset-title">{{ preset.title }}</span>
@@ -423,6 +426,12 @@ onMounted(() => {
 .preset-option:hover {
   border-color: var(--vscode-focusBorder);
   background: var(--vscode-list-hoverBackground);
+}
+
+.preset-option.selected {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-inactiveSelectionBackground);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
 .preset-title {
