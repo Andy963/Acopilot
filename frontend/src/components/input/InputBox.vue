@@ -435,12 +435,43 @@ function getAtTriggerPosition(): number | null {
   return atTriggerPosition.value
 }
 
+// 用三引号包裹当前选中内容（无选区时插入空的三引号块并将光标置于其中）
+function wrapSelectionWithQuotes() {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const value = props.value
+  const start = textarea.selectionStart ?? value.length
+  const end = textarea.selectionEnd ?? value.length
+  const selected = value.substring(start, end)
+
+  const prefix = '"""\n'
+  const suffix = '\n"""'
+  const newValue = value.substring(0, start) + prefix + selected + suffix + value.substring(end)
+
+  emit('update:value', newValue)
+
+  nextTick(() => {
+    const el = textareaRef.value
+    if (!el) return
+    const innerStart = start + prefix.length
+    if (selected.length > 0) {
+      el.setSelectionRange(innerStart, innerStart + selected.length)
+    } else {
+      el.setSelectionRange(innerStart, innerStart)
+    }
+    el.focus()
+    adjustHeight()
+  })
+}
+
 // 暴露方法
 defineExpose({
   focus,
   closeAtPicker,
   insertFilePath,
-  getAtTriggerPosition
+  getAtTriggerPosition,
+  wrapSelectionWithQuotes
 })
 </script>
 

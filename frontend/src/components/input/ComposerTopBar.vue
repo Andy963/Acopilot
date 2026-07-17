@@ -22,6 +22,7 @@ const emit = defineEmits<{
   removeSelectionReference: [id: string]
   openPinnedPanel: []
   openPlanModal: []
+  quoteSelection: []
 }>()
 
 const { t } = useI18n()
@@ -123,6 +124,10 @@ function emitOpenPinnedPanel() {
 
 function emitOpenPlanModal() {
   emit('openPlanModal')
+}
+
+function emitQuoteSelection() {
+  emit('quoteSelection')
 }
 
 function emitRemoveAttachment(id: string) {
@@ -231,6 +236,17 @@ async function previewAttachment(attachment: Attachment) {
         class="create-plan-button"
         :aria-label="t('components.input.createPlan')"
         @click="emitOpenPlanModal"
+      />
+    </Tooltip>
+
+    <Tooltip :content="t('components.input.quoteSelection')" placement="top">
+      <IconButton
+        icon="codicon-quote"
+        size="small"
+        class="quote-button"
+        :aria-label="t('components.input.quoteSelection')"
+        @mousedown.prevent
+        @click="emitQuoteSelection"
       />
     </Tooltip>
 

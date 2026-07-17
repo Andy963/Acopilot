@@ -265,6 +265,23 @@ export const pinnedPromptPresetsSave: MessageHandler = async (data, requestId, c
   }
 };
 
+export const pinnedPromptPresetsDelete: MessageHandler = async (data, requestId, ctx) => {
+  try {
+    const id = isRecord(data) ? String(data.id || '').trim() : '';
+    if (!id) {
+      ctx.sendError(requestId, 'PINNED_PROMPT_PRESETS_DELETE_ERROR', 'Preset id is required');
+      return;
+    }
+
+    const existingPresets = normalizePinnedPromptPresets(ctx.settingsManager.getSystemPromptConfig().pinnedPromptPresets);
+    const nextPresets = existingPresets.filter((preset) => preset.id !== id);
+    await ctx.settingsManager.updatePinnedPromptPresets(nextPresets);
+    ctx.sendResponse(requestId, { presets: nextPresets });
+  } catch (error: any) {
+    ctx.sendError(requestId, 'PINNED_PROMPT_PRESETS_DELETE_ERROR', error.message || t('webview.errors.updateSystemPromptConfigFailed'));
+  }
+};
+
 /**
  * 获取当前 workspace 记住的固定提示词选择（用于新建对话时自动带入）
  */
@@ -366,6 +383,7 @@ export function registerSettingsHandlers(registry: Map<string, MessageHandler>):
   registry.set('skills.list', skillsList);
   registry.set('pinnedPromptPresets.list', pinnedPromptPresetsList);
   registry.set('pinnedPromptPresets.save', pinnedPromptPresetsSave);
+  registry.set('pinnedPromptPresets.delete', pinnedPromptPresetsDelete);
   registry.set('getPinnedPromptWorkspaceDefault', getPinnedPromptWorkspaceDefault);
   registry.set('setPinnedPromptWorkspaceDefault', setPinnedPromptWorkspaceDefault);
 }

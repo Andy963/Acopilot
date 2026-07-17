@@ -132,6 +132,10 @@ function openPinnedFilesPanel() {
   showPinnedFilesPanel.value = true
 }
 
+function handleQuoteSelection() {
+  inputBoxRef.value?.wrapSelectionWithQuotes()
+}
+
 async function handleSummarize() {
   if (isSummarizing.value) return
 
@@ -190,6 +194,7 @@ async function handleSummarize() {
         @remove-selection-reference="chatStore.removeSelectionReference"
         @open-pinned-panel="openPinnedFilesPanel"
         @open-plan-modal="showCreatePlanModal = true"
+        @quote-selection="handleQuoteSelection"
       />
 
       <!-- 中部：输入框 + 发送按钮（在输入框内） -->

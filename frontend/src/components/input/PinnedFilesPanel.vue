@@ -41,6 +41,7 @@ const {
   handleTogglePinnedFile,
   handleSavePinnedPrompt,
   handleSaveCustomPromptAsPreset,
+  handleDeleteSelectedPreset,
   handleClearPinnedPrompt,
   handleRemovePinnedPrompt,
   handleMovePinnedPrompt,
@@ -73,7 +74,7 @@ defineExpose({
     @drop="handleDrop"
   >
     <div class="pinned-files-header">
-      <span class="pinned-files-title">
+      <span class="pinned-files-title" :title="t('components.input.pinnedFilesPanel.description')">
         <i class="codicon codicon-pin"></i>
         {{ t('components.input.pinnedFilesPanel.title') }}
       </span>
@@ -82,9 +83,6 @@ defineExpose({
         size="small"
         @click="emitClose"
       />
-    </div>
-    <div class="pinned-files-description">
-      {{ t('components.input.pinnedFilesPanel.description') }}
     </div>
 
     <div class="pinned-panel-tabs">
@@ -163,12 +161,17 @@ defineExpose({
     </div>
 
     <div v-if="pinPanelTab === 'custom'" class="pinned-custom-content">
-      <div class="pinned-custom-row">
-        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.presetsLabel') }}</label>
+      <div class="pinned-custom-toolbar">
         <select
           v-model="selectedPresetId"
           class="pinned-custom-preset-select"
           :disabled="isLoadingPresets"
+          :aria-label="t('components.input.pinnedFilesPanel.custom.presetsLabel')"
+          :title="presets.length === 0
+            ? t('components.input.pinnedFilesPanel.custom.presetsEmpty')
+            : (selectedPreset
+              ? t('components.input.pinnedFilesPanel.custom.selectedPresetHint', { name: selectedPreset.name || selectedPreset.id })
+              : t('components.input.pinnedFilesPanel.custom.presetsLabel'))"
           @change="handleSelectPreset(selectedPresetId)"
         >
           <option value="" disabled>{{ t('components.input.pinnedFilesPanel.custom.presetsEmptyOption') }}</option>
@@ -176,60 +179,61 @@ defineExpose({
             {{ preset.name || preset.id }}
           </option>
         </select>
-        <button class="pinned-skill-refresh" :disabled="isLoadingPresets" @click="loadPinnedPromptPresets" :title="t('common.refresh')">
+        <button
+          class="pinned-custom-icon-btn danger"
+          :disabled="!selectedPreset || isSavingPreset"
+          :title="t('components.input.pinnedFilesPanel.custom.deletePreset')"
+          @click="handleDeleteSelectedPreset"
+        >
+          <i class="codicon codicon-trash"></i>
+        </button>
+        <button
+          class="pinned-custom-icon-btn"
+          :disabled="isLoadingPresets"
+          :title="t('common.refresh')"
+          @click="loadPinnedPromptPresets"
+        >
           <i class="codicon" :class="isLoadingPresets ? 'codicon-loading codicon-modifier-spin' : 'codicon-refresh'"></i>
         </button>
       </div>
-      <div v-if="!isLoadingPresets && presets.length === 0" class="pinned-custom-hint">
-        {{ t('components.input.pinnedFilesPanel.custom.presetsEmpty') }}
-      </div>
-      <div v-else-if="selectedPreset" class="pinned-custom-hint">
-        {{ t('components.input.pinnedFilesPanel.custom.selectedPresetHint', { name: selectedPreset.name || selectedPreset.id }) }}
-      </div>
 
-      <div class="pinned-custom-row">
-        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.label') }}</label>
-      </div>
       <textarea
         v-model="customPromptDraft"
         class="pinned-custom-textarea"
-        rows="7"
+        :aria-label="t('components.input.pinnedFilesPanel.custom.label')"
         :placeholder="t('components.input.pinnedFilesPanel.custom.placeholder')"
         @input="handleCustomPromptEdited"
       ></textarea>
-      <div class="pinned-custom-actions">
-        <button class="pinned-custom-save" @click="handleSavePinnedPrompt" :disabled="isSavingPinnedPrompt">
+
+      <div class="pinned-custom-actions-bar">
+        <button
+          class="pinned-custom-btn primary"
+          :disabled="isSavingPinnedPrompt || !customPromptDraft.trim()"
+          :title="t('components.input.pinnedFilesPanel.custom.hint')"
+          @click="handleSavePinnedPrompt"
+        >
           <i v-if="isSavingPinnedPrompt" class="codicon codicon-loading codicon-modifier-spin"></i>
           <span v-else>{{ t('components.input.pinnedFilesPanel.custom.save') }}</span>
         </button>
-        <button class="pinned-custom-clear" @click="handleClearPinnedPrompt" :disabled="isSavingPinnedPrompt">
+        <button class="pinned-custom-btn" @click="handleClearPinnedPrompt" :disabled="isSavingPinnedPrompt">
           {{ t('components.input.pinnedFilesPanel.custom.clear') }}
         </button>
-      </div>
-      <div class="pinned-custom-hint">
-        {{ t('components.input.pinnedFilesPanel.custom.hint') }}
-      </div>
-
-      <div class="pinned-custom-save-as-preset">
-        <label class="pinned-custom-label">{{ t('components.input.pinnedFilesPanel.custom.saveAsPresetLabel') }}</label>
-        <div class="pinned-custom-save-as-preset-row">
-          <input
-            v-model="presetNameDraft"
-            class="pinned-custom-save-as-preset-input"
-            :placeholder="t('components.input.pinnedFilesPanel.custom.saveAsPresetNamePlaceholder')"
-          />
-          <button
-            class="pinned-custom-save-as-preset-btn"
-            :disabled="isSavingPreset || !customPromptDraft.trim() || !presetNameDraft.trim()"
-            @click="handleSaveCustomPromptAsPreset"
-          >
-            <i v-if="isSavingPreset" class="codicon codicon-loading codicon-modifier-spin"></i>
-            <span v-else>{{ t('components.input.pinnedFilesPanel.custom.saveAsPresetButton') }}</span>
-          </button>
-        </div>
-        <div class="pinned-custom-hint">
-          {{ t('components.input.pinnedFilesPanel.custom.saveAsPresetHint') }}
-        </div>
+        <input
+          v-model="presetNameDraft"
+          class="pinned-custom-name-input"
+          :placeholder="t('components.input.pinnedFilesPanel.custom.saveAsPresetNamePlaceholder')"
+          :aria-label="t('components.input.pinnedFilesPanel.custom.saveAsPresetLabel')"
+          :title="t('components.input.pinnedFilesPanel.custom.saveAsPresetHint')"
+        />
+        <button
+          class="pinned-custom-btn"
+          :disabled="isSavingPreset || !customPromptDraft.trim() || !presetNameDraft.trim()"
+          :title="t('components.input.pinnedFilesPanel.custom.saveAsPresetHint')"
+          @click="handleSaveCustomPromptAsPreset"
+        >
+          <i v-if="isSavingPreset" class="codicon codicon-loading codicon-modifier-spin"></i>
+          <span v-else>{{ t('components.input.pinnedFilesPanel.custom.saveAsPresetButton') }}</span>
+        </button>
       </div>
     </div>
 

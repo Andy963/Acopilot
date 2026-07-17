@@ -402,6 +402,36 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     }
   }
 
+  async function handleDeleteSelectedPreset() {
+    const presetId = selectedPresetId.value
+    if (!presetId || !selectedPreset.value) return
+
+    isSavingPreset.value = true
+    try {
+      const response = await sendToExtension<{ presets: unknown }>('pinnedPromptPresets.delete', { id: presetId })
+      presets.value = normalizePinnedPromptPresets(response?.presets)
+
+      const remaining = activePinnedPrompts.value.filter(
+        item => !(item.mode === 'preset' && item.presetId === presetId),
+      )
+      if (remaining.length !== activePinnedPrompts.value.length) {
+        await savePinnedPromptItems(remaining)
+      }
+
+      selectedPresetId.value = ''
+      presetNameDraft.value = ''
+      await showNotification(t('components.input.notifications.pinnedPromptPresetDeleted'), 'info')
+    } catch (error: any) {
+      console.error('Failed to delete pinned prompt preset:', error)
+      await showNotification(
+        t('components.input.notifications.deletePinnedPromptPresetFailed', { error: error.message || t('common.unknownError') }),
+        'error',
+      )
+    } finally {
+      isSavingPreset.value = false
+    }
+  }
+
   async function handleClearPinnedPrompt() {
     isSavingPinnedPrompt.value = true
     try {
@@ -620,6 +650,7 @@ export function usePinnedFilesPanel(props: PinnedFilesPanelProps, emit: PinnedFi
     handleTogglePinnedFile,
     handleSavePinnedPrompt,
     handleSaveCustomPromptAsPreset,
+    handleDeleteSelectedPreset,
     handleClearPinnedPrompt,
     handleRemovePinnedPrompt,
     handleMovePinnedPrompt,
