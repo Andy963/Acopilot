@@ -2,6 +2,16 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.2.3] - 2026-07-17
+
+### Added
+  - Pinned Context: allow deleting a saved prompt directly from the preset dropdown.
+  - Composer: add a quote button that wraps the selected input text in a triple-quote block.
+
+### Improved
+  - Pinned Context: redesign the custom prompt editor so the text area fills the panel and grows to a large writing surface instead of a cramped, constantly scrolling box.
+  - Pinned Context: collapse helper text and secondary controls (preset picker, save-as-preset, hints) into a compact toolbar and single action row with tooltips, and enlarge the panel to reclaim space wasted on explanatory text.
+
 ## [1.2.2] - 2026-07-14
 
 ### Improved
