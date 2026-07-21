@@ -17,7 +17,7 @@ import { t } from '../../i18n';
 import { debugLog } from '../../core/logger';
 import { redactSensitiveText } from '../../core/redaction';
 
-const exec = promisify(childProcess.exec);
+const execFile = promisify(childProcess.execFile);
 const mkdir = promisify(fs.mkdir);
 const readdir = promisify(fs.readdir);
 const statAsync = promisify(fs.stat);
@@ -279,11 +279,15 @@ export class DependencyManager {
             });
             
             // 使用 npm 安装
-            const { stdout, stderr } = await exec(
-                `npm install --prefix "${tempDir}" --no-save`,
+            const isWin = os.platform() === 'win32';
+            const npmCmd = isWin ? 'npm.cmd' : 'npm';
+            const { stdout, stderr } = await execFile(
+                npmCmd,
+                ['install', '--prefix', tempDir, '--no-save'],
                 {
                     cwd: tempDir,
-                    timeout: 300000  // 5分钟超时
+                    timeout: 300000,  // 5分钟超时
+                    shell: isWin // On Windows, .cmd files require a shell to execute
                 }
             );
             
