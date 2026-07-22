@@ -127,7 +127,7 @@ export async function checkShellAvailability(shellType: string, customPath?: str
     if (platform === 'win32') {
         if (shellType === 'wsl') {
             return new Promise((resolve) => {
-                cp.exec('wsl --status', { timeout: 5000 }, (error) => {
+                cp.execFile('wsl.exe', ['--status'], { timeout: 5000 }, (error) => {
                     if (error) {
                         resolve({ available: false, reason: t('tools.terminal.shellCheck.wslNotInstalled') });
                     } else {
@@ -149,7 +149,7 @@ export async function checkShellAvailability(shellType: string, customPath?: str
         }
 
         return new Promise((resolve) => {
-            cp.exec(`where ${shellPath}`, { timeout: 5000 }, (error) => {
+            cp.execFile('where.exe', [shellPath], { timeout: 5000 }, (error) => {
                 if (error) {
                     resolve({ available: false, reason: t('tools.terminal.shellCheck.shellNotInPath', { shellPath }) });
                 } else {
@@ -171,7 +171,7 @@ export async function checkShellAvailability(shellType: string, customPath?: str
     }
 
     return new Promise((resolve) => {
-        cp.exec(`which ${shellPath}`, { timeout: 5000 }, (error) => {
+        cp.execFile('which', [shellPath], { timeout: 5000 }, (error) => {
             if (error) {
                 resolve({ available: false, reason: t('tools.terminal.shellCheck.shellNotInPath', { shellPath }) });
             } else {
@@ -201,7 +201,7 @@ function checkShellAvailabilitySync(shellType: string, customPath?: string): boo
     try {
         if (platform === 'win32') {
             if (shellType === 'wsl') {
-                cp.execSync('wsl --status', { timeout: 3000, stdio: 'ignore' });
+                cp.execFileSync('wsl.exe', ['--status'], { timeout: 3000, stdio: 'ignore' });
                 return true;
             }
 
@@ -212,7 +212,7 @@ function checkShellAvailabilitySync(shellType: string, customPath?: string): boo
                 return true;
             }
 
-            cp.execSync(`where ${shellPath}`, { timeout: 3000, stdio: 'ignore' });
+            cp.execFileSync('where.exe', [shellPath], { timeout: 3000, stdio: 'ignore' });
             return true;
         }
 
@@ -223,7 +223,7 @@ function checkShellAvailabilitySync(shellType: string, customPath?: string): boo
             return true;
         }
 
-        cp.execSync(`which ${shellPath}`, { timeout: 3000, stdio: 'ignore' });
+        cp.execFileSync('which', [shellPath], { timeout: 3000, stdio: 'ignore' });
         return true;
     } catch {
         return false;
