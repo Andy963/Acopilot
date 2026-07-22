@@ -283,11 +283,12 @@ export class DependencyManager {
             const npmCmd = isWin ? 'npm.cmd' : 'npm';
             const { stdout, stderr } = await execFile(
                 npmCmd,
-                ['install', '--prefix', tempDir, '--no-save'],
+                ['install', '--no-save'],
                 {
                     cwd: tempDir,
                     timeout: 300000,  // 5分钟超时
-                    shell: isWin // On Windows, .cmd files require a shell to execute
+                    // npm.cmd requires cmd.exe; keep user-controlled paths out of shell arguments.
+                    shell: isWin
                 }
             );
             

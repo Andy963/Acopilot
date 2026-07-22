@@ -2,6 +2,7 @@ node_modules
 dist
 .ads
 .codex
+.jules/
 .npm-cache
 *.vsix
 # Keep most docs out of git, but track ADRs.
