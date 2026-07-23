@@ -1,0 +1,3 @@
+## 2025-02-12 - [Glob/Ignore Pattern RegExp Caching]
+**Learning:** Frequent RegExp compilation inside recursive file tree traversals and ignore path lookups causes severe CPU overhead and GC pressure. Caching compiled `RegExp` objects with module-level bounded `Map`s (max size 2048) completely eliminates this overhead while remaining lightweight and safe without introducing external dependencies.
+**Action:** Always cache dynamically-built regex patterns when they are executed inside hot loops or recursive traversals. Use a simple, bounded FIFO map eviction strategy (`keys().next().value`) to keep memory footprint low and bounded.
