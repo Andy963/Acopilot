@@ -74,7 +74,10 @@ export class ChannelManager extends ChannelManagerHttp {
       : getFilteredTools(
         this.toolRegistry,
         this.settingsManager,
+<<<<<<< HEAD
+=======
         this.mcpManager,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         (config as any).multimodalToolsEnabled,
         config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
         (config as any).toolMode,
@@ -218,7 +221,10 @@ export class ChannelManager extends ChannelManagerHttp {
       : getFilteredTools(
         this.toolRegistry,
         this.settingsManager,
+<<<<<<< HEAD
+=======
         this.mcpManager,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         (config as any).multimodalToolsEnabled,
         config.type as 'gemini' | 'openai' | 'anthropic' | 'openai-responses' | 'custom',
         (config as any).toolMode,

@@ -132,6 +132,21 @@ function matchGitignoreGlob(filePath: string, pattern: string): boolean {
     return regex.test(filePath.replace(/\\/g, '/'));
 }
 
+// Test-only export to allow unit tests to verify caching behavior, bounds, and eviction.
+export const _TEST_CACHE_ = {
+  getIgnoreCacheSize: () => IGNORE_GLOB_CACHE.size,
+  getGitignoreCacheSize: () => GITIGNORE_GLOB_CACHE.size,
+  getIgnoreCacheMap: () => IGNORE_GLOB_CACHE,
+  getGitignoreCacheMap: () => GITIGNORE_GLOB_CACHE,
+  clearCaches: () => {
+    IGNORE_GLOB_CACHE.clear();
+    GITIGNORE_GLOB_CACHE.clear();
+  },
+  matchIgnoreGlob,
+  matchGitignoreGlob,
+  MAX_CACHE_SIZE,
+};
+
 /**
  * 检查文件/目录是否应该被忽略
  */

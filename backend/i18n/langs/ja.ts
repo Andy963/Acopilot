@@ -55,6 +55,8 @@ const ja: BackendLanguageMessages = {
             }
         },
 
+<<<<<<< HEAD
+=======
         mcp: {
             errors: {
                 connectionFailed: '接続に失敗しました: {serverName}',
@@ -76,6 +78,7 @@ const ja: BackendLanguageMessages = {
             }
         },
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         checkpoint: {
             description: {
                 before: '実行前',
@@ -229,6 +232,8 @@ const ja: BackendLanguageMessages = {
                     setActiveModelFailed: 'アクティブモデルの設定に失敗しました'
                 }
             },
+<<<<<<< HEAD
+=======
             mcp: {
                 errors: {
                     listServersFailed: 'MCP サーバー一覧の取得に失敗しました',
@@ -242,6 +247,7 @@ const ja: BackendLanguageMessages = {
                     disconnectServerFailed: 'MCP サーバーの切断に失敗しました'
                 }
             },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             chat: {
                 errors: {
                     configNotFound: '設定が見つかりません: {configId}',
@@ -250,8 +256,11 @@ const ja: BackendLanguageMessages = {
                     unknownError: '不明なエラー',
                     streamEndedUnexpectedly: 'ストリームが予期せず終了しました（完了マーカー未受信）。再試行してください',
                     toolExecutionSuccess: 'ツールの実行に成功しました',
+<<<<<<< HEAD
+=======
                     mcpToolCallFailed: 'MCP ツール呼び出しに失敗しました',
                     invalidMcpToolName: '無効な MCP ツール名: {toolName}',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                     toolNotFound: 'ツールが見つかりません: {toolName}',
                     toolExecutionFailed: 'ツールの実行に失敗しました',
                     noHistory: '会話履歴が空です',
@@ -388,7 +397,10 @@ const ja: BackendLanguageMessages = {
             getToolConfigFailed: 'ツール設定の取得に失敗しました',
             updateToolConfigFailed: 'ツール設定の更新に失敗しました',
             getAutoExecConfigFailed: '自動実行設定の取得に失敗しました',
+<<<<<<< HEAD
+=======
             getMcpToolsFailed: 'MCP ツール一覧の取得に失敗しました',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             setToolAutoExecFailed: 'ツールの自動実行設定に失敗しました',
             updateListFilesConfigFailed: 'list_files 設定の更新に失敗しました',
             updateApplyDiffConfigFailed: 'apply_diff 設定の更新に失敗しました',
@@ -425,6 +437,8 @@ const ja: BackendLanguageMessages = {
             openFileFailed: 'ファイルを開くのに失敗しました',
             saveImageFailed: '画像の保存に失敗しました',
             
+<<<<<<< HEAD
+=======
             openMcpConfigFailed: 'MCP 設定ファイルを開くのに失敗しました',
             getMcpServersFailed: 'MCP サーバー一覧の取得に失敗しました',
             validateMcpServerIdFailed: 'MCP サーバー ID の検証に失敗しました',
@@ -435,6 +449,7 @@ const ja: BackendLanguageMessages = {
             disconnectMcpServerFailed: 'MCP サーバーの切断に失敗しました',
             setMcpServerEnabledFailed: 'MCP サーバーステータスの設定に失敗しました',
             
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             getSummarizeConfigFailed: '要約設定の取得に失敗しました',
             updateSummarizeConfigFailed: '要約設定の更新に失敗しました',
             summarizeFailed: 'コンテキストの要約に失敗しました',

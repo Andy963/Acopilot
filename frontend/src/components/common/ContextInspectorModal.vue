@@ -98,7 +98,10 @@ const MODULE_TITLE_KEYS: Record<string, string> = {
   'WORKSPACE FILES': 'components.common.contextInspectorModal.modules.labels.workspaceFiles',
   'PINNED FILES': 'components.common.contextInspectorModal.modules.labels.pinnedFiles',
   'TOOLS': 'components.common.contextInspectorModal.modules.labels.tools',
+<<<<<<< HEAD
+=======
   'MCP TOOLS': 'components.common.contextInspectorModal.modules.labels.mcpTools',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   'GUIDELINES': 'components.common.contextInspectorModal.modules.labels.guidelines',
   'OPEN TABS': 'components.common.contextInspectorModal.modules.labels.openTabs',
   'ACTIVE EDITOR': 'components.common.contextInspectorModal.modules.labels.activeEditor',
@@ -252,7 +255,10 @@ const pinnedSelectionsListText = computed(() => {
           <div class="summary-row">
             <span class="summary-muted">
               {{ t('components.common.contextInspectorModal.summary.tools') }}: <code>{{ data.tools.total }}</code>
+<<<<<<< HEAD
+=======
               <span v-if="data.tools.mcp"> · {{ t('components.common.contextInspectorModal.summary.mcp') }}: <code>{{ data.tools.mcp }}</code></span>
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             </span>
             <span class="summary-muted">
               {{ t('components.common.contextInspectorModal.summary.systemInstruction') }}: <code>{{ estimatedSystemTokens }}</code> tok · <code>{{ data.systemInstructionCharCount }}</code> ch

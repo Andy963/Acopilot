@@ -15,7 +15,10 @@ import { ModelsHandler } from '../backend/modules/api/models';
 import { SettingsManager, VSCodeSettingsStorage, StoragePathManager } from '../backend/modules/settings';
 import { SettingsHandler } from '../backend/modules/api/settings';
 import { CheckpointManager } from '../backend/modules/checkpoint';
+<<<<<<< HEAD
+=======
 import { McpManager, VSCodeFileSystemMcpStorageAdapter } from '../backend/modules/mcp';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import { DependencyManager, type InstallProgressEvent } from '../backend/modules/dependencies';
 import { toolRegistry, registerAllTools, onTerminalOutput, onImageGenOutput, TaskManager } from '../backend/tools';
 import type { TerminalOutputEvent, ImageGenOutputEvent, TaskEvent } from '../backend/tools';
@@ -47,7 +50,10 @@ export type ChatBackendInitializationResult = {
   settingsManager: SettingsManager;
   settingsHandler: SettingsHandler;
   checkpointManager: CheckpointManager;
+<<<<<<< HEAD
+=======
   mcpManager: McpManager;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   dependencyManager: DependencyManager;
   storagePathManager: StoragePathManager;
   diffStorageManager: DiffStorageManager;
@@ -160,6 +166,8 @@ export async function initializeChatBackend(params: {
   const imageGenOutputUnsubscribe = onImageGenOutput(params.onImageGenOutputEvent);
   const taskEventUnsubscribe = TaskManager.onTaskEvent(params.onTaskEvent);
 
+<<<<<<< HEAD
+=======
   const mcpConfigDir = vscode.Uri.file(storagePathManager.getMcpPath());
   try {
     await vscode.workspace.fs.stat(mcpConfigDir);
@@ -174,6 +182,7 @@ export async function initializeChatBackend(params: {
   channelManager.setMcpManager(mcpManager);
   chatHandler.setMcpManager(mcpManager);
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   const dependencyManager = DependencyManager.getInstance(params.context, storagePathManager.getDependenciesPath());
   await dependencyManager.initialize();
 
@@ -202,7 +211,10 @@ export async function initializeChatBackend(params: {
     settingsManager,
     settingsHandler,
     checkpointManager,
+<<<<<<< HEAD
+=======
     mcpManager,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     dependencyManager,
     storagePathManager,
     diffStorageManager,

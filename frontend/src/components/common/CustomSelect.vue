@@ -22,6 +22,11 @@ const props = withDefaults(defineProps<{
   searchable?: boolean
   dropUp?: boolean  // 向上展开
   compact?: boolean  // 紧凑模式
+<<<<<<< HEAD
+  /** Accessible name for the select trigger. */
+  triggerAriaLabel?: string
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 }>(), {
   placeholder: '请选择',
   disabled: false,
@@ -160,7 +165,12 @@ onUnmounted(() => {
 <template>
   <div ref="containerRef" :class="['custom-select', { open: isOpen, disabled, 'drop-up': dropUp, compact }]"
     @keydown="handleKeydown">
+<<<<<<< HEAD
+    <button type="button" class="select-trigger" :disabled="disabled"
+      :aria-label="triggerAriaLabel" @click="toggle">
+=======
     <button type="button" class="select-trigger" :disabled="disabled" @click="toggle">
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
       <span v-if="selectedOption" class="selected-value">
         <span class="selected-label">{{ selectedOption.label }}</span>
       </span>
@@ -423,4 +433,8 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(-4px);
 }
+<<<<<<< HEAD
 </style>
+=======
+</style>
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

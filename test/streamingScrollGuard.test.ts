@@ -7,6 +7,10 @@ import {
   resetForNewStream,
   resetAfterStreamEnd,
   resumeFollowLatest,
+<<<<<<< HEAD
+  shouldPauseForUserScroll,
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   shouldShowJumpToLatest
 } from '../frontend/src/components/message/streamingScrollGuard'
 
@@ -48,3 +52,97 @@ describe('streaming scroll guard', () => {
     })
   })
 })
+<<<<<<< HEAD
+
+describe('shouldPauseForUserScroll', () => {
+  const base = { stickyThresholdPx: 50, userScrollUpThresholdPx: 8 }
+
+  it('does not pause while streaming content grows without a user scroll', () => {
+    // scrollTop stays at the last programmatic position; scrollHeight grew,
+    // so we are away from the bottom - but this must NOT pause following.
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'following',
+        currentScrollTop: 1000,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 400,
+        ...base
+      })
+    ).toBe(false)
+  })
+
+  it('pauses when the user scrolls up beyond the threshold and away from bottom', () => {
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'following',
+        currentScrollTop: 820,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 200,
+        ...base
+      })
+    ).toBe(true)
+  })
+
+  it('ignores tiny upward jitter within the threshold', () => {
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'following',
+        currentScrollTop: 996,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 200,
+        ...base
+      })
+    ).toBe(false)
+  })
+
+  it('does not pause when the user is still effectively at the bottom', () => {
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'following',
+        currentScrollTop: 960,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 40,
+        ...base
+      })
+    ).toBe(false)
+  })
+
+  it('does not pause when not streaming or already paused', () => {
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: false,
+        mode: 'following',
+        currentScrollTop: 500,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 400,
+        ...base
+      })
+    ).toBe(false)
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'paused_user',
+        currentScrollTop: 500,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 400,
+        ...base
+      })
+    ).toBe(false)
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'paused_guard',
+        currentScrollTop: 500,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 400,
+        ...base
+      })
+    ).toBe(false)
+  })
+})
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

@@ -1,6 +1,9 @@
 import type { ToolRegistry } from '../../tools/ToolRegistry';
 import type { SettingsManager } from '../settings/SettingsManager';
+<<<<<<< HEAD
+=======
 import type { McpManager } from '../mcp/McpManager';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import type { ToolDeclaration } from '../../tools/types';
 
 import { createReadFileTool } from '../../tools/file/read_file';
@@ -46,7 +49,10 @@ function cleanJsonSchema(schema: any): any {
 export function getFilteredTools(
     toolRegistry: ToolRegistry | undefined,
     settingsManager: SettingsManager | undefined,
+<<<<<<< HEAD
+=======
     mcpManager: McpManager | undefined,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     multimodalEnabled?: boolean,
     channelType?: ChannelType,
     toolMode?: ToolMode,
@@ -163,6 +169,10 @@ export function getFilteredTools(
         }
     }
 
+<<<<<<< HEAD
+    return tools.length > 0 ? tools : undefined;
+}
+=======
     if (mcpManager) {
         const mcpTools = mcpManager.getAllTools() as Array<{
             serverId: string;
@@ -192,3 +202,4 @@ export function getFilteredTools(
     return tools.length > 0 ? tools : undefined;
 }
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

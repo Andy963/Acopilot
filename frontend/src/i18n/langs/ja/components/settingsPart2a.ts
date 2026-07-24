@@ -192,6 +192,8 @@ export const jaComponentsSettingsPart2a = {
             warning: '画像生成機能を使用する前に API Key を設定してください'
         }
     },
+<<<<<<< HEAD
+=======
     mcpSettings: {
         toolbar: {
             addServer: 'サーバーを追加',
@@ -269,6 +271,7 @@ export const jaComponentsSettingsPart2a = {
             cancel: 'キャンセル'
         }
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     modelManager: {
         title: 'モデルリスト',
         fetchModels: 'モデルを取得',
@@ -386,11 +389,14 @@ export const jaComponentsSettingsPart2a = {
                 name: 'ツール定義',
                 description: 'チャンネル設定に基づいて XML または Function Call 形式でツール定義を生成します（この変数はシステムによって自動的に入力されます）'
             },
+<<<<<<< HEAD
+=======
             MCP_TOOLS: {
                 name: 'MCP ツール',
                 description: 'MCP サーバーからの追加ツール定義（この変数はシステムによって自動的に入力されます）',
                 requiresConfig: 'MCP 設定でサーバーを設定して接続する必要があります'
             }
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         },
         exampleOutput: '出力例：',
         requiresConfigLabel: '必要な設定：',

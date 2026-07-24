@@ -83,6 +83,14 @@ export function matchGlobPattern(filePath: string, pattern: string): boolean {
   return regex.test(filePath.replace(/\\/g, '/'));
 }
 
+// Test-only export to allow unit tests to verify caching behavior, bounds, and eviction.
+export const _TEST_CACHE_ = {
+  getCacheSize: () => GLOB_PATTERN_CACHE.size,
+  getCacheMap: () => GLOB_PATTERN_CACHE,
+  clearCache: () => GLOB_PATTERN_CACHE.clear(),
+  MAX_CACHE_SIZE,
+};
+
 /**
  * 获取当前工作区 URI
  */

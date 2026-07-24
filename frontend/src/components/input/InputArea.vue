@@ -11,7 +11,10 @@ import ComposerTopBar from './ComposerTopBar.vue'
 import InputAreaFooter from './InputAreaFooter.vue'
 import PinnedFilesPanel from './PinnedFilesPanel.vue'
 import CreatePlanModal from '../plan/CreatePlanModal.vue'
+<<<<<<< HEAD
+=======
 import { IconButton } from '../common'
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import { useChatStore, useSettingsStore } from '../../stores'
 import type { Attachment } from '../../types'
 import { useInputAreaConfig } from './useInputAreaConfig'
@@ -133,6 +136,13 @@ function openPinnedFilesPanel() {
   showPinnedFilesPanel.value = true
 }
 
+<<<<<<< HEAD
+function handleQuoteSelection() {
+  inputBoxRef.value?.wrapSelectionWithQuotes()
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 async function handleSummarize() {
   if (isSummarizing.value) return
 
@@ -178,6 +188,8 @@ async function handleSummarize() {
 
     <!-- 单个输入框容器：所有控件都在同一个框内 -->
     <div class="composer">
+<<<<<<< HEAD
+=======
       <!-- 提示：本对话自动带入了当前 workspace 记住的固定提示词 -->
       <div v-if="chatStore.pinnedPromptFromWorkspaceDefault" class="pinned-workspace-default-banner">
         <i class="codicon codicon-pin"></i>
@@ -190,6 +202,7 @@ async function handleSummarize() {
         />
       </div>
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
       <!-- 顶部：文件/钉住 -->
       <ComposerTopBar
         :uploading="uploading"
@@ -203,6 +216,10 @@ async function handleSummarize() {
         @remove-selection-reference="chatStore.removeSelectionReference"
         @open-pinned-panel="openPinnedFilesPanel"
         @open-plan-modal="showCreatePlanModal = true"
+<<<<<<< HEAD
+        @quote-selection="handleQuoteSelection"
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
       />
 
       <!-- 中部：输入框 + 发送按钮（在输入框内） -->
@@ -475,6 +492,8 @@ async function handleSummarize() {
   border-radius: 7px;
 }
 
+<<<<<<< HEAD
+=======
 .pinned-workspace-default-banner {
   display: flex;
   align-items: center;
@@ -497,4 +516,5 @@ async function handleSummarize() {
   min-width: 0;
 }
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 </style>

@@ -4,6 +4,61 @@
   gap: 12px;
 }
 
+<<<<<<< HEAD
+.config-selector-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-selector-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.config-selector-label {
+  flex: 1 1 140px;
+  min-width: 0;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.add-config-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-background);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: auto;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.add-config-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-button-hoverBackground);
+}
+
+.add-config-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .config-selector {
   display: flex;
   gap: 8px;
@@ -56,6 +111,14 @@
   background: var(--vscode-toolbar-hoverBackground);
 }
 
+<<<<<<< HEAD
+.config-selector > .icon-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .icon-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;

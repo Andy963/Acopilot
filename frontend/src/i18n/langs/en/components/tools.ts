@@ -225,6 +225,8 @@ export const enComponentsTools = {
             expandRemaining: 'Expand remaining {count}'
         }
     },
+<<<<<<< HEAD
+=======
     mcp: {
         mcpTool: 'MCP Tool',
         serverName: 'Server Name',
@@ -236,6 +238,7 @@ export const enComponentsTools = {
             waitingResponse: 'Waiting for response...'
         }
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     media: {
         generateImage: 'Generate Image',
         resizeImage: 'Resize Image',

@@ -81,8 +81,11 @@ export async function buildContextInspectorData(params: {
     const allowSet = new Set(toolAllowList);
     declarations = declarations.filter((d) => allowSet.has(d.name));
   }
+<<<<<<< HEAD
+=======
   const mcpCount = countMcpTools(declarations);
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   let toolsDefinition = '';
   if (toolMode === 'xml') {
     toolsDefinition = convertToolsToXML(declarations);
@@ -90,10 +93,16 @@ export async function buildContextInspectorData(params: {
     toolsDefinition = convertToolsToJSON(declarations);
   }
 
+<<<<<<< HEAD
+  systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+  if (systemInstruction && systemInstruction.includes('{{$TOOLS}}')) {
+    systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
+=======
   const mcpToolsDefinition = '';
   if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
     systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
     systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   } else if (toolsDefinition) {
     systemInstruction = systemInstruction ? `${systemInstruction}\n\n${toolsDefinition}` : toolsDefinition;
   }
@@ -109,7 +118,10 @@ export async function buildContextInspectorData(params: {
   const tools: ContextInspectorTools = {
     toolMode,
     total: declarations.length,
+<<<<<<< HEAD
+=======
     mcp: mcpCount,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     definitionPreview: toolDefPreview?.preview,
     definitionCharCount: toolDefPreview?.charCount,
     definitionTruncated: toolDefPreview?.truncated,
@@ -255,7 +267,10 @@ function buildModules(systemInstruction: string, maxCharsPerSection: number): Co
 
   return out;
 }
+<<<<<<< HEAD
+=======
 
 function countMcpTools(tools: Array<{ name: string }>): number {
   return tools.filter(t => typeof t.name === 'string' && t.name.startsWith('mcp__')).length;
 }
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

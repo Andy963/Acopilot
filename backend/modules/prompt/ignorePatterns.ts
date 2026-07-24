@@ -48,3 +48,11 @@ export function matchGlobPattern(inputPath: string, pattern: string): boolean {
   const regex = getOrCreateRegex(pattern);
   return regex.test(inputPath.replace(/\\/g, '/'));
 }
+
+// Test-only export to allow unit tests to verify caching behavior, bounds, and eviction.
+export const _TEST_CACHE_ = {
+  getCacheSize: () => REGEX_CACHE.size,
+  getCacheMap: () => REGEX_CACHE,
+  clearCache: () => REGEX_CACHE.clear(),
+  MAX_CACHE_SIZE,
+};

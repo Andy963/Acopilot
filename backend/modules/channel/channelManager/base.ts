@@ -1,7 +1,10 @@
 import { t } from '../../../i18n';
 import type { ConfigManager } from '../../config/ConfigManager';
 import type { SettingsManager } from '../../settings/SettingsManager';
+<<<<<<< HEAD
+=======
 import type { McpManager } from '../../mcp/McpManager';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import type { ToolDeclaration } from '../../../tools/types';
 import { ChannelError, ErrorType } from '../types';
@@ -17,7 +20,10 @@ export type RetryStatusCallback = (status: {
 }) => void;
 
 export class ChannelManagerBase {
+<<<<<<< HEAD
+=======
   protected mcpManager?: McpManager;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   protected retryStatusCallback?: RetryStatusCallback;
 
   constructor(
@@ -30,10 +36,13 @@ export class ChannelManagerBase {
     this.retryStatusCallback = callback;
   }
 
+<<<<<<< HEAD
+=======
   setMcpManager(mcpManager: McpManager): void {
     this.mcpManager = mcpManager;
   }
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   getToolDeclarationsForPreview(config: {
     type: string;
     toolMode?: 'function_call' | 'xml' | 'json';
@@ -42,7 +51,10 @@ export class ChannelManagerBase {
     const declarations = getFilteredTools(
       this.toolRegistry,
       this.settingsManager,
+<<<<<<< HEAD
+=======
       this.mcpManager,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
       (config as any).multimodalToolsEnabled,
       config.type as any,
       (config as any).toolMode
@@ -181,4 +193,7 @@ export class ChannelManagerBase {
     );
   }
 }
+<<<<<<< HEAD
+=======
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

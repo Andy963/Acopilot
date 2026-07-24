@@ -40,7 +40,10 @@ const {
   getDependencyInstallFailureLog,
   copyDependencyInstallFailureLog,
   orderedCategories,
+<<<<<<< HEAD
+=======
   isMcpTool,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   isDangerousTool,
   isAutoExec,
   loadTools,
@@ -114,12 +117,15 @@ async function handleInstallMissingDependencies(toolName: string) {
       </button>
     </div>
 
+<<<<<<< HEAD
+=======
     <!-- MCP 提示 -->
     <div class="mcp-note">
       <i class="codicon codicon-plug"></i>
       <span>{{ t('components.settings.toolsSettings.mcpNote') }}</span>
     </div>
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     <!-- 加载状态 -->
     <div v-if="isLoading" class="loading-state">
       <i class="codicon codicon-loading codicon-modifier-spin"></i>
@@ -157,10 +163,13 @@ async function handleInstallMissingDependencies(toolName: string) {
                     <i class="codicon codicon-warning"></i>
                     {{ t('components.settings.autoExec.badges.dangerous') }}
                   </span>
+<<<<<<< HEAD
+=======
                   <span v-if="isMcpTool(tool)" class="mcp-badge">
                     <i class="codicon codicon-plug"></i>
                     {{ tool.serverName }}
                   </span>
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                   <!-- 依赖缺失标记 -->
                   <!-- <span v-if="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)"
                     class="dependency-badge" :title="t('components.settings.toolsSettings.dependency.requiredTooltip')">
@@ -174,11 +183,19 @@ async function handleInstallMissingDependencies(toolName: string) {
               <!-- 启用列 -->
               <div class="tool-toggle" :class="{
                 saving: savingTools.has(tool.name),
+<<<<<<< HEAD
+                disabled: hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)
+              }"
+                :title="hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) ? t('components.settings.toolsSettings.dependency.disabledTooltip') : ''">
+                <CustomCheckbox :modelValue="tool.enabled"
+                  :disabled="savingTools.has(tool.name) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+=======
                 disabled: isMcpTool(tool) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))
               }"
                 :title="isMcpTool(tool) ? t('components.settings.toolsSettings.mcpDisableTooltip') : (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name) ? t('components.settings.toolsSettings.dependency.disabledTooltip') : '')">
                 <CustomCheckbox :modelValue="tool.enabled"
                   :disabled="isMcpTool(tool) || savingTools.has(tool.name) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                   @update:modelValue="(val: boolean) => toggleTool(tool.name, val)" />
               </div>
 
@@ -186,12 +203,20 @@ async function handleInstallMissingDependencies(toolName: string) {
 
               <!-- 执行列 -->
               <div class="exec-cell" :class="{
+<<<<<<< HEAD
+                disabled: !tool.enabled || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))
+=======
                 disabled: (!isMcpTool(tool) && !tool.enabled) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
               }">
                 <div class="exec-toggle">
                   <i class="codicon exec-icon" :class="isAutoExec(tool.name) ? 'codicon-arrow-up' : 'codicon-comment-discussion'"></i>
                   <CustomCheckbox :modelValue="isAutoExec(tool.name)"
+<<<<<<< HEAD
+                    :disabled="savingAutoExecTools.has(tool.name) || !tool.enabled || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+=======
                     :disabled="savingAutoExecTools.has(tool.name) || ((!isMcpTool(tool) && !tool.enabled) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name)))"
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                     @update:modelValue="(val: boolean) => requestToggleAutoExec(tool.name, val)" />
                 </div>
                 <span class="exec-badge" :class="{ auto: isAutoExec(tool.name), confirm: !isAutoExec(tool.name) }">
@@ -202,7 +227,11 @@ async function handleInstallMissingDependencies(toolName: string) {
               <!-- 配置列 -->
               <button v-if="hasConfigPanel(tool.name)" class="config-btn"
                 :class="{ active: isConfigExpanded(tool.name) }" @click.stop="toggleConfigPanel(tool.name)"
+<<<<<<< HEAD
+                :disabled="!tool.enabled || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+=======
                 :disabled="(!isMcpTool(tool) && !tool.enabled) || (hasToolDependencies(tool.name) && !areAllDependenciesInstalled(tool.name))"
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 :title="t('components.settings.toolsSettings.config.tooltip')">
                 <i class="codicon"
                   :class="isConfigExpanded(tool.name) ? 'codicon-chevron-up' : 'codicon-settings-gear'"></i>

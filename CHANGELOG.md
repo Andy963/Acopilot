@@ -2,6 +2,43 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+<<<<<<< HEAD
+## [1.2.4] - 2026-07-24
+
+### Fixed
+  - Chat: restore streaming auto-scroll. Sending a message now scrolls to it, and the view follows the streaming reply until the reply top reaches the viewport top. The follow state no longer latches into a paused state on its own, which previously stopped auto-scroll entirely and forced manual scrolling.
+  - Chat: replace the timing-sensitive programmatic-scroll flag with deterministic, position-based user-scroll detection, so streaming content growth is never mistaken for a manual scroll-up.
+
+## [1.2.3] - 2026-07-17
+
+### Added
+  - Pinned Context: allow deleting a saved prompt directly from the preset dropdown.
+  - Composer: add a quote button that wraps the selected input text in a triple-quote block.
+
+### Improved
+  - Pinned Context: redesign the custom prompt editor so the text area fills the panel and grows to a large writing surface instead of a cramped, constantly scrolling box.
+  - Pinned Context: collapse helper text and secondary controls (preset picker, save-as-preset, hints) into a compact toolbar and single action row with tooltips, and enlarge the panel to reclaim space wasted on explanatory text.
+
+## [1.2.2] - 2026-07-14
+
+### Improved
+  - Pinned Prompts: remove the redundant workspace-default notice while preserving the active pin indicator.
+  - Checkpoint Settings: highlight the active scenario preset with a selected border and background.
+  - Context Settings: keep ignored-file previews compact with bounded internal scrolling.
+
+## [1.2.1] - 2026-07-10
+
+### Improved
+  - 设置页：将上下文总结配置合并到上下文页面，并移除独立总结标签。
+  - Channel 设置：将新建配置与当前配置重命名分层展示，减少相邻动作干扰。
+  - 存档点设置：最大存档点数量标签与输入框同行显示，并适配窄侧栏。
+  - 发布流程：三段版本号自动标记为预发布，二段版本号保持正式发布；打包前清理旧编译产物并排除开发说明文件。
+
+### Removed
+  - 移除 MCP 设置、连接、工具执行、Prompt 注入和上下文统计功能。
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 ## [1.2.0] - 2026-07-10
 
 ### Added

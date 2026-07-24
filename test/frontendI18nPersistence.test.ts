@@ -119,6 +119,25 @@ describe('frontend i18n language unification and persistence', () => {
     expect(settingsStore.activeTab).toBe('channel')
   }, 15000)
 
+<<<<<<< HEAD
+  it.each([
+    ['mcp', 'tools'],
+    ['summarize', 'context'],
+  ])('migrates the legacy %s settings tab to %s', async (legacyTab, expectedTab) => {
+    webviewState['ui.settings.activeTab'] = legacyTab
+
+    const { createPinia, setActivePinia } = await import('pinia')
+    const settingsStoreModule = await import('../frontend/src/stores/settingsStore')
+
+    setActivePinia(createPinia())
+
+    const settingsStore = settingsStoreModule.useSettingsStore()
+    expect(settingsStore.activeTab).toBe(expectedTab)
+    expect(webviewState['ui.settings.activeTab']).toBe(expectedTab)
+  }, 15000)
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   it('exposes main view registry metadata from the settings store', async () => {
     const { createPinia, setActivePinia } = await import('pinia')
     const settingsStoreModule = await import('../frontend/src/stores/settingsStore')

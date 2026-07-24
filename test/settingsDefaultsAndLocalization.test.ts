@@ -7,7 +7,11 @@ import { MemorySettingsStorage } from '../backend/modules/settings/storage';
 import { SettingsManager } from '../backend/modules/settings/SettingsManager';
 import { DEFAULT_CHECKPOINT_CONFIG, DEFAULT_GLOBAL_SETTINGS } from '../backend/modules/settings/types';
 import { translate } from '../frontend/src/i18n';
+<<<<<<< HEAD
+import { getLocalizedToolDescription, getToolDisplayName } from '../frontend/src/components/settings/toolDisplay';
+=======
 import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from '../frontend/src/components/settings/toolDisplay';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 
 function readProjectFile(path: string): string {
   return readFileSync(resolve(__dirname, '..', path), 'utf8');
@@ -26,7 +30,11 @@ function cloneDefaultSettings(): any {
 }
 
 describe('settings defaults and localization', () => {
+<<<<<<< HEAD
+  it('uses localized built-in tool descriptions across settings', () => {
+=======
   it('uses localized built-in tool descriptions without changing MCP descriptions', () => {
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     const settings = readProjectFile('frontend/src/components/settings/ToolsSettings.vue');
     const composable = readProjectFile('frontend/src/components/settings/useToolsSettings.ts');
     const helper = readProjectFile('frontend/src/components/settings/toolDisplay.ts');
@@ -39,7 +47,10 @@ describe('settings defaults and localization', () => {
     expect(composable).toContain("from './toolDisplay'");
     expect(composable).toContain('getLocalizedToolDescription(tool, t)');
     expect(helper).toContain('export function getLocalizedToolDescription');
+<<<<<<< HEAD
+=======
     expect(helper).toContain('if (isMcpTool(tool)) return tool.description');
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     expect(helper).toContain('getToolDescriptionKey(tool.name)');
     expect(autoExecSettings).toContain("from './toolDisplay'");
     expect(autoExecSettings).toContain('getToolDescription(tool)');
@@ -71,6 +82,10 @@ describe('settings defaults and localization', () => {
       description: 'Backend fallback description.',
       category: 'other',
     }, translate)).toBe('Backend fallback description.');
+<<<<<<< HEAD
+    expect(getToolDisplayName({ name: 'custom_tool', description: '', category: 'other' })).toBe('Custom Tool');
+    expect(getToolDisplayName('custom_tool')).toBe('Custom Tool');
+=======
     expect(getLocalizedToolDescription({
       name: 'mcp__server__custom_tool',
       description: 'MCP provided description.',
@@ -79,6 +94,7 @@ describe('settings defaults and localization', () => {
     expect(getToolDisplayName({ name: 'mcp__server__custom_tool', description: '', category: 'mcp' })).toBe('Custom Tool');
     expect(getToolDisplayName('mcp__server__custom_tool')).toBe('Custom Tool');
     expect(isMcpTool({ name: 'mcp__server__custom_tool', description: '' })).toBe(true);
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   });
 
   it('resolves built-in tool descriptions through the active language pack', () => {
@@ -104,9 +120,116 @@ describe('settings defaults and localization', () => {
     expect(summarizeSettings).toContain('autoSummarizeThreshold');
     expect(summarizeSettings).toContain('keepRecentRounds');
     expect(summarizeSettings).toContain('class="field-row"');
+<<<<<<< HEAD
+    expect(summarizeStyles).toContain('grid-template-columns: minmax(0, 1fr) minmax(70px, 112px);');
+    expect(summarizeStyles).toContain('overflow-wrap: anywhere;');
+    expect(summarizeStyles).toContain('width: 100%;');
+  });
+
+  it('moves summarize settings into context and removes standalone MCP and summarize tabs', () => {
+    const settingsPanel = readProjectFile('frontend/src/components/settings/SettingsPanel.vue');
+    const settingsPanelConfig = readProjectFile('frontend/src/components/settings/useSettingsPanel.ts');
+    const settingsStore = readProjectFile('frontend/src/stores/settingsStore.ts');
+    const contextSettings = readProjectFile('frontend/src/components/settings/ContextSettings.vue');
+    const tabIds = settingsStore.slice(
+      settingsStore.indexOf('export const SETTINGS_TAB_IDS'),
+      settingsStore.indexOf('] as const')
+    );
+
+    expect(settingsPanel).not.toContain("activeTab === 'mcp'");
+    expect(settingsPanel).not.toContain("activeTab === 'summarize'");
+    expect(settingsPanelConfig).not.toContain("{ id: 'mcp'");
+    expect(settingsPanelConfig).not.toContain("{ id: 'summarize'");
+    expect(tabIds).not.toContain("'mcp'");
+    expect(tabIds).not.toContain("'summarize'");
+    expect(settingsStore).toContain("mcp: 'tools'");
+    expect(settingsStore).toContain("summarize: 'context'");
+    expect(contextSettings).toContain("import SummarizeSettings from './SummarizeSettings.vue'");
+    expect(contextSettings).toContain('<SummarizeSettings />');
+  });
+
+  it('removes MCP hints, categories, badges, and tool loading from settings', () => {
+    const files = [
+      'frontend/src/components/settings/ToolsSettings.vue',
+      'frontend/src/components/settings/useToolsSettings.ts',
+      'frontend/src/components/settings/AutoExecSettings.vue',
+      'frontend/src/i18n/langs/en/components/settingsPart1.ts',
+      'frontend/src/i18n/langs/en/components/settingsPart2b.ts',
+      'frontend/src/i18n/langs/zh-CN/components/settingsPart1.ts',
+      'frontend/src/i18n/langs/zh-CN/components/settingsPart2b.ts',
+      'frontend/src/i18n/langs/ja/components/settingsPart1.ts',
+      'frontend/src/i18n/langs/ja/components/settingsPart2b.ts',
+    ];
+
+    for (const file of files) {
+      const content = readProjectFile(file);
+      expect(content).not.toContain('tools.getMcpTools');
+      expect(content).not.toContain('mcpNote');
+      expect(content).not.toContain('mcp-badge');
+      expect(content).not.toContain('isMcpTool');
+      expect(content).not.toMatch(/mcp:\s*['"]/i);
+    }
+  });
+
+  it('keeps the checkpoint limit input inline with its label', () => {
+    const checkpointSettings = readProjectFile('frontend/src/components/settings/CheckpointSettings.vue');
+
+    expect(checkpointSettings).toContain('class="checkpoint-limit-row"');
+    expect(checkpointSettings).toContain('for="max-checkpoints"');
+    expect(checkpointSettings).toContain('id="max-checkpoints"');
+    expect(checkpointSettings).toContain('aria-describedby="max-checkpoints-hint"');
+    expect(checkpointSettings).toContain('id="max-checkpoints-hint"');
+    expect(checkpointSettings).toMatch(
+      /\.checkpoint-limit-row\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(70px, 100px\);\s*align-items:\s*center;/
+    );
+  });
+
+  it('separates channel creation from the current config rename action', () => {
+    const channelSettings = readProjectFile('frontend/src/components/settings/ChannelSettings.vue');
+    const channelStyles = readProjectFile('frontend/src/components/settings/ChannelSettings.part1.css');
+    const customSelect = readProjectFile('frontend/src/components/common/CustomSelect.vue');
+    const headerStart = channelSettings.indexOf('<div class="config-selector-header">');
+    const selectorStart = channelSettings.indexOf('<div class="config-selector">');
+    const formStart = channelSettings.indexOf('<div v-if="currentConfig" class="config-form">');
+
+    expect(headerStart).toBeGreaterThanOrEqual(0);
+    expect(selectorStart).toBeGreaterThan(headerStart);
+    expect(formStart).toBeGreaterThan(selectorStart);
+
+    const headerMarkup = channelSettings.slice(headerStart, selectorStart);
+    const selectorMarkup = channelSettings.slice(selectorStart, formStart);
+
+    expect(headerMarkup).toContain('v-if="!isEditing && !showNewDialog"');
+    expect(headerMarkup).toContain('class="add-config-btn"');
+    expect(headerMarkup).toContain('channelSettings.selector.add');
+    expect(selectorMarkup).toContain('v-if="!isEditing && !showNewDialog"');
+    expect(selectorMarkup).toContain('channelSettings.selector.rename');
+    expect(selectorMarkup).not.toContain('channelSettings.selector.add');
+    expect(selectorMarkup).toContain(':trigger-aria-label="configSelectorAriaLabel"');
+    expect(channelSettings).toContain('const configSelectorAriaLabel = computed(() => {');
+    expect(channelSettings).toContain('currentConfig.value?.name');
+    expect(channelStyles).toMatch(
+      /\.config-selector-header\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?justify-content:\s*space-between;/
+    );
+    expect(channelStyles).toMatch(
+      /\.add-config-btn\s*\{[\s\S]*?background:\s*var\(--vscode-button-background\);/
+    );
+    expect(customSelect).toContain('triggerAriaLabel?: string');
+    expect(customSelect).toContain(':aria-label="triggerAriaLabel"');
+
+    for (const locale of ['en', 'zh-CN', 'ja']) {
+      const messages = readProjectFile(`frontend/src/i18n/langs/${locale}/components/settingsPart1.ts`);
+      const localeSelectorStart = messages.indexOf('selector: {');
+      const localeDialogStart = messages.indexOf('dialog: {', localeSelectorStart);
+      const selectorMessages = messages.slice(localeSelectorStart, localeDialogStart);
+
+      expect(selectorMessages).toContain('label:');
+    }
+=======
     expect(summarizeStyles).toContain('grid-template-columns: max-content max-content;');
     expect(summarizeStyles).toContain('white-space: nowrap;');
     expect(summarizeStyles).toContain('width: 112px;');
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   });
 
   it('bounds the checkpoint cleanup list inside a custom scrollbar', () => {

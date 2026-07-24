@@ -134,14 +134,25 @@
 /* Keep compact numeric controls on the same row as their labels. */
 .field-row {
   display: grid;
+<<<<<<< HEAD
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 112px);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+=======
   grid-template-columns: max-content max-content;
   align-items: center;
   column-gap: 12px;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 }
 
 .field-row label {
   min-width: 0;
+<<<<<<< HEAD
+  overflow-wrap: anywhere;
+=======
   white-space: nowrap;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 }
 
 /* 阈值输入 */
@@ -150,7 +161,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
+<<<<<<< HEAD
+  width: 100%;
+  min-width: 70px;
+=======
   width: 112px;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   max-width: 112px;
 }
 

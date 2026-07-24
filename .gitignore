@@ -2,6 +2,10 @@ node_modules
 dist
 .ads
 .codex
+<<<<<<< HEAD
+.jules/
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .npm-cache
 *.vsix
 # Keep most docs out of git, but track ADRs.

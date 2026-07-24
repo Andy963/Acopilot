@@ -156,6 +156,8 @@
   gap: 12px;
 }
 
+<<<<<<< HEAD
+=======
 .mcp-note {
   display: inline-flex;
   align-items: center;
@@ -172,6 +174,7 @@
   color: var(--vscode-textLink-foreground);
 }
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .category-rows {
   border: 1px solid var(--lc-settings-border, var(--vscode-panel-border));
   border-radius: var(--lc-settings-radius-md, 6px);
@@ -274,6 +277,8 @@
   font-size: 10px;
 }
 
+<<<<<<< HEAD
+=======
 .mcp-badge {
   display: flex;
   align-items: center;
@@ -291,6 +296,7 @@
   font-size: 10px;
 }
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .tool-name {
   font-size: 13px;
   font-weight: 500;
@@ -484,4 +490,7 @@
     transform: rotate(360deg);
   }
 }
+<<<<<<< HEAD
+=======
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

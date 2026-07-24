@@ -2,7 +2,11 @@
   "name": "acopilot",
   "displayName": "Acopilot",
   "description": "Acopilot 是一个AI编程助手插件，支持多模态和复杂功能。",
+<<<<<<< HEAD
+  "version": "1.2.4",
+=======
   "version": "1.2.0",
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   "publisher": "Andy963",
   "icon": "resources/icon.png",
   "engines": {
@@ -121,9 +125,16 @@
     "vscode:prepublish": "npm run build",
     "install:all": "npm install && npm --prefix frontend install",
     "install:all:ci": "npm ci && npm --prefix frontend ci",
+<<<<<<< HEAD
+    "clean:dist": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "clean:vsix": "node -e \"const fs=require('node:fs'); for (const entry of fs.readdirSync('.')) { if (entry.endsWith('.vsix')) fs.rmSync(entry); }\"",
+    "compile": "tsc -p ./",
+    "build:backend": "npm run clean:dist && npm run compile",
+=======
     "clean:vsix": "node -e \"const fs=require('node:fs'); for (const entry of fs.readdirSync('.')) { if (entry.endsWith('.vsix')) fs.rmSync(entry); }\"",
     "compile": "tsc -p ./",
     "build:backend": "npm run compile",
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     "watch": "tsc -watch -p ./",
     "typecheck:backend": "tsc -p ./ --noEmit",
     "typecheck:frontend": "./frontend/node_modules/.bin/vue-tsc --noEmit -p ./frontend/tsconfig.json",
@@ -162,7 +173,10 @@
     "coding",
     "dev",
     "keybindings",
+<<<<<<< HEAD
+=======
     "mcp",
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     "acopilot"
   ],
   "author": "Andy963",

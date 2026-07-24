@@ -28,7 +28,10 @@ export interface BackendWebviewMessages {
         getToolConfigFailed: string;
         updateToolConfigFailed: string;
         getAutoExecConfigFailed: string;
+<<<<<<< HEAD
+=======
         getMcpToolsFailed: string;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         setToolAutoExecFailed: string;
         updateListFilesConfigFailed: string;
         updateApplyDiffConfigFailed: string;
@@ -65,6 +68,8 @@ export interface BackendWebviewMessages {
         openFileFailed: string;
         saveImageFailed: string;
 
+<<<<<<< HEAD
+=======
         openMcpConfigFailed: string;
         getMcpServersFailed: string;
         validateMcpServerIdFailed: string;
@@ -75,6 +80,7 @@ export interface BackendWebviewMessages {
         disconnectMcpServerFailed: string;
         setMcpServerEnabledFailed: string;
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         getSummarizeConfigFailed: string;
         updateSummarizeConfigFailed: string;
         summarizeFailed: string;
@@ -124,4 +130,7 @@ export interface BackendWebviewMessages {
         selectFolder: string;
     };
 }
+<<<<<<< HEAD
+=======
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

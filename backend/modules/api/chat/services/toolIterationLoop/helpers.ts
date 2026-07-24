@@ -264,10 +264,13 @@ export function buildSnapshotModules(systemInstruction: string, maxCharsPerSecti
     });
 }
 
+<<<<<<< HEAD
+=======
 export function countMcpTools(tools: Array<{ name: string }>): number {
     return tools.filter((t) => typeof t.name === 'string' && t.name.startsWith('mcp__')).length;
 }
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 export function getLastUserContextOverrides(history: Content[]): ContextInjectionOverrides | undefined {
     for (let i = history.length - 1; i >= 0; i--) {
         const msg = history[i];

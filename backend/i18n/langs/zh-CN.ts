@@ -55,6 +55,8 @@ const zhCN: BackendLanguageMessages = {
             }
         },
 
+<<<<<<< HEAD
+=======
         mcp: {
             errors: {
                 connectionFailed: '连接失败: {serverName}',
@@ -76,6 +78,7 @@ const zhCN: BackendLanguageMessages = {
             }
         },
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         checkpoint: {
             description: {
                 before: '执行前',
@@ -229,6 +232,8 @@ const zhCN: BackendLanguageMessages = {
                     setActiveModelFailed: '设置激活模型失败'
                 }
             },
+<<<<<<< HEAD
+=======
             mcp: {
                 errors: {
                     listServersFailed: '获取 MCP 服务器列表失败',
@@ -242,6 +247,7 @@ const zhCN: BackendLanguageMessages = {
                     disconnectServerFailed: '断开 MCP 服务器失败'
                 }
             },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             chat: {
                 errors: {
                     configNotFound: '配置不存在: {configId}',
@@ -250,8 +256,11 @@ const zhCN: BackendLanguageMessages = {
                     unknownError: '未知错误',
                     streamEndedUnexpectedly: '流式响应异常结束（未收到完成标记），请重试',
                     toolExecutionSuccess: '工具执行成功',
+<<<<<<< HEAD
+=======
                     mcpToolCallFailed: 'MCP 工具调用失败',
                     invalidMcpToolName: '无效的 MCP 工具名称: {toolName}',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                     toolNotFound: '工具不存在: {toolName}',
                     toolExecutionFailed: '工具执行失败',
                     noHistory: '对话历史为空',
@@ -388,7 +397,10 @@ const zhCN: BackendLanguageMessages = {
             getToolConfigFailed: '获取工具配置失败',
             updateToolConfigFailed: '更新工具配置失败',
             getAutoExecConfigFailed: '获取自动执行配置失败',
+<<<<<<< HEAD
+=======
             getMcpToolsFailed: '获取 MCP 工具列表失败',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             setToolAutoExecFailed: '设置工具自动执行失败',
             updateListFilesConfigFailed: '更新 list_files 配置失败',
             updateApplyDiffConfigFailed: '更新 apply_diff 配置失败',
@@ -425,6 +437,8 @@ const zhCN: BackendLanguageMessages = {
             openFileFailed: '打开文件失败',
             saveImageFailed: '保存图片失败',
             
+<<<<<<< HEAD
+=======
             openMcpConfigFailed: '打开 MCP 配置文件失败',
             getMcpServersFailed: '获取 MCP 服务器列表失败',
             validateMcpServerIdFailed: '验证 MCP 服务器 ID 失败',
@@ -435,6 +449,7 @@ const zhCN: BackendLanguageMessages = {
             disconnectMcpServerFailed: '断开 MCP 服务器失败',
             setMcpServerEnabledFailed: '设置 MCP 服务器状态失败',
             
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             getSummarizeConfigFailed: '获取总结配置失败',
             updateSummarizeConfigFailed: '更新总结配置失败',
             summarizeFailed: '上下文总结失败',

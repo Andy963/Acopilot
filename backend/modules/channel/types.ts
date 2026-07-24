@@ -73,6 +73,8 @@ export interface GenerateRequest {
     skipRetry?: boolean;
     
     /**
+<<<<<<< HEAD
+=======
      * MCP 工具内容（可选）
      *
      * 已格式化的 MCP 工具定义内容。
@@ -81,6 +83,7 @@ export interface GenerateRequest {
     mcpToolsContent?: string;
 
     /**
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
      * OpenAI Responses API: previous_response_id（可选）
      *
      * 用于让 Responses API 在服务端延续上一轮的上下文，从而避免重复发送完整历史。

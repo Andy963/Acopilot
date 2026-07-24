@@ -39,7 +39,10 @@ export function buildOpenAIRequest(
   }
 
   let toolsContent = '';
+<<<<<<< HEAD
+=======
   let mcpToolsContent = '';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 
   if (tools && tools.length > 0) {
     if (toolMode === 'xml') {
@@ -49,6 +52,11 @@ export function buildOpenAIRequest(
     }
   }
 
+<<<<<<< HEAD
+  systemInstruction = systemInstruction?.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+  if (systemInstruction && systemInstruction.includes('{{$TOOLS}}')) {
+    systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsContent);
+=======
   if (request.mcpToolsContent) {
     mcpToolsContent = request.mcpToolsContent;
   }
@@ -56,6 +64,7 @@ export function buildOpenAIRequest(
   if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
     systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsContent);
     systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsContent);
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   } else if (toolsContent) {
     systemInstruction = systemInstruction ? `${systemInstruction}\n\n${toolsContent}` : toolsContent;
   }

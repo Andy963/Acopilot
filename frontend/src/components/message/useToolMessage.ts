@@ -1,9 +1,16 @@
+<<<<<<< HEAD
+import { computed, h, ref, type Component, type ComputedRef } from 'vue'
+=======
 import { computed, h, ref, type Component, type ComputedRef, watchEffect } from 'vue'
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import type { Message, ToolUsage } from '../../types'
 import { useChatStore } from '../../stores'
 import { generateId } from '../../utils/format'
 import { getToolConfig } from '../../utils/toolRegistry'
+<<<<<<< HEAD
+=======
 import { ensureMcpToolRegistered } from '../../utils/tools'
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import { sendToExtension } from '../../utils/vscode'
 import {
   getReadFileHeaderStats,
@@ -17,16 +24,42 @@ import {
 import { useApplyDiffUndo } from './useApplyDiffUndo'
 import { useReadFileCopy } from './useReadFileCopy'
 
+<<<<<<< HEAD
+export function renderDefaultToolContent(tool: ToolUsage, t: Translator) {
+  return h('div', { class: 'tool-content-default' }, [
+    tool.args &&
+      h('div', { class: 'content-section' }, [
+        h('div', { class: 'section-label' }, t('components.message.tool.parameters') + ':'),
+        h('pre', { class: 'section-data' }, JSON.stringify(tool.args, null, 2))
+      ]),
+    tool.result &&
+      h('div', { class: 'content-section' }, [
+        h('div', { class: 'section-label' }, t('components.message.tool.result') + ':'),
+        h('pre', { class: 'section-data' }, JSON.stringify(tool.result, null, 2))
+      ]),
+    tool.error &&
+      h('div', { class: 'content-section error-section' }, [
+        h('div', { class: 'section-label' }, t('components.message.tool.error') + ':'),
+        h('div', { class: 'error-message' }, tool.error)
+      ])
+  ])
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Translator }) {
   const { t } = options
   const chatStore = useChatStore()
 
+<<<<<<< HEAD
+=======
   watchEffect(() => {
     for (const tool of tools.value) {
       ensureMcpToolRegistered(tool.name)
     }
   })
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   const processingToolIds = ref<Set<string>>(new Set())
 
   const enhancedTools = computed<ToolUsage[]>(() => {
@@ -326,6 +359,9 @@ export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Tr
       return h('div', { class: 'tool-content-text' }, content)
     }
 
+<<<<<<< HEAD
+    return renderDefaultToolContent(tool, t)
+=======
     return h('div', { class: 'tool-content-default' }, [
       tool.args &&
         h('div', { class: 'content-section' }, [
@@ -343,6 +379,7 @@ export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Tr
           h('div', { class: 'error-message' }, tool.error)
         ])
     ])
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   }
 
   return {
@@ -371,4 +408,7 @@ export function useToolMessage(tools: ComputedRef<ToolUsage[]>, options: { t: Tr
     renderToolContent
   }
 }
+<<<<<<< HEAD
+=======
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

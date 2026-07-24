@@ -12,7 +12,10 @@ export interface ContextInspectorModule {
 export interface ContextInspectorTools {
   toolMode: 'function_call' | 'xml' | 'json'
   total: number
+<<<<<<< HEAD
+=======
   mcp: number
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   definitionPreview?: string
   definitionCharCount?: number
   definitionTruncated?: boolean
@@ -246,6 +249,8 @@ export interface ModelInfo {
   maxOutputTokens?: number
 }
 export const SUPPORTED_DOCUMENT_TYPES = ['application/pdf', 'text/plain', 'application/json']
+<<<<<<< HEAD
+=======
 
 // ============ MCP 相关类型 ============
 
@@ -387,3 +392,4 @@ export type CreateMcpServerInput = Omit<McpServerConfig, 'id' | 'createdAt' | 'u
  * 更新 MCP 服务器输入
  */
 export type UpdateMcpServerInput = Partial<Omit<McpServerConfig, 'id' | 'createdAt' | 'updatedAt'>>
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

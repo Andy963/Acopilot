@@ -22,6 +22,10 @@ const emit = defineEmits<{
   removeSelectionReference: [id: string]
   openPinnedPanel: []
   openPlanModal: []
+<<<<<<< HEAD
+  quoteSelection: []
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 }>()
 
 const { t } = useI18n()
@@ -125,6 +129,13 @@ function emitOpenPlanModal() {
   emit('openPlanModal')
 }
 
+<<<<<<< HEAD
+function emitQuoteSelection() {
+  emit('quoteSelection')
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 function emitRemoveAttachment(id: string) {
   emit('removeAttachment', id)
 }
@@ -234,6 +245,20 @@ async function previewAttachment(attachment: Attachment) {
       />
     </Tooltip>
 
+<<<<<<< HEAD
+    <Tooltip :content="t('components.input.quoteSelection')" placement="top">
+      <IconButton
+        icon="codicon-quote"
+        size="small"
+        class="quote-button"
+        :aria-label="t('components.input.quoteSelection')"
+        @mousedown.prevent
+        @click="emitQuoteSelection"
+      />
+    </Tooltip>
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     <div v-if="hasAttachments || selectionReferencesCount > 0" class="attachments-list">
       <div
         v-for="r in selectionReferences"

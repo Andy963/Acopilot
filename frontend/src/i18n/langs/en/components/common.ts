@@ -79,7 +79,10 @@ export const enComponentsCommon = {
             config: 'Config',
             toolMode: 'Tool mode',
             tools: 'Tools',
+<<<<<<< HEAD
+=======
             mcp: 'MCP',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             systemInstruction: 'System instruction',
             generatedAt: 'Generated at'
         },
@@ -113,7 +116,10 @@ export const enComponentsCommon = {
                 workspaceFiles: 'Workspace files',
                 pinnedFiles: 'Pinned files',
                 tools: 'Tools',
+<<<<<<< HEAD
+=======
                 mcpTools: 'MCP tools',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 guidelines: 'Guidelines',
                 openTabs: 'Open tabs',
                 activeEditor: 'Active editor',

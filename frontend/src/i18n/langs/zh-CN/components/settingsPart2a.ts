@@ -192,6 +192,8 @@ export const zhCNComponentsSettingsPart2a = {
             warning: '请配置 API Key 后才能使用图像生成功能'
         }
     },
+<<<<<<< HEAD
+=======
     mcpSettings: {
         toolbar: {
             addServer: '添加服务器',
@@ -269,6 +271,7 @@ export const zhCNComponentsSettingsPart2a = {
             cancel: '取消'
         }
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     modelManager: {
         title: '模型列表',
         fetchModels: '获取模型',
@@ -386,11 +389,14 @@ export const zhCNComponentsSettingsPart2a = {
                 name: '工具定义',
                 description: '根据渠道配置生成 XML 或 Function Call 格式的工具定义（此变量由系统自动填充）'
             },
+<<<<<<< HEAD
+=======
             MCP_TOOLS: {
                 name: 'MCP 工具',
                 description: '来自 MCP 服务器的额外工具定义（此变量由系统自动填充）',
                 requiresConfig: 'MCP 设置中需要配置并连接服务器'
             }
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         },
         exampleOutput: '示例输出：',
         requiresConfigLabel: '依赖配置：',

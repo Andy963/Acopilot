@@ -1,7 +1,11 @@
 /**
  * Acopilot - 工具执行服务
  *
+<<<<<<< HEAD
+ * 负责执行工具调用和管理工具确认逻辑
+=======
  * 负责执行工具调用、处理 MCP 工具、管理工具确认逻辑
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
  */
 
 import { t } from '../../../../i18n';
@@ -9,7 +13,10 @@ import { redactSensitiveText } from '../../../../core/redaction';
 import type { ToolRegistry } from '../../../../tools/ToolRegistry';
 import type { CheckpointRecord } from '../../../checkpoint';
 import type { SettingsManager } from '../../../settings/SettingsManager';
+<<<<<<< HEAD
+=======
 import type { McpManager } from '../../../mcp/McpManager';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import type { ContentPart } from '../../../conversation/types';
 import type { BaseChannelConfig } from '../../../config/configs/base';
 import { getMultimodalCapability, type ChannelType as UtilChannelType, type ToolMode as UtilToolMode } from '../../../../tools/utils';
@@ -41,24 +48,37 @@ export interface ToolExecutionFullResult {
  * 工具执行服务
  *
  * 职责：
+<<<<<<< HEAD
+ * 1. 执行内置工具
+=======
  * 1. 执行内置工具和 MCP 工具
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
  * 2. 处理工具确认逻辑
  * 3. 创建工具执行前后的检查点
  * 4. 处理多模态工具返回数据
  */
 export class ToolExecutionService {
     private settingsManager?: SettingsManager;
+<<<<<<< HEAD
+=======
     private mcpManager?: McpManager;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     private toolRegistry?: ToolRegistry;
 
     constructor(
         toolRegistry?: ToolRegistry,
+<<<<<<< HEAD
+=======
         mcpManager?: McpManager,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         settingsManager?: SettingsManager,
         private checkpointService?: CheckpointService
     ) {
         this.toolRegistry = toolRegistry;
+<<<<<<< HEAD
+=======
         this.mcpManager = mcpManager;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         this.settingsManager = settingsManager;
     }
 
@@ -70,6 +90,8 @@ export class ToolExecutionService {
     }
 
     /**
+<<<<<<< HEAD
+=======
      * 设置 MCP 管理器
      */
     setMcpManager(mcpManager: McpManager): void {
@@ -77,6 +99,7 @@ export class ToolExecutionService {
     }
 
     /**
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
      * 设置工具注册表
      */
     setToolRegistry(toolRegistry: ToolRegistry): void {
@@ -199,6 +222,13 @@ export class ToolExecutionService {
                             risk: assessment
                         };
                     } else {
+<<<<<<< HEAD
+                        response = await this.executeBuiltinTool(call, config, abortSignal);
+                    }
+                } else {
+                    response = await this.executeBuiltinTool(call, config, abortSignal);
+                }
+=======
                         // 检查是否是 MCP 工具（格式：mcp__{serverId}__{toolName}）
                         if (call.name.startsWith('mcp__') && this.mcpManager) {
                             response = await this.executeMcpTool(call);
@@ -214,6 +244,7 @@ export class ToolExecutionService {
                     response = await this.executeBuiltinTool(call, config, abortSignal);
                 }
                 }
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             } catch (error) {
                 const err = error as Error;
                 response = {
@@ -289,6 +320,8 @@ export class ToolExecutionService {
     }
 
     /**
+<<<<<<< HEAD
+=======
      * 执行 MCP 工具
      */
     private async executeMcpTool(call: FunctionCallInfo): Promise<Record<string, unknown>> {
@@ -329,6 +362,7 @@ export class ToolExecutionService {
     }
 
     /**
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
      * 执行内置工具
      */
     private async executeBuiltinTool(
