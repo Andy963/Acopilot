@@ -6,6 +6,10 @@
 .tmp/**
 .claude/**
 .codex/**
+<<<<<<< HEAD
+AGENTS.md
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .gitignore
 tsconfig.json
 **/*.map

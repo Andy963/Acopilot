@@ -67,20 +67,85 @@ function globToRegexPattern(pattern: string, globstar: boolean = true): string {
     return regexPattern
 }
 
-function matchIgnoreGlob(filePath: string, pattern: string): boolean {
-    const regexPattern = globToRegexPattern(pattern)
-    if (!regexPattern) return false
+// Module-level RegExp caches to prevent GC pressure and CPU overhead during file tree traversals.
+const IGNORE_GLOB_CACHE = new Map<string, RegExp>();
+const GITIGNORE_GLOB_CACHE = new Map<string, RegExp>();
+const MAX_CACHE_SIZE = 2048;
 
-    const regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i')
-    return regex.test(filePath.replace(/\\/g, '/'))
+function getOrCreateIgnoreGlobRegex(pattern: string): RegExp | null {
+    let regex = IGNORE_GLOB_CACHE.get(pattern);
+    if (regex !== undefined) {
+        return regex;
+    }
+
+    const regexPattern = globToRegexPattern(pattern);
+    if (!regexPattern) {
+        return null;
+    }
+
+    regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i');
+
+    // Maintain bounded cache size using simple oldest-entry (first key) eviction
+    if (IGNORE_GLOB_CACHE.size >= MAX_CACHE_SIZE) {
+        const firstKey = IGNORE_GLOB_CACHE.keys().next().value;
+        if (firstKey !== undefined) {
+            IGNORE_GLOB_CACHE.delete(firstKey);
+        }
+    }
+    IGNORE_GLOB_CACHE.set(pattern, regex);
+    return regex;
+}
+
+function getOrCreateGitignoreGlobRegex(pattern: string): RegExp | null {
+    let regex = GITIGNORE_GLOB_CACHE.get(pattern);
+    if (regex !== undefined) {
+        return regex;
+    }
+
+    const regexPattern = globToRegexPattern(pattern, false);
+    if (!regexPattern) {
+        return null;
+    }
+
+    regex = new RegExp(`^${regexPattern}$`);
+
+    // Maintain bounded cache size using simple oldest-entry (first key) eviction
+    if (GITIGNORE_GLOB_CACHE.size >= MAX_CACHE_SIZE) {
+        const firstKey = GITIGNORE_GLOB_CACHE.keys().next().value;
+        if (firstKey !== undefined) {
+            GITIGNORE_GLOB_CACHE.delete(firstKey);
+        }
+    }
+    GITIGNORE_GLOB_CACHE.set(pattern, regex);
+    return regex;
+}
+
+function matchIgnoreGlob(filePath: string, pattern: string): boolean {
+    const regex = getOrCreateIgnoreGlobRegex(pattern);
+    if (!regex) return false;
+    return regex.test(filePath.replace(/\\/g, '/'));
 }
 
 function matchGitignoreGlob(filePath: string, pattern: string): boolean {
-    const regexPattern = globToRegexPattern(pattern, false)
-    if (!regexPattern) return false
-
-    return new RegExp(`^${regexPattern}$`).test(filePath.replace(/\\/g, '/'))
+    const regex = getOrCreateGitignoreGlobRegex(pattern);
+    if (!regex) return false;
+    return regex.test(filePath.replace(/\\/g, '/'));
 }
+
+// Test-only export to allow unit tests to verify caching behavior, bounds, and eviction.
+export const _TEST_CACHE_ = {
+  getIgnoreCacheSize: () => IGNORE_GLOB_CACHE.size,
+  getGitignoreCacheSize: () => GITIGNORE_GLOB_CACHE.size,
+  getIgnoreCacheMap: () => IGNORE_GLOB_CACHE,
+  getGitignoreCacheMap: () => GITIGNORE_GLOB_CACHE,
+  clearCaches: () => {
+    IGNORE_GLOB_CACHE.clear();
+    GITIGNORE_GLOB_CACHE.clear();
+  },
+  matchIgnoreGlob,
+  matchGitignoreGlob,
+  MAX_CACHE_SIZE,
+};
 
 /**
  * 检查文件/目录是否应该被忽略

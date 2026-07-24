@@ -6,6 +6,10 @@ export const enComponentsInput = {
     attachFile: 'Attach file',
     pinnedFiles: 'Pinned Context',
     createPlan: 'Plan & Run',
+<<<<<<< HEAD
+    quoteSelection: 'Wrap selection in triple quotes',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     summarizeContext: 'Summarize context',
     summarizeKeepRoundsHint: 'keeps last {count} rounds',
     selectChannel: 'Select channel',
@@ -83,6 +87,10 @@ export const enComponentsInput = {
             presetsEmptyOption: 'Choose a saved prompt',
             presetsEmpty: 'No saved prompts yet. Save one below to reuse it across projects.',
             selectedPresetHint: 'Selected saved prompt: {name}',
+<<<<<<< HEAD
+            deletePreset: 'Delete selected prompt',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             label: 'Custom Prompt',
             placeholder: 'Enter a prompt that only applies to the current conversation...',
             save: 'Use for this conversation',
@@ -134,6 +142,11 @@ export const enComponentsInput = {
         fileReferenceAdded: 'Added file reference to chat',
         addFailed: 'Add failed: {error}',
         loadPinnedPromptPresetsFailed: 'Load saved prompts failed: {error}',
+<<<<<<< HEAD
+        pinnedPromptPresetDeleted: 'Prompt deleted',
+        deletePinnedPromptPresetFailed: 'Delete prompt failed: {error}',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         cannotGetFilePath: 'Cannot get file path, please drag from VSCode Explorer or tab',
         fileNotMatchOrNotInWorkspace: 'File is not in workspace or filename does not match',
         removeFailed: 'Remove failed: {error}'

@@ -79,7 +79,10 @@ export const jaComponentsCommon = {
             config: '設定',
             toolMode: 'ツールモード',
             tools: 'ツール',
+<<<<<<< HEAD
+=======
             mcp: 'MCP',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             systemInstruction: 'システム指示',
             generatedAt: '生成日時'
         },
@@ -113,7 +116,10 @@ export const jaComponentsCommon = {
                 workspaceFiles: 'ワークスペースファイル',
                 pinnedFiles: 'ピン留めファイル',
                 tools: 'ツール',
+<<<<<<< HEAD
+=======
                 mcpTools: 'MCP ツール',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 guidelines: 'ガイドライン',
                 openTabs: '開いているタブ',
                 activeEditor: 'アクティブエディタ',

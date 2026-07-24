@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import ChannelSettings from './ChannelSettings.vue'
 import ToolsSettings from './ToolsSettings.vue'
+<<<<<<< HEAD
+import CheckpointSettings from './CheckpointSettings.vue'
+=======
 import McpSettings from './McpSettings.vue'
 import CheckpointSettings from './CheckpointSettings.vue'
 import SummarizeSettings from './SummarizeSettings.vue'
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import GenerateImageSettings from './GenerateImageSettings.vue'
 import ContextSettings from './ContextSettings.vue'
 import PromptSettings from './PromptSettings.vue'
@@ -83,6 +87,8 @@ const {
             <ToolsSettings />
           </div>
           
+<<<<<<< HEAD
+=======
           <!-- MCP 设置 -->
           <div v-if="settingsStore.activeTab === 'mcp'" class="settings-section">
             <h4>{{ t('components.settings.settingsPanel.sections.mcp.title') }}</h4>
@@ -91,6 +97,7 @@ const {
             <McpSettings />
           </div>
           
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
           <!-- 存档点设置 -->
           <div v-if="settingsStore.activeTab === 'checkpoint'" class="settings-section">
             <h4>{{ t('components.settings.settingsPanel.sections.checkpoint.title') }}</h4>
@@ -99,6 +106,8 @@ const {
             <CheckpointSettings />
           </div>
           
+<<<<<<< HEAD
+=======
           <!-- 总结设置 -->
           <div v-if="settingsStore.activeTab === 'summarize'" class="settings-section">
             <h4>{{ t('components.settings.settingsPanel.sections.summarize.title') }}</h4>
@@ -107,6 +116,7 @@ const {
             <SummarizeSettings />
           </div>
           
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
           <!-- 图像生成设置 -->
           <div v-if="settingsStore.activeTab === 'imageGen'" class="settings-section">
             <h4>{{ t('components.settings.settingsPanel.sections.imageGen.title') }}</h4>

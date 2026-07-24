@@ -53,3 +53,38 @@ export function computeGuardAction(
   if (clampDeltaPx <= 0) return { nextState: state, clampDeltaPx: 0 }
   return { nextState: pauseForGuard(state), clampDeltaPx }
 }
+<<<<<<< HEAD
+
+/**
+ * Decide whether a scroll event represents a genuine user scroll-up that
+ * should pause streaming auto-follow.
+ *
+ * The container is compared against the last programmatic scroll position
+ * instead of a timing-sensitive "is this scroll programmatic" flag.
+ * Streaming content growth increases scrollHeight but never moves scrollTop
+ * and never fires a scroll event, so any upward deviation from the last
+ * programmatic scrollTop originates from the user (wheel, keyboard, or
+ * scrollbar drag).  This avoids the race where a delayed scroll event from
+ * our own scroll-to-bottom is misread as a user scroll and latches the
+ * follow state into paused_user.
+ */
+export function shouldPauseForUserScroll(options: {
+  isStreaming: boolean
+  mode: StreamingFollowMode
+  currentScrollTop: number
+  lastProgrammaticScrollTop: number
+  distanceFromBottomPx: number
+  stickyThresholdPx: number
+  userScrollUpThresholdPx: number
+}): boolean {
+  if (!options.isStreaming) return false
+  if (options.mode !== 'following') return false
+
+  const scrolledUpByUser =
+    options.currentScrollTop < options.lastProgrammaticScrollTop - options.userScrollUpThresholdPx
+  const atBottom = options.distanceFromBottomPx <= options.stickyThresholdPx
+
+  return scrolledUpByUser && !atBottom
+}
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

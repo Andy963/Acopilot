@@ -16,6 +16,10 @@ const chatStore = useChatStore()
 
 const {
   checkpointPresets,
+<<<<<<< HEAD
+  currentCheckpointPresetId,
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   messageTypes,
   config,
   allTools,
@@ -205,6 +209,11 @@ onMounted(() => {
             :key="preset.id"
             type="button"
             class="preset-option"
+<<<<<<< HEAD
+            :class="{ selected: currentCheckpointPresetId === preset.id }"
+            :aria-pressed="currentCheckpointPresetId === preset.id"
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             @click="applyCheckpointPreset(preset.id)"
           >
             <span class="preset-title">{{ preset.title }}</span>
@@ -249,6 +258,26 @@ onMounted(() => {
         </h4>
 
         <div class="form-row">
+<<<<<<< HEAD
+          <div class="checkpoint-limit-row">
+            <label for="max-checkpoints">
+              {{ t('components.settings.checkpoint.sections.other.maxCheckpoints.label') }}
+            </label>
+            <input
+              id="max-checkpoints"
+              type="text"
+              :value="config.maxCheckpoints"
+              :disabled="!config.enabled"
+              class="number-input"
+              placeholder="-1"
+              aria-describedby="max-checkpoints-hint"
+              @input="(event: Event) => { const value = parseInt((event.target as HTMLInputElement).value); updateConfigField('maxCheckpoints', isNaN(value) ? -1 : value) }"
+            />
+          </div>
+          <span id="max-checkpoints-hint" class="hint">
+            {{ t('components.settings.checkpoint.sections.other.maxCheckpoints.hint') }}
+          </span>
+=======
           <label>{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.label') }}</label>
           <input
             type="text"
@@ -259,6 +288,7 @@ onMounted(() => {
             @input="(event: Event) => { const value = parseInt((event.target as HTMLInputElement).value); updateConfigField('maxCheckpoints', isNaN(value) ? -1 : value) }"
           />
           <span class="hint">{{ t('components.settings.checkpoint.sections.other.maxCheckpoints.hint') }}</span>
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         </div>
       </div>
 
@@ -354,12 +384,29 @@ onMounted(() => {
 }
 
 .form-row label {
+<<<<<<< HEAD
+  min-width: 0;
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   font-size: 12px;
   font-weight: 500;
 }
 
+<<<<<<< HEAD
+.checkpoint-limit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 100px);
+  align-items: center;
+  gap: 10px;
+}
+
+.number-input {
+  width: 100%;
+  box-sizing: border-box;
+=======
 .number-input {
   width: 100px;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   padding: 6px 10px;
   font-size: 13px;
   background: var(--vscode-input-background);
@@ -408,6 +455,15 @@ onMounted(() => {
   background: var(--vscode-list-hoverBackground);
 }
 
+<<<<<<< HEAD
+.preset-option.selected {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-inactiveSelectionBackground);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .preset-title {
   font-size: 13px;
   font-weight: 600;

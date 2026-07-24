@@ -192,6 +192,8 @@ export const enComponentsSettingsPart2a = {
             warning: 'Please configure API Key before using image generation feature'
         }
     },
+<<<<<<< HEAD
+=======
     mcpSettings: {
         toolbar: {
             addServer: 'Add Server',
@@ -269,6 +271,7 @@ export const enComponentsSettingsPart2a = {
             cancel: 'Cancel'
         }
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     modelManager: {
         title: 'Model List',
         fetchModels: 'Fetch Models',
@@ -386,11 +389,14 @@ export const enComponentsSettingsPart2a = {
                 name: 'Tool Definitions',
                 description: 'Generate tool definitions in XML or Function Call format based on channel configuration (this variable is automatically filled by the system)'
             },
+<<<<<<< HEAD
+=======
             MCP_TOOLS: {
                 name: 'MCP Tools',
                 description: 'Additional tool definitions from MCP servers (this variable is automatically filled by the system)',
                 requiresConfig: 'Need to configure and connect servers in MCP settings'
             }
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         },
         exampleOutput: 'Example Output:',
         requiresConfigLabel: 'Requires Config:',

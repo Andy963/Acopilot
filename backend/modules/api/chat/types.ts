@@ -219,8 +219,11 @@ export interface ContextInspectorTools {
     toolMode: 'function_call' | 'xml' | 'json';
     /** 工具总数 */
     total: number;
+<<<<<<< HEAD
+=======
     /** MCP 工具数量（名称以 mcp__ 开头） */
     mcp: number;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     /** 工具定义预览（仅 xml/json 模式可能有，可能被截断） */
     definitionPreview?: string;
     /** 工具定义原始字符数 */

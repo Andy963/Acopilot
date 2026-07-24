@@ -6,6 +6,10 @@ export const zhCNComponentsInput = {
     attachFile: '添加附件',
     pinnedFiles: '固定上下文',
     createPlan: 'Plan & Run',
+<<<<<<< HEAD
+    quoteSelection: '三引号包裹所选内容',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     summarizeContext: '总结上下文',
     summarizeKeepRoundsHint: '保留最近 {count} 轮',
     selectChannel: '选择渠道',
@@ -83,6 +87,10 @@ export const zhCNComponentsInput = {
             presetsEmptyOption: '选择已保存提示词',
             presetsEmpty: '还没有已保存提示词。在下方保存后，可跨项目复用选择。',
             selectedPresetHint: '已选择提示词: {name}',
+<<<<<<< HEAD
+            deletePreset: '删除所选提示词',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             label: '自定义提示词',
             placeholder: '输入仅对当前对话生效的提示词...',
             save: '用于当前对话',
@@ -134,6 +142,11 @@ export const zhCNComponentsInput = {
         fileReferenceAdded: '已添加文件引用到对话',
         addFailed: '添加失败: {error}',
         loadPinnedPromptPresetsFailed: '加载已保存提示词失败: {error}',
+<<<<<<< HEAD
+        pinnedPromptPresetDeleted: '已删除提示词',
+        deletePinnedPromptPresetFailed: '删除提示词失败: {error}',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         cannotGetFilePath: '无法获取文件路径，请从 VSCode 资源管理器或标签页拖拽',
         fileNotMatchOrNotInWorkspace: '文件不在工作区内或文件名不匹配',
         removeFailed: '移除失败: {error}'

@@ -68,6 +68,8 @@ export interface BackendLanguageMessages {
             };
         };
 
+<<<<<<< HEAD
+=======
         /** MCP 模块 */
         mcp: {
             errors: {
@@ -90,6 +92,7 @@ export interface BackendLanguageMessages {
             };
         };
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         /** 检查点模块 */
         checkpoint: {
             description: {
@@ -248,6 +251,8 @@ export interface BackendLanguageMessages {
                     setActiveModelFailed: string;
                 };
             };
+<<<<<<< HEAD
+=======
             mcp: {
                 errors: {
                     listServersFailed: string;
@@ -261,6 +266,7 @@ export interface BackendLanguageMessages {
                     disconnectServerFailed: string;
                 };
             };
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             chat: {
                 errors: {
                     configNotFound: string;
@@ -269,8 +275,11 @@ export interface BackendLanguageMessages {
                     unknownError: string;
                     streamEndedUnexpectedly: string;
                     toolExecutionSuccess: string;
+<<<<<<< HEAD
+=======
                     mcpToolCallFailed: string;
                     invalidMcpToolName: string;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                     toolNotFound: string;
                     toolExecutionFailed: string;
                     noHistory: string;

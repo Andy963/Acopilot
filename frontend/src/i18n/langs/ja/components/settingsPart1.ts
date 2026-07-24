@@ -4,9 +4,13 @@ export const jaComponentsSettingsPart1 = {
         channel: 'チャンネル',
         tools: 'ツール',
         autoExec: '自動実行',
+<<<<<<< HEAD
+        checkpoint: 'チェックポイント',
+=======
         mcp: 'MCP',
         checkpoint: 'チェックポイント',
         summarize: '要約',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         imageGen: '画像生成',
         dependencies: '拡張機能の依存関係',
         context: 'コンテキスト',
@@ -16,6 +20,10 @@ export const jaComponentsSettingsPart1 = {
     },
     channelSettings: {
         selector: {
+<<<<<<< HEAD
+            label: '現在の設定',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             placeholder: '設定を選択',
             rename: '名前を変更',
             add: '新規設定',
@@ -251,7 +259,10 @@ export const jaComponentsSettingsPart1 = {
             terminal: 'ターミナル',
             lsp: 'コードインテリジェンス',
             media: 'メディア処理',
+<<<<<<< HEAD
+=======
             mcp: 'MCP ツール',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             other: 'その他'
         },
         badges: {
@@ -261,6 +272,11 @@ export const jaComponentsSettingsPart1 = {
             dangerousDefault: '• 「危険」とマークされたツールは、デフォルトでユーザーの確認が必要です',
             deleteFileWarning: '• delete_file: ファイル削除は元に戻せないため、確認を有効にすることをお勧めします',
             executeCommandWarning: '• execute_command: ターミナルコマンドの実行はシステムに影響を与える可能性があります',
+<<<<<<< HEAD
+            useWithCheckpoint: '• 誤操作時に復元できるよう、チェックポイント機能と併用することをお勧めします'
+        }
+    },
+=======
             mcpToolsDefault: '• MCP ツール: 接続された MCP サーバーから提供され、デフォルトで自動実行されます',
             useWithCheckpoint: '• 誤操作時に復元できるよう、チェックポイント機能と併用することをお勧めします'
         }
@@ -279,6 +295,7 @@ export const jaComponentsSettingsPart1 = {
         disconnected: '切断済み',
         error: 'エラー'
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     checkpoint: {
         title: 'チェックポイント設定',
         loading: '設定を読み込み中...',

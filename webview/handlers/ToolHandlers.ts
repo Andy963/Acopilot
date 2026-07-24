@@ -62,6 +62,8 @@ export const getAutoExecConfig: MessageHandler = async (data, requestId, ctx) =>
   }
 };
 
+<<<<<<< HEAD
+=======
 export const getMcpTools: MessageHandler = async (data, requestId, ctx) => {
   try {
     const allMcpTools = ctx.mcpManager.getAllTools();
@@ -94,6 +96,7 @@ export const getMcpTools: MessageHandler = async (data, requestId, ctx) => {
   }
 };
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 export const setToolAutoExec: MessageHandler = async (data, requestId, ctx) => {
   try {
     const { toolName, autoExec } = data;
@@ -371,7 +374,10 @@ export function registerToolHandlers(registry: Map<string, MessageHandler>): voi
   registry.set('tools.getToolConfig', getToolConfig);
   registry.set('tools.updateToolConfig', updateToolConfig);
   registry.set('tools.getAutoExecConfig', getAutoExecConfig);
+<<<<<<< HEAD
+=======
   registry.set('tools.getMcpTools', getMcpTools);
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   registry.set('tools.setToolAutoExec', setToolAutoExec);
   registry.set('tools.getMaxToolIterations', getMaxToolIterations);
   registry.set('tools.updateMaxToolIterations', updateMaxToolIterations);

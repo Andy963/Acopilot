@@ -4,9 +4,13 @@ export const enComponentsSettingsPart1 = {
         channel: 'Channel',
         tools: 'Tools',
         autoExec: 'Auto Execute',
+<<<<<<< HEAD
+        checkpoint: 'Checkpoint',
+=======
         mcp: 'MCP',
         checkpoint: 'Checkpoint',
         summarize: 'Summarize',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         imageGen: 'Image Generation',
         dependencies: 'Dependencies',
         context: 'Context',
@@ -16,6 +20,10 @@ export const enComponentsSettingsPart1 = {
     },
     channelSettings: {
         selector: {
+<<<<<<< HEAD
+            label: 'Current configuration',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             placeholder: 'Select Config',
             rename: 'Rename',
             add: 'New Config',
@@ -251,7 +259,10 @@ export const enComponentsSettingsPart1 = {
             terminal: 'Terminal',
             lsp: 'Code Intelligence',
             media: 'Media Processing',
+<<<<<<< HEAD
+=======
             mcp: 'MCP Tools',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             other: 'Other'
         },
         badges: {
@@ -261,6 +272,11 @@ export const enComponentsSettingsPart1 = {
             dangerousDefault: '• Tools marked as "Dangerous" require user confirmation by default before execution',
             deleteFileWarning: '• delete_file: File deletion is irreversible, recommend keeping confirmation enabled',
             executeCommandWarning: '• execute_command: Executing terminal commands may affect the system',
+<<<<<<< HEAD
+            useWithCheckpoint: '• Recommend using with checkpoint feature to restore in case of mistakes'
+        }
+    },
+=======
             mcpToolsDefault: '• MCP Tools: From connected MCP servers, auto execute by default',
             useWithCheckpoint: '• Recommend using with checkpoint feature to restore in case of mistakes'
         }
@@ -279,6 +295,7 @@ export const enComponentsSettingsPart1 = {
         disconnected: 'Disconnected',
         error: 'Error'
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     checkpoint: {
         title: 'Checkpoint Settings',
         loading: 'Loading config...',

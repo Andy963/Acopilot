@@ -225,6 +225,8 @@ export const jaComponentsTools = {
             expandRemaining: '残り {count} 個を展開'
         }
     },
+<<<<<<< HEAD
+=======
     mcp: {
         mcpTool: 'MCP ツール',
         serverName: 'サーバー名',
@@ -236,6 +238,7 @@ export const jaComponentsTools = {
             waitingResponse: 'レスポンスを待機中...'
         }
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     media: {
         generateImage: '画像を生成',
         resizeImage: '画像をリサイズ',

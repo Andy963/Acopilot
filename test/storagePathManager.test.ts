@@ -58,6 +58,22 @@ function createManager(defaultDataPath: string, settingsManager: FakeSettingsMan
 }
 
 describe('StoragePathManager migrate/reset boundary', () => {
+<<<<<<< HEAD
+  it('does not create or report the removed MCP storage directory', async () => {
+    await withTempDir(async (root) => {
+      const defaultDataPath = path.join(root, 'default-data');
+      const manager = createManager(defaultDataPath, new FakeSettingsManager());
+
+      await manager.ensureDirectories();
+
+      await expect(fs.access(path.join(defaultDataPath, 'mcp'))).rejects.toBeDefined();
+      const stats = await manager.getStorageStats();
+      expect(stats.subDirs).not.toHaveProperty('mcp');
+    });
+  });
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   it('rejects custom paths inside managed storage subdirectories', async () => {
     await withTempDir(async (root) => {
       const defaultDataPath = path.join(root, 'default-data');

@@ -9,7 +9,10 @@ import { registerConfigHandlers } from './ConfigHandlers';
 import { registerSettingsHandlers } from './SettingsHandlers';
 import { registerCheckpointHandlers } from './CheckpointHandlers';
 import { registerToolHandlers } from './ToolHandlers';
+<<<<<<< HEAD
+=======
 import { registerMcpHandlers } from './McpHandlers';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import { registerDependencyHandlers } from './DependencyHandlers';
 import { registerStoragePathHandlers } from './StoragePathHandlers';
 import { registerContextHandlers } from './ContextHandlers';
@@ -26,7 +29,10 @@ export * from './ConfigHandlers';
 export * from './SettingsHandlers';
 export * from './CheckpointHandlers';
 export * from './ToolHandlers';
+<<<<<<< HEAD
+=======
 export * from './McpHandlers';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 export * from './DependencyHandlers';
 export * from './StoragePathHandlers';
 export * from './ContextHandlers';
@@ -49,7 +55,10 @@ export function createMessageHandlerRegistry(): Map<string, MessageHandler> {
   registerSettingsHandlers(registry);
   registerCheckpointHandlers(registry);
   registerToolHandlers(registry);
+<<<<<<< HEAD
+=======
   registerMcpHandlers(registry);
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   registerDependencyHandlers(registry);
   registerStoragePathHandlers(registry);
   registerContextHandlers(registry);

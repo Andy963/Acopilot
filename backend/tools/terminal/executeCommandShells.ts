@@ -127,7 +127,11 @@ export async function checkShellAvailability(shellType: string, customPath?: str
     if (platform === 'win32') {
         if (shellType === 'wsl') {
             return new Promise((resolve) => {
+<<<<<<< HEAD
+                cp.execFile('wsl.exe', ['--status'], { timeout: 5000 }, (error) => {
+=======
                 cp.exec('wsl --status', { timeout: 5000 }, (error) => {
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                     if (error) {
                         resolve({ available: false, reason: t('tools.terminal.shellCheck.wslNotInstalled') });
                     } else {
@@ -149,7 +153,11 @@ export async function checkShellAvailability(shellType: string, customPath?: str
         }
 
         return new Promise((resolve) => {
+<<<<<<< HEAD
+            cp.execFile('where.exe', [shellPath], { timeout: 5000 }, (error) => {
+=======
             cp.exec(`where ${shellPath}`, { timeout: 5000 }, (error) => {
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 if (error) {
                     resolve({ available: false, reason: t('tools.terminal.shellCheck.shellNotInPath', { shellPath }) });
                 } else {
@@ -171,7 +179,11 @@ export async function checkShellAvailability(shellType: string, customPath?: str
     }
 
     return new Promise((resolve) => {
+<<<<<<< HEAD
+        cp.execFile('which', [shellPath], { timeout: 5000 }, (error) => {
+=======
         cp.exec(`which ${shellPath}`, { timeout: 5000 }, (error) => {
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             if (error) {
                 resolve({ available: false, reason: t('tools.terminal.shellCheck.shellNotInPath', { shellPath }) });
             } else {
@@ -201,7 +213,11 @@ function checkShellAvailabilitySync(shellType: string, customPath?: string): boo
     try {
         if (platform === 'win32') {
             if (shellType === 'wsl') {
+<<<<<<< HEAD
+                cp.execFileSync('wsl.exe', ['--status'], { timeout: 3000, stdio: 'ignore' });
+=======
                 cp.execSync('wsl --status', { timeout: 3000, stdio: 'ignore' });
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 return true;
             }
 
@@ -212,7 +228,11 @@ function checkShellAvailabilitySync(shellType: string, customPath?: string): boo
                 return true;
             }
 
+<<<<<<< HEAD
+            cp.execFileSync('where.exe', [shellPath], { timeout: 3000, stdio: 'ignore' });
+=======
             cp.execSync(`where ${shellPath}`, { timeout: 3000, stdio: 'ignore' });
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             return true;
         }
 
@@ -223,7 +243,11 @@ function checkShellAvailabilitySync(shellType: string, customPath?: string): boo
             return true;
         }
 
+<<<<<<< HEAD
+        cp.execFileSync('which', [shellPath], { timeout: 3000, stdio: 'ignore' });
+=======
         cp.execSync(`which ${shellPath}`, { timeout: 3000, stdio: 'ignore' });
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         return true;
     } catch {
         return false;

@@ -2,15 +2,22 @@ import { computed, onMounted, ref } from 'vue'
 import { sendToExtension, showNotification } from '@/utils/vscode'
 import { getToolDependencies, hasToolDependencies, TOOL_DEPENDENCIES, useDependency } from '@/composables/useDependency'
 import { useI18n } from '@/composables'
+<<<<<<< HEAD
+import { getLocalizedToolDescription, getToolDisplayName } from './toolDisplay'
+=======
 import { getLocalizedToolDescription, getToolDisplayName, isMcpTool } from './toolDisplay'
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 
 export interface ToolInfo {
   name: string
   description: string
   enabled: boolean
   category?: string
+<<<<<<< HEAD
+=======
   serverId?: string
   serverName?: string
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 }
 
 export interface ToolAutoExecConfig {
@@ -111,9 +118,14 @@ export function useToolsSettings() {
       search: 1,
       terminal: 2,
       lsp: 3,
+<<<<<<< HEAD
+      other: 4,
+      media: 5,
+=======
       mcp: 4,
       other: 5,
       media: 6,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     }
 
     return Object.entries(toolsByCategory.value)
@@ -142,7 +154,10 @@ export function useToolsSettings() {
       terminal: 'components.settings.toolsSettings.categories.terminal',
       lsp: 'components.settings.toolsSettings.categories.lsp',
       media: 'components.settings.toolsSettings.categories.media',
+<<<<<<< HEAD
+=======
       mcp: 'components.settings.toolsSettings.categories.mcp',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
       other: 'components.settings.toolsSettings.categories.other',
     }
     return mapping[category] || mapping.other
@@ -154,7 +169,10 @@ export function useToolsSettings() {
     terminal: 'codicon-terminal',
     lsp: 'codicon-symbol-class',
     media: 'codicon-file-media',
+<<<<<<< HEAD
+=======
     mcp: 'codicon-plug',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     other: 'codicon-extensions',
   }
 
@@ -171,11 +189,19 @@ export function useToolsSettings() {
   }
 
   function getCategoryEnabledCount(categoryTools: ToolInfo[]): number {
+<<<<<<< HEAD
+    return categoryTools.filter(tool => tool.enabled).length
+  }
+
+  function getCategoryEnabledTotal(categoryTools: ToolInfo[]): number {
+    return categoryTools.length
+=======
     return categoryTools.filter(tool => !isMcpTool(tool) && tool.enabled).length
   }
 
   function getCategoryEnabledTotal(categoryTools: ToolInfo[]): number {
     return categoryTools.filter(tool => !isMcpTool(tool)).length
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   }
 
   function getCategoryAutoExecCount(categoryTools: ToolInfo[]): number {
@@ -286,6 +312,9 @@ export function useToolsSettings() {
 
     try {
       const response = await sendToExtension<{ tools: ToolInfo[] }>('tools.getTools', {})
+<<<<<<< HEAD
+      tools.value = response?.tools || []
+=======
       let allTools: ToolInfo[] = response?.tools || []
 
       try {
@@ -296,6 +325,7 @@ export function useToolsSettings() {
       }
 
       tools.value = allTools
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 
       const configResponse = await sendToExtension<{ config: ToolAutoExecConfig }>('tools.getAutoExecConfig', {})
       autoExecConfig.value = configResponse?.config || {}
@@ -386,14 +416,22 @@ export function useToolsSettings() {
   }
 
   async function enableAll() {
+<<<<<<< HEAD
+    const disabledTools = tools.value.filter(tool => !tool.enabled)
+=======
     const disabledTools = tools.value.filter(tool => !isMcpTool(tool) && !tool.enabled)
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     for (const tool of disabledTools) {
       await toggleTool(tool.name, true)
     }
   }
 
   async function disableAll() {
+<<<<<<< HEAD
+    const enabledTools = tools.value.filter(tool => tool.enabled)
+=======
     const enabledTools = tools.value.filter(tool => !isMcpTool(tool) && tool.enabled)
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     for (const tool of enabledTools) {
       await toggleTool(tool.name, false)
     }
@@ -490,7 +528,10 @@ export function useToolsSettings() {
     dependencyInstallFailureLogs,
     toolsByCategory,
     orderedCategories,
+<<<<<<< HEAD
+=======
     isMcpTool,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     isDangerousTool,
     isAutoExec,
     loadTools,

@@ -55,10 +55,13 @@ export const zhCNComponentsSettingsPart2b = {
                 title: '自动执行',
                 description: '配置工具执行时的确认行为'
             },
+<<<<<<< HEAD
+=======
             mcp: {
                 title: 'MCP 设置',
                 description: '配置 Model Context Protocol 服务器'
             },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             checkpoint: {
                 title: '存档点设置',
                 description: '配置代码库快照备份和回退'
@@ -262,8 +265,11 @@ export const zhCNComponentsSettingsPart2b = {
         }
     },
     toolsSettings: {
+<<<<<<< HEAD
+=======
         mcpNote: 'MCP 工具由 MCP 服务提供，无法在此禁用',
         mcpDisableTooltip: '由 MCP 服务提供，无法在此禁用',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         maxIterations: {
             label: '单回合最大工具调用次数',
             hint: '防止 AI 无限循环调用工具，-1 表示无限制',
@@ -307,7 +313,10 @@ export const zhCNComponentsSettingsPart2b = {
             terminal: '终端',
             lsp: '代码智能',
             media: '媒体处理',
+<<<<<<< HEAD
+=======
             mcp: 'MCP',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             other: '其他'
         },
         descriptions: {

@@ -79,7 +79,10 @@ export const zhCNComponentsCommon = {
             config: '配置',
             toolMode: '工具模式',
             tools: '工具',
+<<<<<<< HEAD
+=======
             mcp: 'MCP',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             systemInstruction: '系统指令',
             generatedAt: '生成时间'
         },
@@ -113,7 +116,10 @@ export const zhCNComponentsCommon = {
                 workspaceFiles: '工作区文件',
                 pinnedFiles: '固定文件',
                 tools: '工具',
+<<<<<<< HEAD
+=======
                 mcpTools: 'MCP 工具',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 guidelines: '规范',
                 openTabs: '打开的标签页',
                 activeEditor: '当前编辑器',

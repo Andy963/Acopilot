@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { CustomCheckbox } from '../common'
+<<<<<<< HEAD
+import SummarizeSettings from './SummarizeSettings.vue'
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import { useContextSettings } from './useContextSettings'
 
 const {
@@ -296,7 +300,11 @@ const {
               <div class="preview-meta-row">
                 <span>{{ t('components.settings.contextSettings.ignorePatterns.matchedSummary', { matched: previewStats.ignorePatterns.matchedFiles, scanned: previewStats.ignorePatterns.scannedFiles }) }}</span>
               </div>
+<<<<<<< HEAD
+              <div v-if="previewStats.ignorePatterns.samples.length > 0" class="tabs-list ignore-files-list">
+=======
               <div v-if="previewStats.ignorePatterns.samples.length > 0" class="tabs-list">
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 <code v-for="sample in previewStats.ignorePatterns.samples" :key="sample">{{ sample }}</code>
               </div>
               <div v-if="previewStats.ignorePatterns.byPattern.length > 0" class="pattern-matches">
@@ -409,7 +417,11 @@ const {
               {{ t('components.settings.contextSettings.preview.ignoreMatchesLabel', { count: previewStats?.ignorePatterns.matchedFiles ?? 0 }) }}
             </div>
             <div class="preview-content">
+<<<<<<< HEAD
+              <div v-if="previewStats?.ignorePatterns.samples.length" class="tabs-list ignore-files-list">
+=======
               <div v-if="previewStats?.ignorePatterns.samples.length" class="tabs-list">
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                 <code v-for="sample in previewStats.ignorePatterns.samples" :key="sample">{{ sample }}</code>
               </div>
               <span v-else class="empty">{{ t('components.settings.contextSettings.preview.noValue') }}</span>
@@ -417,6 +429,23 @@ const {
           </div>
         </div>
       </div>
+<<<<<<< HEAD
+
+      <div class="divider"></div>
+
+      <div class="form-group context-summarize-section">
+        <label class="group-label">
+          <i class="codicon codicon-fold"></i>
+          {{ t('components.settings.settingsPanel.sections.summarize.title') }}
+        </label>
+        <p class="field-description">
+          {{ t('components.settings.settingsPanel.sections.summarize.description') }}
+        </p>
+
+        <SummarizeSettings />
+      </div>
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
       
       <!-- 保存状态 -->
       <div class="save-status" v-if="isSaving || saveMessage">

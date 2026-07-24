@@ -45,17 +45,51 @@ function globToRegexPattern(pattern: string): string {
   return regexPattern;
 }
 
+// Module-level RegExp cache to prevent GC pressure and CPU overhead.
+const GLOB_PATTERN_CACHE = new Map<string, RegExp>();
+const MAX_CACHE_SIZE = 2048;
+
+function getOrCreateGlobPatternRegex(pattern: string): RegExp | null {
+  let regex = GLOB_PATTERN_CACHE.get(pattern);
+  if (regex !== undefined) {
+    return regex;
+  }
+
+  const regexPattern = globToRegexPattern(pattern);
+  if (!regexPattern) {
+    return null;
+  }
+
+  regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i');
+
+  // Maintain bounded cache size using simple oldest-entry (first key) eviction
+  if (GLOB_PATTERN_CACHE.size >= MAX_CACHE_SIZE) {
+    const firstKey = GLOB_PATTERN_CACHE.keys().next().value;
+    if (firstKey !== undefined) {
+      GLOB_PATTERN_CACHE.delete(firstKey);
+    }
+  }
+  GLOB_PATTERN_CACHE.set(pattern, regex);
+  return regex;
+}
+
 /**
  * 简单的 glob 模式匹配
  * 支持 * 和 ** 通配符
  */
 export function matchGlobPattern(filePath: string, pattern: string): boolean {
-  const regexPattern = globToRegexPattern(pattern);
-  if (!regexPattern) return false;
-  
-  const regex = new RegExp(`^${regexPattern}$|[/\\\\]${regexPattern}$|^${regexPattern}[/\\\\]|[/\\\\]${regexPattern}[/\\\\]`, 'i');
+  const regex = getOrCreateGlobPatternRegex(pattern);
+  if (!regex) return false;
   return regex.test(filePath.replace(/\\/g, '/'));
 }
+
+// Test-only export to allow unit tests to verify caching behavior, bounds, and eviction.
+export const _TEST_CACHE_ = {
+  getCacheSize: () => GLOB_PATTERN_CACHE.size,
+  getCacheMap: () => GLOB_PATTERN_CACHE,
+  clearCache: () => GLOB_PATTERN_CACHE.clear(),
+  MAX_CACHE_SIZE,
+};
 
 /**
  * 获取当前工作区 URI

@@ -71,8 +71,13 @@ export type {
 // 渠道管理模块
 export * from './modules/channel';
 
+<<<<<<< HEAD
+// API模块
+export * from './modules/api';
+=======
 // MCP模块
 export * from './modules/mcp';
 
 // API模块
 export * from './modules/api';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

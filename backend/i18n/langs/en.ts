@@ -55,6 +55,8 @@ const en: BackendLanguageMessages = {
             }
         },
 
+<<<<<<< HEAD
+=======
         mcp: {
             errors: {
                 connectionFailed: 'Connection failed: {serverName}',
@@ -76,6 +78,7 @@ const en: BackendLanguageMessages = {
             }
         },
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         checkpoint: {
             description: {
                 before: 'Before',
@@ -229,6 +232,8 @@ const en: BackendLanguageMessages = {
                     setActiveModelFailed: 'Failed to set active model'
                 }
             },
+<<<<<<< HEAD
+=======
             mcp: {
                 errors: {
                     listServersFailed: 'Failed to get MCP server list',
@@ -242,6 +247,7 @@ const en: BackendLanguageMessages = {
                     disconnectServerFailed: 'Failed to disconnect MCP server'
                 }
             },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             chat: {
                 errors: {
                     configNotFound: 'Configuration not found: {configId}',
@@ -250,8 +256,11 @@ const en: BackendLanguageMessages = {
                     unknownError: 'Unknown error',
                     streamEndedUnexpectedly: 'Stream ended unexpectedly (no completion marker received), please retry',
                     toolExecutionSuccess: 'Tool execution successful',
+<<<<<<< HEAD
+=======
                     mcpToolCallFailed: 'MCP tool call failed',
                     invalidMcpToolName: 'Invalid MCP tool name: {toolName}',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
                     toolNotFound: 'Tool not found: {toolName}',
                     toolExecutionFailed: 'Tool execution failed',
                     noHistory: 'Conversation history is empty',
@@ -388,7 +397,10 @@ Requirements:
             getToolConfigFailed: 'Failed to get tool config',
             updateToolConfigFailed: 'Failed to update tool config',
             getAutoExecConfigFailed: 'Failed to get auto exec config',
+<<<<<<< HEAD
+=======
             getMcpToolsFailed: 'Failed to get MCP tools list',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             setToolAutoExecFailed: 'Failed to set tool auto exec',
             updateListFilesConfigFailed: 'Failed to update list_files config',
             updateApplyDiffConfigFailed: 'Failed to update apply_diff config',
@@ -425,6 +437,8 @@ Requirements:
             openFileFailed: 'Failed to open file',
             saveImageFailed: 'Failed to save image',
             
+<<<<<<< HEAD
+=======
             openMcpConfigFailed: 'Failed to open MCP config file',
             getMcpServersFailed: 'Failed to get MCP servers list',
             validateMcpServerIdFailed: 'Failed to validate MCP server ID',
@@ -435,6 +449,7 @@ Requirements:
             disconnectMcpServerFailed: 'Failed to disconnect MCP server',
             setMcpServerEnabledFailed: 'Failed to set MCP server status',
             
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             getSummarizeConfigFailed: 'Failed to get summarize config',
             updateSummarizeConfigFailed: 'Failed to update summarize config',
             summarizeFailed: 'Context summarization failed',

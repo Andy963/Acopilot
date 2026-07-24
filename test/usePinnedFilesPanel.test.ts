@@ -219,6 +219,43 @@ describe('usePinnedFilesPanel pinned prompt flow', () => {
     expect(mockChatStore.setPinnedPrompts).not.toHaveBeenCalled()
   })
 
+<<<<<<< HEAD
+  it('deletes the selected preset and drops it from active pinned prompts', async () => {
+    mockChatStore.pinnedPrompts = [
+      { id: 'preset:prompt-review', mode: 'preset', presetId: 'prompt-review', order: 0 },
+    ]
+    mockSendToExtension.mockImplementation(async (type: string) => {
+      if (type === 'pinnedPromptPresets.delete') return { presets: [] }
+      throw new Error(`Unexpected request: ${type}`)
+    })
+
+    const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
+    panel.presets.value = [{ id: 'prompt-review', name: 'Review', prompt: 'Review carefully' }]
+    panel.selectedPresetId.value = 'prompt-review'
+
+    await panel.handleDeleteSelectedPreset()
+
+    expect(mockSendToExtension).toHaveBeenCalledWith('pinnedPromptPresets.delete', { id: 'prompt-review' })
+    expect(panel.presets.value).toEqual([])
+    expect(mockChatStore.setPinnedPrompts).toHaveBeenCalledWith([])
+    expect(panel.selectedPresetId.value).toBe('')
+    expect(mockShowNotification).toHaveBeenCalledWith(
+      'components.input.notifications.pinnedPromptPresetDeleted',
+      'info',
+    )
+  })
+
+  it('does not call the backend when no preset is selected for deletion', async () => {
+    const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
+    panel.selectedPresetId.value = ''
+
+    await panel.handleDeleteSelectedPreset()
+
+    expect(mockSendToExtension).not.toHaveBeenCalled()
+  })
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   it('clears the pinned prompt via chatStore', async () => {
     const panel = usePinnedFilesPanel({ visible: false }, vi.fn() as any)
     panel.customPromptDraft.value = 'Temporary prompt'

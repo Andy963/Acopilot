@@ -29,7 +29,11 @@ describe('prompt context priority', () => {
     expect(DEFAULT_SYSTEM_PROMPT_TEMPLATE).not.toContain('The latest normal user message is the current task');
     expect(DEFAULT_SYSTEM_PROMPT_TEMPLATE).not.toContain('PRIOR CONVERSATION USER MESSAGE');
     expect(DEFAULT_SYSTEM_PROMPT_TEMPLATE).not.toContain('LATEST USER REQUEST');
+<<<<<<< HEAD
+    expect(DEFAULT_SYSTEM_PROMPT_TEMPLATE).not.toContain('{{$MCP_TOOLS}}');
+=======
     expect(DEFAULT_SYSTEM_PROMPT_TEMPLATE).toContain('{{$MCP_TOOLS}}');
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   });
 
   it('injects conversation-message semantics into the actual system instruction', () => {
@@ -49,6 +53,22 @@ describe('prompt context priority', () => {
     expect(rendered).toBe(['CUSTOM PREFIX', 'BASE TEMPLATE', 'CUSTOM SUFFIX'].join('\n\n'));
   });
 
+<<<<<<< HEAD
+  it('strips the legacy MCP tools placeholder from saved prompt templates', () => {
+    const manager = new PromptManager({ includeWorkspaceFiles: false });
+    const rendered = (manager as any).generateFromTemplate(
+      'BEFORE\n\n{{$MCP_TOOLS}}\n\nAFTER',
+      '',
+      ''
+    );
+
+    expect(rendered).toContain('BEFORE');
+    expect(rendered).toContain('AFTER');
+    expect(rendered).not.toContain('{{$MCP_TOOLS}}');
+  });
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
   it('wraps current-turn context separately from the latest user request', () => {
     const requestHistory: any[] = [
       { role: 'user', parts: [{ text: 'Do not edit code.' }] },

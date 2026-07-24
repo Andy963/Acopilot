@@ -14,7 +14,10 @@ import type { ToolRegistry } from '../../../tools/ToolRegistry';
 import type { CheckpointManager, CheckpointRecord } from '../../checkpoint';
 import type { SettingsManager } from '../../settings/SettingsManager';
 import { DEFAULT_MAX_TOOL_ITERATIONS } from '../../settings/types';
+<<<<<<< HEAD
+=======
 import type { McpManager } from '../../mcp/McpManager';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 import { PromptManager } from '../../prompt';
 import { StreamAccumulator } from '../../channel/StreamAccumulator';
 import { TokenCountService, type TokenCountResult } from '../../channel/TokenCountService';
@@ -45,7 +48,10 @@ import { buildContextInspectorData } from './contextInspector';
 export class ChatHandler {
     private checkpointManager?: CheckpointManager;
     private settingsManager?: SettingsManager;
+<<<<<<< HEAD
+=======
     private mcpManager?: McpManager;
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     private diffStorageManager?: DiffStorageManager;
     private promptManager: PromptManager;
     private tokenCountService: TokenCountService;
@@ -86,7 +92,10 @@ export class ChatHandler {
         );
         this.toolExecutionService = new ToolExecutionService(
             this.toolRegistry,
+<<<<<<< HEAD
+=======
             this.mcpManager,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             this.settingsManager,
             this.checkpointService
         );
@@ -172,6 +181,8 @@ export class ChatHandler {
     }
     
     /**
+<<<<<<< HEAD
+=======
      * 设置 MCP 管理器（可选）
      */
     setMcpManager(mcpManager: McpManager): void {
@@ -180,6 +191,7 @@ export class ChatHandler {
     }
     
     /**
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
      * 设置 Diff 存储管理器（可选）
      * 用于抽离 apply_diff 工具的 originalContent/newContent 大字段
      */

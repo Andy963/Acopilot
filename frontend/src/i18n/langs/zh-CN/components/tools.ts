@@ -133,6 +133,8 @@ export const zhCNComponentsTools = {
             expandRemaining: '展开剩余 {count} 个'
         }
     },
+<<<<<<< HEAD
+=======
     mcp: {
         mcpTool: 'MCP 工具',
         serverName: '服务器名称',
@@ -144,6 +146,7 @@ export const zhCNComponentsTools = {
             waitingResponse: '等待响应...'
         }
     },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     media: {
         generateImage: '生成图片',
         resizeImage: '缩放图片',

@@ -8,7 +8,10 @@ import type { ToolIterationLoopConfig } from './types';
 import {
     appendConversationMessageSemantics,
     buildSnapshotModules,
+<<<<<<< HEAD
+=======
     countMcpTools,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     getOrInitConversationStartTime,
     truncatePreview
 } from './helpers';
@@ -81,8 +84,11 @@ export async function buildPromptAndSnapshot(params: {
         const allowSet = new Set(toolAllowList);
         declarations = declarations.filter((d) => allowSet.has(d.name));
     }
+<<<<<<< HEAD
+=======
     const mcpCount = countMcpTools(declarations);
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     let toolsDefinition = '';
     if (toolMode === 'xml') {
         toolsDefinition = convertToolsToXML(declarations);
@@ -97,10 +103,16 @@ export async function buildPromptAndSnapshot(params: {
             : dynamicSystemPrompt;
     }
 
+<<<<<<< HEAD
+    systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, '');
+    if (systemInstruction && systemInstruction.includes('{{$TOOLS}}')) {
+        systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
+=======
     const mcpToolsDefinition = '';
     if (systemInstruction && (systemInstruction.includes('{{$TOOLS}}') || systemInstruction.includes('{{$MCP_TOOLS}}'))) {
         systemInstruction = systemInstruction.replace(/\{\{\$TOOLS\}\}/g, toolsDefinition);
         systemInstruction = systemInstruction.replace(/\{\{\$MCP_TOOLS\}\}/g, mcpToolsDefinition);
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     } else if (toolsDefinition) {
         systemInstruction = systemInstruction
             ? `${systemInstruction}\n\n${toolsDefinition}`
@@ -154,7 +166,10 @@ export async function buildPromptAndSnapshot(params: {
         tools: {
             toolMode,
             total: declarations.length,
+<<<<<<< HEAD
+=======
             mcp: mcpCount,
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             definitionPreview: toolDefPreview?.preview,
             definitionCharCount: toolDefPreview?.charCount,
             definitionTruncated: toolDefPreview?.truncated,

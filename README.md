@@ -37,21 +37,31 @@
 | | `resize_image` | 调整图片尺寸 |
 | | `rotate_image` | 旋转图片 |
 
+<<<<<<< HEAD
+=======
 ### 🔌 MCP 协议支持
 - 支持 Model Context Protocol (MCP)
 - 可连接外部 MCP 服务器扩展工具能力
 - 支持 Stdio 和 HTTP 两种连接方式
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 ### 📝 智能上下文
 - **工作区文件树** - 自动发送项目结构
 - **打开的标签页** - 感知当前正在编辑的文件
 - **固定文件** - 重要文件始终包含在上下文中
+<<<<<<< HEAD
+- **上下文总结** - 自动压缩长对话，总结策略在上下文设置中统一管理
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 - **自定义提示词模板** - 使用 `{{$VARIABLE}}` 变量自定义系统提示词
 
 ### 💾 会话管理
 - **对话历史** - 自动保存所有对话
 - **存档点** - 自动创建代码备份，支持一键恢复
+<<<<<<< HEAD
+=======
 - **上下文总结** - 自动压缩长对话，节省 Token
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 
 ## 📦 安装
 
@@ -107,7 +117,11 @@ npx vsce package
 
 ### 高级配置
 - **系统提示词模板** - 自定义 AI 角色和行为
+<<<<<<< HEAD
+- **上下文感知与总结** - 控制发送的上下文信息和长对话压缩策略
+=======
 - **上下文感知** - 控制发送的上下文信息
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 - **存档点** - 配置自动备份策略
 
 ## 🏗️ 架构
@@ -122,7 +136,10 @@ acopilot/
 │   │   ├── channel/   # AI 渠道管理
 │   │   ├── config/    # 配置管理
 │   │   ├── conversation/ # 对话管理
+<<<<<<< HEAD
+=======
 │   │   ├── mcp/       # MCP 协议
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 │   │   ├── prompt/    # 提示词管理
 │   │   └── settings/  # 设置管理
 │   └── tools/         # 工具系统
@@ -145,4 +162,8 @@ acopilot/
 
 <p align="center">
   Made with ❤️ by Acopilot Team
+<<<<<<< HEAD
 </p>
+=======
+</p>
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

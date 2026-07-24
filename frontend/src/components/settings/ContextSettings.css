@@ -133,6 +133,13 @@
   margin: 4px 0;
 }
 
+<<<<<<< HEAD
+.context-summarize-section {
+  min-width: 0;
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 /* 忽略模式样式 */
 .ignore-patterns {
   display: flex;
@@ -408,6 +415,17 @@
   min-width: 0;
 }
 
+<<<<<<< HEAD
+.ignore-files-list {
+  max-height: 120px;
+  overflow-y: auto;
+  align-content: flex-start;
+  padding: 4px;
+  scrollbar-gutter: stable;
+}
+
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
 .preview-pre {
   max-height: 220px;
   overflow: auto;

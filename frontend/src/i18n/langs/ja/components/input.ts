@@ -6,6 +6,10 @@ export const jaComponentsInput = {
     attachFile: 'ファイルを添付',
     pinnedFiles: 'ピン留めコンテキスト',
     createPlan: 'Plan & Run',
+<<<<<<< HEAD
+    quoteSelection: '選択範囲を三重引用符で囲む',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     summarizeContext: 'コンテキストを要約',
     summarizeKeepRoundsHint: '直近 {count} ラウンドを保持',
     selectChannel: 'チャンネルを選択',
@@ -83,6 +87,10 @@ export const jaComponentsInput = {
             presetsEmptyOption: '保存済みプロンプトを選択',
             presetsEmpty: '保存済みプロンプトはまだありません。下で保存するとプロジェクトを超えて再利用できます。',
             selectedPresetHint: '選択中のプロンプト: {name}',
+<<<<<<< HEAD
+            deletePreset: '選択したプロンプトを削除',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             label: 'カスタムプロンプト',
             placeholder: '現在の会話にのみ適用されるプロンプトを入力...',
             save: 'この会話で使用',
@@ -134,6 +142,11 @@ export const jaComponentsInput = {
         fileReferenceAdded: 'ファイル参照をチャットに追加しました',
         addFailed: '追加に失敗しました: {error}',
         loadPinnedPromptPresetsFailed: '保存済みプロンプトの読み込みに失敗しました: {error}',
+<<<<<<< HEAD
+        pinnedPromptPresetDeleted: 'プロンプトを削除しました',
+        deletePinnedPromptPresetFailed: 'プロンプトの削除に失敗しました: {error}',
+=======
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         cannotGetFilePath: 'ファイルパスを取得できません。VSCode エクスプローラーまたはタブからドラッグしてください',
         fileNotMatchOrNotInWorkspace: 'ファイルがワークスペース内にないか、ファイル名が一致しません',
         removeFailed: '削除に失敗しました: {error}'

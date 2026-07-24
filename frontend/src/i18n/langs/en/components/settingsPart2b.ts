@@ -55,10 +55,13 @@ export const enComponentsSettingsPart2b = {
                 title: 'Auto Execution',
                 description: 'Configure confirmation behavior when executing tools'
             },
+<<<<<<< HEAD
+=======
             mcp: {
                 title: 'MCP Settings',
                 description: 'Configure Model Context Protocol servers'
             },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             checkpoint: {
                 title: 'Checkpoint Settings',
                 description: 'Configure codebase snapshot backup and rollback'
@@ -262,8 +265,11 @@ export const enComponentsSettingsPart2b = {
         }
     },
     toolsSettings: {
+<<<<<<< HEAD
+=======
         mcpNote: 'MCP tools are provided by MCP servers and cannot be disabled here',
         mcpDisableTooltip: 'Provided by MCP server, cannot be disabled here',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
         maxIterations: {
             label: 'Max Tool Calls Per Turn',
             hint: 'Prevents AI from infinite tool call loops, -1 for unlimited',
@@ -307,7 +313,10 @@ export const enComponentsSettingsPart2b = {
             terminal: 'Terminal',
             lsp: 'Code Intelligence',
             media: 'Media Processing',
+<<<<<<< HEAD
+=======
             mcp: 'MCP',
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
             other: 'Other'
         },
         descriptions: {

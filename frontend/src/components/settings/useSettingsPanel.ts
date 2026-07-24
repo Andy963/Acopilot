@@ -46,9 +46,13 @@ export function useSettingsPanel() {
   const tabs = computed<TabItem[]>(() => [
     { id: 'channel', label: t('components.settings.tabs.channel'), icon: 'codicon-server' },
     { id: 'tools', label: t('components.settings.tabs.tools'), icon: 'codicon-tools' },
+<<<<<<< HEAD
+    { id: 'checkpoint', label: t('components.settings.tabs.checkpoint'), icon: 'codicon-history' },
+=======
     { id: 'mcp', label: t('components.settings.tabs.mcp'), icon: 'codicon-plug' },
     { id: 'checkpoint', label: t('components.settings.tabs.checkpoint'), icon: 'codicon-history' },
     { id: 'summarize', label: t('components.settings.tabs.summarize'), icon: 'codicon-fold' },
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
     { id: 'imageGen', label: t('components.settings.tabs.imageGen'), icon: 'codicon-symbol-color' },
     { id: 'context', label: t('components.settings.tabs.context'), icon: 'codicon-symbol-namespace' },
     { id: 'prompt', label: t('components.settings.tabs.prompt'), icon: 'codicon-note' },
@@ -334,4 +338,7 @@ export function useSettingsPanel() {
     reloadWindow,
   }
 }
+<<<<<<< HEAD
+=======
 
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)

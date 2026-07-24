@@ -93,6 +93,8 @@ export type {
     SetActiveModelRequest,
     SetActiveModelResponse
 } from './models';
+<<<<<<< HEAD
+=======
 
 // MCP 模块
 export { McpHandler } from './mcp';
@@ -116,3 +118,4 @@ export type {
     McpServerChangeNotification,
     McpApiError
 } from './mcp';
+>>>>>>> f327a97 (merge: dev into main for v1.2.0)
