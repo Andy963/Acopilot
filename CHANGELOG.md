@@ -2,6 +2,12 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.2.4] - 2026-07-24
+
+### Fixed
+  - Chat: restore streaming auto-scroll. Sending a message now scrolls to it, and the view follows the streaming reply until the reply top reaches the viewport top. The follow state no longer latches into a paused state on its own, which previously stopped auto-scroll entirely and forced manual scrolling.
+  - Chat: replace the timing-sensitive programmatic-scroll flag with deterministic, position-based user-scroll detection, so streaming content growth is never mistaken for a manual scroll-up.
+
 ## [1.2.3] - 2026-07-17
 
 ### Added
