@@ -9,6 +9,7 @@ import {
   resetAfterStreamEnd,
   resetForNewStream,
   resumeFollowLatest,
+  shouldPauseForUserScroll,
   shouldShowJumpToLatest,
   type StreamingFollowState
 } from './streamingScrollGuard'
@@ -22,6 +23,7 @@ export interface ScrollbarHandle {
 const VISIBLE_INCREMENT = 40
 const DEFAULT_STICKY_THRESHOLD_PX = 50
 const STREAMING_GUARD_MARGIN_PX = 8
+const USER_SCROLL_UP_THRESHOLD_PX = 8
 
 export function useMessageListScroll(messages: Ref<Message[]>) {
   const chatStore = useChatStore()
@@ -36,7 +38,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
 
   let resizeObserver: ResizeObserver | null = null
   let scheduledAutoScrollRaf: number | null = null
-  let isProgrammaticScroll = false
+  let lastProgrammaticScrollTop = 0
 
   const wasAtBottom = ref(true)
   const streamingFollowState = ref<StreamingFollowState>(createInitialStreamingFollowState())
@@ -49,21 +51,18 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     return container.scrollHeight - container.scrollTop - container.clientHeight <= DEFAULT_STICKY_THRESHOLD_PX
   }
 
-  function withProgrammaticScroll(fn: () => void) {
-    isProgrammaticScroll = true
-    fn()
-    requestAnimationFrame(() => {
-      isProgrammaticScroll = false
-    })
+  function applyProgrammaticScroll(container: HTMLElement, nextScrollTop: number) {
+    container.scrollTop = nextScrollTop
+    // Record the resulting (clamped) position so handleScroll can tell our
+    // own scroll apart from a genuine user scroll without relying on timing.
+    lastProgrammaticScrollTop = container.scrollTop
   }
 
   function scrollToBottomNow() {
     const container = getScrollContainer()
     if (!container) return
 
-    withProgrammaticScroll(() => {
-      container.scrollTop = container.scrollHeight
-    })
+    applyProgrammaticScroll(container, container.scrollHeight)
     scrollbarRef.value?.update?.()
   }
 
@@ -96,6 +95,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     nextTick(() => {
       const newScrollHeight = container.scrollHeight
       container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight)
+      lastProgrammaticScrollTop = container.scrollTop
 
       // Delay clearing the flag until the next frame so that any
       // synchronous scroll events fired by the scrollTop assignment
@@ -110,7 +110,18 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     const container = event.target as HTMLElement
     if (!container) return
 
-    if (chatStore.isStreaming && !isProgrammaticScroll && streamingFollowState.value.mode === 'following' && !isAtBottom(container)) {
+    const distanceFromBottomPx = container.scrollHeight - container.scrollTop - container.clientHeight
+    if (
+      shouldPauseForUserScroll({
+        isStreaming: chatStore.isStreaming,
+        mode: streamingFollowState.value.mode,
+        currentScrollTop: container.scrollTop,
+        lastProgrammaticScrollTop,
+        distanceFromBottomPx,
+        stickyThresholdPx: DEFAULT_STICKY_THRESHOLD_PX,
+        userScrollUpThresholdPx: USER_SCROLL_UP_THRESHOLD_PX
+      })
+    ) {
       resetStreamingFollowState(pauseForUserScroll(streamingFollowState.value))
     }
 
@@ -131,9 +142,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
   function performStreamingAutoScroll(container: HTMLElement, streamingMessageId: string) {
     if (streamingFollowState.value.mode !== 'following') return
 
-    withProgrammaticScroll(() => {
-      container.scrollTop = container.scrollHeight
-    })
+    applyProgrammaticScroll(container, container.scrollHeight)
 
     const anchor = container.querySelector<HTMLElement>(`[data-message-id="${streamingMessageId}"]`)
     if (!anchor) {
@@ -151,9 +160,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
 
     const { nextState, clampDeltaPx: nextClampDeltaPx } = computeGuardAction(streamingFollowState.value, clampDeltaPx)
     if (nextClampDeltaPx > 0) {
-      withProgrammaticScroll(() => {
-        container.scrollTop = Math.max(0, container.scrollTop - nextClampDeltaPx)
-      })
+      applyProgrammaticScroll(container, Math.max(0, container.scrollTop - nextClampDeltaPx))
     }
 
     resetStreamingFollowState(nextState)
@@ -163,9 +170,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
   function performNonStreamingStickyBottom(container: HTMLElement) {
     if (!wasAtBottom.value) return
 
-    withProgrammaticScroll(() => {
-      container.scrollTop = container.scrollHeight
-    })
+    applyProgrammaticScroll(container, container.scrollHeight)
     wasAtBottom.value = true
   }
 
@@ -258,6 +263,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
 
       container.addEventListener('scroll', handleScroll, { passive: true })
       wasAtBottom.value = isAtBottom(container)
+      lastProgrammaticScrollTop = container.scrollTop
 
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
