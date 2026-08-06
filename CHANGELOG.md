@@ -2,7 +2,7 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
-## [1.2.5-pre.0] - 2026-08-06
+## [1.2.5] - 2026-08-06
 
 ### Added
   - History: edit conversation titles inline and persist them as conversation metadata without modifying the first message or any conversation history.
