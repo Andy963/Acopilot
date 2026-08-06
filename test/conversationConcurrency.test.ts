@@ -92,4 +92,18 @@ describe('ConversationManager same-conversation concurrency', () => {
     expect(metadata?.custom).toMatchObject({ language: 'ts' });
     expect(metadata?.createdAt).toBe(before?.createdAt);
   });
+
+  it('changes only metadata when renaming a conversation', async () => {
+    const manager = new ConversationManager(new MemoryStorageAdapter());
+    const conversationId = 'metadata-only-title';
+
+    await manager.createConversation(conversationId, 'initial title');
+    await manager.addMessage(conversationId, 'user', [{ text: 'original message' }]);
+    const historyBeforeRename = await manager.getHistory(conversationId);
+
+    await manager.setTitle(conversationId, 'renamed title');
+
+    expect(await manager.getMetadata(conversationId)).toMatchObject({ title: 'renamed title' });
+    expect(await manager.getHistory(conversationId)).toEqual(historyBeforeRename);
+  });
 });

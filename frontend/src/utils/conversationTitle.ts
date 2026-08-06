@@ -1,6 +1,7 @@
 import type { Message } from '../types'
 
 export const DEFAULT_CONVERSATION_TITLE_MAX_LEN = 30
+export const MANUAL_CONVERSATION_TITLE_MAX_LEN = 100
 
 function normalizeTitleCandidate(raw: string): string {
   const input = String(raw || '')
@@ -15,6 +16,15 @@ function normalizeTitleCandidate(raw: string): string {
     .trim()
 
   return cleaned
+}
+
+export function normalizeConversationTitle(
+  rawText: string,
+  maxLen = MANUAL_CONVERSATION_TITLE_MAX_LEN
+): string {
+  const candidate = normalizeTitleCandidate(rawText)
+  if (!candidate) return ''
+  return truncateByCodePoints(candidate, maxLen)
 }
 
 function truncateByCodePoints(text: string, maxLen: number, ellipsis = '…'): string {
@@ -43,4 +53,3 @@ export function generateConversationTitleFromMessages(
   }
   return ''
 }
-

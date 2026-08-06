@@ -8,7 +8,7 @@ import type { ChatStoreState, Conversation, CheckpointRecord } from './types'
 import { sendToExtension } from '../../utils/vscode'
 import { contentToMessageEnhanced } from './parsers'
 import type { Content } from '../../types'
-import { generateConversationTitleFromText } from '../../utils/conversationTitle'
+import { generateConversationTitleFromText, normalizeConversationTitle } from '../../utils/conversationTitle'
 import { createDefaultPinnedPrompt, createDefaultPinnedPrompts, loadPinnedPrompt, resolveDefaultPinnedPromptForNewConversation } from './pinnedPromptActions'
 import { createDefaultChatMode, loadChatMode } from './chatModeActions'
 
@@ -148,6 +148,33 @@ export async function loadConversations(state: ChatStoreState): Promise<void> {
     }
   } finally {
     state.isLoadingConversations.value = false
+  }
+}
+
+export async function renameConversation(
+  state: ChatStoreState,
+  id: string,
+  rawTitle: string
+): Promise<boolean> {
+  const conversation = state.conversations.value.find(item => item.id === id)
+  if (!conversation || !conversation.isPersisted) return false
+
+  const title = normalizeConversationTitle(rawTitle)
+  if (!title) return false
+
+  try {
+    await sendToExtension('conversation.setTitle', {
+      conversationId: id,
+      title
+    })
+    conversation.title = title
+    return true
+  } catch (err: any) {
+    state.error.value = {
+      code: err.code || 'RENAME_ERROR',
+      message: err.message || 'Failed to rename conversation'
+    }
+    return false
   }
 }
 

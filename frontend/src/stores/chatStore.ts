@@ -42,6 +42,7 @@ import {
   loadCheckpoints,
   switchConversation as switchConvAction,
   deleteConversation as deleteConvAction,
+  renameConversation as renameConvAction,
   isDeletingConversation,
   updateConversationAfterMessage
 } from './chat/conversationActions'
@@ -180,6 +181,7 @@ export const useChatStore = defineStore('chat', () => {
     switchConversation,
     createNewConversation
   )
+  const renameConversation = (id: string, title: string) => renameConvAction(state, id, title)
 
   // ============ 配置操作 ============
 
@@ -332,6 +334,7 @@ export const useChatStore = defineStore('chat', () => {
     loadConversations,
     switchConversation,
     deleteConversation,
+    renameConversation,
     isDeletingConversation: (id: string) => isDeletingConversation(state, id),
 
     // 消息管理

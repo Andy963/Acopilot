@@ -4,7 +4,7 @@
  * 扁平化设计，显示所有对话记录
  */
 
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { IconButton } from '../common'
 import { useChatStore } from '../../stores'
 import { sendToExtension } from '../../utils/vscode'
@@ -38,6 +38,10 @@ const chatStore = useChatStore()
 
 // 悬停状态
 const hoverItemId = ref<string | null>(null)
+const editingId = ref<string | null>(null)
+const editingTitle = ref('')
+const savingId = ref<string | null>(null)
+const titleInput = ref<HTMLInputElement | null>(null)
 const selectedIdSet = computed(() => new Set(props.selectedIds))
 
 // 处理删除
@@ -59,6 +63,31 @@ async function handleRevealInExplorer(id: string) {
     await sendToExtension('conversation.revealInExplorer', { conversationId: id })
   } catch (error) {
     console.error('Failed to reveal in explorer:', error)
+  }
+}
+
+async function handleStartEdit(conversation: Conversation) {
+  if (!conversation.isPersisted || chatStore.isDeletingConversation(conversation.id)) return
+  editingId.value = conversation.id
+  editingTitle.value = conversation.title
+  await nextTick()
+  titleInput.value?.focus()
+  titleInput.value?.select()
+}
+
+function handleCancelEdit() {
+  editingId.value = null
+  editingTitle.value = ''
+}
+
+async function handleSaveTitle(conversation: Conversation) {
+  if (editingId.value !== conversation.id || savingId.value) return
+  savingId.value = conversation.id
+  try {
+    const saved = await chatStore.renameConversation(conversation.id, editingTitle.value)
+    if (saved) handleCancelEdit()
+  } finally {
+    savingId.value = null
   }
 }
 </script>
@@ -94,7 +123,19 @@ async function handleRevealInExplorer(id: string) {
         </label>
 
         <div class="item-content">
-          <div class="item-title">{{ conversation.title }}</div>
+          <input
+            v-if="editingId === conversation.id"
+            ref="titleInput"
+            v-model="editingTitle"
+            class="item-title-input"
+            type="text"
+            maxlength="100"
+            :aria-label="t('components.history.editTitle')"
+            @click.stop
+            @keydown.enter.prevent="handleSaveTitle(conversation)"
+            @keydown.esc.prevent="handleCancelEdit"
+          />
+          <div v-else class="item-title">{{ conversation.title }}</div>
           <div v-if="conversation.preview" class="item-preview">{{ conversation.preview }}</div>
           <div class="item-meta">
             <span class="item-time">{{ formatTime(conversation.updatedAt) }}</span>
@@ -110,7 +151,7 @@ async function handleRevealInExplorer(id: string) {
 
         <!-- 操作按钮 -->
         <div
-          v-show="hoverItemId === conversation.id || chatStore.isDeletingConversation(conversation.id)"
+          v-show="editingId === conversation.id || hoverItemId === conversation.id || chatStore.isDeletingConversation(conversation.id)"
           class="item-actions"
           @click.stop
         >
@@ -118,7 +159,32 @@ async function handleRevealInExplorer(id: string) {
             v-if="chatStore.isDeletingConversation(conversation.id)"
             class="codicon codicon-loading codicon-modifier-spin deleting-indicator"
           ></i>
+          <template v-else-if="editingId === conversation.id">
+            <IconButton
+              icon="codicon-check"
+              size="small"
+              :loading="savingId === conversation.id"
+              :tooltip="t('components.history.saveTitle')"
+              :aria-label="t('components.history.saveTitle')"
+              @click="handleSaveTitle(conversation)"
+            />
+            <IconButton
+              icon="codicon-close"
+              size="small"
+              :disabled="savingId === conversation.id"
+              :tooltip="t('components.history.cancelEditTitle')"
+              :aria-label="t('components.history.cancelEditTitle')"
+              @click="handleCancelEdit"
+            />
+          </template>
           <template v-else>
+            <IconButton
+              icon="codicon-edit"
+              size="small"
+              :tooltip="t('components.history.editTitle')"
+              :aria-label="t('components.history.editTitle')"
+              @click="handleStartEdit(conversation)"
+            />
             <IconButton
               icon="codicon-folder-opened"
               size="small"
@@ -237,6 +303,19 @@ async function handleRevealInExplorer(id: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.item-title-input {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: var(--radius-sm, 2px);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  line-height: 1.3;
+  outline: none;
 }
 
 .item-meta {
