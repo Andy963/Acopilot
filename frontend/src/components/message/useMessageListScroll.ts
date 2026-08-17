@@ -80,6 +80,19 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     streamingFollowState.value = nextState
   }
 
+  function beginStreamingFollow() {
+    const container = getScrollContainer()
+    if (container) {
+      // Establish the baseline before the new message DOM is rendered. A
+      // position the user chose before sending is not a scroll-up during this
+      // stream and must not pause the new response's auto-follow.
+      lastProgrammaticScrollTop = container.scrollTop
+      wasAtBottom.value = isAtBottom(container)
+    }
+    resetStreamingFollowState(resetForNewStream())
+    scheduleAutoScroll()
+  }
+
   function loadMore() {
     if (isLoadingMore.value || !hasMore.value || !scrollbarRef.value) return
 
@@ -223,7 +236,6 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     () => chatStore.streamingMessageId,
     (newId, oldId) => {
       if (newId && newId !== oldId) {
-        resetStreamingFollowState(resetForNewStream())
         scheduleAutoScroll()
       }
     }
@@ -232,6 +244,11 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
   watch(
     () => chatStore.isStreaming,
     (isStreaming, wasStreaming) => {
+      if (isStreaming && !wasStreaming) {
+        beginStreamingFollow()
+        return
+      }
+
       if (!isStreaming && wasStreaming) {
         resetStreamingFollowState(resetAfterStreamEnd())
       }

@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.2.6] - 2026-08-17
+
+### Fixed
+  - Chat: preserve streaming auto-follow when a new prompt is sent while the user is scrolled above the previous conversation output.
+
 ## [1.2.5] - 2026-08-06
 
 ### Added

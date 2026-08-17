@@ -68,6 +68,19 @@ describe('shouldPauseForUserScroll', () => {
     ).toBe(false)
   })
 
+  it('does not pause for a position that was already selected before streaming started', () => {
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'following',
+        currentScrollTop: 500,
+        lastProgrammaticScrollTop: 500,
+        distanceFromBottomPx: 400,
+        ...base
+      })
+    ).toBe(false)
+  })
+
   it('pauses when the user scrolls up beyond the threshold and away from bottom', () => {
     expect(
       shouldPauseForUserScroll({
