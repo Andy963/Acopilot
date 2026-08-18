@@ -24,6 +24,7 @@ const VISIBLE_INCREMENT = 40
 const DEFAULT_STICKY_THRESHOLD_PX = 50
 const STREAMING_GUARD_MARGIN_PX = 8
 const USER_SCROLL_UP_THRESHOLD_PX = 8
+const MAX_INITIAL_STREAMING_SCROLL_FRAMES = 5
 
 export function useMessageListScroll(messages: Ref<Message[]>) {
   const chatStore = useChatStore()
@@ -39,6 +40,8 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
   let resizeObserver: ResizeObserver | null = null
   let scheduledAutoScrollRaf: number | null = null
   let lastProgrammaticScrollTop = 0
+  let initialStreamingAutoFollowPending = false
+  let initialStreamingAutoFollowFrames = 0
 
   const wasAtBottom = ref(true)
   const streamingFollowState = ref<StreamingFollowState>(createInitialStreamingFollowState())
@@ -80,17 +83,24 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     streamingFollowState.value = nextState
   }
 
+  function scheduleAutoScrollAfterRender() {
+    nextTick(() => {
+      scheduleAutoScroll()
+    })
+  }
+
   function beginStreamingFollow() {
     const container = getScrollContainer()
     if (container) {
-      // Establish the baseline before the new message DOM is rendered. A
-      // position the user chose before sending is not a scroll-up during this
-      // stream and must not pause the new response's auto-follow.
+      // Establish a local baseline for the position the user chose before
+      // sending. The first auto-follow pass below will replace this with the
+      // real bottom after the new user/assistant DOM is rendered.
       lastProgrammaticScrollTop = container.scrollTop
-      wasAtBottom.value = isAtBottom(container)
     }
+    initialStreamingAutoFollowPending = true
+    initialStreamingAutoFollowFrames = 0
     resetStreamingFollowState(resetForNewStream())
-    scheduleAutoScroll()
+    scheduleAutoScrollAfterRender()
   }
 
   function loadMore() {
@@ -128,6 +138,7 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
       shouldPauseForUserScroll({
         isStreaming: chatStore.isStreaming,
         mode: streamingFollowState.value.mode,
+        initialAutoFollowPending: initialStreamingAutoFollowPending,
         currentScrollTop: container.scrollTop,
         lastProgrammaticScrollTop,
         distanceFromBottomPx,
@@ -153,13 +164,31 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
   }
 
   function performStreamingAutoScroll(container: HTMLElement, streamingMessageId: string) {
-    if (streamingFollowState.value.mode !== 'following') return
+    const isInitialAutoFollow = initialStreamingAutoFollowPending
+    if (streamingFollowState.value.mode !== 'following' && !isInitialAutoFollow) return
 
     applyProgrammaticScroll(container, container.scrollHeight)
 
     const anchor = container.querySelector<HTMLElement>(`[data-message-id="${streamingMessageId}"]`)
     if (!anchor) {
+      if (isInitialAutoFollow) {
+        initialStreamingAutoFollowFrames += 1
+        if (initialStreamingAutoFollowFrames <= MAX_INITIAL_STREAMING_SCROLL_FRAMES) {
+          scheduleAutoScrollAfterRender()
+        } else {
+          initialStreamingAutoFollowPending = false
+        }
+      }
       wasAtBottom.value = isAtBottom(container)
+      return
+    }
+
+    if (isInitialAutoFollow) {
+      initialStreamingAutoFollowPending = false
+      initialStreamingAutoFollowFrames = 0
+      resetStreamingFollowState(resetForNewStream())
+      wasAtBottom.value = isAtBottom(container)
+      scrollbarRef.value?.update?.()
       return
     }
 
@@ -192,8 +221,12 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     if (!container) return
 
     const streamingMessageId = chatStore.streamingMessageId
-    if (chatStore.isStreaming && streamingMessageId) {
-      performStreamingAutoScroll(container, streamingMessageId)
+    if (chatStore.isStreaming) {
+      if (streamingMessageId) {
+        performStreamingAutoScroll(container, streamingMessageId)
+      } else if (initialStreamingAutoFollowPending) {
+        scheduleAutoScrollAfterRender()
+      }
       return
     }
 
@@ -236,9 +269,14 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
     () => chatStore.streamingMessageId,
     (newId, oldId) => {
       if (newId && newId !== oldId) {
-        scheduleAutoScroll()
+        if (chatStore.isStreaming && streamingFollowState.value.mode === 'following') {
+          initialStreamingAutoFollowPending = true
+          initialStreamingAutoFollowFrames = 0
+        }
+        scheduleAutoScrollAfterRender()
       }
-    }
+    },
+    { flush: 'post' }
   )
 
   watch(
@@ -250,6 +288,8 @@ export function useMessageListScroll(messages: Ref<Message[]>) {
       }
 
       if (!isStreaming && wasStreaming) {
+        initialStreamingAutoFollowPending = false
+        initialStreamingAutoFollowFrames = 0
         resetStreamingFollowState(resetAfterStreamEnd())
       }
     }

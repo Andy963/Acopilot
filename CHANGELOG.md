@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.2.7] - 2026-08-18
+
+### Fixed
+  - Chat: force the first auto-follow pass of each new streaming response to attach to the newly rendered assistant message, even if the user scrolled the previous conversation before sending.
+
 ## [1.2.6] - 2026-08-17
 
 ### Fixed

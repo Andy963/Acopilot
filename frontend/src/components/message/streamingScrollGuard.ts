@@ -70,6 +70,7 @@ export function computeGuardAction(
 export function shouldPauseForUserScroll(options: {
   isStreaming: boolean
   mode: StreamingFollowMode
+  initialAutoFollowPending?: boolean
   currentScrollTop: number
   lastProgrammaticScrollTop: number
   distanceFromBottomPx: number
@@ -78,6 +79,7 @@ export function shouldPauseForUserScroll(options: {
 }): boolean {
   if (!options.isStreaming) return false
   if (options.mode !== 'following') return false
+  if (options.initialAutoFollowPending) return false
 
   const scrolledUpByUser =
     options.currentScrollTop < options.lastProgrammaticScrollTop - options.userScrollUpThresholdPx

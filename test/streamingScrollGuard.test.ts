@@ -81,6 +81,20 @@ describe('shouldPauseForUserScroll', () => {
     ).toBe(false)
   })
 
+  it('does not pause before the initial auto-follow has attached to the new stream', () => {
+    expect(
+      shouldPauseForUserScroll({
+        isStreaming: true,
+        mode: 'following',
+        initialAutoFollowPending: true,
+        currentScrollTop: 500,
+        lastProgrammaticScrollTop: 1000,
+        distanceFromBottomPx: 400,
+        ...base
+      })
+    ).toBe(false)
+  })
+
   it('pauses when the user scrolls up beyond the threshold and away from bottom', () => {
     expect(
       shouldPauseForUserScroll({
