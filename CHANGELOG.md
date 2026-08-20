@@ -2,6 +2,11 @@
 
 All notable changes to the "Acopilot" extension will be documented in this file.
 
+## [1.2.8] - 2026-08-20
+
+### Fixed
+  - OpenAI/OpenRouter Chat Completions: preserve `usage.prompt_tokens_details.cached_tokens` for normal and streaming responses, restoring the cache-hit indicator in message footers.
+
 ## [1.2.7] - 2026-08-18
 
 ### Fixed

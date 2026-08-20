@@ -41,6 +41,7 @@ export function parseOpenAIResponse(response: any): GenerateResponse {
 
     content.usageMetadata = {
       promptTokenCount: usage.prompt_tokens,
+      cachedPromptTokenCount: usage.prompt_tokens_details?.cached_tokens,
       candidatesTokenCount: candidatesTokenCount > 0 ? candidatesTokenCount : undefined,
       totalTokenCount: usage.total_tokens,
       thoughtsTokenCount: reasoningTokens > 0 ? reasoningTokens : undefined,
